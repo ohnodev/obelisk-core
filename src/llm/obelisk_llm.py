@@ -60,14 +60,14 @@ class ConversationStopCriteria(StoppingCriteria):
         return False
 
 class ObeliskLLM:
-    # Context window limits for Qwen3-0.6B (32,768 tokens context length)
-    MAX_CONTEXT_TOKENS = 32768  # Total context window (input + output combined)
-    MAX_USER_QUERY_TOKENS = 2000  # Max tokens for user query
-    MAX_CONVERSATION_CONTEXT_TOKENS = 20000  # Max tokens for conversation history
-    MAX_OUTPUT_TOKENS = 1024  # Max tokens to generate (can be increased for complex tasks)
+    # Context window limits (loaded from config)
+    MAX_CONTEXT_TOKENS = Config.LLM_MAX_CONTEXT_TOKENS
+    MAX_USER_QUERY_TOKENS = Config.LLM_MAX_USER_QUERY_TOKENS
+    MAX_CONVERSATION_CONTEXT_TOKENS = Config.LLM_MAX_CONVERSATION_CONTEXT_TOKENS
+    MAX_OUTPUT_TOKENS = Config.LLM_MAX_OUTPUT_TOKENS
     
-    # Qwen3 model name
-    MODEL_NAME = "Qwen/Qwen3-0.6B"
+    # Model name (loaded from config)
+    MODEL_NAME = Config.LLM_MODEL_NAME
     
     # Note: model.generate() returns [input_tokens...][new_tokens...]
     # Total must be: input_tokens + output_tokens <= MAX_CONTEXT_TOKENS
@@ -142,12 +142,12 @@ class ObeliskLLM:
                     local_files_only=False  # Allow download on first run
                 )
             
-            # Initialize LoRA config (will be applied when loading weights)
+            # Initialize LoRA config (loaded from config)
             self.lora_config = LoraConfig(
-                r=16,
-                lora_alpha=32,
-                target_modules=["q_proj", "v_proj"],
-                lora_dropout=0.05,
+                r=Config.LLM_LORA_R,
+                lora_alpha=Config.LLM_LORA_ALPHA,
+                target_modules=Config.LLM_LORA_TARGET_MODULES,
+                lora_dropout=Config.LLM_LORA_DROPOUT,
                 bias="none",
                 task_type="CAUSAL_LM"
             )
@@ -362,12 +362,8 @@ class ObeliskLLM:
             return 400  # Default estimate
 
     def get_system_prompt(self) -> str:
-        """Get The Overseer system prompt - open-ended to allow LoRA fine-tuning"""
-        return """You are The Overseer. Respond naturally to the user.
-
-IMPORTANT: When memories are provided (as bullet points), you MUST use them to answer questions. Pay attention to facts, preferences, and information listed in the memories. If the user asks about something mentioned in the memories, recall it from there.
-
-Do not use emojis in your responses."""
+        """Get The Overseer system prompt - loaded from config"""
+        return Config.AGENT_PROMPT
 
     def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -391,14 +387,14 @@ Do not use emojis in your responses."""
         
         try:
             # Always use thinking mode for best quality (Qwen3 recommended)
-            # Thinking mode: Temperature=0.6, TopP=0.95, TopK=20, MinP=0
-            base_temp = 0.6
-            base_top_p = 0.95
-            top_k = 20
+            # Parameters loaded from config
+            base_temp = Config.LLM_TEMPERATURE_BASE
+            base_top_p = Config.LLM_TOP_P_BASE
+            top_k = Config.LLM_TOP_K
             
-            # Apply quantum influence (smaller range to stay within recommended params)
-            temperature = base_temp + (quantum_influence * 0.1)  # Small variation
-            top_p = base_top_p + (quantum_influence * 0.05)  # Small variation
+            # Apply quantum influence (ranges from config)
+            temperature = base_temp + (quantum_influence * Config.LLM_QUANTUM_TEMPERATURE_RANGE)
+            top_p = base_top_p + (quantum_influence * Config.LLM_QUANTUM_TOP_P_RANGE)
             
             # Validate and truncate user query if too long
             query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
@@ -486,15 +482,12 @@ Do not use emojis in your responses."""
                         "source": "error_fallback"
                     }
             
-            # Set output token limit (Qwen3 supports up to 32K, but use reasonable defaults)
-            optimized_max_tokens = min(max_length, 2048) if self.device == "cpu" else min(max_length, 4096)
+            # Set output token limit (use GPU limit if available, otherwise CPU limit)
+            max_output_for_device = Config.LLM_MAX_OUTPUT_TOKENS_GPU if self.device == "cuda" else Config.LLM_MAX_OUTPUT_TOKENS
+            optimized_max_tokens = min(max_length, max_output_for_device)
             
-            # Create stopping criteria to prevent conversation markers
-            stop_sequences = [
-                "\n\nUser:", "\n\nOverseer:", "\n\nThe Overseer:", "\n\nAssistant:",
-                "\nUser:", "\nOverseer:", "\nThe Overseer:", "\nAssistant:",
-                "User:", "Overseer:", "The Overseer:", "Assistant:"
-            ]
+            # Create stopping criteria to prevent conversation markers (loaded from config)
+            stop_sequences = Config.LLM_STOP_SEQUENCES
             stopping_criteria = ConversationStopCriteria(self.tokenizer, stop_sequences, input_token_count)
             stopping_criteria_list = StoppingCriteriaList([stopping_criteria])
             
@@ -511,7 +504,7 @@ Do not use emojis in your responses."""
                     min_p=0.0,  # Qwen3 recommended
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.2,
+                    repetition_penalty=Config.LLM_REPETITION_PENALTY,
                     use_cache=True,
                     num_beams=1,
                     stopping_criteria=stopping_criteria_list
