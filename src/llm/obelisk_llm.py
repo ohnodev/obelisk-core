@@ -618,12 +618,8 @@ class ObeliskLLM:
             response = raw_response
             
             # Safety check: Remove any conversation markers and training artifacts that might have slipped through
-<<<<<<< HEAD
-=======
             # Note: We trust Qwen3's official extraction method (token 151668), so we don't truncate
             # at double newlines as they're often part of valid formatted responses (LaTeX, paragraphs, etc.)
-            import re
->>>>>>> main
             
             # Remove everything after conversation markers (User:, Overseer:, The Overseer:, Assistant:)
             for marker in ['User:', 'Overseer:', 'The Overseer:', 'Assistant:']:
