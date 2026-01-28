@@ -172,21 +172,30 @@ def chat(mode):
             # (after adding this interaction, we'll have 10 pairs and trigger summarization)
             if message_pairs >= memory_manager.summarize_threshold - 1:
                 # About to trigger summarization - this will take longer
-                status_msg = "[dim]Summarizing conversation and processing memory...[/dim]"
+                status_msg = "[bold cyan]◊[/bold cyan] [bold]Summarizing conversation and processing memory...[/bold]"
             else:
                 # Normal memory save - quick operation
-                status_msg = "[dim]Processing memory...[/dim]"
+                status_msg = "[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]"
             
-            with console.status(status_msg, spinner="dots"):
-                memory_manager.add_interaction(
-                    user_id=user_id,
-                    query=query,
-                    response=response,
-                    cycle_id=None,
-                    energy=0.0,
-                    quantum_seed=0.7,
-                    reward_score=0.0
-                )
+            # Suppress warning messages during memory operations by setting a flag
+            # This prevents the [MEMORY] Warning from interfering with the spinner
+            os.environ['OBELISK_CLI_MODE'] = '1'
+            
+            try:
+                # Use console.status with spinner - writes directly to terminal
+                with console.status(status_msg, spinner="dots"):
+                    memory_manager.add_interaction(
+                        user_id=user_id,
+                        query=query,
+                        response=response,
+                        cycle_id=None,
+                        energy=0.0,
+                        quantum_seed=0.7,
+                        reward_score=0.0
+                    )
+            finally:
+                # Clean up the flag
+                os.environ.pop('OBELISK_CLI_MODE', None)
             
         except KeyboardInterrupt:
             console.print()
