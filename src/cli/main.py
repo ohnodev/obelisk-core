@@ -147,18 +147,15 @@ def chat(mode):
             # Get conversation context
             context = memory_manager.get_conversation_context(user_id)
             
-            # Show thinking indicator - always visible, even when not in debug mode
+            # Show thinking indicator with animated spinner
             console.print()
-            # Use Live display with Spinner for better visibility
-            thinking_text = Text()
-            thinking_text.append("◊ ", style="bold cyan")
-            thinking_text.append("The Overseer is thinking...", style="bold")
+            # Use console.status() with proper formatting - it handles animation automatically
+            status_text = "[bold cyan]◊[/bold cyan] [bold]The Overseer is thinking...[/bold]"
             
-            spinner = Spinner("dots", text=thinking_text, style="cyan")
-            
+            # console.status() writes directly to terminal and animates the spinner
             # Only suppress output if debug mode is off
             if Config.DEBUG:
-                with Live(spinner, console=console, refresh_per_second=10):
+                with console.status(status_text, spinner="dots"):
                     result = llm.generate(
                         query=query,
                         quantum_influence=0.7,
@@ -166,8 +163,8 @@ def chat(mode):
                     )
             else:
                 # Redirect stdout/stderr to suppress LLM debug messages
-                # But keep console output for the spinner
-                with Live(spinner, console=console, refresh_per_second=10):
+                # console.status writes directly to terminal via stderr, so it won't be affected
+                with console.status(status_text, spinner="dots"):
                     with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
                         result = llm.generate(
                             query=query,
