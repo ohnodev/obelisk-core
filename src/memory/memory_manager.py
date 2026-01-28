@@ -201,22 +201,14 @@ Return JSON with these exact keys:
 
 JSON only:"""
             
-            # Suppress debug output during summarization (internal operation)
-            # Only redirect stdout - stderr is used by Rich's console.status() spinner
-            # so we don't redirect it to allow the spinner to work properly
-            import sys
-            from io import StringIO
-            from contextlib import redirect_stdout
-            
-            # Temporarily suppress stdout output during summarization
-            # Don't redirect stderr - it's needed for Rich spinner display
-            with redirect_stdout(StringIO()):
-                result = self.llm.generate(
-                    query=summary_prompt,
-                    quantum_influence=0.2,  # Lower influence for more consistent summaries
-                    conversation_context=None,
-                    max_length=500  # Allow more tokens for JSON generation
-                )
+            # Generate summary - no output redirection needed
+            # The CLI spinner will handle user feedback, and any LLM output will appear naturally
+            result = self.llm.generate(
+                query=summary_prompt,
+                quantum_influence=0.2,  # Lower influence for more consistent summaries
+                conversation_context=None,
+                max_length=500  # Allow more tokens for JSON generation
+            )
             
             summary_text = result.get('response', '').strip()
             
