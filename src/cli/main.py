@@ -24,7 +24,7 @@ from src.evolution.processor import process_evolution_cycle
 from src.memory.memory_manager import ObeliskMemoryManager
 from src.api.server import app
 
-console = Console()
+console = Console(force_terminal=True)
 
 
 @click.group()
@@ -178,18 +178,24 @@ def chat(mode):
                 status_msg = "[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]"
             
             # Use console.status with spinner - writes directly to terminal
-            # Show the status message clearly before starting the operation
+            # Force console to show status immediately
             console.print()  # Add blank line for spacing
-            with console.status(status_msg, spinner="dots"):
-                memory_manager.add_interaction(
-                    user_id=user_id,
-                    query=query,
-                    response=response,
-                    cycle_id=None,
-                    energy=0.0,
-                    quantum_seed=0.7,
-                    reward_score=0.0
-                )
+            # Use status context manager - it should show spinner immediately
+            with console.status(status_msg, spinner="dots", refresh_per_second=10):
+                try:
+                    memory_manager.add_interaction(
+                        user_id=user_id,
+                        query=query,
+                        response=response,
+                        cycle_id=None,
+                        energy=0.0,
+                        quantum_seed=0.7,
+                        reward_score=0.0
+                    )
+                except Exception as e:
+                    # If there's an error, make sure we exit the status context
+                    console.print(f"[bold red]Error during memory processing:[/bold red] {e}")
+                    raise
             console.print()  # Add blank line after operation completes
             
         except KeyboardInterrupt:
