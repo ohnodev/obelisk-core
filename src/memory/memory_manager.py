@@ -81,7 +81,7 @@ class ObeliskMemoryManager:
         self,
         storage: StorageInterface,
         k: int = 10,
-        summarize_threshold: int = 10,
+        summarize_threshold: int = 3,
         llm=None,  # ObeliskLLM instance for summarization (required in solo mode)
         mode: str = "solo"
     ):
@@ -91,7 +91,7 @@ class ObeliskMemoryManager:
         Args:
             storage: StorageInterface instance
             k: Number of recent message pairs to keep in buffer (default: 10)
-            summarize_threshold: Number of message pairs before summarizing older ones (default: 10)
+            summarize_threshold: Number of message pairs before summarizing (default: 3, summarizes every 3 interactions)
             llm: ObeliskLLM instance for summarization (required in solo mode)
             mode: "solo" or "prod" (default: "solo")
         """
@@ -201,24 +201,23 @@ Return JSON with these exact keys:
 
 JSON only:"""
             
-            # Suppress debug output during summarization (internal operation)
-            import sys
-            from io import StringIO
-            from contextlib import redirect_stdout, redirect_stderr
-            
-            # Temporarily suppress output during summarization
-            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
-                result = self.llm.generate(
-                    query=summary_prompt,
-                    quantum_influence=0.2,  # Lower influence for more consistent summaries
-                    conversation_context=None,
-                    max_length=500  # Allow more tokens for JSON generation
-                )
+            # Generate summary - no redirection needed, same as thinking spinner
+            result = self.llm.generate(
+                query=summary_prompt,
+                quantum_influence=0.2,  # Lower influence for more consistent summaries
+                conversation_context=None,
+                max_length=500  # Allow more tokens for JSON generation
+            )
             
             summary_text = result.get('response', '').strip()
             
-            # Extract JSON - try multiple strategies
+            # Remove thinking content if present (ObeliskLLM should extract it, but be defensive)
+            # Qwen3 format: <think>...</think>
             import re
+            summary_text = re.sub(r'<think>.*?</think>', '', summary_text, flags=re.DOTALL | re.IGNORECASE)
+            summary_text = summary_text.strip()
+            
+            # Extract JSON - try multiple strategies
             
             # Strategy 1: Find complete JSON object by matching braces
             json_start = summary_text.find('{')
@@ -272,6 +271,7 @@ JSON only:"""
                 pass
             
             # Fallback: Create minimal summary from what we can extract
+            # Print warning - Rich's console.status() should handle this without breaking the spinner
             print(f"[MEMORY] Warning: Could not parse JSON from summary. Response: {summary_text[:200]}")
             return {
                 'summary': 'Previous conversation',
@@ -374,16 +374,17 @@ JSON only:"""
         memory.add_user_message(query)
         memory.add_ai_message(response)
         
-        # Check if we need to summarize (every 10 message pairs)
+        # Check if we need to summarize (every N message pairs)
         all_messages = memory.get_all_messages()
         message_pairs = len(all_messages) // 2
         
-        # Trigger summarization when we hit the threshold (on 11th message pair)
-        if message_pairs >= self.summarize_threshold:
-            # Get all interactions from storage to summarize
-            interactions = self.storage.get_user_interactions(user_id, limit=100)
+        # Trigger summarization when we hit the threshold (every N interactions)
+        # Only summarize when we have exactly N pairs (not on every interaction after N)
+        if message_pairs > 0 and message_pairs % self.summarize_threshold == 0:
+            # Get only the recent interactions to summarize (last N pairs, not all)
+            interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
             
-            # Summarize all interactions (they'll be converted to memories)
+            # Summarize only these recent interactions (they'll be converted to memories)
             if interactions:
                 summary_data = self._summarize_conversations(interactions, user_id)
                 if summary_data:

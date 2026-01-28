@@ -24,7 +24,7 @@ from src.evolution.processor import process_evolution_cycle
 from src.memory.memory_manager import ObeliskMemoryManager
 from src.api.server import app
 
-console = Console()
+console = Console(force_terminal=True)
 
 
 @click.group()
@@ -161,16 +161,21 @@ def chat(mode):
             ))
             console.print()
             
-            # Add to memory (handles storage internally - Option C)
-            memory_manager.add_interaction(
-                user_id=user_id,
-                query=query,
-                response=response,
-                cycle_id=None,
-                energy=0.0,
-                quantum_seed=0.7,
-                reward_score=0.0
-            )
+            # Add to memory (handles storage internally)
+            # We add each interaction after every response, so always show the spinner
+            # Simple approach: same as thinking spinner - no redirection, works in both debug and non-debug mode
+            console.print()  # Add blank line for spacing
+            with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]", spinner="dots"):
+                memory_manager.add_interaction(
+                    user_id=user_id,
+                    query=query,
+                    response=response,
+                    cycle_id=None,
+                    energy=0.0,
+                    quantum_seed=0.7,
+                    reward_score=0.0
+                )
+            console.print()  # Add blank line after operation completes
             
         except KeyboardInterrupt:
             console.print()
