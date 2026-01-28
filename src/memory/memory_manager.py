@@ -272,11 +272,8 @@ JSON only:"""
                 pass
             
             # Fallback: Create minimal summary from what we can extract
-            # Only print warning if not in CLI mode (to avoid interfering with spinner)
-            # In CLI mode, the spinner will handle user feedback
-            # Suppress warning in CLI mode to avoid breaking the spinner display
-            if os.getenv('OBELISK_CLI_MODE') != '1':
-                print(f"[MEMORY] Warning: Could not parse JSON from summary. Response: {summary_text[:200]}")
+            # Print warning - Rich's console.status() should handle this without breaking the spinner
+            print(f"[MEMORY] Warning: Could not parse JSON from summary. Response: {summary_text[:200]}")
             return {
                 'summary': 'Previous conversation',
                 'keyTopics': [],
