@@ -57,6 +57,12 @@ pip install -e .
 obelisk-core chat
 ```
 
+**Example CLI Session:**
+
+<p align="center">
+  <img src="assets/overseer-cli-example.jpg" alt="Obelisk Core CLI Example" width="600">
+</p>
+
 See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
 
 ## 📦 Installation
