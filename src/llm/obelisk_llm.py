@@ -6,6 +6,7 @@ Supports LoRA fine-tuning with weights stored via storage abstraction
 """
 import os
 import sys
+import re
 from typing import Dict, Any, Optional, List, Tuple
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList, TrainingArguments, Trainer
@@ -365,11 +366,11 @@ class ObeliskLLM:
         """Get The Overseer system prompt - open-ended to allow LoRA fine-tuning"""
         return """You are The Overseer. Respond naturally to the user.
 
-IMPORTANT: When memories are provided (as bullet points), you MUST use them to answer questions. Pay attention to facts, preferences, and information listed in the memories. If the user asks about something mentioned in the memories, recall it from there.
+IMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.
 
 Do not use emojis in your responses."""
 
-    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[str] = None) -> Dict[str, Any]:
+    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Generate response from The Obelisk (always uses thinking mode for best quality)
         
@@ -377,7 +378,8 @@ Do not use emojis in your responses."""
             query: User's query
             quantum_influence: Quantum random value (0-1) to influence creativity
             max_length: Maximum response length
-            conversation_context: Previous conversation context
+            conversation_context: Dict with 'messages' (list of message dicts) and 'memories' (string)
+                                 Format: {"messages": [{"role": "user", "content": "..."}, ...], "memories": "..."}
         
         Returns:
             Dict with response, thinking_content, and metadata
@@ -409,41 +411,99 @@ Do not use emojis in your responses."""
                 query_tokens = truncated_tokens
             
             # Build prompt with conversation context if provided
+            # Qwen3 expects conversation history as message entries, not strings
             system_prompt = self.get_system_prompt()
             system_tokens = len(self.tokenizer.encode(system_prompt, add_special_tokens=False))
             
-            # Truncate conversation context if needed
-            # Calculate available tokens: total context - system - query - output
-            truncated_context = conversation_context
+            # Parse conversation context (new format: dict with 'messages' and 'memories')
+            # Qwen3 expects conversation history as message entries, not strings
+            conversation_history = []  # List of {"role": "user"/"assistant", "content": "..."}
+            memories_text = ""  # Memories and user context (stays in system message)
+            
             if conversation_context:
-                context_tokens = self.tokenizer.encode(conversation_context, add_special_tokens=False)
-                # Reserve space: system + query + output + some buffer
-                available_for_context = self.MAX_CONTEXT_TOKENS - system_tokens - len(query_tokens) - self.MAX_OUTPUT_TOKENS - 50
-                
-                max_context_tokens = min(self.MAX_CONVERSATION_CONTEXT_TOKENS, available_for_context)
-                
-                if len(context_tokens) > max_context_tokens and max_context_tokens > 0:
-                    print(f"[LLM] Conversation context too long ({len(context_tokens)} tokens), truncating to {max_context_tokens} tokens")
-                    truncated_context_tokens = context_tokens[-max_context_tokens:]  # Keep most recent
-                    truncated_context = self.tokenizer.decode(truncated_context_tokens, skip_special_tokens=True)
-                elif max_context_tokens <= 0:
-                    print(f"[LLM] Not enough tokens for conversation context, skipping it")
-                    truncated_context = None
+                # Handle both new dict format and old string format (backward compatibility)
+                if isinstance(conversation_context, dict):
+                    # New format: {"messages": [...], "memories": "..."}
+                    conversation_history = conversation_context.get("messages", [])
+                    memories_text = conversation_context.get("memories", "")
+                    
+                    # Qwen3 best practice: Remove thinking content from conversation history
+                    # Per docs: "No Thinking Content in History: In multi-turn conversations,
+                    # the historical model output should only include the final output part"
+                    # The chat template handles this automatically, but we add defensive filtering
+                    cleaned_history = []
+                    for msg in conversation_history:
+                        if msg.get("role") == "assistant":
+                            content = msg.get("content", "")
+                            # Remove thinking content wrapped in <think>...</think>
+                            # Qwen3 format: thinking content uses <think> tags
+                            # This is a defensive measure to ensure no thinking content in history
+                            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL | re.IGNORECASE)
+                            content = content.strip()
+                            if content:  # Only add if there's content left after cleaning
+                                cleaned_history.append({"role": "assistant", "content": content})
+                        else:
+                            # User messages and other roles pass through unchanged
+                            cleaned_history.append(msg)
+                    conversation_history = cleaned_history
+                elif isinstance(conversation_context, str):
+                    # Old format: string (for backward compatibility during transition)
+                    # This should not happen in normal operation, but handle gracefully
+                    print("[LLM] WARNING: Received string format conversation_context, expected dict. This is deprecated.")
+                    memories_text = conversation_context  # Fallback: put entire string in memories
             
-            # Build messages for Qwen3 chat template
+            # Build system message (system prompt + memories)
+            system_content = system_prompt
+            memories_tokens = 0
+            if memories_text:
+                system_content = f"{system_prompt}\n\n{memories_text}"
+                memories_tokens = len(self.tokenizer.encode(memories_text, add_special_tokens=False))
+            
+            # Calculate token limits for conversation history
+            # Reserve: system + memories + query + output + buffer
+            system_content_tokens = len(self.tokenizer.encode(system_content, add_special_tokens=False))
+            available_for_history = self.MAX_CONTEXT_TOKENS - system_content_tokens - len(query_tokens) - self.MAX_OUTPUT_TOKENS - 50
+            max_history_tokens = min(self.MAX_CONVERSATION_CONTEXT_TOKENS, available_for_history)
+            
+            # Truncate conversation history if needed (keep most recent messages)
+            original_history_count = len(conversation_history)
+            if conversation_history and max_history_tokens > 0:
+                # Estimate tokens for each message and keep most recent
+                history_tokens = 0
+                kept_messages = []
+                
+                # Count backwards from most recent
+                for msg in reversed(conversation_history):
+                    msg_text = f"{msg['role']}: {msg['content']}"
+                    msg_tokens = len(self.tokenizer.encode(msg_text, add_special_tokens=False))
+                    
+                    if history_tokens + msg_tokens <= max_history_tokens:
+                        kept_messages.insert(0, msg)  # Insert at beginning to maintain order
+                        history_tokens += msg_tokens
+                    else:
+                        break
+                
+                conversation_history = kept_messages
+                if len(kept_messages) < original_history_count:
+                    print(f"[LLM] Truncated conversation history: kept {len(kept_messages)}/{original_history_count} messages")
+            elif max_history_tokens <= 0:
+                print(f"[LLM] Not enough tokens for conversation history, skipping it")
+                conversation_history = []
+            
+            # Build messages array for Qwen3 chat template
+            # Format: [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, ...]
             messages = []
-            if truncated_context:
-                # Add system message with context
-                messages.append({
-                    "role": "system",
-                    "content": f"{system_prompt}\n\n{truncated_context}"
-                })
-            else:
-                messages.append({
-                    "role": "system",
-                    "content": system_prompt
-                })
             
+            # Add system message
+            messages.append({
+                "role": "system",
+                "content": system_content
+            })
+            
+            # Add conversation history as message entries (Qwen3 format)
+            messages.extend(conversation_history)
+            
+            # Add current user query
             messages.append({
                 "role": "user",
                 "content": query
@@ -470,8 +530,12 @@ Do not use emojis in your responses."""
             input_token_count = inputs['input_ids'].shape[1]
             
             # Log token usage
-            context_token_count = len(self.tokenizer.encode(truncated_context or '', add_special_tokens=False))
-            print(f"[LLM] Input tokens: {input_token_count} (system: {system_tokens}, context: {context_token_count}, query: {len(query_tokens)})")
+            history_token_count = sum(
+                len(self.tokenizer.encode(f"{msg['role']}: {msg['content']}", add_special_tokens=False))
+                for msg in conversation_history
+            )
+            memories_token_count = len(self.tokenizer.encode(memories_text, add_special_tokens=False)) if memories_text else 0
+            print(f"[LLM] Input tokens: {input_token_count} (system: {system_content_tokens}, history: {history_token_count}, memories: {memories_token_count}, query: {len(query_tokens)}, messages: {len(conversation_history)})")
             
             # Check if total (input + output) will exceed context window
             total_tokens_after_generation = input_token_count + self.MAX_OUTPUT_TOKENS
@@ -561,7 +625,6 @@ Do not use emojis in your responses."""
             response = raw_response
             
             # Safety check: Remove any conversation markers and training artifacts that might have slipped through
-            import re
             
             # First, break on double newlines - these usually indicate artifacts or new sections
             if '\n\n' in response:

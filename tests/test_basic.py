@@ -132,8 +132,11 @@ class TestMemory:
         # Get conversation context (should include the previous interaction)
         context = memory_manager.get_conversation_context(user_id)
         
+        # Context is now a dict with 'messages' and 'memories'
+        context_str = f"Messages: {context.get('messages', [])}\nMemories: {context.get('memories', '')}"
+        
         # Debug: Show context
-        print(f"\n[TEST DEBUG] Context before query: {context[:300]}...")
+        print(f"\n[TEST DEBUG] Context before query: {context_str[:300]}...")
         
         # Generate response
         result2 = memory_manager.llm.generate(
@@ -149,14 +152,18 @@ class TestMemory:
         print(f"[TEST DEBUG] Thinking content: {result2.get('thinking_content', 'N/A')[:200]}...")
         
         # Verify context contains the information (memory system works)
-        assert favorite_color.lower() in context.lower(), \
+        # Check both messages and memories
+        messages_text = ' '.join([msg.get('content', '') for msg in context.get('messages', [])])
+        memories_text = context.get('memories', '')
+        context_check = f"{messages_text} {memories_text}".lower()
+        assert favorite_color.lower() in context_check, \
             f"Memory context does not contain favorite color. Context: {context}"
         
         # VERIFY MODEL OUTPUT: The response should mention the favorite color
         # This is the key test - the model should actually use the context
         assert favorite_color.lower() in response2_lower, \
             f"Model did not recall favorite color '{favorite_color}' in response. " \
-            f"Response: '{response2}'. Context was: {context[:200]}..."
+            f"Response: '{response2}'. Context was: {context_str[:200]}..."
         
         print(f"\n✅ Memory Test Passed - Model correctly recalled favorite color")
         print(f"   Told agent: {query1}")
@@ -192,12 +199,18 @@ class TestMemory:
         query3 = "What is my name?"
         context = memory_manager.get_conversation_context(user_id)
         
+        # Context is now a dict with 'messages' and 'memories'
+        messages_text = ' '.join([msg.get('content', '') for msg in context.get('messages', [])])
+        memories_text = context.get('memories', '')
+        context_check = f"{messages_text} {memories_text}".lower()
+        
         # Verify context contains the name (memory is working)
-        assert 'alice' in context.lower(), \
+        assert 'alice' in context_check, \
             f"Memory context does not contain name. Context: {context}"
         
         # Debug: Show context
-        print(f"\n[TEST DEBUG] Context before query: {context[:300]}...")
+        context_str = f"Messages: {context.get('messages', [])}\nMemories: {context.get('memories', '')}"
+        print(f"\n[TEST DEBUG] Context before query: {context_str[:300]}...")
         
         result3 = memory_manager.llm.generate(
             query=query3,
@@ -214,7 +227,7 @@ class TestMemory:
         # VERIFY MODEL OUTPUT: The response should mention the name
         assert 'alice' in response3_lower, \
             f"Model did not recall name 'Alice' in response. " \
-            f"Response: '{response3}'. Context was: {context[:200]}..."
+            f"Response: '{response3}'. Context was: {context_str[:200]}..."
         
         print(f"\n✅ Multiple Interactions Test Passed - Model correctly recalled name")
         print(f"   Response to 'What is my name?': {response3}")
