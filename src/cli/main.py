@@ -178,7 +178,8 @@ def chat(mode):
                 status_msg = "[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]"
             
             # Use console.status with spinner - writes directly to terminal
-            # Warning messages from memory operations should appear but won't break the spinner
+            # Show the status message clearly before starting the operation
+            console.print()  # Add blank line for spacing
             with console.status(status_msg, spinner="dots"):
                 memory_manager.add_interaction(
                     user_id=user_id,
@@ -189,6 +190,7 @@ def chat(mode):
                     quantum_seed=0.7,
                     reward_score=0.0
                 )
+            console.print()  # Add blank line after operation completes
             
         except KeyboardInterrupt:
             console.print()
