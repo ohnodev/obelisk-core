@@ -61,14 +61,14 @@ class ConversationStopCriteria(StoppingCriteria):
         return False
 
 class ObeliskLLM:
-    # Context window limits for Qwen3-0.6B (32,768 tokens context length)
-    MAX_CONTEXT_TOKENS = 32768  # Total context window (input + output combined)
-    MAX_USER_QUERY_TOKENS = 2000  # Max tokens for user query
-    MAX_CONVERSATION_CONTEXT_TOKENS = 20000  # Max tokens for conversation history
-    MAX_OUTPUT_TOKENS = 1024  # Max tokens to generate (can be increased for complex tasks)
+    # Context window limits (loaded from config)
+    MAX_CONTEXT_TOKENS = Config.LLM_MAX_CONTEXT_TOKENS
+    MAX_USER_QUERY_TOKENS = Config.LLM_MAX_USER_QUERY_TOKENS
+    MAX_CONVERSATION_CONTEXT_TOKENS = Config.LLM_MAX_CONVERSATION_CONTEXT_TOKENS
+    MAX_OUTPUT_TOKENS = Config.LLM_MAX_OUTPUT_TOKENS
     
-    # Qwen3 model name
-    MODEL_NAME = "Qwen/Qwen3-0.6B"
+    # Model name (loaded from config)
+    MODEL_NAME = Config.LLM_MODEL_NAME
     
     # Note: model.generate() returns [input_tokens...][new_tokens...]
     # Total must be: input_tokens + output_tokens <= MAX_CONTEXT_TOKENS
@@ -143,12 +143,12 @@ class ObeliskLLM:
                     local_files_only=False  # Allow download on first run
                 )
             
-            # Initialize LoRA config (will be applied when loading weights)
+            # Initialize LoRA config (loaded from config)
             self.lora_config = LoraConfig(
-                r=16,
-                lora_alpha=32,
-                target_modules=["q_proj", "v_proj"],
-                lora_dropout=0.05,
+                r=Config.LLM_LORA_R,
+                lora_alpha=Config.LLM_LORA_ALPHA,
+                target_modules=Config.LLM_LORA_TARGET_MODULES,
+                lora_dropout=Config.LLM_LORA_DROPOUT,
                 bias="none",
                 task_type="CAUSAL_LM"
             )
@@ -363,12 +363,8 @@ class ObeliskLLM:
             return 400  # Default estimate
 
     def get_system_prompt(self) -> str:
-        """Get The Overseer system prompt - open-ended to allow LoRA fine-tuning"""
-        return """You are The Overseer. Respond naturally to the user.
-
-IMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.
-
-Do not use emojis in your responses."""
+        """Get The Overseer system prompt - loaded from config"""
+        return Config.AGENT_PROMPT
 
     def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -393,14 +389,14 @@ Do not use emojis in your responses."""
         
         try:
             # Always use thinking mode for best quality (Qwen3 recommended)
-            # Thinking mode: Temperature=0.6, TopP=0.95, TopK=20, MinP=0
-            base_temp = 0.6
-            base_top_p = 0.95
-            top_k = 20
+            # Parameters loaded from config
+            base_temp = Config.LLM_TEMPERATURE_BASE
+            base_top_p = Config.LLM_TOP_P_BASE
+            top_k = Config.LLM_TOP_K
             
-            # Apply quantum influence (smaller range to stay within recommended params)
-            temperature = base_temp + (quantum_influence * 0.1)  # Small variation
-            top_p = base_top_p + (quantum_influence * 0.05)  # Small variation
+            # Apply quantum influence (ranges from config)
+            temperature = base_temp + (quantum_influence * Config.LLM_QUANTUM_TEMPERATURE_RANGE)
+            top_p = base_top_p + (quantum_influence * Config.LLM_QUANTUM_TOP_P_RANGE)
             
             # Validate and truncate user query if too long
             query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
@@ -550,15 +546,12 @@ Do not use emojis in your responses."""
                         "source": "error_fallback"
                     }
             
-            # Set output token limit (Qwen3 supports up to 32K, but use reasonable defaults)
-            optimized_max_tokens = min(max_length, 2048) if self.device == "cpu" else min(max_length, 4096)
+            # Set output token limit (use GPU limit if available, otherwise CPU limit)
+            max_output_for_device = Config.LLM_MAX_OUTPUT_TOKENS_GPU if self.device == "cuda" else Config.LLM_MAX_OUTPUT_TOKENS
+            optimized_max_tokens = min(max_length, max_output_for_device)
             
-            # Create stopping criteria to prevent conversation markers
-            stop_sequences = [
-                "\n\nUser:", "\n\nOverseer:", "\n\nThe Overseer:", "\n\nAssistant:",
-                "\nUser:", "\nOverseer:", "\nThe Overseer:", "\nAssistant:",
-                "User:", "Overseer:", "The Overseer:", "Assistant:"
-            ]
+            # Create stopping criteria to prevent conversation markers (loaded from config)
+            stop_sequences = Config.LLM_STOP_SEQUENCES
             stopping_criteria = ConversationStopCriteria(self.tokenizer, stop_sequences, input_token_count)
             stopping_criteria_list = StoppingCriteriaList([stopping_criteria])
             
@@ -575,7 +568,7 @@ Do not use emojis in your responses."""
                     min_p=0.0,  # Qwen3 recommended
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=1.2,
+                    repetition_penalty=Config.LLM_REPETITION_PENALTY,
                     use_cache=True,
                     num_beams=1,
                     stopping_criteria=stopping_criteria_list
@@ -625,12 +618,12 @@ Do not use emojis in your responses."""
             response = raw_response
             
             # Safety check: Remove any conversation markers and training artifacts that might have slipped through
-            
-            # First, break on double newlines - these usually indicate artifacts or new sections
-            if '\n\n' in response:
-                # Take only the first part (before double newline)
-                response = response.split('\n\n')[0].strip()
-                print(f"[LLM] Truncated at double newline (likely artifact)")
+<<<<<<< HEAD
+=======
+            # Note: We trust Qwen3's official extraction method (token 151668), so we don't truncate
+            # at double newlines as they're often part of valid formatted responses (LaTeX, paragraphs, etc.)
+            import re
+>>>>>>> main
             
             # Remove everything after conversation markers (User:, Overseer:, The Overseer:, Assistant:)
             for marker in ['User:', 'Overseer:', 'The Overseer:', 'Assistant:']:
@@ -642,8 +635,8 @@ Do not use emojis in your responses."""
                         response = response[:match.start()].strip()
                         print(f"[LLM] Removed conversation marker '{marker}' from response (safety check)")
             
-            # Remove any trailing incomplete sentences or fragments
-            # If response ends with incomplete patterns, truncate at last complete sentence
+            # Remove any trailing incomplete sentences or fragments only if they contain conversation markers
+            # This is a safety net for training artifacts, but we preserve valid multi-paragraph responses
             if response:
                 # Find last complete sentence (ends with . ! ?)
                 last_sentence_end = max(
@@ -652,16 +645,19 @@ Do not use emojis in your responses."""
                     response.rfind('?')
                 )
                 
-                # If we have a complete sentence and there's more text after it that looks like artifacts
+                # Only truncate if what comes after looks like training artifacts (contains conversation markers)
                 if last_sentence_end > 0 and last_sentence_end < len(response) - 10:
-                    # Check if what comes after looks like training artifacts
                     after_sentence = response[last_sentence_end + 1:].strip().lower()
                     artifact_keywords = ['user:', 'assistant:', 'overseer:', 'the overseer:']
                     if any(keyword in after_sentence for keyword in artifact_keywords):
                         response = response[:last_sentence_end + 1].strip()
+                        print(f"[LLM] Removed trailing content with conversation markers (safety check)")
             
-            # Simple whitespace normalization
-            response = re.sub(r'\s+', ' ', response).strip()
+            # Preserve paragraph structure - only normalize excessive whitespace (3+ spaces/newlines)
+            # This preserves LaTeX formatting and paragraph breaks while cleaning up artifacts
+            response = re.sub(r'[ \t]{3,}', ' ', response)  # Multiple spaces/tabs -> single space
+            response = re.sub(r'\n{3,}', '\n\n', response)  # 3+ newlines -> double newline
+            response = response.strip()
             
             # Debug: Show final processed response
             if Config.DEBUG:
