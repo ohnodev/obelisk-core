@@ -89,28 +89,15 @@ def chat(mode):
     ))
     
     # Loading message
-    import io
-    from contextlib import redirect_stdout, redirect_stderr
-    
     with console.status("[bold cyan]Awakening The Overseer...", spinner="dots"):
-        # Suppress initialization messages only if debug mode is off
-        if Config.DEBUG:
-            storage = Config.get_storage()
-            llm = ObeliskLLM(storage=storage)
-            memory_manager = ObeliskMemoryManager(
-                storage=storage,
-                llm=llm,
-                mode=Config.MODE
-            )
-        else:
-            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                storage = Config.get_storage()
-                llm = ObeliskLLM(storage=storage)
-                memory_manager = ObeliskMemoryManager(
-                    storage=storage,
-                    llm=llm,
-                    mode=Config.MODE
-                )
+        # Simple approach: no redirection, works the same in both debug and non-debug mode
+        storage = Config.get_storage()
+        llm = ObeliskLLM(storage=storage)
+        memory_manager = ObeliskMemoryManager(
+            storage=storage,
+            llm=llm,
+            mode=Config.MODE
+        )
     
     console.print("[bold green]✓[/bold green] [dim]The Overseer is ready[/dim]")
     console.print()
@@ -147,23 +134,19 @@ def chat(mode):
             # Get conversation context
             context = memory_manager.get_conversation_context(user_id)
             
-            # Generate response with loading indicator
-            with console.status("[bold cyan]The Overseer is thinking...", spinner="dots"):
-                # Only suppress output if debug mode is off
-                if Config.DEBUG:
-                    result = llm.generate(
-                        query=query,
-                        quantum_influence=0.7,
-                        conversation_context=context
-                    )
-                else:
-                    # Redirect stdout/stderr to suppress LLM debug messages
-                    with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-                        result = llm.generate(
-                            query=query,
-                            quantum_influence=0.7,
-                            conversation_context=context
-                        )
+            # Show thinking indicator with animated spinner
+            console.print()
+            # Use console.status() with proper formatting - it handles animation automatically
+            status_text = "[bold cyan]◊[/bold cyan] [bold]The Overseer is thinking...[/bold]"
+            
+            # Simple approach: no redirection, works the same in both debug and non-debug mode
+            # The spinner will animate properly since we're not redirecting stderr
+            with console.status(status_text, spinner="dots"):
+                result = llm.generate(
+                    query=query,
+                    quantum_influence=0.7,
+                    conversation_context=context
+                )
             
             response = result.get('response', 'The Overseer processes your query.')
             
