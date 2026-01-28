@@ -162,10 +162,31 @@ def chat(mode):
             console.print()
             
             # Add to memory (handles storage internally)
-            # We add each interaction after every response, so always show the spinner
-            # Simple approach: same as thinking spinner - no redirection, works in both debug and non-debug mode
-            console.print()  # Add blank line for spacing
-            with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]", spinner="dots"):
+            # Check if summarization will occur (every 3 interactions)
+            # Only show spinner when summarization happens, otherwise save silently
+            memory = memory_manager.get_memory(user_id)
+            all_messages = memory.get_all_messages()
+            message_pairs = len(all_messages) // 2
+            
+            # Check if this interaction will trigger summarization
+            will_summarize = (message_pairs + 1) > 0 and (message_pairs + 1) % memory_manager.summarize_threshold == 0
+            
+            if will_summarize:
+                # Show spinner only when summarization will occur
+                console.print()  # Add blank line for spacing
+                with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory and summarizing...[/bold]", spinner="dots"):
+                    memory_manager.add_interaction(
+                        user_id=user_id,
+                        query=query,
+                        response=response,
+                        cycle_id=None,
+                        energy=0.0,
+                        quantum_seed=0.7,
+                        reward_score=0.0
+                    )
+                console.print()  # Add blank line after operation completes
+            else:
+                # Normal save - fast, no spinner needed
                 memory_manager.add_interaction(
                     user_id=user_id,
                     query=query,
@@ -175,7 +196,6 @@ def chat(mode):
                     quantum_seed=0.7,
                     reward_score=0.0
                 )
-            console.print()  # Add blank line after operation completes
             
         except KeyboardInterrupt:
             console.print()
