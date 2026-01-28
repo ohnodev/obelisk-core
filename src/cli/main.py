@@ -161,27 +161,11 @@ def chat(mode):
             ))
             console.print()
             
-            # Add to memory (handles storage internally - Option C)
-            # Check if summarization might be triggered (happens at 10+ message pairs)
-            memory = memory_manager.get_memory(user_id)
-            all_messages = memory.get_all_messages()
-            message_pairs = len(all_messages) // 2
-            
-            # Show appropriate status message based on whether summarization will occur
-            # Summarization triggers when we have 10+ pairs, so check if we're at 9 pairs
-            # (after adding this interaction, we'll have 10 pairs and trigger summarization)
-            if message_pairs >= memory_manager.summarize_threshold - 1:
-                # About to trigger summarization - this will take longer
-                status_msg = "[bold cyan]◊[/bold cyan] [bold]Summarizing conversation and processing memory...[/bold]"
-            else:
-                # Normal memory save - quick operation
-                status_msg = "[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]"
-            
-            # Use console.status with spinner - same approach as thinking spinner
-            # Simple approach: no redirection, works the same in both debug and non-debug mode
-            # The spinner will animate properly since we're not redirecting stderr
+            # Add to memory (handles storage internally)
+            # We add each interaction after every response, so always show the spinner
+            # Simple approach: same as thinking spinner - no redirection, works in both debug and non-debug mode
             console.print()  # Add blank line for spacing
-            with console.status(status_msg, spinner="dots"):
+            with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory...[/bold]", spinner="dots"):
                 memory_manager.add_interaction(
                     user_id=user_id,
                     query=query,
