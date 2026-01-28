@@ -561,13 +561,9 @@ Do not use emojis in your responses."""
             response = raw_response
             
             # Safety check: Remove any conversation markers and training artifacts that might have slipped through
+            # Note: We trust Qwen3's official extraction method (token 151668), so we don't truncate
+            # at double newlines as they're often part of valid formatted responses (LaTeX, paragraphs, etc.)
             import re
-            
-            # First, break on double newlines - these usually indicate artifacts or new sections
-            if '\n\n' in response:
-                # Take only the first part (before double newline)
-                response = response.split('\n\n')[0].strip()
-                print(f"[LLM] Truncated at double newline (likely artifact)")
             
             # Remove everything after conversation markers (User:, Overseer:, The Overseer:, Assistant:)
             for marker in ['User:', 'Overseer:', 'The Overseer:', 'Assistant:']:
@@ -579,8 +575,8 @@ Do not use emojis in your responses."""
                         response = response[:match.start()].strip()
                         print(f"[LLM] Removed conversation marker '{marker}' from response (safety check)")
             
-            # Remove any trailing incomplete sentences or fragments
-            # If response ends with incomplete patterns, truncate at last complete sentence
+            # Remove any trailing incomplete sentences or fragments only if they contain conversation markers
+            # This is a safety net for training artifacts, but we preserve valid multi-paragraph responses
             if response:
                 # Find last complete sentence (ends with . ! ?)
                 last_sentence_end = max(
@@ -589,16 +585,19 @@ Do not use emojis in your responses."""
                     response.rfind('?')
                 )
                 
-                # If we have a complete sentence and there's more text after it that looks like artifacts
+                # Only truncate if what comes after looks like training artifacts (contains conversation markers)
                 if last_sentence_end > 0 and last_sentence_end < len(response) - 10:
-                    # Check if what comes after looks like training artifacts
                     after_sentence = response[last_sentence_end + 1:].strip().lower()
                     artifact_keywords = ['user:', 'assistant:', 'overseer:', 'the overseer:']
                     if any(keyword in after_sentence for keyword in artifact_keywords):
                         response = response[:last_sentence_end + 1].strip()
+                        print(f"[LLM] Removed trailing content with conversation markers (safety check)")
             
-            # Simple whitespace normalization
-            response = re.sub(r'\s+', ' ', response).strip()
+            # Preserve paragraph structure - only normalize excessive whitespace (3+ spaces/newlines)
+            # This preserves LaTeX formatting and paragraph breaks while cleaning up artifacts
+            response = re.sub(r'[ \t]{3,}', ' ', response)  # Multiple spaces/tabs -> single space
+            response = re.sub(r'\n{3,}', '\n\n', response)  # 3+ newlines -> double newline
+            response = response.strip()
             
             # Debug: Show final processed response
             if Config.DEBUG:
