@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ohnodev/Obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.1.0--alpha-blue?style=for-the-badge" alt="Version"></a>
+  <a href="https://github.com/ohnodev/obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.1.0--alpha-blue?style=for-the-badge" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/ohnodev/Obelisk-core"><img src="https://img.shields.io/badge/Status-Alpha-yellow?style=for-the-badge" alt="Status"></a>
+  <a href="https://github.com/ohnodev/obelisk-core"><img src="https://img.shields.io/badge/Status-Alpha-yellow?style=for-the-badge" alt="Status"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python" alt="Python"></a>
 </p>
 
@@ -46,7 +46,7 @@ Get up and running in under 5 minutes:
 
 ```bash
 # Clone and install
-git clone https://github.com/ohnodev/Obelisk-core.git
+git clone https://github.com/ohnodev/obelisk-core.git
 cd obelisk-core
 python3 -m venv venv
 source venv/bin/activate
@@ -69,7 +69,7 @@ See [QUICKSTART.md](QUICKSTART.md) for detailed instructions.
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/ohnodev/obelisk-core.git
 cd obelisk-core
 
 # Create virtual environment (recommended)
