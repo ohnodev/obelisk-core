@@ -274,7 +274,6 @@ JSON only:"""
             # Fallback: Create minimal summary from what we can extract
             # Only print warning if not in CLI mode (to avoid interfering with spinner)
             # In CLI mode, the spinner will handle user feedback
-            import os
             # Suppress warning in CLI mode to avoid breaking the spinner display
             if os.getenv('OBELISK_CLI_MODE') != '1':
                 print(f"[MEMORY] Warning: Could not parse JSON from summary. Response: {summary_text[:200]}")
