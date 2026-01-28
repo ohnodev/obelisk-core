@@ -3,6 +3,7 @@ Memory Manager for The Obelisk
 Uses LangChain for conversation memory management with Qwen LLM for summarization
 """
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 import os
 import json
 import re
@@ -310,9 +311,40 @@ JSON only:"""
     
     def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Load summary from storage"""
-        # For now, return None and let it be recreated
-        # In a full implementation, we'd query storage for existing summaries
-        return None
+        try:
+            # Summaries are stored as activity logs with type 'conversation_summary'
+            # We need to get the most recent summary for this user
+            
+            # For LocalJSONStorage, summaries are in activities.json
+            if hasattr(self.storage, 'base_path'):
+                activities_file = Path(self.storage.base_path) / "activities.json"
+                if activities_file.exists():
+                    with open(activities_file, 'r') as f:
+                        activities = json.load(f)
+                    
+                    # Find all conversation_summary activities for this user
+                    summaries = [
+                        activity for activity in activities
+                        if activity.get('type') == 'conversation_summary'
+                        and activity.get('message', '').endswith(f'user {user_id}')
+                    ]
+                    
+                    if summaries:
+                        # Get the most recent summary (last one in list, or sort by created_at)
+                        latest_summary = summaries[-1]
+                        metadata = latest_summary.get('metadata', {})
+                        summary_data = metadata.get('summary_data')
+                        
+                        if summary_data:
+                            return summary_data
+            
+            # For SupabaseStorage or other backends, we'd query differently
+            # For now, return None if not found
+            return None
+            
+        except Exception as e:
+            print(f"[MEMORY] Error loading summary from storage: {e}")
+            return None
     
     def add_interaction(
         self,
