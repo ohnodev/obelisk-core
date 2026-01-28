@@ -217,6 +217,12 @@ JSON only:"""
             summary_text = re.sub(r'<think>.*?</think>', '', summary_text, flags=re.DOTALL | re.IGNORECASE)
             summary_text = summary_text.strip()
             
+            # Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
+            # This handles cases where LLM wraps JSON in markdown code blocks
+            summary_text = re.sub(r'^```(?:json)?\s*\n?', '', summary_text, flags=re.MULTILINE | re.IGNORECASE)
+            summary_text = re.sub(r'\n?```\s*$', '', summary_text, flags=re.MULTILINE | re.IGNORECASE)
+            summary_text = summary_text.strip()
+            
             # Extract JSON - try multiple strategies
             
             # Strategy 1: Find complete JSON object by matching braces
