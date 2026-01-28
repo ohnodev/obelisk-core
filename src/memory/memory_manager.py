@@ -81,7 +81,7 @@ class ObeliskMemoryManager:
         self,
         storage: StorageInterface,
         k: int = 10,
-        summarize_threshold: int = 10,
+        summarize_threshold: int = 3,
         llm=None,  # ObeliskLLM instance for summarization (required in solo mode)
         mode: str = "solo"
     ):
@@ -91,7 +91,7 @@ class ObeliskMemoryManager:
         Args:
             storage: StorageInterface instance
             k: Number of recent message pairs to keep in buffer (default: 10)
-            summarize_threshold: Number of message pairs before summarizing older ones (default: 10)
+            summarize_threshold: Number of message pairs before summarizing (default: 3, summarizes every 3 interactions)
             llm: ObeliskLLM instance for summarization (required in solo mode)
             mode: "solo" or "prod" (default: "solo")
         """
@@ -374,16 +374,17 @@ JSON only:"""
         memory.add_user_message(query)
         memory.add_ai_message(response)
         
-        # Check if we need to summarize (every 10 message pairs)
+        # Check if we need to summarize (every N message pairs)
         all_messages = memory.get_all_messages()
         message_pairs = len(all_messages) // 2
         
-        # Trigger summarization when we hit the threshold (on 11th message pair)
-        if message_pairs >= self.summarize_threshold:
-            # Get all interactions from storage to summarize
-            interactions = self.storage.get_user_interactions(user_id, limit=100)
+        # Trigger summarization when we hit the threshold (every N interactions)
+        # Only summarize when we have exactly N pairs (not on every interaction after N)
+        if message_pairs > 0 and message_pairs % self.summarize_threshold == 0:
+            # Get only the recent interactions to summarize (last N pairs, not all)
+            interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
             
-            # Summarize all interactions (they'll be converted to memories)
+            # Summarize only these recent interactions (they'll be converted to memories)
             if interactions:
                 summary_data = self._summarize_conversations(interactions, user_id)
                 if summary_data:
