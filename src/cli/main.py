@@ -162,15 +162,31 @@ def chat(mode):
             console.print()
             
             # Add to memory (handles storage internally - Option C)
-            memory_manager.add_interaction(
-                user_id=user_id,
-                query=query,
-                response=response,
-                cycle_id=None,
-                energy=0.0,
-                quantum_seed=0.7,
-                reward_score=0.0
-            )
+            # Check if summarization might be triggered (happens at 10+ message pairs)
+            memory = memory_manager.get_memory(user_id)
+            all_messages = memory.get_all_messages()
+            message_pairs = len(all_messages) // 2
+            
+            # Show appropriate status message based on whether summarization will occur
+            # Summarization triggers when we have 10+ pairs, so check if we're at 9 pairs
+            # (after adding this interaction, we'll have 10 pairs and trigger summarization)
+            if message_pairs >= memory_manager.summarize_threshold - 1:
+                # About to trigger summarization - this will take longer
+                status_msg = "[dim]Summarizing conversation and processing memory...[/dim]"
+            else:
+                # Normal memory save - quick operation
+                status_msg = "[dim]Processing memory...[/dim]"
+            
+            with console.status(status_msg, spinner="dots"):
+                memory_manager.add_interaction(
+                    user_id=user_id,
+                    query=query,
+                    response=response,
+                    cycle_id=None,
+                    energy=0.0,
+                    quantum_seed=0.7,
+                    reward_score=0.0
+                )
             
         except KeyboardInterrupt:
             console.print()
