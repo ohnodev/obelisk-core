@@ -392,49 +392,68 @@ JSON only:"""
                     # Clear the buffer after summarizing (memories are now in summary)
                     memory.clear()
     
-    def get_conversation_context(self, user_id: str) -> str:
-        """Get formatted conversation context - includes recent messages and memories"""
-        context_parts = []
+    def get_conversation_context(self, user_id: str) -> Dict[str, Any]:
+        """
+        Get conversation context in Qwen3-compatible format
+        
+        Returns:
+            Dict with:
+            - 'messages': List of message dicts for conversation history (Qwen3 format)
+            - 'memories': String with summarized memories/bullet points for system message
+        """
+        conversation_messages = []
+        memories_parts = []
         
         # Get recent messages from buffer window (recent conversation)
+        # Convert to Qwen3 message format: [{"role": "user", "content": "..."}, ...]
         if user_id in self.memories:
             chat_history = self.memories[user_id]
             messages = chat_history.get_messages()  # Use get_messages() method
             
-            if messages:
-                context_parts.append("[Recent Conversation]")
-                for msg in messages:
-                    if hasattr(msg, 'content'):
-                        # Check message type
-                        if isinstance(msg, HumanMessage):
-                            context_parts.append(f"User: {msg.content}")
-                        elif isinstance(msg, AIMessage):
-                            context_parts.append(f"The Overseer: {msg.content}")
+            for msg in messages:
+                if hasattr(msg, 'content'):
+                    # Convert LangChain messages to Qwen3 format
+                    if isinstance(msg, HumanMessage):
+                        conversation_messages.append({
+                            "role": "user",
+                            "content": msg.content
+                        })
+                    elif isinstance(msg, AIMessage):
+                        conversation_messages.append({
+                            "role": "assistant",
+                            "content": msg.content
+                        })
         
         # Add memories/summary (summarized older conversations)
+        # These go in the system message as bullet points
         if user_id in self.summaries and self.summaries[user_id]:
             summary_data = self.summaries[user_id]
             
             # Format important facts as bullet points
             important_facts = summary_data.get('importantFacts', [])
             if important_facts:
-                if context_parts:
-                    context_parts.append("")  # Add separator
-                context_parts.append("[Memories]")
+                memories_parts.append("[Memories]")
                 if isinstance(important_facts, list):
                     for fact in important_facts:
-                        context_parts.append(f"- {fact}")
+                        memories_parts.append(f"- {fact}")
                 else:
-                    context_parts.append(f"- {important_facts}")
+                    memories_parts.append(f"- {important_facts}")
             
             # Add user context if available
             user_context = summary_data.get('userContext', {})
             if user_context and isinstance(user_context, dict):
-                context_parts.append("\n[User Context]")
+                if memories_parts:
+                    memories_parts.append("")  # Add separator
+                memories_parts.append("[User Context]")
                 for key, value in user_context.items():
-                    context_parts.append(f"- {key}: {value}")
+                    memories_parts.append(f"- {key}: {value}")
         
-        return "\n".join(context_parts) if context_parts else ""
+        memories_str = "\n".join(memories_parts) if memories_parts else ""
+        
+        return {
+            "messages": conversation_messages,
+            "memories": memories_str
+        }
     
     def clear_memory(self, user_id: str):
         """Clear memory for a user"""
