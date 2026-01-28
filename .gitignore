@@ -1,0 +1,117 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.conda/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Storage (solo mode) - User data and local storage
+# Default storage location (in user's home directory)
+.obelisk-core/
+
+# Generic data directories
+data/
+
+# Local data directories (created in repo root during development/testing)
+interactions/
+users/
+cycles/
+weights/
+activities.json
+
+# User data files - conversations, memory, preferences
+*.json
+*.pkl
+
+# Model weights and fine-tuning data
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# Model cache and downloads
+.cache/
+models/
+.huggingface/
+transformers_cache/
+*.bin
+*.safetensors
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+*.log
+test-results/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# PyCharm
+.idea/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# LoRA output
+lora_output/
+*.pt
+*.pth
+
+# Quantum job outputs
+quantum_jobs/

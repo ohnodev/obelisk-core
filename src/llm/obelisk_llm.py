@@ -1,0 +1,648 @@
+"""
+The Obelisk LLM Service
+Hosts a small quantized LLM for The Obelisk AGI
+Uses Qwen3-0.6B with thinking mode support for enhanced reasoning
+Supports LoRA fine-tuning with weights stored via storage abstraction
+"""
+import os
+import sys
+from typing import Dict, Any, Optional, List, Tuple
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList, TrainingArguments, Trainer
+from peft import LoraConfig, get_peft_model, PeftModel
+import warnings
+import io
+import pickle
+
+# Add parent directory to path for config import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from config import Config
+
+warnings.filterwarnings("ignore")
+
+
+class ConversationStopCriteria(StoppingCriteria):
+    """Stop generation when conversation markers appear"""
+    def __init__(self, tokenizer, stop_sequences: List[str], input_length: int):
+        self.tokenizer = tokenizer
+        self.input_length = input_length
+        # Tokenize all stop sequences and store their token IDs
+        self.stop_token_ids = []
+        for seq in stop_sequences:
+            tokens = tokenizer.encode(seq, add_special_tokens=False)
+            if tokens:
+                self.stop_token_ids.append(tokens)
+    
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # Only check the newly generated tokens (skip input)
+        if input_ids.shape[1] <= self.input_length:
+            return False
+        
+        generated_tokens = input_ids[0][self.input_length:].tolist()
+        
+        # Decode the entire generated text to check for conversation markers
+        # This is more reliable than token matching since tokenization can vary
+        if len(generated_tokens) > 0:
+            generated_text = self.tokenizer.decode(generated_tokens, skip_special_tokens=False)
+            
+            # Check for conversation markers only (industry standard)
+            stop_patterns = [
+                "User:", "Overseer:", "The Overseer:", "Assistant:",
+                "\n\nUser:", "\n\nOverseer:", "\n\nThe Overseer:", "\n\nAssistant:",
+                "\nUser:", "\nOverseer:", "\nThe Overseer:", "\nAssistant:"
+            ]
+            
+            # Stop immediately if we see any of these patterns
+            for pattern in stop_patterns:
+                if pattern.lower() in generated_text.lower():
+                    return True
+        
+        return False
+
+class ObeliskLLM:
+    # Context window limits for Qwen3-0.6B (32,768 tokens context length)
+    MAX_CONTEXT_TOKENS = 32768  # Total context window (input + output combined)
+    MAX_USER_QUERY_TOKENS = 2000  # Max tokens for user query
+    MAX_CONVERSATION_CONTEXT_TOKENS = 20000  # Max tokens for conversation history
+    MAX_OUTPUT_TOKENS = 1024  # Max tokens to generate (can be increased for complex tasks)
+    
+    # Qwen3 model name
+    MODEL_NAME = "Qwen/Qwen3-0.6B"
+    
+    # Note: model.generate() returns [input_tokens...][new_tokens...]
+    # Total must be: input_tokens + output_tokens <= MAX_CONTEXT_TOKENS
+    
+    def __init__(self, storage=None):
+        """
+        Initialize Obelisk LLM
+        
+        Args:
+            storage: StorageInterface instance (optional, for loading/saving LoRA weights)
+        """
+        self.model = None
+        self.tokenizer = None
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.lora_model = None
+        self.current_weights_cycle = None
+        self.storage = storage
+        self._load_model()
+
+    def _load_model(self):
+        """Load quantized Qwen3-0.6B model"""
+        try:
+            model_name = self.MODEL_NAME
+            print(f"Loading {model_name} on {self.device}...")
+            
+            # Load tokenizer (allow download on first run)
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                model_name,
+                local_files_only=False,  # Allow download on first run
+            )
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            
+            # Load model with 4-bit quantization to save memory
+            try:
+                from transformers import BitsAndBytesConfig
+                
+                quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
+                )
+                
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    device_map="auto",
+                    dtype=torch.float16,
+                    trust_remote_code=True,
+                    local_files_only=False  # Allow download on first run
+                )
+                print("Model loaded with 4-bit quantization")
+            except ImportError:
+                print("bitsandbytes not available, loading in float16...")
+                # Fallback to float16 if bitsandbytes not installed
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True,
+                    local_files_only=False  # Allow download on first run
+                )
+            except Exception as e:
+                print(f"4-bit quantization failed: {e}, loading in float16...")
+                # Fallback to float16
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True,
+                    local_files_only=False  # Allow download on first run
+                )
+            
+            # Initialize LoRA config (will be applied when loading weights)
+            self.lora_config = LoraConfig(
+                r=16,
+                lora_alpha=32,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.05,
+                bias="none",
+                task_type="CAUSAL_LM"
+            )
+            
+            self.model.eval()
+            
+            # Try to load LoRA weights from storage if available
+            if self.storage:
+                self._load_lora_weights()
+            
+            # Optimize model for inference on CPU
+            if self.device == "cpu":
+                # Try to compile model for faster inference (PyTorch 2.0+)
+                # Note: torch.compile is not supported on Python 3.14+
+                import sys
+                python_version = sys.version_info
+                if python_version.major == 3 and python_version.minor >= 14:
+                    print("Skipping model compilation (not supported on Python 3.14+)")
+                else:
+                    try:
+                        if hasattr(torch, 'compile'):
+                            print("Compiling model for faster CPU inference...")
+                            self.model = torch.compile(self.model, mode="reduce-overhead")
+                            print("Model compiled successfully")
+                    except Exception as e:
+                        print(f"Model compilation not available or failed: {e}")
+            
+            print(f"Model loaded successfully. Memory: ~{self._estimate_memory()}MB")
+            
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            self.model = None
+            self.tokenizer = None
+    
+    def _load_lora_weights(self):
+        """Load LoRA weights from storage if available"""
+        if not self.storage:
+            return
+        
+        try:
+            weights_data = self.storage.get_latest_model_weights(self.MODEL_NAME)
+            if weights_data and weights_data.get('lora_weights'):
+                print(f"[LLM] Loading LoRA weights from cycle {weights_data.get('cycle_number')}, version {weights_data.get('version')}")
+                
+                # Convert bytes to state dict
+                lora_weights_bytes = weights_data['lora_weights']
+                if isinstance(lora_weights_bytes, bytes):
+                    state_dict = pickle.loads(lora_weights_bytes)
+                else:
+                    # Already a dict
+                    state_dict = lora_weights_bytes
+                
+                # Apply LoRA to model
+                self.lora_model = get_peft_model(self.model, self.lora_config)
+                self.lora_model.load_state_dict(state_dict, strict=False)
+                self.lora_model.eval()
+                
+                # Use LoRA model for inference
+                self.model = self.lora_model
+                self.current_weights_cycle = weights_data.get('cycle_number')
+                
+                print(f"[LLM] LoRA weights loaded successfully from cycle {self.current_weights_cycle}")
+            else:
+                print("[LLM] No LoRA weights found in storage, using base model")
+        except Exception as e:
+            print(f"[LLM] Error loading LoRA weights: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def save_lora_weights(self, cycle_number: int, evolution_score: float, interactions_used: int, metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Save current LoRA weights to storage"""
+        if not self.storage:
+            print("[LLM] No storage configured, cannot save LoRA weights")
+            return None
+        
+        try:
+            if self.lora_model is None:
+                print("[LLM] No LoRA model to save, creating new LoRA adapter...")
+                # Create LoRA adapter if it doesn't exist
+                self.lora_model = get_peft_model(self.model, self.lora_config)
+            
+            # Get state dict from LoRA adapter
+            state_dict = self.lora_model.state_dict()
+            
+            # Serialize to bytes
+            buffer = io.BytesIO()
+            pickle.dump(state_dict, buffer)
+            lora_weights_bytes = buffer.getvalue()
+            
+            # Save to storage
+            weight_id = self.storage.save_lora_weights(
+                cycle_number=cycle_number,
+                lora_weights=lora_weights_bytes,
+                evolution_score=evolution_score,
+                interactions_used=interactions_used,
+                metadata=metadata
+            )
+            
+            if weight_id:
+                self.current_weights_cycle = cycle_number
+                print(f"[LLM] LoRA weights saved successfully for cycle {cycle_number}")
+                return weight_id
+            else:
+                print("[LLM] Failed to save LoRA weights")
+                return None
+        except Exception as e:
+            print(f"[LLM] Error saving LoRA weights: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def fine_tune_lora(
+        self,
+        training_data: List[Tuple[str, str]],  # List of (query, response) pairs
+        cycle_number: int,
+        epochs: int = 3,
+        learning_rate: float = 0.0001,
+        batch_size: int = 4
+    ) -> Dict[str, Any]:
+        """
+        Fine-tune the model using LoRA on training data
+        Returns training metrics and saves weights to storage
+        """
+        try:
+            from datasets import Dataset
+            
+            if not training_data or len(training_data) < 5:
+                return {"error": "Need at least 5 training examples"}
+            
+            print(f"[LLM] Starting LoRA fine-tuning on {len(training_data)} examples...")
+            
+            # Ensure LoRA adapter exists
+            if self.lora_model is None:
+                self.lora_model = get_peft_model(self.model, self.lora_config)
+            
+            # Format training data
+            def format_prompt(query: str, response: str) -> str:
+                system_prompt = self.get_system_prompt()
+                return f"{system_prompt}\n\nUser: {query}\nOverseer: {response}"
+            
+            # Create dataset
+            formatted_data = [
+                {"text": format_prompt(q, r)}
+                for q, r in training_data
+            ]
+            
+            dataset = Dataset.from_list(formatted_data)
+            
+            # Tokenize
+            def tokenize_function(examples):
+                return self.tokenizer(
+                    examples["text"],
+                    truncation=True,
+                    max_length=512,
+                    padding="max_length"
+                )
+            
+            tokenized_dataset = dataset.map(tokenize_function, batched=True)
+            
+            # Training arguments
+            training_args = TrainingArguments(
+                output_dir="./lora_output",
+                num_train_epochs=epochs,
+                per_device_train_batch_size=batch_size,
+                learning_rate=learning_rate,
+                logging_steps=10,
+                save_strategy="no",  # Don't save checkpoints, we'll save to storage
+                fp16=self.device == "cuda",
+                optim="adamw_torch",
+                report_to="none"
+            )
+            
+            # Trainer
+            trainer = Trainer(
+                model=self.lora_model,
+                args=training_args,
+                train_dataset=tokenized_dataset,
+            )
+            
+            # Train
+            train_result = trainer.train()
+            
+            # Update model reference
+            self.model = self.lora_model
+            self.model.eval()
+            
+            print(f"[LLM] Fine-tuning completed. Loss: {train_result.training_loss:.4f}")
+            
+            return {
+                "success": True,
+                "training_loss": train_result.training_loss,
+                "examples_trained": len(training_data),
+                "epochs": epochs
+            }
+            
+        except Exception as e:
+            print(f"[LLM] Error during fine-tuning: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"error": str(e)}
+
+    def _estimate_memory(self) -> int:
+        """Estimate model memory usage in MB"""
+        if self.model is None:
+            return 0
+        try:
+            param_count = sum(p.numel() for p in self.model.parameters())
+            # 4-bit quantization: ~0.5 bytes per parameter
+            memory_mb = (param_count * 0.5) / (1024 * 1024)
+            return int(memory_mb)
+        except:
+            return 400  # Default estimate
+
+    def get_system_prompt(self) -> str:
+        """Get The Overseer system prompt - open-ended to allow LoRA fine-tuning"""
+        return """You are The Overseer. Respond naturally to the user.
+
+IMPORTANT: When memories are provided (as bullet points), you MUST use them to answer questions. Pay attention to facts, preferences, and information listed in the memories. If the user asks about something mentioned in the memories, recall it from there.
+
+Do not use emojis in your responses."""
+
+    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Generate response from The Obelisk (always uses thinking mode for best quality)
+        
+        Args:
+            query: User's query
+            quantum_influence: Quantum random value (0-1) to influence creativity
+            max_length: Maximum response length
+            conversation_context: Previous conversation context
+        
+        Returns:
+            Dict with response, thinking_content, and metadata
+        """
+        if self.model is None or self.tokenizer is None:
+            return {
+                "response": "◊ The Overseer is initializing. Please wait. ◊",
+                "error": "Model not loaded",
+                "source": "fallback"
+            }
+        
+        try:
+            # Always use thinking mode for best quality (Qwen3 recommended)
+            # Thinking mode: Temperature=0.6, TopP=0.95, TopK=20, MinP=0
+            base_temp = 0.6
+            base_top_p = 0.95
+            top_k = 20
+            
+            # Apply quantum influence (smaller range to stay within recommended params)
+            temperature = base_temp + (quantum_influence * 0.1)  # Small variation
+            top_p = base_top_p + (quantum_influence * 0.05)  # Small variation
+            
+            # Validate and truncate user query if too long
+            query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
+            if len(query_tokens) > self.MAX_USER_QUERY_TOKENS:
+                print(f"[LLM] User query too long ({len(query_tokens)} tokens), truncating to {self.MAX_USER_QUERY_TOKENS} tokens")
+                truncated_tokens = query_tokens[:self.MAX_USER_QUERY_TOKENS]
+                query = self.tokenizer.decode(truncated_tokens, skip_special_tokens=True)
+                query_tokens = truncated_tokens
+            
+            # Build prompt with conversation context if provided
+            system_prompt = self.get_system_prompt()
+            system_tokens = len(self.tokenizer.encode(system_prompt, add_special_tokens=False))
+            
+            # Truncate conversation context if needed
+            # Calculate available tokens: total context - system - query - output
+            truncated_context = conversation_context
+            if conversation_context:
+                context_tokens = self.tokenizer.encode(conversation_context, add_special_tokens=False)
+                # Reserve space: system + query + output + some buffer
+                available_for_context = self.MAX_CONTEXT_TOKENS - system_tokens - len(query_tokens) - self.MAX_OUTPUT_TOKENS - 50
+                
+                max_context_tokens = min(self.MAX_CONVERSATION_CONTEXT_TOKENS, available_for_context)
+                
+                if len(context_tokens) > max_context_tokens and max_context_tokens > 0:
+                    print(f"[LLM] Conversation context too long ({len(context_tokens)} tokens), truncating to {max_context_tokens} tokens")
+                    truncated_context_tokens = context_tokens[-max_context_tokens:]  # Keep most recent
+                    truncated_context = self.tokenizer.decode(truncated_context_tokens, skip_special_tokens=True)
+                elif max_context_tokens <= 0:
+                    print(f"[LLM] Not enough tokens for conversation context, skipping it")
+                    truncated_context = None
+            
+            # Build messages for Qwen3 chat template
+            messages = []
+            if truncated_context:
+                # Add system message with context
+                messages.append({
+                    "role": "system",
+                    "content": f"{system_prompt}\n\n{truncated_context}"
+                })
+            else:
+                messages.append({
+                    "role": "system",
+                    "content": system_prompt
+                })
+            
+            messages.append({
+                "role": "user",
+                "content": query
+            })
+            
+            # Apply Qwen3 chat template with thinking mode (always enabled)
+            prompt_text = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=True  # Always use thinking mode for best quality
+            )
+            
+            # Debug: Show full prompt
+            if Config.DEBUG:
+                print("\n" + "="*80)
+                print("[DEBUG] Full prompt sent to LLM (thinking_mode=True):")
+                print("="*80)
+                print(prompt_text)
+                print("="*80 + "\n")
+            
+            # Tokenize and check total input size
+            inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
+            input_token_count = inputs['input_ids'].shape[1]
+            
+            # Log token usage
+            context_token_count = len(self.tokenizer.encode(truncated_context or '', add_special_tokens=False))
+            print(f"[LLM] Input tokens: {input_token_count} (system: {system_tokens}, context: {context_token_count}, query: {len(query_tokens)})")
+            
+            # Check if total (input + output) will exceed context window
+            total_tokens_after_generation = input_token_count + self.MAX_OUTPUT_TOKENS
+            if total_tokens_after_generation > self.MAX_CONTEXT_TOKENS:
+                print(f"[LLM] WARNING: Total tokens ({total_tokens_after_generation}) would exceed context limit ({self.MAX_CONTEXT_TOKENS})")
+                # Reduce output tokens if needed
+                max_safe_output = self.MAX_CONTEXT_TOKENS - input_token_count
+                if max_safe_output < 10:
+                    return {
+                        "response": "◊ The Overseer's memory is full. Please shorten your query. ◊",
+                        "error": "Context window exceeded",
+                        "source": "error_fallback"
+                    }
+            
+            # Set output token limit (Qwen3 supports up to 32K, but use reasonable defaults)
+            optimized_max_tokens = min(max_length, 2048) if self.device == "cpu" else min(max_length, 4096)
+            
+            # Create stopping criteria to prevent conversation markers
+            stop_sequences = [
+                "\n\nUser:", "\n\nOverseer:", "\n\nThe Overseer:", "\n\nAssistant:",
+                "\nUser:", "\nOverseer:", "\nThe Overseer:", "\nAssistant:",
+                "User:", "Overseer:", "The Overseer:", "Assistant:"
+            ]
+            stopping_criteria = ConversationStopCriteria(self.tokenizer, stop_sequences, input_token_count)
+            stopping_criteria_list = StoppingCriteriaList([stopping_criteria])
+            
+            # Generate with Qwen3 recommended sampling parameters
+            with torch.inference_mode():
+                # Qwen3 recommended parameters (no presence_penalty - not supported)
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=optimized_max_tokens,
+                    do_sample=True,
+                    temperature=temperature,
+                    top_p=top_p,
+                    top_k=top_k,
+                    min_p=0.0,  # Qwen3 recommended
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    repetition_penalty=1.2,
+                    use_cache=True,
+                    num_beams=1,
+                    stopping_criteria=stopping_criteria_list
+                )
+            
+            # Extract ONLY the newly generated tokens (skip the input prompt)
+            input_length = inputs['input_ids'].shape[1]
+            generated_tokens = outputs[0][input_length:].tolist()
+            
+            # Parse thinking content from Qwen3 format (token 151668 = </think>)
+            # Per Qwen3 docs: use rindex to find the last occurrence of token 151668
+            thinking_content = ""
+            final_content = ""
+            
+            try:
+                # Token 151668 is the closing tag for thinking content (</think>)
+                redacted_end_token = 151668
+                if redacted_end_token in generated_tokens:
+                    # rindex finds the last occurrence (per Qwen3 example)
+                    index = len(generated_tokens) - generated_tokens[::-1].index(redacted_end_token)
+                    thinking_tokens = generated_tokens[:index]
+                    content_tokens = generated_tokens[index + 1:]  # Skip the closing tag token
+                    
+                    thinking_content = self.tokenizer.decode(thinking_tokens, skip_special_tokens=True).strip("\n")
+                    final_content = self.tokenizer.decode(content_tokens, skip_special_tokens=True).strip("\n")
+                else:
+                    # No thinking block found, decode everything as content
+                    final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
+                    if Config.DEBUG:
+                        print(f"[DEBUG] No thinking token (151668) found in output")
+            except ValueError:
+                # Token not found, decode everything
+                final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
+                if Config.DEBUG:
+                    print(f"[DEBUG] Error finding thinking token, using full output")
+            
+            raw_response = final_content
+            
+            # Debug: Show raw response before post-processing
+            if Config.DEBUG:
+                print("\n" + "="*80)
+                print("[DEBUG] Raw response from LLM (before post-processing):")
+                print("="*80)
+                print(repr(raw_response))  # Use repr to show exact characters
+                print("="*80 + "\n")
+            
+            response = raw_response
+            
+            # Safety check: Remove any conversation markers and training artifacts that might have slipped through
+            import re
+            
+            # First, break on double newlines - these usually indicate artifacts or new sections
+            if '\n\n' in response:
+                # Take only the first part (before double newline)
+                response = response.split('\n\n')[0].strip()
+                print(f"[LLM] Truncated at double newline (likely artifact)")
+            
+            # Remove everything after conversation markers (User:, Overseer:, The Overseer:, Assistant:)
+            for marker in ['User:', 'Overseer:', 'The Overseer:', 'Assistant:']:
+                if marker.lower() in response.lower():
+                    # Find the marker (case-insensitive)
+                    pattern = re.compile(re.escape(marker), re.IGNORECASE)
+                    match = pattern.search(response)
+                    if match:
+                        response = response[:match.start()].strip()
+                        print(f"[LLM] Removed conversation marker '{marker}' from response (safety check)")
+            
+            # Remove any trailing incomplete sentences or fragments
+            # If response ends with incomplete patterns, truncate at last complete sentence
+            if response:
+                # Find last complete sentence (ends with . ! ?)
+                last_sentence_end = max(
+                    response.rfind('.'),
+                    response.rfind('!'),
+                    response.rfind('?')
+                )
+                
+                # If we have a complete sentence and there's more text after it that looks like artifacts
+                if last_sentence_end > 0 and last_sentence_end < len(response) - 10:
+                    # Check if what comes after looks like training artifacts
+                    after_sentence = response[last_sentence_end + 1:].strip().lower()
+                    artifact_keywords = ['user:', 'assistant:', 'overseer:', 'the overseer:']
+                    if any(keyword in after_sentence for keyword in artifact_keywords):
+                        response = response[:last_sentence_end + 1].strip()
+            
+            # Simple whitespace normalization
+            response = re.sub(r'\s+', ' ', response).strip()
+            
+            # Debug: Show final processed response
+            if Config.DEBUG:
+                print("\n" + "="*80)
+                print("[DEBUG] Final processed response:")
+                print("="*80)
+                print(repr(response))
+                print("="*80 + "\n")
+            
+            print(f"[LLM] Generated response: {response[:100]}... ({len(response)} chars)")
+            
+            # Fallback if empty
+            if not response or len(response.strip()) < 3:
+                print(f"[LLM DEBUG] Response too short ({len(response)} chars), using fallback")
+                response = "◊ The Overseer processes your query. ◊"
+            
+            return {
+                "response": response,
+                "thinking_content": thinking_content,
+                "thinking_mode": True,  # Always enabled
+                "quantum_influence": quantum_influence,
+                "temperature": temperature,
+                "top_p": top_p,
+                "top_k": top_k,
+                "source": "obelisk_llm",
+                "model": self.MODEL_NAME
+            }
+            
+        except Exception as e:
+            print(f"Error generating response: {e}")
+            return {
+                "response": f"◊ The Overseer encounters an error: {str(e)[:50]} ◊",
+                "error": str(e),
+                "source": "error_fallback"
+            }
+
+    def test(self) -> Dict[str, Any]:
+        """Test the LLM with a simple query"""
+        test_query = "What is your purpose?"
+        result = self.generate(test_query, quantum_influence=0.5)
+        return {
+            "test_query": test_query,
+            "result": result,
+            "model_loaded": self.model is not None,
+            "device": self.device,
+            "memory_estimate_mb": self._estimate_memory()
+        }

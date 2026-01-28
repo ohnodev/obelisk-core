@@ -1,0 +1,39 @@
+# Obelisk Core Requirements
+# Core dependencies for LLM, evolution, quantum, and memory
+
+# PyTorch and Transformers (for LLM)
+torch>=2.0.0
+transformers>=4.30.0
+peft>=0.4.0
+datasets>=2.14.0
+accelerate>=0.20.0
+bitsandbytes>=0.41.0
+
+# Quantum computing
+qiskit>=0.45.0
+qiskit-ibm-runtime>=0.12.0
+numpy>=1.24.0
+
+# API server
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# Memory management (REQUIRED - no fallback)
+# LangChain is essential for memory management - the system will fail to start without it
+langchain>=1.0.0
+langchain-core>=1.0.0
+
+# Storage (Supabase for prod mode)
+supabase>=1.0.0
+
+# AI services
+mistralai>=0.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+click>=8.0.0
+rich>=13.0.0
+
+# Testing
+pytest>=7.0.0
