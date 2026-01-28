@@ -147,8 +147,12 @@ def chat(mode):
             # Get conversation context
             context = memory_manager.get_conversation_context(user_id)
             
-            # Generate response with loading indicator
-            with console.status("[bold cyan]The Overseer is thinking...", spinner="dots"):
+            # Show thinking indicator - always visible, even when not in debug mode
+            console.print()
+            with console.status(
+                "[bold cyan]◊[/bold cyan] [bold]The Overseer is thinking...[/bold]",
+                spinner="dots"
+            ):
                 # Only suppress output if debug mode is off
                 if Config.DEBUG:
                     result = llm.generate(
