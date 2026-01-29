@@ -9,6 +9,9 @@ from typing import List, Dict, Any, Optional
 from .config import REWARD_DISTRIBUTION
 from .evaluator import EvolutionEvaluator
 from ..storage.base import StorageInterface
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def process_evolution_cycle(
@@ -68,7 +71,7 @@ def process_evolution_cycle(
     
     # Rate interactions (works in both solo and prod mode)
     if evaluator.llm or (evaluator.mistral_client and evaluator.agent_id):
-        print(f"[EVOLUTION] Starting AI evaluation of {len(interactions)} interactions...")
+        logger.info(f"Starting AI evaluation of {len(interactions)} interactions...")
         
         # Rate interactions in batches of 50
         ratings = evaluator.rate_interactions_batch(interactions, batch_size=50)
@@ -83,11 +86,11 @@ def process_evolution_cycle(
             # Create activity log entry with lore-appropriate message
             evaluator.create_activity_log_entry(storage, cycle_id, interactions_rated, batches_processed)
             
-            print(f"[EVOLUTION] AI evaluation complete: {interactions_rated} interactions rated")
+            logger.info(f"AI evaluation complete: {interactions_rated} interactions rated")
         else:
-            print("[EVOLUTION] No ratings returned from AI evaluator")
+            logger.warning("No ratings returned from AI evaluator")
     else:
-        print("[EVOLUTION] Mistral evaluator not available, skipping AI rating")
+        logger.warning("Mistral evaluator not available, skipping AI rating")
     
     # Get unique user IDs
     user_ids = list(set(i.get('user_id') for i in interactions if i.get('user_id')))
@@ -168,7 +171,7 @@ def process_evolution_cycle(
             
             # Log how many are AI-recommended
             ai_recommended = sum(1 for i in top_interactions if i.get('ai_recommend_for_training'))
-            print(f"[EVOLUTION] Selected {len(top_interactions)} interactions for training ({ai_recommended} AI-recommended)")
+            logger.info(f"Selected {len(top_interactions)} interactions for training ({ai_recommended} AI-recommended)")
             
             # Prepare training data (query, response pairs)
             training_data = [
@@ -178,7 +181,7 @@ def process_evolution_cycle(
             ]
             
             if len(training_data) >= 5:
-                print(f"[EVOLUTION] Fine-tuning model with {len(training_data)} top interactions...")
+                logger.info(f"Fine-tuning model with {len(training_data)} top interactions...")
                 
                 # Fine-tune
                 training_result = llm.fine_tune_lora(
@@ -219,7 +222,7 @@ def process_evolution_cycle(
                         'training_loss': training_result.get('training_loss'),
                         'examples_trained': len(training_data)
                     }
-                    print(f"[EVOLUTION] Model fine-tuning completed and weights saved")
+                    logger.info("Model fine-tuning completed and weights saved")
                     
                     # Create activity log entry for model evolution
                     try:
@@ -237,12 +240,12 @@ def process_evolution_cycle(
                             }
                         )
                     except Exception as e:
-                        print(f"[EVOLUTION] Error creating training activity log: {e}")
+                        logger.error(f"Error creating training activity log: {e}")
                 else:
                     model_training_result = {'success': False, 'error': training_result.get('error')}
-                    print(f"[EVOLUTION] Model fine-tuning failed: {training_result.get('error')}")
+                    logger.error(f"Model fine-tuning failed: {training_result.get('error')}")
         except Exception as e:
-            print(f"[EVOLUTION] Error during model fine-tuning: {e}")
+            logger.error(f"Error during model fine-tuning: {e}")
             import traceback
             traceback.print_exc()
             model_training_result = {'success': False, 'error': str(e)}
@@ -281,7 +284,7 @@ def process_evolution_cycle(
             }
         )
     except Exception as e:
-        print(f"[EVOLUTION] Error creating evolution activity log: {e}")
+        logger.error(f"Error creating evolution activity log: {e}")
     
     return {
         'cycle_id': cycle_id,

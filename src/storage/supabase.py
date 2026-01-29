@@ -7,13 +7,16 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import hashlib
 from .base import StorageInterface
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from supabase import create_client, Client
     SUPABASE_AVAILABLE = True
 except ImportError:
     SUPABASE_AVAILABLE = False
-    print("[STORAGE] Warning: Supabase not available. Prod mode will not work.")
+    logger.warning("Supabase not available. Prod mode will not work.")
     # Create dummy types for type hints
     Client = None
 
@@ -39,7 +42,7 @@ class SupabaseStorage(StorageInterface):
             result = self.client.table('interactions').select('*').eq('evolution_cycle_id', cycle_id).execute()
             return result.data or []
         except Exception as e:
-            print(f"[STORAGE] Error getting interactions for cycle {cycle_id}: {e}")
+            logger.error(f"Error getting interactions for cycle {cycle_id}: {e}")
             return []
     
     def save_interaction(
@@ -68,7 +71,7 @@ class SupabaseStorage(StorageInterface):
                 return result.data[0].get('id', '')
             return ''
         except Exception as e:
-            print(f"[STORAGE] Error saving interaction: {e}")
+            logger.error(f"Error saving interaction: {e}")
             return ''
     
     def get_evolution_cycle(self, cycle_id: str) -> Optional[Dict[str, Any]]:
@@ -77,7 +80,7 @@ class SupabaseStorage(StorageInterface):
             result = self.client.table('evolution_cycles').select('*').eq('id', cycle_id).single().execute()
             return result.data
         except Exception as e:
-            print(f"[STORAGE] Error getting cycle {cycle_id}: {e}")
+            logger.error(f"Error getting cycle {cycle_id}: {e}")
             return None
     
     def get_current_evolution_cycle(self) -> Optional[str]:
@@ -86,7 +89,7 @@ class SupabaseStorage(StorageInterface):
             result = self.client.rpc('get_current_evolution_cycle').execute()
             return result.data
         except Exception as e:
-            print(f"[STORAGE] Error getting current cycle: {e}")
+            logger.error(f"Error getting current cycle: {e}")
             return None
     
     def save_lora_weights(
@@ -136,7 +139,7 @@ class SupabaseStorage(StorageInterface):
                 return result.data[0]['id']
             return None
         except Exception as e:
-            print(f"[STORAGE] Error saving LoRA weights: {e}")
+            logger.error(f"Error saving LoRA weights: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -152,7 +155,7 @@ class SupabaseStorage(StorageInterface):
                 return result.data[0]
             return None
         except Exception as e:
-            print(f"[STORAGE] Error getting latest model weights: {e}")
+            logger.error(f"Error getting latest model weights: {e}")
             return None
     
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -164,7 +167,7 @@ class SupabaseStorage(StorageInterface):
             result = query.execute()
             return result.data or []
         except Exception as e:
-            print(f"[STORAGE] Error getting user interactions: {e}")
+            logger.error(f"Error getting user interactions: {e}")
             return []
     
     def calculate_user_reward_score(self, user_id: str, cycle_id: str) -> Dict[str, Any]:
@@ -209,7 +212,7 @@ class SupabaseStorage(StorageInterface):
                 'total_score': min(max(total_score, 0), 1)
             }
         except Exception as e:
-            print(f"[STORAGE] Error calculating reward score: {e}")
+            logger.error(f"Error calculating reward score: {e}")
             return {
                 'user_id': user_id,
                 'interaction_count': 0,
@@ -241,7 +244,7 @@ class SupabaseStorage(StorageInterface):
             }).execute()
             return result.data[0] if result.data else {}
         except Exception as e:
-            print(f"[STORAGE] Error creating reward: {e}")
+            logger.error(f"Error creating reward: {e}")
             return {}
     
     def update_user_token_balance(self, user_id: str, amount: int) -> Dict[str, Any]:
@@ -257,7 +260,7 @@ class SupabaseStorage(StorageInterface):
             }).eq('id', user_id).execute()
             return result.data[0] if result.data else {}
         except Exception as e:
-            print(f"[STORAGE] Error updating token balance: {e}")
+            logger.error(f"Error updating token balance: {e}")
             return {}
     
     def check_nft_upgrades(self, user_id: str) -> List[Dict[str, Any]]:
@@ -298,7 +301,7 @@ class SupabaseStorage(StorageInterface):
             
             return upgraded
         except Exception as e:
-            print(f"[STORAGE] Error checking NFT upgrades: {e}")
+            logger.error(f"Error checking NFT upgrades: {e}")
             return []
     
     def get_or_create_user(self, wallet_address: str) -> str:
@@ -307,7 +310,7 @@ class SupabaseStorage(StorageInterface):
             result = self.client.rpc('get_or_create_user', {'p_wallet_address': wallet_address}).execute()
             return result.data
         except Exception as e:
-            print(f"[STORAGE] Error getting/creating user: {e}")
+            logger.error(f"Error getting/creating user: {e}")
             # Fallback: create user ID from wallet address
             return hashlib.sha256(wallet_address.encode()).hexdigest()[:16]
     
@@ -332,7 +335,7 @@ class SupabaseStorage(StorageInterface):
                         count += 1
             return count
         except Exception as e:
-            print(f"[STORAGE] Error saving interaction ratings: {e}")
+            logger.error(f"Error saving interaction ratings: {e}")
             return 0
     
     def create_activity_log(
@@ -352,7 +355,7 @@ class SupabaseStorage(StorageInterface):
             }).execute()
             return result.data[0] if result.data else {}
         except Exception as e:
-            print(f"[STORAGE] Error creating activity log: {e}")
+            logger.error(f"Error creating activity log: {e}")
             return {}
     
     def update_cycle_status(self, cycle_id: str, status: str, top_contributors: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
@@ -365,5 +368,5 @@ class SupabaseStorage(StorageInterface):
             result = self.client.table('evolution_cycles').update(update_data).eq('id', cycle_id).execute()
             return result.data[0] if result.data else {}
         except Exception as e:
-            print(f"[STORAGE] Error updating cycle status: {e}")
+            logger.error(f"Error updating cycle status: {e}")
             return {}

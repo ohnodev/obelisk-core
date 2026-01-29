@@ -11,6 +11,9 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import hashlib
 from .base import StorageInterface
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class LocalJSONStorage(StorageInterface):
@@ -66,7 +69,7 @@ class LocalJSONStorage(StorageInterface):
                 cycle_data = json.load(f)
                 return cycle_data.get('interactions', [])
         except Exception as e:
-            print(f"[STORAGE] Error loading interactions for cycle {cycle_id}: {e}")
+            logger.error(f"Error loading interactions for cycle {cycle_id}: {e}")
             return []
     
     def save_interaction(
@@ -142,7 +145,7 @@ class LocalJSONStorage(StorageInterface):
             with open(cycle_file, 'r') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[STORAGE] Error loading cycle {cycle_id}: {e}")
+            logger.error(f"Error loading cycle {cycle_id}: {e}")
             return None
     
     def get_current_evolution_cycle(self) -> Optional[str]:
@@ -202,7 +205,7 @@ class LocalJSONStorage(StorageInterface):
             
             return str(weights_file)
         except Exception as e:
-            print(f"[STORAGE] Error saving LoRA weights: {e}")
+            logger.error(f"Error saving LoRA weights: {e}")
             return None
     
     def get_latest_model_weights(self, base_model: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -233,7 +236,7 @@ class LocalJSONStorage(StorageInterface):
                 metadata['lora_weights'] = lora_weights
                 return metadata
             except Exception as e:
-                print(f"[STORAGE] Error loading weights: {e}")
+                logger.error(f"Error loading weights: {e}")
                 return None
         return None
     
@@ -250,7 +253,7 @@ class LocalJSONStorage(StorageInterface):
                     return interactions[-limit:]
                 return interactions
         except Exception as e:
-            print(f"[STORAGE] Error loading user interactions: {e}")
+            logger.error(f"Error loading user interactions: {e}")
             return []
     
     def calculate_user_reward_score(self, user_id: str, cycle_id: str) -> Dict[str, Any]:

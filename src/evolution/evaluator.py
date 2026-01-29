@@ -8,13 +8,16 @@ import json
 import re
 from typing import List, Dict, Any, Optional
 from ..storage.base import StorageInterface
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from mistralai import Mistral
     MISTRAL_AVAILABLE = True
 except ImportError:
     MISTRAL_AVAILABLE = False
-    print("[EVOLUTION] Warning: Mistral AI SDK not available. Will use self-evaluation.")
+    logger.warning("Mistral AI SDK not available. Will use self-evaluation.")
 
 
 class EvolutionEvaluator:
@@ -57,19 +60,19 @@ class EvolutionEvaluator:
         try:
             api_key = mistral_api_key or os.getenv("MISTRAL_API_KEY")
             if not api_key:
-                print("[EVOLUTION] Warning: MISTRAL_API_KEY not set. Evolution evaluation disabled.")
+                logger.warning("MISTRAL_API_KEY not set. Evolution evaluation disabled.")
                 return
             
             self.mistral_client = Mistral(api_key=api_key)
             
             # Use evolution-specific agent ID
             if self.agent_id:
-                print(f"[EVOLUTION] Mistral client initialized with evolution agent ID: {self.agent_id}")
+                logger.info(f"Mistral client initialized with evolution agent ID: {self.agent_id}")
             else:
-                print("[EVOLUTION] Warning: MISTRAL_EVOLUTION_AGENT_ID not set. Evolution evaluation disabled.")
+                logger.warning("MISTRAL_EVOLUTION_AGENT_ID not set. Evolution evaluation disabled.")
                 self.mistral_client = None
         except Exception as e:
-            print(f"[EVOLUTION] Error initializing Mistral client: {e}")
+            logger.error(f"Error initializing Mistral client: {e}")
             self.mistral_client = None
             self.agent_id = None
     
@@ -99,7 +102,7 @@ class EvolutionEvaluator:
         if self.llm:
             return self._rate_batch_self_evaluation(interactions, batch_size)
         
-        print("[EVOLUTION] No evaluation method available, skipping rating")
+        logger.warning("No evaluation method available, skipping rating")
         return []
     
     def _rate_batch_self_evaluation(
@@ -122,14 +125,14 @@ class EvolutionEvaluator:
             batch_num = (i // batch_size) + 1
             total_batches = (len(interactions) + batch_size - 1) // batch_size
             
-            print(f"[EVOLUTION] Self-evaluating batch {batch_num}/{total_batches} ({len(batch)} interactions)...")
+            logger.info(f"Self-evaluating batch {batch_num}/{total_batches} ({len(batch)} interactions)...")
             
             try:
                 ratings = self._rate_single_interaction_self(batch)
                 all_ratings.extend(ratings)
-                print(f"[EVOLUTION] Batch {batch_num} self-evaluated successfully")
+                logger.info(f"Batch {batch_num} self-evaluated successfully")
             except Exception as e:
-                print(f"[EVOLUTION] Error self-evaluating batch {batch_num}: {e}")
+                logger.error(f"Error self-evaluating batch {batch_num}: {e}")
                 import traceback
                 traceback.print_exc()
         
@@ -209,7 +212,7 @@ Return only valid JSON, no markdown."""
                 ratings.append(rating)
                 
             except Exception as e:
-                print(f"[EVOLUTION] Error self-evaluating interaction {interaction_id}: {e}")
+                logger.error(f"Error self-evaluating interaction {interaction_id}: {e}")
                 # Add default rating on error
                 ratings.append({
                     'interaction_id': interaction_id,
@@ -238,14 +241,14 @@ Return only valid JSON, no markdown."""
             batch_num = (i // batch_size) + 1
             total_batches = (len(interactions) + batch_size - 1) // batch_size
             
-            print(f"[EVOLUTION] Rating batch {batch_num}/{total_batches} ({len(batch)} interactions)...")
+            logger.info(f"Rating batch {batch_num}/{total_batches} ({len(batch)} interactions)...")
             
             try:
                 ratings = self._rate_batch(batch)
                 all_ratings.extend(ratings)
-                print(f"[EVOLUTION] Batch {batch_num} rated successfully")
+                logger.info(f"Batch {batch_num} rated successfully")
             except Exception as e:
-                print(f"[EVOLUTION] Error rating batch {batch_num}: {e}")
+                logger.error(f"Error rating batch {batch_num}: {e}")
                 import traceback
                 traceback.print_exc()
         
@@ -260,7 +263,7 @@ Return only valid JSON, no markdown."""
             with open(prompt_path, 'r') as f:
                 system_prompt = f.read()
         except Exception as e:
-            print(f"[EVOLUTION] Could not read EvolutionAgentPrompt.md: {e}")
+            logger.warning(f"Could not read EvolutionAgentPrompt.md: {e}")
             # Fallback prompt
             system_prompt = """You are an evolution evaluator for The Overseer (an AGI entity).
 Rate each interaction on:
@@ -318,7 +321,7 @@ Return JSON array with ratings and brief reasoning for each."""
         # NOTE: If JSON Schema is properly configured in Mistral console, this shouldn't be needed
         # But we handle it as a fallback in case the agent configuration isn't perfect
         if content_str.strip().startswith('```'):
-            print("[EVOLUTION] WARNING: Response contains markdown code blocks. JSON Schema may not be properly configured in Mistral console.")
+            logger.warning("Response contains markdown code blocks. JSON Schema may not be properly configured in Mistral console.")
             # Remove opening ```json or ```
             lines = content_str.strip().split('\n')
             if lines[0].startswith('```'):
@@ -340,8 +343,8 @@ Return JSON array with ratings and brief reasoning for each."""
                 return validated_ratings
             return []
         except json.JSONDecodeError as e:
-            print(f"[EVOLUTION] Error parsing JSON response: {e}")
-            print(f"[EVOLUTION] Response content: {content_str[:500]}")
+            logger.error(f"Error parsing JSON response: {e}")
+            logger.debug(f"Response content: {content_str[:500]}")
             return []
     
     def create_activity_log_entry(
@@ -379,8 +382,8 @@ Return JSON array with ratings and brief reasoning for each."""
                 }
             )
             
-            print(f"[EVOLUTION] Activity log entry created for cycle {cycle_id}")
+            logger.info(f"Activity log entry created for cycle {cycle_id}")
             return True
         except Exception as e:
-            print(f"[EVOLUTION] Error creating activity log entry: {e}")
+            logger.error(f"Error creating activity log entry: {e}")
             return False

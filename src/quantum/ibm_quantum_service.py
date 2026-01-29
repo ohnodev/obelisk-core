@@ -12,6 +12,9 @@ from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2
 from qiskit import QuantumCircuit, transpile
 from qiskit import qasm2
 import numpy as np
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class IBMQuantumService:
@@ -60,13 +63,13 @@ class IBMQuantumService:
                 raise Exception(f"Backend {self.backend.name} is a simulator. Only real hardware allowed.")
             
             self.sampler = SamplerV2(mode=self.backend)
-            print(f"✅ Connected to REAL IBM Quantum hardware: {self.backend.name}")
-            print(f"   Qubits: {self.backend.num_qubits}")
-            print(f"   Status: {self.backend.status()}")
+            logger.info(f"✅ Connected to REAL IBM Quantum hardware: {self.backend.name}")
+            logger.info(f"   Qubits: {self.backend.num_qubits}")
+            logger.info(f"   Status: {self.backend.status()}")
             
         except Exception as e:
             error_msg = f"❌ CRITICAL: Cannot connect to real IBM Quantum hardware: {e}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
 
     def generate_random_circuit(self, num_qubits: int = 5, depth: int = 3) -> QuantumCircuit:
@@ -167,7 +170,7 @@ class IBMQuantumService:
                     if creation_date:
                         creation_date = creation_date.isoformat() if hasattr(creation_date, 'isoformat') else str(creation_date)
             except Exception as e:
-                print(f"[QUANTUM] Warning: Could not get job metadata: {e}")
+                logger.warning(f"Could not get job metadata: {e}")
             
             # Wait for result (this includes queue time + computation time)
             # The actual quantum computation is usually 1-3 seconds
@@ -199,7 +202,7 @@ class IBMQuantumService:
                         total = sum(counts.values())
                         quasi_dist = {k: v/total for k, v in counts.items()}
             except Exception as e1:
-                print(f"[QUANTUM] Warning: Could not get counts from BitArray: {e1}")
+                logger.warning(f"Could not get counts from BitArray: {e1}")
             
             # Fallback: try quasi-distribution approach
             if not counts:
@@ -211,7 +214,7 @@ class IBMQuantumService:
                         if hasattr(meas_data, 'quasi_dists'):
                             quasi_dist = meas_data.quasi_dists[0]
                 except Exception as e2:
-                    print(f"[QUANTUM] Warning: Could not get quasi-distribution: {e2}")
+                    logger.warning(f"Could not get quasi-distribution: {e2}")
                 
                 # Convert quasi-distribution to counts
                 if quasi_dist:
@@ -295,26 +298,26 @@ class IBMQuantumService:
                                 "readout_error": float(readout_error) if readout_error else None
                             }
                         except Exception as e:
-                            print(f"[QUANTUM] Warning: Could not get properties for qubit {qubit_idx}: {e}")
+                            logger.warning(f"Could not get properties for qubit {qubit_idx}: {e}")
                 except Exception as e:
-                    print(f"[QUANTUM] Warning: Could not get backend properties: {e}")
+                    logger.warning(f"Could not get backend properties: {e}")
                     
             except Exception as e:
-                print(f"[QUANTUM] Warning: Could not extract all backend information: {e}")
+                logger.warning(f"Could not extract all backend information: {e}")
             
             # Get circuit QASM representation
             circuit_qasm = None
             try:
                 circuit_qasm = qasm2.dumps(circuit)
             except Exception as e:
-                print(f"[QUANTUM] Warning: Could not generate QASM: {e}")
+                logger.warning(f"Could not generate QASM: {e}")
             
             # Get gate counts
             gate_counts = {}
             try:
                 gate_counts = dict(circuit.count_ops())
             except Exception as e:
-                print(f"[QUANTUM] Warning: Could not get gate counts: {e}")
+                logger.warning(f"Could not get gate counts: {e}")
             
             # Get instance information for URL construction
             instance_crn = None
@@ -382,7 +385,7 @@ class IBMQuantumService:
             
         except Exception as e:
             error_msg = f"❌ Failed to run on REAL IBM Quantum hardware: {e}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)
 
     def get_quantum_seed_256bit(self) -> tuple[int, Dict[str, Any]]:
@@ -441,12 +444,12 @@ class IBMQuantumService:
             # Convert binary string to integer (big-endian)
             quantum_seed = int(full_bitstring, 2)
             
-            print(f"[QUANTUM] Generated 256-bit seed directly from {len(bitstrings)} quantum measurements")
-            print(f"[QUANTUM] Seed (hex): {hex(quantum_seed)[:20]}...")
+            logger.info(f"Generated 256-bit seed directly from {len(bitstrings)} quantum measurements")
+            logger.debug(f"Seed (hex): {hex(quantum_seed)[:20]}...")
             
             return quantum_seed, quantum_proof
             
         except Exception as e:
             error_msg = f"❌ Failed to generate 256-bit quantum seed from IBM Quantum hardware: {e}"
-            print(error_msg)
+            logger.error(error_msg)
             raise Exception(error_msg)

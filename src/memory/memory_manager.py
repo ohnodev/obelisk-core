@@ -8,6 +8,9 @@ import os
 import json
 import re
 from ..storage.base import StorageInterface
+from ..utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # LangChain is REQUIRED - no fallback
 try:
@@ -279,7 +282,7 @@ JSON only:"""
             
             # Fallback: Create minimal summary from what we can extract
             # Print warning - Rich's console.status() should handle this without breaking the spinner
-            print(f"[MEMORY] Warning: Could not parse JSON from summary. Response: {summary_text[:200]}")
+            logger.warning(f"Could not parse JSON from summary. Response: {summary_text[:200]}")
             return {
                 'summary': 'Previous conversation',
                 'keyTopics': [],
@@ -288,7 +291,7 @@ JSON only:"""
             }
             
         except Exception as e:
-            print(f"[MEMORY] Error summarizing with LLM: {e}")
+            logger.error(f"Error summarizing with LLM: {e}")
             return None
     
     def _save_summary_to_storage(self, user_id: str, summary_data: Dict[str, Any], interactions: List[Dict[str, Any]]):
@@ -307,7 +310,7 @@ JSON only:"""
                 metadata=metadata
             )
         except Exception as e:
-            print(f"[MEMORY] Error saving summary: {e}")
+            logger.error(f"Error saving summary: {e}")
     
     def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Load summary from storage"""
@@ -343,7 +346,7 @@ JSON only:"""
             return None
             
         except Exception as e:
-            print(f"[MEMORY] Error loading summary from storage: {e}")
+            logger.error(f"Error loading summary from storage: {e}")
             return None
     
     def add_interaction(

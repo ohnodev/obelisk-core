@@ -18,8 +18,11 @@ import pickle
 # Add parent directory to path for config import
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from config import Config
+from ..utils.logger import get_logger
 
 warnings.filterwarnings("ignore")
+
+logger = get_logger(__name__)
 
 
 class ConversationStopCriteria(StoppingCriteria):
@@ -92,7 +95,7 @@ class ObeliskLLM:
         """Load quantized Qwen3-0.6B model"""
         try:
             model_name = self.MODEL_NAME
-            print(f"Loading {model_name} on {self.device}...")
+            logger.info(f"Loading {model_name} on {self.device}...")
             
             # Load tokenizer (allow download on first run)
             self.tokenizer = AutoTokenizer.from_pretrained(
@@ -121,9 +124,9 @@ class ObeliskLLM:
                     trust_remote_code=True,
                     local_files_only=False  # Allow download on first run
                 )
-                print("Model loaded with 4-bit quantization")
+                logger.info("Model loaded with 4-bit quantization")
             except ImportError:
-                print("bitsandbytes not available, loading in float16...")
+                logger.warning("bitsandbytes not available, loading in float16...")
                 # Fallback to float16 if bitsandbytes not installed
                 self.model = AutoModelForCausalLM.from_pretrained(
                     model_name,
@@ -133,7 +136,7 @@ class ObeliskLLM:
                     local_files_only=False  # Allow download on first run
                 )
             except Exception as e:
-                print(f"4-bit quantization failed: {e}, loading in float16...")
+                logger.warning(f"4-bit quantization failed: {e}, loading in float16...")
                 # Fallback to float16
                 self.model = AutoModelForCausalLM.from_pretrained(
                     model_name,
@@ -166,20 +169,20 @@ class ObeliskLLM:
                 import sys
                 python_version = sys.version_info
                 if python_version.major == 3 and python_version.minor >= 14:
-                    print("Skipping model compilation (not supported on Python 3.14+)")
+                    logger.info("Skipping model compilation (not supported on Python 3.14+)")
                 else:
                     try:
                         if hasattr(torch, 'compile'):
-                            print("Compiling model for faster CPU inference...")
+                            logger.info("Compiling model for faster CPU inference...")
                             self.model = torch.compile(self.model, mode="reduce-overhead")
-                            print("Model compiled successfully")
+                            logger.info("Model compiled successfully")
                     except Exception as e:
-                        print(f"Model compilation not available or failed: {e}")
+                        logger.warning(f"Model compilation not available or failed: {e}")
             
-            print(f"Model loaded successfully. Memory: ~{self._estimate_memory()}MB")
+            logger.info(f"Model loaded successfully. Memory: ~{self._estimate_memory()}MB")
             
         except Exception as e:
-            print(f"Error loading model: {e}")
+            logger.error(f"Error loading model: {e}")
             self.model = None
             self.tokenizer = None
     
@@ -191,7 +194,7 @@ class ObeliskLLM:
         try:
             weights_data = self.storage.get_latest_model_weights(self.MODEL_NAME)
             if weights_data and weights_data.get('lora_weights'):
-                print(f"[LLM] Loading LoRA weights from cycle {weights_data.get('cycle_number')}, version {weights_data.get('version')}")
+                logger.info(f"Loading LoRA weights from cycle {weights_data.get('cycle_number')}, version {weights_data.get('version')}")
                 
                 # Convert bytes to state dict
                 lora_weights_bytes = weights_data['lora_weights']
@@ -210,23 +213,23 @@ class ObeliskLLM:
                 self.model = self.lora_model
                 self.current_weights_cycle = weights_data.get('cycle_number')
                 
-                print(f"[LLM] LoRA weights loaded successfully from cycle {self.current_weights_cycle}")
+                logger.info(f"LoRA weights loaded successfully from cycle {self.current_weights_cycle}")
             else:
-                print("[LLM] No LoRA weights found in storage, using base model")
+                logger.info("No LoRA weights found in storage, using base model")
         except Exception as e:
-            print(f"[LLM] Error loading LoRA weights: {e}")
+            logger.error(f"Error loading LoRA weights: {e}")
             import traceback
             traceback.print_exc()
     
     def save_lora_weights(self, cycle_number: int, evolution_score: float, interactions_used: int, metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Save current LoRA weights to storage"""
         if not self.storage:
-            print("[LLM] No storage configured, cannot save LoRA weights")
+            logger.warning("No storage configured, cannot save LoRA weights")
             return None
         
         try:
             if self.lora_model is None:
-                print("[LLM] No LoRA model to save, creating new LoRA adapter...")
+                logger.info("No LoRA model to save, creating new LoRA adapter...")
                 # Create LoRA adapter if it doesn't exist
                 self.lora_model = get_peft_model(self.model, self.lora_config)
             
@@ -249,13 +252,13 @@ class ObeliskLLM:
             
             if weight_id:
                 self.current_weights_cycle = cycle_number
-                print(f"[LLM] LoRA weights saved successfully for cycle {cycle_number}")
+                logger.info(f"LoRA weights saved successfully for cycle {cycle_number}")
                 return weight_id
             else:
-                print("[LLM] Failed to save LoRA weights")
+                logger.error("Failed to save LoRA weights")
                 return None
         except Exception as e:
-            print(f"[LLM] Error saving LoRA weights: {e}")
+            logger.error(f"Error saving LoRA weights: {e}")
             import traceback
             traceback.print_exc()
             return None
@@ -278,7 +281,7 @@ class ObeliskLLM:
             if not training_data or len(training_data) < 5:
                 return {"error": "Need at least 5 training examples"}
             
-            print(f"[LLM] Starting LoRA fine-tuning on {len(training_data)} examples...")
+            logger.info(f"Starting LoRA fine-tuning on {len(training_data)} examples...")
             
             # Ensure LoRA adapter exists
             if self.lora_model is None:
@@ -335,7 +338,7 @@ class ObeliskLLM:
             self.model = self.lora_model
             self.model.eval()
             
-            print(f"[LLM] Fine-tuning completed. Loss: {train_result.training_loss:.4f}")
+            logger.info(f"Fine-tuning completed. Loss: {train_result.training_loss:.4f}")
             
             return {
                 "success": True,
@@ -345,7 +348,7 @@ class ObeliskLLM:
             }
             
         except Exception as e:
-            print(f"[LLM] Error during fine-tuning: {e}")
+            logger.error(f"Error during fine-tuning: {e}")
             import traceback
             traceback.print_exc()
             return {"error": str(e)}
@@ -401,7 +404,7 @@ class ObeliskLLM:
             # Validate and truncate user query if too long
             query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
             if len(query_tokens) > self.MAX_USER_QUERY_TOKENS:
-                print(f"[LLM] User query too long ({len(query_tokens)} tokens), truncating to {self.MAX_USER_QUERY_TOKENS} tokens")
+                logger.warning(f"User query too long ({len(query_tokens)} tokens), truncating to {self.MAX_USER_QUERY_TOKENS} tokens")
                 truncated_tokens = query_tokens[:self.MAX_USER_QUERY_TOKENS]
                 query = self.tokenizer.decode(truncated_tokens, skip_special_tokens=True)
                 query_tokens = truncated_tokens
@@ -445,7 +448,7 @@ class ObeliskLLM:
                 elif isinstance(conversation_context, str):
                     # Old format: string (for backward compatibility during transition)
                     # This should not happen in normal operation, but handle gracefully
-                    print("[LLM] WARNING: Received string format conversation_context, expected dict. This is deprecated.")
+                    logger.warning("Received string format conversation_context, expected dict. This is deprecated.")
                     memories_text = conversation_context  # Fallback: put entire string in memories
             
             # Build system message (system prompt + memories)
@@ -481,9 +484,9 @@ class ObeliskLLM:
                 
                 conversation_history = kept_messages
                 if len(kept_messages) < original_history_count:
-                    print(f"[LLM] Truncated conversation history: kept {len(kept_messages)}/{original_history_count} messages")
+                    logger.warning(f"Truncated conversation history: kept {len(kept_messages)}/{original_history_count} messages")
             elif max_history_tokens <= 0:
-                print(f"[LLM] Not enough tokens for conversation history, skipping it")
+                logger.warning("Not enough tokens for conversation history, skipping it")
                 conversation_history = []
             
             # Build messages array for Qwen3 chat template
@@ -515,11 +518,11 @@ class ObeliskLLM:
             
             # Debug: Show full prompt
             if Config.DEBUG:
-                print("\n" + "="*80)
-                print("[DEBUG] Full prompt sent to LLM (thinking_mode=True):")
-                print("="*80)
-                print(prompt_text)
-                print("="*80 + "\n")
+                logger.debug("\n" + "="*80)
+                logger.debug("Full prompt sent to LLM (thinking_mode=True):")
+                logger.debug("="*80)
+                logger.debug(prompt_text)
+                logger.debug("="*80 + "\n")
             
             # Tokenize and check total input size
             inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
@@ -531,12 +534,12 @@ class ObeliskLLM:
                 for msg in conversation_history
             )
             memories_token_count = len(self.tokenizer.encode(memories_text, add_special_tokens=False)) if memories_text else 0
-            print(f"[LLM] Input tokens: {input_token_count} (system: {system_content_tokens}, history: {history_token_count}, memories: {memories_token_count}, query: {len(query_tokens)}, messages: {len(conversation_history)})")
+            logger.debug(f"Input tokens: {input_token_count} (system: {system_content_tokens}, history: {history_token_count}, memories: {memories_token_count}, query: {len(query_tokens)}, messages: {len(conversation_history)})")
             
             # Check if total (input + output) will exceed context window
             total_tokens_after_generation = input_token_count + self.MAX_OUTPUT_TOKENS
             if total_tokens_after_generation > self.MAX_CONTEXT_TOKENS:
-                print(f"[LLM] WARNING: Total tokens ({total_tokens_after_generation}) would exceed context limit ({self.MAX_CONTEXT_TOKENS})")
+                logger.warning(f"Total tokens ({total_tokens_after_generation}) would exceed context limit ({self.MAX_CONTEXT_TOKENS})")
                 # Reduce output tokens if needed
                 max_safe_output = self.MAX_CONTEXT_TOKENS - input_token_count
                 if max_safe_output < 10:
@@ -598,22 +601,22 @@ class ObeliskLLM:
                     # No thinking block found, decode everything as content
                     final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
                     if Config.DEBUG:
-                        print(f"[DEBUG] No thinking token (151668) found in output")
+                        logger.debug("No thinking token (151668) found in output")
             except ValueError:
                 # Token not found, decode everything
                 final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
                 if Config.DEBUG:
-                    print(f"[DEBUG] Error finding thinking token, using full output")
+                    logger.debug("Error finding thinking token, using full output")
             
             raw_response = final_content
             
             # Debug: Show raw response before post-processing
             if Config.DEBUG:
-                print("\n" + "="*80)
-                print("[DEBUG] Raw response from LLM (before post-processing):")
-                print("="*80)
-                print(repr(raw_response))  # Use repr to show exact characters
-                print("="*80 + "\n")
+                logger.debug("\n" + "="*80)
+                logger.debug("Raw response from LLM (before post-processing):")
+                logger.debug("="*80)
+                logger.debug(repr(raw_response))  # Use repr to show exact characters
+                logger.debug("="*80 + "\n")
             
             response = raw_response
             
@@ -629,7 +632,7 @@ class ObeliskLLM:
                     match = pattern.search(response)
                     if match:
                         response = response[:match.start()].strip()
-                        print(f"[LLM] Removed conversation marker '{marker}' from response (safety check)")
+                        logger.debug(f"Removed conversation marker '{marker}' from response (safety check)")
             
             # Remove any trailing incomplete sentences or fragments only if they contain conversation markers
             # This is a safety net for training artifacts, but we preserve valid multi-paragraph responses
@@ -647,7 +650,7 @@ class ObeliskLLM:
                     artifact_keywords = ['user:', 'assistant:', 'overseer:', 'the overseer:']
                     if any(keyword in after_sentence for keyword in artifact_keywords):
                         response = response[:last_sentence_end + 1].strip()
-                        print(f"[LLM] Removed trailing content with conversation markers (safety check)")
+                        logger.debug("Removed trailing content with conversation markers (safety check)")
             
             # Preserve paragraph structure - only normalize excessive whitespace (3+ spaces/newlines)
             # This preserves LaTeX formatting and paragraph breaks while cleaning up artifacts
@@ -657,17 +660,17 @@ class ObeliskLLM:
             
             # Debug: Show final processed response
             if Config.DEBUG:
-                print("\n" + "="*80)
-                print("[DEBUG] Final processed response:")
-                print("="*80)
-                print(repr(response))
-                print("="*80 + "\n")
+                logger.debug("\n" + "="*80)
+                logger.debug("Final processed response:")
+                logger.debug("="*80)
+                logger.debug(repr(response))
+                logger.debug("="*80 + "\n")
             
-            print(f"[LLM] Generated response: {response[:100]}... ({len(response)} chars)")
+            logger.debug(f"Generated response: {response[:100]}... ({len(response)} chars)")
             
             # Fallback if empty
             if not response or len(response.strip()) < 3:
-                print(f"[LLM DEBUG] Response too short ({len(response)} chars), using fallback")
+                logger.warning(f"Response too short ({len(response)} chars), using fallback")
                 response = "◊ The Overseer processes your query. ◊"
             
             return {
@@ -683,7 +686,7 @@ class ObeliskLLM:
             }
             
         except Exception as e:
-            print(f"Error generating response: {e}")
+            logger.error(f"Error generating response: {e}")
             return {
                 "response": f"◊ The Overseer encounters an error: {str(e)[:50]} ◊",
                 "error": str(e),
