@@ -517,12 +517,11 @@ class ObeliskLLM:
             )
             
             # Debug: Show full prompt
-            if Config.DEBUG:
-                logger.debug("\n" + "="*80)
-                logger.debug("Full prompt sent to LLM (thinking_mode=True):")
-                logger.debug("="*80)
-                logger.debug(prompt_text)
-                logger.debug("="*80 + "\n")
+            logger.debug("\n" + "="*80)
+            logger.debug("Full prompt sent to LLM (thinking_mode=True):")
+            logger.debug("="*80)
+            logger.debug(prompt_text)
+            logger.debug("="*80 + "\n")
             
             # Tokenize and check total input size
             inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
@@ -600,23 +599,20 @@ class ObeliskLLM:
                 else:
                     # No thinking block found, decode everything as content
                     final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
-                    if Config.DEBUG:
-                        logger.debug("No thinking token (151668) found in output")
+                    logger.debug("No thinking token (151668) found in output")
             except ValueError:
                 # Token not found, decode everything
                 final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
-                if Config.DEBUG:
-                    logger.debug("Error finding thinking token, using full output")
+                logger.debug("Error finding thinking token, using full output")
             
             raw_response = final_content
             
             # Debug: Show raw response before post-processing
-            if Config.DEBUG:
-                logger.debug("\n" + "="*80)
-                logger.debug("Raw response from LLM (before post-processing):")
-                logger.debug("="*80)
-                logger.debug(repr(raw_response))  # Use repr to show exact characters
-                logger.debug("="*80 + "\n")
+            logger.debug("\n" + "="*80)
+            logger.debug("Raw response from LLM (before post-processing):")
+            logger.debug("="*80)
+            logger.debug(repr(raw_response))  # Use repr to show exact characters
+            logger.debug("="*80 + "\n")
             
             response = raw_response
             
@@ -659,12 +655,11 @@ class ObeliskLLM:
             response = response.strip()
             
             # Debug: Show final processed response
-            if Config.DEBUG:
-                logger.debug("\n" + "="*80)
-                logger.debug("Final processed response:")
-                logger.debug("="*80)
-                logger.debug(repr(response))
-                logger.debug("="*80 + "\n")
+            logger.debug("\n" + "="*80)
+            logger.debug("Final processed response:")
+            logger.debug("="*80)
+            logger.debug(repr(response))
+            logger.debug("="*80 + "\n")
             
             logger.debug(f"Generated response: {response[:100]}... ({len(response)} chars)")
             

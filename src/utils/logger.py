@@ -4,7 +4,10 @@ Provides structured logging with appropriate log levels
 """
 import logging
 import sys
+import os
 from typing import Optional
+
+# Import Config for debug flag (avoid circular import by importing at function level)
 
 
 def setup_logger(
@@ -17,7 +20,7 @@ def setup_logger(
     
     Args:
         name: Logger name (default: "obelisk_core")
-        level: Log level (default: INFO, or from OBELISK_CORE_DEBUG env)
+        level: Log level (default: INFO, or DEBUG if Config.DEBUG is True)
         format_string: Custom format string (optional)
     
     Returns:
@@ -31,8 +34,15 @@ def setup_logger(
     
     # Set log level
     if level is None:
-        import os
-        debug_mode = os.getenv("OBELISK_CORE_DEBUG", "").lower() in ("true", "1", "yes")
+        # Use Config.DEBUG if available, otherwise fall back to env var
+        try:
+            # Import here to avoid circular dependency
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            from config import Config
+            debug_mode = Config.DEBUG
+        except ImportError:
+            # Fallback to env var if config not available
+            debug_mode = os.getenv("OBELISK_CORE_DEBUG", "").lower() in ("true", "1", "yes")
         level = logging.DEBUG if debug_mode else logging.INFO
     logger.setLevel(level)
     
