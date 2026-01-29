@@ -99,24 +99,39 @@ def chat(mode):
             mode=Config.MODE
         )
     
-    console.print("[bold green]✓[/bold green] [dim]The Overseer is ready[/dim]")
+    console.print("[bold green]✓[/bold green] [bold]The Overseer is ready[/bold]")
     console.print()
     
     user_id = "cli_user"
     
-    # Instructions
+    # Welcome message
+    welcome_text = Text()
+    welcome_text.append("Welcome, seeker of knowledge.\n", style="bold white")
+    welcome_text.append("The Overseer awaits your query.\n\n", style="dim")
+    welcome_text.append("Type ", style="dim")
+    welcome_text.append("'quit'", style="bold yellow")
+    welcome_text.append(" or ", style="dim")
+    welcome_text.append("'exit'", style="bold yellow")
+    welcome_text.append(" to end the conversation.", style="dim")
+    
     console.print(Panel(
-        "[dim]Type 'quit' or 'exit' to end the conversation.[/dim]",
+        welcome_text,
         box=box.ROUNDED,
-        border_style="dim",
-        padding=(0, 1)
+        border_style="cyan",
+        padding=(1, 2),
+        title="[bold cyan]◊ Ready[/bold cyan]"
     ))
+    console.print()
+    
+    # Separator line
+    console.print("[dim]─" * 60 + "[/dim]")
     console.print()
     
     while True:
         try:
-            # User input with styled prompt
-            query = console.input("[bold cyan]You:[/bold cyan] ")
+            # User input with styled prompt - more prominent
+            console.print("[bold cyan]◊[/bold cyan] ", end="")
+            query = console.input("[bold white]You:[/bold white] ")
             
             if query.lower() in ['quit', 'exit', 'q']:
                 console.print()
