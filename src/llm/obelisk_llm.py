@@ -375,7 +375,7 @@ class ObeliskLLM:
         
         Args:
             query: User's query
-            quantum_influence: Quantum random value (0-1) to influence creativity
+            quantum_influence: Quantum random value (0-0.1) to influence creativity (will be clamped)
             max_length: Maximum response length
             conversation_context: Dict with 'messages' (list of message dicts) and 'memories' (string)
                                  Format: {"messages": [{"role": "user", "content": "..."}, ...], "memories": "..."}
@@ -397,9 +397,22 @@ class ObeliskLLM:
             base_top_p = Config.LLM_TOP_P_BASE
             top_k = Config.LLM_TOP_K
             
+            # Clamp quantum_influence to valid range [0.0, 0.1]
+            quantum_influence = max(0.0, min(0.1, quantum_influence))
+            
             # Apply quantum influence (ranges from config)
             temperature = base_temp + (quantum_influence * Config.LLM_QUANTUM_TEMPERATURE_RANGE)
             top_p = base_top_p + (quantum_influence * Config.LLM_QUANTUM_TOP_P_RANGE)
+            
+            # Validate and clamp sampling parameters to safe ranges
+            # Temperature must be > 0 and reasonable (0.1 to 0.9)
+            temperature = max(0.1, min(0.9, temperature))
+            
+            # Top_p must be between 0 and 1.0
+            top_p = max(0.01, min(1.0, top_p))
+            
+            # Ensure repetition_penalty is valid (> 0)
+            repetition_penalty = max(1.0, Config.LLM_REPETITION_PENALTY)
             
             # Validate and truncate user query if too long
             query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
@@ -570,7 +583,7 @@ class ObeliskLLM:
                     min_p=0.0,  # Qwen3 recommended
                     pad_token_id=self.tokenizer.eos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    repetition_penalty=Config.LLM_REPETITION_PENALTY,
+                    repetition_penalty=repetition_penalty,
                     use_cache=True,
                     num_beams=1,
                     stopping_criteria=stopping_criteria_list
