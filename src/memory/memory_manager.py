@@ -232,11 +232,6 @@ JSON only:"""
             logger.error(f"Error loading summaries from storage: {e}")
             return []
     
-    def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Load the most recent summary from storage (backward compatibility)"""
-        summaries = self._load_all_summaries_from_storage(user_id, limit=1)
-        return summaries[0] if summaries else None
-    
     def add_interaction(
         self,
         user_id: str,
