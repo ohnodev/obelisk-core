@@ -98,10 +98,10 @@ async def generate(request: GenerateRequest):
         llm = get_llm()
         memory_manager = get_memory_manager()
         
-        # Get conversation context if user_id provided
+        # Get conversation context if user_id provided (always runs memory selection)
         conversation_context = request.conversation_context
         if request.user_id and not conversation_context:
-            conversation_context = memory_manager.get_conversation_context(request.user_id)
+            conversation_context = memory_manager.get_conversation_context(request.user_id, user_query=request.prompt)
         
         result = llm.generate(
             query=request.prompt,
@@ -208,7 +208,8 @@ async def get_memory(user_id: str):
     """Get conversation context for user"""
     try:
         memory_manager = get_memory_manager()
-        context = memory_manager.get_conversation_context(user_id)
+        # Note: This endpoint doesn't have a query, use empty string (will use most recent memories)
+        context = memory_manager.get_conversation_context(user_id, user_query="")
         return {
             "user_id": user_id,
             "context": context

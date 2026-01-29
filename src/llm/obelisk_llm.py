@@ -369,9 +369,9 @@ class ObeliskLLM:
         """Get The Overseer system prompt - loaded from config"""
         return Config.AGENT_PROMPT
 
-    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None, enable_thinking: bool = True) -> Dict[str, Any]:
         """
-        Generate response from The Obelisk (always uses thinking mode for best quality)
+        Generate response from The Obelisk
         
         Args:
             query: User's query
@@ -379,6 +379,7 @@ class ObeliskLLM:
             max_length: Maximum response length
             conversation_context: Dict with 'messages' (list of message dicts) and 'memories' (string)
                                  Format: {"messages": [{"role": "user", "content": "..."}, ...], "memories": "..."}
+            enable_thinking: Whether to enable thinking mode (default: True for best quality)
         
         Returns:
             Dict with response, thinking_content, and metadata
@@ -521,17 +522,17 @@ class ObeliskLLM:
                 "content": query
             })
             
-            # Apply Qwen3 chat template with thinking mode (always enabled)
+            # Apply Qwen3 chat template with optional thinking mode
             prompt_text = self.tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
                 add_generation_prompt=True,
-                enable_thinking=True  # Always use thinking mode for best quality
+                enable_thinking=enable_thinking
             )
             
             # Debug: Show full prompt
             logger.debug("\n" + "="*80)
-            logger.debug("Full prompt sent to LLM (thinking_mode=True):")
+            logger.debug(f"Full prompt sent to LLM (thinking_mode={enable_thinking}):")
             logger.debug("="*80)
             logger.debug(prompt_text)
             logger.debug("="*80 + "\n")
@@ -684,7 +685,7 @@ class ObeliskLLM:
             return {
                 "response": response,
                 "thinking_content": thinking_content,
-                "thinking_mode": True,  # Always enabled
+                "thinking_mode": enable_thinking,
                 "quantum_influence": quantum_influence,
                 "temperature": temperature,
                 "top_p": top_p,

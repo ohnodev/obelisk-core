@@ -146,17 +146,13 @@ def chat(mode):
             if not query.strip():
                 continue
             
-            # Get conversation context
-            context = memory_manager.get_conversation_context(user_id)
-            
-            # Show thinking indicator with animated spinner
+            # Show thinking indicator immediately after user input (includes memory selection)
             console.print()
-            # Use console.status() with proper formatting - it handles animation automatically
-            status_text = "[bold cyan]◊[/bold cyan] [bold]The Overseer is thinking...[/bold]"
-            
-            # Simple approach: no redirection, works the same in both debug and non-debug mode
-            # The spinner will animate properly since we're not redirecting stderr
-            with console.status(status_text, spinner="dots"):
+            with console.status("[bold cyan]◊ The Overseer is thinking...[/bold cyan]", spinner="dots"):
+                # Get conversation context (includes memory selection - always runs)
+                context = memory_manager.get_conversation_context(user_id, user_query=query)
+                
+                # Generate response with selected memories
                 result = llm.generate(
                     query=query,
                     quantum_influence=0.7,
