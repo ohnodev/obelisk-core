@@ -444,11 +444,11 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
         all_summaries = self._load_all_summaries_from_storage(user_id, limit=30)
         
         if all_summaries:
-            # Always use LLM to select relevant memories based on query
+            # Use LLM to select relevant memories if we have multiple summaries
             if len(all_summaries) > 1:
                 selected_summaries = self._select_relevant_memories(user_query, all_summaries, top_k=5)
             else:
-                # Only one summary, use it
+                # Only one summary, use it as-is (zero summaries case handled by outer if)
                 selected_summaries = all_summaries
             
             # Format selected memories
