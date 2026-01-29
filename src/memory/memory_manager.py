@@ -336,10 +336,9 @@ JSON only:"""
         if not summaries:
             return []
         
+        # LLM is required for memory selection (enforced in __init__ for solo mode)
         if not self.llm:
-            # If no LLM, return most recent
-            logger.warning("No LLM available for memory selection, using most recent summaries")
-            return summaries[:top_k]
+            raise ValueError("LLM is required for memory selection but was not provided")
         
         if len(summaries) <= top_k:
             # If we have fewer summaries than top_k, return all
