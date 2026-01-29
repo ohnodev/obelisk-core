@@ -522,27 +522,69 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
             selection_text = re.sub(r'\n?```\s*$', '', selection_text, flags=re.MULTILINE | re.IGNORECASE)
             selection_text = selection_text.strip()
             
-            # Extract JSON
+            # Extract JSON - try multiple strategies (similar to summarization)
+            selection_data = None
+            
+            # Strategy 1: Find complete JSON object by matching braces
             json_start = selection_text.find('{')
             if json_start >= 0:
-                json_end = selection_text.rfind('}') + 1
+                # Find matching closing brace
+                brace_count = 0
+                json_end = json_start
+                for i in range(json_start, len(selection_text)):
+                    if selection_text[i] == '{':
+                        brace_count += 1
+                    elif selection_text[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_end = i + 1
+                            break
+                
                 if json_end > json_start:
+                    json_str = selection_text[json_start:json_end]
                     try:
-                        selection_data = json.loads(selection_text[json_start:json_end])
-                        selected_indices = selection_data.get('selected_indices', [])
-                        
-                        # Validate indices and select memories
-                        selected_memories = []
-                        for idx in selected_indices:
-                            if isinstance(idx, int) and 0 <= idx < len(summaries):
-                                selected_memories.append(summaries[idx])
-                        
-                        # If we got valid selections, return them
-                        if selected_memories:
-                            logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
-                            return selected_memories
+                        selection_data = json.loads(json_str)
                     except json.JSONDecodeError:
                         pass
+            
+            # Strategy 2: Try parsing the whole response
+            if not selection_data:
+                try:
+                    selection_data = json.loads(selection_text)
+                except json.JSONDecodeError:
+                    pass
+            
+            # Strategy 3: Try to fix incomplete JSON
+            if not selection_data:
+                try:
+                    open_braces = selection_text.count('{')
+                    close_braces = selection_text.count('}')
+                    missing_braces = open_braces - close_braces
+                    
+                    if missing_braces > 0:
+                        fixed_json = selection_text + '}' * missing_braces
+                        selection_data = json.loads(fixed_json)
+                except json.JSONDecodeError:
+                    pass
+            
+            # Extract and validate indices
+            if selection_data:
+                selected_indices = selection_data.get('selected_indices', [])
+                
+                # Validate indices and select memories
+                selected_memories = []
+                for idx in selected_indices:
+                    if isinstance(idx, int) and 0 <= idx < len(summaries):
+                        selected_memories.append(summaries[idx])
+                
+                # If we got valid selections, return them
+                if selected_memories:
+                    logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
+                    return selected_memories
+                else:
+                    logger.warning(f"Memory selection returned invalid indices: {selected_indices} (valid range: 0-{len(summaries)-1})")
+            else:
+                logger.warning(f"Memory selection failed to parse JSON. LLM response: {selection_text[:200]}")
             
             # Fallback: return most recent if selection failed
             logger.warning("Memory selection failed, using most recent summaries")
