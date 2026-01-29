@@ -312,11 +312,10 @@ JSON only:"""
         except Exception as e:
             logger.error(f"Error saving summary: {e}")
     
-    def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Load summary from storage"""
+    def _load_all_summaries_from_storage(self, user_id: str, limit: int = 30) -> List[Dict[str, Any]]:
+        """Load all summaries from storage (up to limit, most recent first)"""
         try:
-            # Summaries are stored as activity logs with type 'conversation_summary'
-            # We need to get the most recent summary for this user
+            summaries_list = []
             
             # For LocalJSONStorage, summaries are in memory/activities.json
             if hasattr(self.storage, 'memory_path'):
@@ -327,33 +326,44 @@ JSON only:"""
                 if not activities_file.exists():
                     # Try old location
                     activities_file = Path(self.storage.base_path) / "activities.json"
-                if activities_file.exists():
-                    with open(activities_file, 'r') as f:
-                        activities = json.load(f)
-                    
-                    # Find all conversation_summary activities for this user
-                    summaries = [
-                        activity for activity in activities
-                        if activity.get('type') == 'conversation_summary'
-                        and activity.get('message', '').endswith(f'user {user_id}')
-                    ]
-                    
-                    if summaries:
-                        # Get the most recent summary (last one in list, or sort by created_at)
-                        latest_summary = summaries[-1]
-                        metadata = latest_summary.get('metadata', {})
-                        summary_data = metadata.get('summary_data')
-                        
-                        if summary_data:
-                            return summary_data
+            else:
+                return []
             
-            # For SupabaseStorage or other backends, we'd query differently
-            # For now, return None if not found
-            return None
+            if activities_file.exists():
+                with open(activities_file, 'r') as f:
+                    activities = json.load(f)
+                
+                # Find all conversation_summary activities for this user
+                user_summaries = [
+                    activity for activity in activities
+                    if activity.get('type') == 'conversation_summary'
+                    and activity.get('message', '').endswith(f'user {user_id}')
+                ]
+                
+                # Sort by created_at (most recent first) and limit
+                user_summaries.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+                user_summaries = user_summaries[:limit]
+                
+                # Extract summary_data from each
+                for activity in user_summaries:
+                    metadata = activity.get('metadata', {})
+                    summary_data = metadata.get('summary_data')
+                    if summary_data:
+                        # Add activity ID for reference
+                        summary_data['_activity_id'] = activity.get('id')
+                        summary_data['_created_at'] = activity.get('created_at')
+                        summaries_list.append(summary_data)
+            
+            return summaries_list
             
         except Exception as e:
-            logger.error(f"Error loading summary from storage: {e}")
-            return None
+            logger.error(f"Error loading summaries from storage: {e}")
+            return []
+    
+    def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Load the most recent summary from storage (backward compatibility)"""
+        summaries = self._load_all_summaries_from_storage(user_id, limit=1)
+        return summaries[0] if summaries else None
     
     def add_interaction(
         self,
@@ -440,9 +450,112 @@ JSON only:"""
                     # Clear the buffer after summarizing (memories are now in summary)
                     memory.clear()
     
-    def get_conversation_context(self, user_id: str) -> Dict[str, Any]:
+    def _select_relevant_memories(self, user_query: str, summaries: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        Get conversation context in Qwen3-compatible format
+        Use LLM to select relevant memories from a list of summaries
+        
+        Args:
+            user_query: Current user query
+            summaries: List of summary dictionaries
+            top_k: Number of relevant memories to select (default: 5)
+            
+        Returns:
+            List of selected relevant summary dictionaries
+        """
+        if not summaries or not self.llm:
+            # If no LLM or no summaries, return empty or most recent
+            return summaries[:top_k] if summaries else []
+        
+        if len(summaries) <= top_k:
+            # If we have fewer summaries than top_k, return all
+            return summaries
+        
+        try:
+            # Format summaries for analysis
+            summaries_text = ""
+            for i, summary in enumerate(summaries):
+                summary_str = f"Memory {i}:\n"
+                summary_str += f"  Summary: {summary.get('summary', 'N/A')}\n"
+                summary_str += f"  Topics: {', '.join(summary.get('keyTopics', []))}\n"
+                summary_str += f"  Facts: {', '.join(summary.get('importantFacts', []))}\n"
+                user_ctx = summary.get('userContext', {})
+                if user_ctx:
+                    summary_str += f"  Context: {', '.join([f'{k}={v}' for k, v in user_ctx.items()])}\n"
+                summaries_text += summary_str + "\n"
+            
+            # Create selection prompt
+            selection_prompt = f"""Analyze these memories and select the {top_k} most relevant ones for this user query.
+
+User Query: {user_query}
+
+Memories:
+{summaries_text}
+
+Return ONLY valid JSON with this exact format:
+{{
+  "selected_indices": [0, 2, 5],
+  "reason": "brief explanation of why these were selected"
+}}
+
+Return the indices (0-based) of the {top_k} most relevant memories. JSON only:"""
+            
+            # Use LLM to select (low temperature for consistency)
+            result = self.llm.generate(
+                query=selection_prompt,
+                quantum_influence=0.1,  # Very low influence for consistent selection
+                conversation_context=None,
+                max_length=200  # Short response for selection
+            )
+            
+            selection_text = result.get('response', '').strip()
+            
+            # Remove thinking content if present (Qwen3 format)
+            selection_text = re.sub(r'<think>.*?</think>', '', selection_text, flags=re.DOTALL | re.IGNORECASE)
+            selection_text = selection_text.strip()
+            
+            # Strip markdown code blocks
+            selection_text = re.sub(r'^```(?:json)?\s*\n?', '', selection_text, flags=re.MULTILINE | re.IGNORECASE)
+            selection_text = re.sub(r'\n?```\s*$', '', selection_text, flags=re.MULTILINE | re.IGNORECASE)
+            selection_text = selection_text.strip()
+            
+            # Extract JSON
+            json_start = selection_text.find('{')
+            if json_start >= 0:
+                json_end = selection_text.rfind('}') + 1
+                if json_end > json_start:
+                    try:
+                        selection_data = json.loads(selection_text[json_start:json_end])
+                        selected_indices = selection_data.get('selected_indices', [])
+                        
+                        # Validate indices and select memories
+                        selected_memories = []
+                        for idx in selected_indices:
+                            if isinstance(idx, int) and 0 <= idx < len(summaries):
+                                selected_memories.append(summaries[idx])
+                        
+                        # If we got valid selections, return them
+                        if selected_memories:
+                            logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
+                            return selected_memories
+                    except json.JSONDecodeError:
+                        pass
+            
+            # Fallback: return most recent if selection failed
+            logger.warning("Memory selection failed, using most recent summaries")
+            return summaries[:top_k]
+            
+        except Exception as e:
+            logger.error(f"Error selecting relevant memories: {e}")
+            # Fallback: return most recent
+            return summaries[:top_k]
+    
+    def get_conversation_context(self, user_id: str, user_query: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get conversation context in Qwen3-compatible format with intelligent memory selection
+        
+        Args:
+            user_id: User identifier
+            user_query: Current user query (optional, used for memory selection)
         
         Returns:
             Dict with:
@@ -472,29 +585,43 @@ JSON only:"""
                             "content": msg.content
                         })
         
-        # Add memories/summary (summarized older conversations)
-        # These go in the system message as bullet points
-        if user_id in self.summaries and self.summaries[user_id]:
-            summary_data = self.summaries[user_id]
+        # Load all summaries and use intelligent selection
+        all_summaries = self._load_all_summaries_from_storage(user_id, limit=30)
+        
+        if all_summaries:
+            # Use LLM to select relevant memories if we have a query
+            if user_query and len(all_summaries) > 1:
+                selected_summaries = self._select_relevant_memories(user_query, all_summaries, top_k=5)
+            else:
+                # No query or only one summary, use most recent
+                selected_summaries = all_summaries[:5]
             
-            # Format important facts as bullet points
-            important_facts = summary_data.get('importantFacts', [])
-            if important_facts:
-                memories_parts.append("[Memories]")
-                if isinstance(important_facts, list):
-                    for fact in important_facts:
-                        memories_parts.append(f"- {fact}")
-                else:
-                    memories_parts.append(f"- {important_facts}")
-            
-            # Add user context if available
-            user_context = summary_data.get('userContext', {})
-            if user_context and isinstance(user_context, dict):
-                if memories_parts:
-                    memories_parts.append("")  # Add separator
-                memories_parts.append("[User Context]")
-                for key, value in user_context.items():
-                    memories_parts.append(f"- {key}: {value}")
+            # Format selected memories
+            for summary_data in selected_summaries:
+                # Format important facts as bullet points
+                important_facts = summary_data.get('importantFacts', [])
+                if important_facts:
+                    if not memories_parts:
+                        memories_parts.append("[Memories]")
+                    if isinstance(important_facts, list):
+                        for fact in important_facts:
+                            memories_parts.append(f"- {fact}")
+                    else:
+                        memories_parts.append(f"- {important_facts}")
+                
+                # Add user context if available (merge to avoid duplicates)
+                user_context = summary_data.get('userContext', {})
+                if user_context and isinstance(user_context, dict):
+                    if memories_parts and "[User Context]" not in "\n".join(memories_parts):
+                        memories_parts.append("")  # Add separator
+                        memories_parts.append("[User Context]")
+                    elif "[User Context]" not in "\n".join(memories_parts):
+                        memories_parts.append("[User Context]")
+                    for key, value in user_context.items():
+                        # Only add if not already present
+                        context_line = f"- {key}: {value}"
+                        if context_line not in memories_parts:
+                            memories_parts.append(context_line)
         
         memories_str = "\n".join(memories_parts) if memories_parts else ""
         

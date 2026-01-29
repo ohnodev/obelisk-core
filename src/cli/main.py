@@ -147,7 +147,7 @@ def chat(mode):
                 continue
             
             # Get conversation context
-            context = memory_manager.get_conversation_context(user_id)
+            context = memory_manager.get_conversation_context(user_id, user_query=query)
             
             # Show thinking indicator with animated spinner
             console.print()
