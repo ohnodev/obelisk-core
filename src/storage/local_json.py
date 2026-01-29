@@ -33,17 +33,19 @@ class LocalJSONStorage(StorageInterface):
             self.base_path = Path(storage_path)
         
         # Create directory structure
-        self.interactions_path = self.base_path / "interactions"
+        # Memory-related files go in memory/ folder
+        self.memory_path = self.base_path / "memory"
+        self.interactions_path = self.memory_path / "interactions"
         self.cycles_path = self.base_path / "cycles"
         self.weights_path = self.base_path / "weights"
         self.users_path = self.base_path / "users"
         
-        for path in [self.interactions_path, self.cycles_path, self.weights_path, self.users_path]:
+        for path in [self.memory_path, self.interactions_path, self.cycles_path, self.weights_path, self.users_path]:
             path.mkdir(parents=True, exist_ok=True)
         
         # Set file permissions (user only)
         os.chmod(self.base_path, 0o700)
-        for path in [self.interactions_path, self.cycles_path, self.weights_path, self.users_path]:
+        for path in [self.memory_path, self.interactions_path, self.cycles_path, self.weights_path, self.users_path]:
             os.chmod(path, 0o700)
     
     def _get_user_file(self, user_id: str) -> Path:
@@ -410,8 +412,8 @@ class LocalJSONStorage(StorageInterface):
             'created_at': datetime.utcnow().isoformat()
         }
         
-        # Save to activities file
-        activities_file = self.base_path / "activities.json"
+        # Save to activities file (in memory folder)
+        activities_file = self.memory_path / "activities.json"
         activities = []
         if activities_file.exists():
             try:

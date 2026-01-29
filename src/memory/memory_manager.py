@@ -318,9 +318,15 @@ JSON only:"""
             # Summaries are stored as activity logs with type 'conversation_summary'
             # We need to get the most recent summary for this user
             
-            # For LocalJSONStorage, summaries are in activities.json
-            if hasattr(self.storage, 'base_path'):
-                activities_file = Path(self.storage.base_path) / "activities.json"
+            # For LocalJSONStorage, summaries are in memory/activities.json
+            if hasattr(self.storage, 'memory_path'):
+                activities_file = Path(self.storage.memory_path) / "activities.json"
+            elif hasattr(self.storage, 'base_path'):
+                # Fallback for old structure (backward compatibility)
+                activities_file = Path(self.storage.base_path) / "memory" / "activities.json"
+                if not activities_file.exists():
+                    # Try old location
+                    activities_file = Path(self.storage.base_path) / "activities.json"
                 if activities_file.exists():
                     with open(activities_file, 'r') as f:
                         activities = json.load(f)

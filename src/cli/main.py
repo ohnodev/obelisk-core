@@ -344,7 +344,14 @@ def clear(confirm):
         
         if storage_path.exists():
             # Count files before deletion
-            interaction_files = list((storage_path / "interactions").glob("*.json")) if (storage_path / "interactions").exists() else []
+            # Check both old and new locations for interactions
+            old_interactions = storage_path / "interactions"
+            new_interactions = storage_path / "memory" / "interactions"
+            interaction_files = []
+            if new_interactions.exists():
+                interaction_files = list(new_interactions.glob("*.json"))
+            elif old_interactions.exists():
+                interaction_files = list(old_interactions.glob("*.json"))
             cycle_files = list((storage_path / "cycles").glob("*.json")) if (storage_path / "cycles").exists() else []
             weight_files = list((storage_path / "weights").glob("*")) if (storage_path / "weights").exists() else []
             
