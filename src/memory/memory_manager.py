@@ -260,8 +260,8 @@ JSON only:"""
         """
         buffer = self.get_buffer(user_id)
         
-        # Check if this interaction is already in memory to avoid duplicates
-        existing_messages = memory.get_messages()
+        # Check if this interaction is already in buffer to avoid duplicates
+        existing_messages = buffer.get_messages()
         if existing_messages:
             last_user_msg = None
             last_ai_msg = None
