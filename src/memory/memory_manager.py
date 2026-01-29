@@ -5,6 +5,7 @@ Uses LangChain for conversation memory management with Qwen LLM for summarizatio
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import os
+import json
 from ..storage.base import StorageInterface
 from ..utils.logger import get_logger
 from ..utils.json_parser import extract_json_from_llm_response
