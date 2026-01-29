@@ -111,7 +111,7 @@ class TestMemory:
         result1 = memory_manager.llm.generate(
             query=query1,
             quantum_influence=0.7,
-            conversation_context=memory_manager.get_conversation_context(user_id)
+            conversation_context=memory_manager.get_conversation_context(user_id, user_query=query1)
         )
         response1 = result1.get('response', '')
         
@@ -130,7 +130,7 @@ class TestMemory:
         query2 = "What is my favorite color?"
         
         # Get conversation context (should include the previous interaction)
-        context = memory_manager.get_conversation_context(user_id)
+        context = memory_manager.get_conversation_context(user_id, user_query=query2)
         
         # Context is now a dict with 'messages' and 'memories'
         context_str = f"Messages: {context.get('messages', [])}\nMemories: {context.get('memories', '')}"
@@ -189,7 +189,7 @@ class TestMemory:
         result2 = memory_manager.llm.generate(
             query=query2,
             quantum_influence=0.7,
-            conversation_context=memory_manager.get_conversation_context(user_id)
+            conversation_context=memory_manager.get_conversation_context(user_id, user_query=query2)
         )
         response2 = result2.get('response', '')
         # Add to memory (handles storage internally - Option C)
@@ -197,7 +197,7 @@ class TestMemory:
         
         # Third interaction - ask about name
         query3 = "What is my name?"
-        context = memory_manager.get_conversation_context(user_id)
+        context = memory_manager.get_conversation_context(user_id, user_query=query3)
         
         # Context is now a dict with 'messages' and 'memories'
         messages_text = ' '.join([msg.get('content', '') for msg in context.get('messages', [])])
