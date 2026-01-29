@@ -6,80 +6,36 @@ from typing import List, Dict, Any, Optional
 from pathlib import Path
 import os
 import json
-import re
 from ..storage.base import StorageInterface
 from ..utils.logger import get_logger
+from ..utils.json_parser import extract_json_from_llm_response
+from .recent_buffer import RecentConversationBuffer
 
 logger = get_logger(__name__)
 
 # LangChain is REQUIRED - no fallback
 try:
     from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
-    from langchain_core.chat_history import InMemoryChatMessageHistory
 except ImportError as e:
     raise ImportError(
         "LangChain is required for memory management. Please install it with: pip install langchain langchain-core"
     ) from e
 
 
-class BufferWindowChatHistory:
-    """
-    Chat history with a sliding window of recent messages
-    Implements buffer window memory using LangChain's InMemoryChatMessageHistory
-    """
-    def __init__(self, k: int = 10):
-        """
-        Initialize buffer window chat history
-        
-        Args:
-            k: Number of recent message pairs to keep
-        """
-        self.k = k
-        self.chat_history = InMemoryChatMessageHistory()
-        self.all_messages: List[BaseMessage] = []  # Keep all messages for summarization
-    
-    def add_user_message(self, content: str):
-        """Add a user message"""
-        msg = HumanMessage(content=content)
-        self.chat_history.add_message(msg)
-        self.all_messages.append(msg)
-        self._trim_to_window()
-    
-    def add_ai_message(self, content: str):
-        """Add an AI message"""
-        msg = AIMessage(content=content)
-        self.chat_history.add_message(msg)
-        self.all_messages.append(msg)
-        self._trim_to_window()
-    
-    def _trim_to_window(self):
-        """Trim chat history to keep only recent k message pairs"""
-        # Keep last k*2 messages (k pairs of user+assistant)
-        if len(self.chat_history.messages) > self.k * 2:
-            # Keep only the most recent k*2 messages
-            recent_messages = self.chat_history.messages[-(self.k * 2):]
-            self.chat_history.messages = recent_messages
-    
-    def get_messages(self) -> List[BaseMessage]:
-        """Get current messages in the buffer window"""
-        return self.chat_history.messages
-    
-    def get_all_messages(self) -> List[BaseMessage]:
-        """Get all messages (including those outside the window)"""
-        return self.all_messages
-    
-    def clear(self):
-        """Clear all messages"""
-        self.chat_history.clear()
-        self.all_messages = []
-
-
 class ObeliskMemoryManager:
     """
-    Manages conversation memory using LangChain
-    - Uses buffer window memory for recent messages
-    - Uses Qwen LLM for summarization (solo mode) or Mistral (prod mode, optional)
-    - Stores conversation history via storage abstraction
+    Manages conversation memory and recent conversation context
+    
+    Architecture:
+    - RecentConversationBuffer: Sliding window of last k message pairs (for prompt injection)
+    - Memory Summaries: Long-term storage of summarized conversations (for intelligent selection)
+    - Uses Qwen LLM for summarization and memory selection
+    
+    Flow:
+    1. On init: Load only last k*2 messages into buffer (lightweight)
+    2. On each interaction: Add to buffer, check if summarization needed
+    3. Every N interactions: Summarize recent interactions, save to memory
+    4. On each query: Select relevant memories using LLM, include in context
     """
     
     def __init__(
@@ -108,53 +64,40 @@ class ObeliskMemoryManager:
         self.summarize_threshold = summarize_threshold
         self.llm = llm
         self.mode = mode
-        self.memories: Dict[str, BufferWindowChatHistory] = {}  # Store chat histories per user
-        self.summaries: Dict[str, Dict[str, Any]] = {}  # Store summaries per user
+        self.buffers: Dict[str, RecentConversationBuffer] = {}  # Store recent conversation buffers per user
     
-    def get_memory(self, user_id: str) -> BufferWindowChatHistory:
+    def get_buffer(self, user_id: str) -> RecentConversationBuffer:
         """
-        Get or create chat history for a user
+        Get or create recent conversation buffer for a user
+        
+        Loads only the last k*2 messages (k message pairs) - no heavy processing on init.
+        This is just for prompt injection, not memory storage.
         
         Args:
             user_id: User identifier
             
         Returns:
-            BufferWindowChatHistory instance
+            RecentConversationBuffer instance with last k message pairs
         """
-        if user_id not in self.memories:
-            # Load conversation history from storage
-            interactions = self.storage.get_user_interactions(user_id, limit=100)
+        if user_id not in self.buffers:
+            # Load only recent messages (last k*2 messages = k message pairs)
+            interactions = self.storage.get_user_interactions(user_id, limit=self.k * 2)
             
-            # Create chat history
-            chat_history = BufferWindowChatHistory(k=self.k)
+            # Create buffer
+            buffer = RecentConversationBuffer(k=self.k)
             
-            # Convert interactions to LangChain messages
-            for interaction in interactions:
+            # Convert interactions to LangChain messages (most recent first)
+            for interaction in reversed(interactions):  # Reverse to get chronological order
                 query = interaction.get('query', '')
                 response = interaction.get('response', '')
                 if query:
-                    chat_history.add_user_message(query)
+                    buffer.add_user_message(query)
                 if response:
-                    chat_history.add_ai_message(response)
+                    buffer.add_ai_message(response)
             
-            # If we have more messages than threshold, create summary
-            if len(chat_history.get_all_messages()) > self.summarize_threshold * 2:
-                # Try to load existing summary
-                existing_summary = self._load_summary_from_storage(user_id)
-                if existing_summary:
-                    self.summaries[user_id] = existing_summary
-                else:
-                    # Create new summary from older interactions
-                    older_interactions = interactions[:-self.k] if len(interactions) > self.k else []
-                    if older_interactions:
-                        summary_data = self._summarize_conversations(older_interactions, user_id)
-                        if summary_data:
-                            self.summaries[user_id] = summary_data
-                            self._save_summary_to_storage(user_id, summary_data, older_interactions)
-            
-            self.memories[user_id] = chat_history
+            self.buffers[user_id] = buffer
         
-        return self.memories[user_id]
+        return self.buffers[user_id]
     
     def _summarize_conversations(self, interactions: List[Dict[str, Any]], user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
@@ -216,79 +159,9 @@ JSON only:"""
             
             summary_text = result.get('response', '').strip()
             
-            # Remove thinking content if present (ObeliskLLM should extract it, but be defensive)
-            # Qwen3 format: <think>...</think>
-            summary_text = re.sub(r'<think>.*?</think>', '', summary_text, flags=re.DOTALL | re.IGNORECASE)
-            summary_text = summary_text.strip()
-            
-            # Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
-            # This handles cases where LLM wraps JSON in markdown code blocks
-            summary_text = re.sub(r'^```(?:json)?\s*\n?', '', summary_text, flags=re.MULTILINE | re.IGNORECASE)
-            summary_text = re.sub(r'\n?```\s*$', '', summary_text, flags=re.MULTILINE | re.IGNORECASE)
-            summary_text = summary_text.strip()
-            
-            # Extract JSON - try multiple strategies
-            
-            # Strategy 1: Find complete JSON object by matching braces
-            json_start = summary_text.find('{')
-            if json_start >= 0:
-                # Find matching closing brace
-                brace_count = 0
-                json_end = json_start
-                for i in range(json_start, len(summary_text)):
-                    if summary_text[i] == '{':
-                        brace_count += 1
-                    elif summary_text[i] == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            json_end = i + 1
-                            break
-                
-                if json_end > json_start:
-                    json_str = summary_text[json_start:json_end]
-                    try:
-                        summary_data = json.loads(json_str)
-                        return summary_data
-                    except json.JSONDecodeError:
-                        pass
-            
-            # Strategy 2: Try parsing the whole response
-            try:
-                summary_data = json.loads(summary_text)
-                return summary_data
-            except json.JSONDecodeError:
-                pass
-            
-            # Strategy 3: Try to fix incomplete JSON (add closing braces/brackets)
-            try:
-                open_braces = summary_text.count('{')
-                close_braces = summary_text.count('}')
-                open_brackets = summary_text.count('[')
-                close_brackets = summary_text.count(']')
-                
-                missing_braces = open_braces - close_braces
-                missing_brackets = open_brackets - close_brackets
-                
-                if missing_braces > 0 or missing_brackets > 0:
-                    fixed_json = summary_text
-                    if missing_brackets > 0:
-                        fixed_json += ']' * missing_brackets
-                    if missing_braces > 0:
-                        fixed_json += '}' * missing_braces
-                    summary_data = json.loads(fixed_json)
-                    return summary_data
-            except json.JSONDecodeError:
-                pass
-            
-            # Fallback: Create minimal summary from what we can extract
-            # Print warning - Rich's console.status() should handle this without breaking the spinner
-            logger.warning(f"Could not parse JSON from summary. Response: {summary_text[:200]}")
-            return {
-                'summary': 'Previous conversation',
-                'keyTopics': [],
-                'userContext': {},
-                'importantFacts': []
-            }
+            # Extract JSON using utility (raises ValueError if parsing fails - critical error)
+            summary_data = extract_json_from_llm_response(summary_text, context="summary")
+            return summary_data
             
         except Exception as e:
             logger.error(f"Error summarizing with LLM: {e}")
@@ -360,11 +233,6 @@ JSON only:"""
             logger.error(f"Error loading summaries from storage: {e}")
             return []
     
-    def _load_summary_from_storage(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Load the most recent summary from storage (backward compatibility)"""
-        summaries = self._load_all_summaries_from_storage(user_id, limit=1)
-        return summaries[0] if summaries else None
-    
     def add_interaction(
         self,
         user_id: str,
@@ -390,10 +258,10 @@ JSON only:"""
             quantum_seed: Quantum seed value (optional, defaults to 0.7)
             reward_score: Reward score (optional, defaults to 0.0)
         """
-        memory = self.get_memory(user_id)
+        buffer = self.get_buffer(user_id)
         
-        # Check if this interaction is already in memory to avoid duplicates
-        existing_messages = memory.get_messages()
+        # Check if this interaction is already in buffer to avoid duplicates
+        existing_messages = buffer.get_messages()
         if existing_messages:
             last_user_msg = None
             last_ai_msg = None
@@ -427,28 +295,27 @@ JSON only:"""
             reward_score=reward_score
         )
         
-        # Add to memory buffer
-        memory.add_user_message(query)
-        memory.add_ai_message(response)
+        # Add to recent conversation buffer
+        buffer.add_user_message(query)
+        buffer.add_ai_message(response)
         
-        # Check if we need to summarize (every N message pairs)
-        all_messages = memory.get_all_messages()
-        message_pairs = len(all_messages) // 2
+        # Check if we need to summarize (every N interactions)
+        # Each interaction is already a pair (query + response)
+        interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold * 2)
+        interaction_count = len(interactions)
         
         # Trigger summarization when we hit the threshold (every N interactions)
-        # Only summarize when we have exactly N pairs (not on every interaction after N)
-        if message_pairs > 0 and message_pairs % self.summarize_threshold == 0:
-            # Get only the recent interactions to summarize (last N pairs, not all)
-            interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
+        # Only summarize when we have exactly N interactions (not on every interaction after N)
+        if interaction_count > 0 and interaction_count % self.summarize_threshold == 0:
+            # Get only the recent interactions to summarize (last N pairs)
+            recent_interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
             
             # Summarize only these recent interactions (they'll be converted to memories)
-            if interactions:
-                summary_data = self._summarize_conversations(interactions, user_id)
+            if recent_interactions:
+                summary_data = self._summarize_conversations(recent_interactions, user_id)
                 if summary_data:
-                    self.summaries[user_id] = summary_data
-                    self._save_summary_to_storage(user_id, summary_data, interactions)
-                    # Clear the buffer after summarizing (memories are now in summary)
-                    memory.clear()
+                    self._save_summary_to_storage(user_id, summary_data, recent_interactions)
+                    # Note: We don't clear the buffer - it maintains recent context
     
     def _select_relevant_memories(self, user_query: str, summaries: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
         """
@@ -465,11 +332,7 @@ JSON only:"""
         if not summaries:
             return []
         
-        if not self.llm:
-            # If no LLM, return most recent
-            logger.warning("No LLM available for memory selection, using most recent summaries")
-            return summaries[:top_k]
-        
+        # LLM is guaranteed to exist (enforced in __init__ for solo mode)
         if len(summaries) <= top_k:
             # If we have fewer summaries than top_k, return all
             return summaries
@@ -514,83 +377,33 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
             
             selection_text = result.get('response', '').strip()
             
-            # Strip markdown code blocks (thinking mode is disabled, so no thinking content to remove)
-            selection_text = re.sub(r'^```(?:json)?\s*\n?', '', selection_text, flags=re.MULTILINE | re.IGNORECASE)
-            selection_text = re.sub(r'\n?```\s*$', '', selection_text, flags=re.MULTILINE | re.IGNORECASE)
-            selection_text = selection_text.strip()
-            
-            # Extract JSON - try multiple strategies (similar to summarization)
-            selection_data = None
-            
-            # Strategy 1: Find complete JSON object by matching braces
-            json_start = selection_text.find('{')
-            if json_start >= 0:
-                # Find matching closing brace
-                brace_count = 0
-                json_end = json_start
-                for i in range(json_start, len(selection_text)):
-                    if selection_text[i] == '{':
-                        brace_count += 1
-                    elif selection_text[i] == '}':
-                        brace_count -= 1
-                        if brace_count == 0:
-                            json_end = i + 1
-                            break
-                
-                if json_end > json_start:
-                    json_str = selection_text[json_start:json_end]
-                    try:
-                        selection_data = json.loads(json_str)
-                    except json.JSONDecodeError:
-                        pass
-            
-            # Strategy 2: Try parsing the whole response
-            if not selection_data:
-                try:
-                    selection_data = json.loads(selection_text)
-                except json.JSONDecodeError:
-                    pass
-            
-            # Strategy 3: Try to fix incomplete JSON
-            if not selection_data:
-                try:
-                    open_braces = selection_text.count('{')
-                    close_braces = selection_text.count('}')
-                    missing_braces = open_braces - close_braces
-                    
-                    if missing_braces > 0:
-                        fixed_json = selection_text + '}' * missing_braces
-                        selection_data = json.loads(fixed_json)
-                except json.JSONDecodeError:
-                    pass
+            # Extract JSON using utility (raises ValueError if parsing fails - critical error)
+            selection_data = extract_json_from_llm_response(selection_text, context="memory selection")
             
             # Extract and validate indices
-            if selection_data:
-                selected_indices = selection_data.get('selected_indices', [])
-                
-                # Validate indices and select memories
-                selected_memories = []
-                for idx in selected_indices:
-                    if isinstance(idx, int) and 0 <= idx < len(summaries):
-                        selected_memories.append(summaries[idx])
-                
-                # If we got valid selections, return them
-                if selected_memories:
-                    logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
-                    return selected_memories
-                else:
-                    logger.warning(f"Memory selection returned invalid indices: {selected_indices} (valid range: 0-{len(summaries)-1})")
-            else:
-                logger.warning(f"Memory selection failed to parse JSON. LLM response: {selection_text[:200]}")
+            selected_indices = selection_data.get('selected_indices', [])
             
-            # Fallback: return most recent if selection failed
-            logger.warning("Memory selection failed, using most recent summaries")
-            return summaries[:top_k]
+            # Validate indices and select memories
+            selected_memories = []
+            for idx in selected_indices:
+                if isinstance(idx, int) and 0 <= idx < len(summaries):
+                    selected_memories.append(summaries[idx])
+            
+            # If we got valid selections, return them
+            if selected_memories:
+                logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
+                return selected_memories
+            else:
+                # Critical error: LLM returned invalid indices - this should never happen
+                raise ValueError(
+                    f"Memory selection returned invalid indices: {selected_indices} "
+                    f"(valid range: 0-{len(summaries)-1}). This is a critical error."
+                )
             
         except Exception as e:
-            logger.error(f"Error selecting relevant memories: {e}")
-            # Fallback: return most recent
-            return summaries[:top_k]
+            # Critical error: Memory selection failed - this should never happen
+            logger.error(f"Critical error selecting relevant memories: {e}")
+            raise RuntimeError(f"Memory selection failed: {e}") from e
     
     def get_conversation_context(self, user_id: str, user_query: str) -> Dict[str, Any]:
         """
@@ -610,9 +423,9 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
         
         # Get recent messages from buffer window (recent conversation)
         # Convert to Qwen3 message format: [{"role": "user", "content": "..."}, ...]
-        if user_id in self.memories:
-            chat_history = self.memories[user_id]
-            messages = chat_history.get_messages()  # Use get_messages() method
+        if user_id in self.buffers:
+            buffer = self.buffers[user_id]
+            messages = buffer.get_messages()
             
             for msg in messages:
                 if hasattr(msg, 'content'):
@@ -632,11 +445,11 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
         all_summaries = self._load_all_summaries_from_storage(user_id, limit=30)
         
         if all_summaries:
-            # Always use LLM to select relevant memories based on query
+            # Use LLM to select relevant memories if we have multiple summaries
             if len(all_summaries) > 1:
                 selected_summaries = self._select_relevant_memories(user_query, all_summaries, top_k=5)
             else:
-                # Only one summary, use it
+                # Only one summary, use it as-is (zero summaries case handled by outer if)
                 selected_summaries = all_summaries
             
             # Format selected memories
@@ -673,15 +486,13 @@ Return the indices (0-based) of the {top_k} most relevant memories. JSON only:""
             "memories": memories_str
         }
     
-    def clear_memory(self, user_id: str):
-        """Clear memory for a user"""
-        if user_id in self.memories:
-            self.memories[user_id].clear()
-            del self.memories[user_id]
-        if user_id in self.summaries:
-            del self.summaries[user_id]
+    def clear_buffer(self, user_id: str):
+        """Clear recent conversation buffer for a user"""
+        if user_id in self.buffers:
+            self.buffers[user_id].clear()
+            del self.buffers[user_id]
     
-    def clear_all_memory(self):
-        """Clear all memory (useful for testing)"""
-        for user_id in list(self.memories.keys()):
-            self.clear_memory(user_id)
+    def clear_all_buffers(self):
+        """Clear all buffers (useful for testing)"""
+        for user_id in list(self.buffers.keys()):
+            self.clear_buffer(user_id)

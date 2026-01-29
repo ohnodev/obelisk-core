@@ -64,11 +64,11 @@ def memory_manager(temp_storage, llm):
         llm=llm,
         mode='solo'
     )
-    # Clear all memory before test (fresh slate)
-    manager.clear_all_memory()
+    # Clear all buffers before test (fresh slate)
+    manager.clear_all_buffers()
     yield manager
-    # Clear all memory after test (cleanup)
-    manager.clear_all_memory()
+    # Clear all buffers after test (cleanup)
+    manager.clear_all_buffers()
 
 
 class TestBasicInteraction:

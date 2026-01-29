@@ -175,9 +175,9 @@ def chat(mode):
             # Add to memory (handles storage internally)
             # Check if summarization will occur (every 3 interactions)
             # Only show spinner when summarization happens, otherwise save silently
-            memory = memory_manager.get_memory(user_id)
-            all_messages = memory.get_all_messages()
-            message_pairs = len(all_messages) // 2
+            # Check from storage (not buffer, since buffer is just a window)
+            interactions = memory_manager.storage.get_user_interactions(user_id, limit=memory_manager.summarize_threshold * 2)
+            message_pairs = len(interactions) // 2
             
             # Check if this interaction will trigger summarization
             will_summarize = (message_pairs + 1) > 0 and (message_pairs + 1) % memory_manager.summarize_threshold == 0
@@ -343,22 +343,34 @@ def clear(confirm):
             # Check both old and new locations for interactions
             old_interactions = storage_path / "interactions"
             new_interactions = storage_path / "memory" / "interactions"
+            memory_folder = storage_path / "memory"
             interaction_files = []
             if new_interactions.exists():
                 interaction_files = list(new_interactions.glob("*.json"))
             elif old_interactions.exists():
                 interaction_files = list(old_interactions.glob("*.json"))
+            
+            # Count activities.json if it exists
+            activities_file = memory_folder / "activities.json"
+            activities_count = 1 if activities_file.exists() else 0
+            
             cycle_files = list((storage_path / "cycles").glob("*.json")) if (storage_path / "cycles").exists() else []
             weight_files = list((storage_path / "weights").glob("*")) if (storage_path / "weights").exists() else []
             
-            total_files = len(interaction_files) + len(cycle_files) + len(weight_files)
+            total_files = len(interaction_files) + activities_count + len(cycle_files) + len(weight_files)
             
-            # Remove all data directories
+            # Remove all data directories (old structure)
             for subdir in ["interactions", "cycles", "weights", "users"]:
                 subdir_path = storage_path / subdir
                 if subdir_path.exists():
                     shutil.rmtree(subdir_path)
                     subdir_path.mkdir(parents=True, exist_ok=True)
+            
+            # Remove memory folder (new structure - contains activities.json and interactions/)
+            if memory_folder.exists():
+                shutil.rmtree(memory_folder)
+                memory_folder.mkdir(parents=True, exist_ok=True)
+                (memory_folder / "interactions").mkdir(parents=True, exist_ok=True)
             
             click.echo(f"✅ Cleared all local memory!")
             click.echo(f"   Deleted {total_files} files")
