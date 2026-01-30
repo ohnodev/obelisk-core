@@ -41,7 +41,7 @@ This is the first basic version of the framework. It provides:
 - **💾 Intelligent Memory**: LLM-based memory selection with automatic summarization and recent conversation buffer
 - **🔄 Dual Mode**: Run in solo mode (local JSON) or prod mode (Supabase)
 - **🌐 HTTP API**: FastAPI REST API for integration
-- **⌨️ CLI Interface**: Command-line tools for development and testing
+- **⌨️ CLI**: Command-line tools for development and testing
 - **🧩 Modular Design**: Clean separation of concerns (LLM, memory agents, training module)
 - **🔒 Privacy-First**: All data stored locally in solo mode, no external API calls
 - **🚀 Easy Setup**: Simple installation, works out of the box
