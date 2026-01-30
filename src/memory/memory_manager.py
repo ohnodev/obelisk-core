@@ -67,6 +67,7 @@ class ObeliskMemoryManager:
         self.llm = llm
         self.mode = mode
         self.buffers: Dict[str, RecentConversationBuffer] = {}  # Store recent conversation buffers per user
+        self.interaction_counts: Dict[str, int] = {}  # Cache interaction counts per user to avoid disk reads
         
         # Initialize memory agents
         if llm:
@@ -83,6 +84,8 @@ class ObeliskMemoryManager:
         Loads only the last k*2 messages (k message pairs) - no heavy processing on init.
         This is just for prompt injection, not memory storage.
         
+        Also initializes interaction count cache for this user (reads from disk once).
+        
         Args:
             user_id: User identifier
             
@@ -90,7 +93,13 @@ class ObeliskMemoryManager:
             RecentConversationBuffer instance with last k message pairs
         """
         if user_id not in self.buffers:
-            # Load only recent messages (last k*2 messages = k message pairs)
+            # Initialize interaction count cache first (only once per user, on first buffer load)
+            # This happens before the hot path, so it's fine to read from disk here
+            if user_id not in self.interaction_counts:
+                all_interactions = self.storage.get_user_interactions(user_id, limit=None)
+                self.interaction_counts[user_id] = len(all_interactions)
+            
+            # Load only recent messages (last k*2 messages = k message pairs) for buffer
             interactions = self.storage.get_user_interactions(user_id, limit=self.k * 2)
             
             # Create buffer
@@ -261,15 +270,21 @@ class ObeliskMemoryManager:
         buffer.add_user_message(query)
         buffer.add_ai_message(response)
         
-        # Check if we need to summarize (every N interactions)
-        # Each interaction is already a pair (query + response)
-        interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold * 2)
-        interaction_count = len(interactions)
+        # Update interaction count cache (increment after saving)
+        # Count should already be initialized in get_buffer() - if not, initialize to 0
+        if user_id not in self.interaction_counts:
+            # Fallback: should not happen if get_buffer() was called first, but handle gracefully
+            self.interaction_counts[user_id] = 0
         
+        # Increment cached count (we just saved one interaction)
+        self.interaction_counts[user_id] += 1
+        interaction_count = self.interaction_counts[user_id]
+        
+        # Check if we need to summarize (every N interactions)
         # Trigger summarization when we hit the threshold (every N interactions)
-        # Only summarize when we have exactly N interactions (not on every interaction after N)
         if interaction_count > 0 and interaction_count % self.summarize_threshold == 0:
             # Get only the recent interactions to summarize (last N pairs)
+            # Only read from disk when we actually need to summarize
             recent_interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
             
             # Summarize only these recent interactions (they'll be converted to memories)

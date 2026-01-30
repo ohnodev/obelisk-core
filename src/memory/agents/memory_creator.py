@@ -61,7 +61,8 @@ class MemoryCreator:
                 query=summary_prompt,
                 quantum_influence=MemoryAgentsConfig.MEMORY_CREATOR_QUANTUM_INFLUENCE,
                 conversation_context=None,
-                max_length=MemoryAgentsConfig.MEMORY_CREATOR_MAX_LENGTH
+                max_length=MemoryAgentsConfig.MEMORY_CREATOR_MAX_LENGTH,
+                enable_thinking=MemoryAgentsConfig.MEMORY_CREATOR_ENABLE_THINKING
             )
             
             summary_text = result.get('response', '').strip()

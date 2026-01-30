@@ -14,7 +14,8 @@ class MemoryAgentsConfig:
     
     # Memory Creator configuration
     MEMORY_CREATOR_QUANTUM_INFLUENCE = 0.2  # Lower influence for more consistent summaries
-    MEMORY_CREATOR_MAX_LENGTH = 500  # Allow more tokens for JSON generation
+    MEMORY_CREATOR_MAX_LENGTH = 800  # Allow enough tokens for complete JSON generation (increased from 500)
+    MEMORY_CREATOR_ENABLE_THINKING = False  # Disable thinking mode for faster, more reliable JSON output
     
     # Memory Selector configuration
     MEMORY_SELECTOR_QUANTUM_INFLUENCE = 0.1  # Very low influence for consistent selection

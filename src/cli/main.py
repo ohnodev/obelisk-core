@@ -173,14 +173,16 @@ def chat(mode):
             console.print()
             
             # Add to memory (handles storage internally)
-            # Check if summarization will occur (every 3 interactions)
-            # Only show spinner when summarization happens, otherwise save silently
+            # Check if summarization will occur (every N interactions)
+            # Each interaction is already a pair (query + response), so we count interactions directly
             # Check from storage (not buffer, since buffer is just a window)
             interactions = memory_manager.storage.get_user_interactions(user_id, limit=memory_manager.summarize_threshold * 2)
-            message_pairs = len(interactions) // 2
+            interaction_count = len(interactions)
             
             # Check if this interaction will trigger summarization
-            will_summarize = (message_pairs + 1) > 0 and (message_pairs + 1) % memory_manager.summarize_threshold == 0
+            # After adding this interaction, the count will be interaction_count + 1
+            # Summarization triggers when (interaction_count + 1) % summarize_threshold == 0
+            will_summarize = (interaction_count + 1) > 0 and (interaction_count + 1) % memory_manager.summarize_threshold == 0
             
             if will_summarize:
                 # Show spinner only when summarization will occur
