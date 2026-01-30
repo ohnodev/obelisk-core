@@ -5,19 +5,24 @@ Uses Qwen3-0.6B with thinking mode support for enhanced reasoning
 Supports LoRA fine-tuning with weights stored via storage abstraction
 """
 import os
-import sys
 import re
 from typing import Dict, Any, Optional, List, Tuple
+from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList, TrainingArguments, Trainer
-from peft import LoraConfig, get_peft_model, PeftModel
+from peft import LoraConfig, get_peft_model
 import warnings
 import io
 import pickle
+import importlib.util
 
-# Add parent directory to path for config import
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from config import Config
+# Import config from root directory (proper way without sys.path hack)
+_config_path = Path(__file__).parent.parent.parent / "config.py"
+spec = importlib.util.spec_from_file_location("config", _config_path)
+config_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(config_module)
+Config = config_module.Config
+
 from ..utils.logger import get_logger
 
 warnings.filterwarnings("ignore")
@@ -30,12 +35,6 @@ class ConversationStopCriteria(StoppingCriteria):
     def __init__(self, tokenizer, stop_sequences: List[str], input_length: int):
         self.tokenizer = tokenizer
         self.input_length = input_length
-        # Tokenize all stop sequences and store their token IDs
-        self.stop_token_ids = []
-        for seq in stop_sequences:
-            tokens = tokenizer.encode(seq, add_special_tokens=False)
-            if tokens:
-                self.stop_token_ids.append(tokens)
     
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
         # Only check the newly generated tokens (skip input)
