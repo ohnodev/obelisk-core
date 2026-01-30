@@ -6,11 +6,27 @@ Integrates with EvolutionEvaluator for AI-powered interaction rating
 import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
+from pathlib import Path
+import importlib.util
+from peft import LoraConfig
 from .config import REWARD_DISTRIBUTION
 from .evaluator import EvolutionEvaluator
 from .training import LoRAManager, LoRATrainer
 from ..storage.base import StorageInterface
 from ..utils.logger import get_logger
+
+# Import config for LoRA settings
+_config_path = Path(__file__).parent.parent.parent / "config.py"
+if _config_path.exists():
+    spec = importlib.util.spec_from_file_location("config", _config_path)
+    if spec and spec.loader:
+        config_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(config_module)
+        Config = config_module.Config
+    else:
+        raise ImportError(f"Failed to load config from {_config_path}")
+else:
+    raise FileNotFoundError(f"config.py not found at {_config_path}")
 
 logger = get_logger(__name__)
 
@@ -61,7 +77,6 @@ def process_evolution_cycle(
         return {'message': 'Cycle completed with no interactions', 'cycle_id': cycle_id}
     
     # Evaluate interactions using Mistral AI agent (prod mode) or self-evaluation (solo mode)
-    from config import Config
     evaluator = EvolutionEvaluator(
         storage=storage,
         llm=llm,
@@ -184,23 +199,7 @@ def process_evolution_cycle(
             if len(training_data) >= 5:
                 logger.info(f"Fine-tuning model with {len(training_data)} top interactions...")
                 
-                # Import config for LoRA settings
-                from pathlib import Path
-                import importlib.util
-                _config_path = Path(__file__).parent.parent.parent / "config.py"
-                if _config_path.exists():
-                    spec = importlib.util.spec_from_file_location("config", _config_path)
-                    if spec and spec.loader:
-                        config_module = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(config_module)
-                        Config = config_module.Config
-                    else:
-                        raise ImportError(f"Failed to load config from {_config_path}")
-                else:
-                    raise FileNotFoundError(f"config.py not found at {_config_path}")
-                
                 # Create LoRA config
-                from peft import LoraConfig
                 lora_config = LoraConfig(
                     r=Config.LLM_LORA_R,
                     lora_alpha=Config.LLM_LORA_ALPHA,
