@@ -29,7 +29,7 @@
 
 This is the first basic version of the framework. It provides:
 - **Self-hosted LLM** (Qwen3-0.6B) with thinking mode
-- **Conversation memory** with LangChain
+- **Intelligent conversation memory** with automatic summarization and context-aware selection
 - **Dual storage modes** (local JSON / Supabase)
 - **REST API** and CLI interface
 
@@ -38,11 +38,11 @@ This is the first basic version of the framework. It provides:
 ## ✨ Features
 
 - **🧠 Self-Hosted LLM**: Qwen3-0.6B model with thinking mode support (no external API calls)
-- **💾 Memory Layer**: LangChain-based conversation memory with automatic summarization
+- **💾 Intelligent Memory**: LLM-based memory selection with automatic summarization and recent conversation buffer
 - **🔄 Dual Mode**: Run in solo mode (local JSON) or prod mode (Supabase)
 - **🌐 HTTP API**: FastAPI REST API for integration
 - **⌨️ CLI Interface**: Command-line tools for development and testing
-- **🧩 Modular Design**: Tools and features can be added as modules
+- **🧩 Modular Design**: Clean separation of concerns (LLM, memory agents, training module)
 - **🔒 Privacy-First**: All data stored locally in solo mode, no external API calls
 - **🚀 Easy Setup**: Simple installation, works out of the box
 
@@ -185,7 +185,14 @@ llm = ObeliskLLM(storage=storage)
 result = llm.generate(
     query="What is The Obelisk?",
     quantum_influence=0.7,
-    enable_thinking=True  # Use thinking mode for complex reasoning
+    enable_thinking=True,  # Use thinking mode for complex reasoning
+    conversation_context={
+        "messages": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hello! How can I help?"}
+        ],
+        "memories": "Selected memory summaries..."
+    }
 )
 
 print(result['response'])
@@ -230,14 +237,24 @@ Non-thinking mode is better for:
 ```
 obelisk-core/
 ├── src/
-│   ├── llm/          # LLM inference (Qwen3-0.6B with thinking mode)
-│   ├── memory/       # Conversation memory management (LangChain)
-│   ├── storage/      # Storage abstraction (local JSON / Supabase)
-│   ├── api/          # FastAPI server and routes
-│   └── cli/          # Command-line interface
-├── config.py         # Configuration management
-├── requirements.txt  # Python dependencies
-└── setup.py          # Package setup
+│   ├── llm/                    # LLM inference (Qwen3-0.6B with thinking mode)
+│   │   ├── obelisk_llm.py      # Core LLM generation
+│   │   └── training/           # LoRA fine-tuning module
+│   │       ├── lora_manager.py # LoRA weight management
+│   │       └── lora_trainer.py # LoRA fine-tuning
+│   ├── memory/                  # Conversation memory management
+│   │   ├── memory_manager.py    # Main memory orchestration
+│   │   ├── recent_buffer.py    # Recent conversation window (last k pairs)
+│   │   └── agents/             # Memory subagents
+│   │       ├── memory_creator.py  # Summarization agent
+│   │       ├── memory_selector.py # Intelligent memory selection
+│   │       └── config.py         # Agent configuration
+│   ├── storage/                 # Storage abstraction (local JSON / Supabase)
+│   ├── api/                     # FastAPI server and routes
+│   └── cli/                     # Command-line interface
+├── config.py                    # Configuration management
+├── requirements.txt              # Python dependencies
+└── setup.py                      # Package setup
 ```
 
 **Note**: Evolution, quantum, and other modules can be added as needed. The core framework provides LLM + memory as the foundation.

@@ -34,10 +34,18 @@ Generate a response from The Obelisk LLM.
 {
   "prompt": "What is The Obelisk?",
   "quantum_influence": 0.7,
-  "conversation_context": "Previous conversation...",
+  "conversation_context": {
+    "messages": [
+      {"role": "user", "content": "Hello"},
+      {"role": "assistant", "content": "Hello! How can I help?"}
+    ],
+    "memories": "Selected memory summaries..."
+  },
   "user_id": "user_123"
 }
 ```
+
+**Note**: `conversation_context` must be a dict with `messages` (list of message dicts) and `memories` (string) keys. The old string format is no longer supported.
 
 **Response:**
 ```json
