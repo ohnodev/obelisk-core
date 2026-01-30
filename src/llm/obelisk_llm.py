@@ -9,11 +9,10 @@ import re
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList, TrainingArguments, Trainer
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 from peft import LoraConfig, get_peft_model
+from .training import LoRAManager, LoRATrainer
 import warnings
-import io
-import pickle
 import importlib.util
 
 # Import config from root directory (proper way without sys.path hack)
@@ -85,9 +84,9 @@ class ObeliskLLM:
         self.model = None
         self.tokenizer = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.lora_model = None
-        self.current_weights_cycle = None
+        self.lora_config = None
         self.storage = storage
+        self.lora_manager = None
         self._load_model()
 
     def _load_model(self):
@@ -157,9 +156,17 @@ class ObeliskLLM:
             
             self.model.eval()
             
-            # Try to load LoRA weights from storage if available
+            # Initialize LoRA manager and try to load weights from storage if available
             if self.storage:
-                self._load_lora_weights()
+                self.lora_manager = LoRAManager(
+                    model=self.model,
+                    lora_config=self.lora_config,
+                    storage=self.storage,
+                    model_name=self.MODEL_NAME
+                )
+                if self.lora_manager.load_weights():
+                    # Update model reference if weights were loaded
+                    self.model = self.lora_manager.model
             
             # Optimize model for inference on CPU
             if self.device == "cpu":
@@ -185,82 +192,28 @@ class ObeliskLLM:
             self.model = None
             self.tokenizer = None
     
-    def _load_lora_weights(self):
-        """Load LoRA weights from storage if available"""
-        if not self.storage:
-            return
-        
-        try:
-            weights_data = self.storage.get_latest_model_weights(self.MODEL_NAME)
-            if weights_data and weights_data.get('lora_weights'):
-                logger.info(f"Loading LoRA weights from cycle {weights_data.get('cycle_number')}, version {weights_data.get('version')}")
-                
-                # Convert bytes to state dict
-                lora_weights_bytes = weights_data['lora_weights']
-                if isinstance(lora_weights_bytes, bytes):
-                    state_dict = pickle.loads(lora_weights_bytes)
-                else:
-                    # Already a dict
-                    state_dict = lora_weights_bytes
-                
-                # Apply LoRA to model
-                self.lora_model = get_peft_model(self.model, self.lora_config)
-                self.lora_model.load_state_dict(state_dict, strict=False)
-                self.lora_model.eval()
-                
-                # Use LoRA model for inference
-                self.model = self.lora_model
-                self.current_weights_cycle = weights_data.get('cycle_number')
-                
-                logger.info(f"LoRA weights loaded successfully from cycle {self.current_weights_cycle}")
-            else:
-                logger.info("No LoRA weights found in storage, using base model")
-        except Exception as e:
-            logger.error(f"Error loading LoRA weights: {e}")
-            import traceback
-            traceback.print_exc()
-    
     def save_lora_weights(self, cycle_number: int, evolution_score: float, interactions_used: int, metadata: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """Save current LoRA weights to storage"""
-        if not self.storage:
-            logger.warning("No storage configured, cannot save LoRA weights")
+        if not self.lora_manager:
+            logger.warning("No LoRA manager configured, cannot save LoRA weights")
             return None
         
-        try:
-            if self.lora_model is None:
-                logger.info("No LoRA model to save, creating new LoRA adapter...")
-                # Create LoRA adapter if it doesn't exist
-                self.lora_model = get_peft_model(self.model, self.lora_config)
-            
-            # Get state dict from LoRA adapter
-            state_dict = self.lora_model.state_dict()
-            
-            # Serialize to bytes
-            buffer = io.BytesIO()
-            pickle.dump(state_dict, buffer)
-            lora_weights_bytes = buffer.getvalue()
-            
-            # Save to storage
-            weight_id = self.storage.save_lora_weights(
-                cycle_number=cycle_number,
-                lora_weights=lora_weights_bytes,
-                evolution_score=evolution_score,
-                interactions_used=interactions_used,
-                metadata=metadata
-            )
-            
-            if weight_id:
-                self.current_weights_cycle = cycle_number
-                logger.info(f"LoRA weights saved successfully for cycle {cycle_number}")
-                return weight_id
-            else:
-                logger.error("Failed to save LoRA weights")
-                return None
-        except Exception as e:
-            logger.error(f"Error saving LoRA weights: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        # Ensure LoRA manager has the current model reference
+        # If model has LoRA applied, it's already the lora_model
+        self.lora_manager.model = self.model
+        # Check if model is a PEFT model (has LoRA)
+        if hasattr(self.model, 'peft_config'):
+            self.lora_manager.lora_model = self.model
+        else:
+            # Create LoRA adapter if it doesn't exist
+            self.lora_manager.lora_model = get_peft_model(self.model, self.lora_config)
+        
+        return self.lora_manager.save_weights(
+            cycle_number=cycle_number,
+            evolution_score=evolution_score,
+            interactions_used=interactions_used,
+            metadata=metadata
+        )
     
     def fine_tune_lora(
         self,
@@ -274,83 +227,46 @@ class ObeliskLLM:
         Fine-tune the model using LoRA on training data
         Returns training metrics and saves weights to storage
         """
-        try:
-            from datasets import Dataset
-            
-            if not training_data or len(training_data) < 5:
-                return {"error": "Need at least 5 training examples"}
-            
-            logger.info(f"Starting LoRA fine-tuning on {len(training_data)} examples...")
-            
-            # Ensure LoRA adapter exists
-            if self.lora_model is None:
-                self.lora_model = get_peft_model(self.model, self.lora_config)
-            
-            # Format training data
-            def format_prompt(query: str, response: str) -> str:
-                system_prompt = self.get_system_prompt()
-                return f"{system_prompt}\n\nUser: {query}\nOverseer: {response}"
-            
-            # Create dataset
-            formatted_data = [
-                {"text": format_prompt(q, r)}
-                for q, r in training_data
-            ]
-            
-            dataset = Dataset.from_list(formatted_data)
-            
-            # Tokenize
-            def tokenize_function(examples):
-                return self.tokenizer(
-                    examples["text"],
-                    truncation=True,
-                    max_length=512,
-                    padding="max_length"
-                )
-            
-            tokenized_dataset = dataset.map(tokenize_function, batched=True)
-            
-            # Training arguments
-            training_args = TrainingArguments(
-                output_dir="./lora_output",
-                num_train_epochs=epochs,
-                per_device_train_batch_size=batch_size,
-                learning_rate=learning_rate,
-                logging_steps=10,
-                save_strategy="no",  # Don't save checkpoints, we'll save to storage
-                fp16=self.device == "cuda",
-                optim="adamw_torch",
-                report_to="none"
-            )
-            
-            # Trainer
-            trainer = Trainer(
-                model=self.lora_model,
-                args=training_args,
-                train_dataset=tokenized_dataset,
-            )
-            
-            # Train
-            train_result = trainer.train()
-            
-            # Update model reference
-            self.model = self.lora_model
+        if not self.lora_manager:
+            return {"error": "No LoRA manager configured"}
+        
+        # Create trainer instance
+        trainer = LoRATrainer(
+            model=self.model,
+            tokenizer=self.tokenizer,
+            lora_config=self.lora_config,
+            lora_model=self.lora_manager.lora_model,
+            device=self.device,
+            get_system_prompt_fn=self.get_system_prompt
+        )
+        
+        # Train
+        result = trainer.fine_tune(
+            training_data=training_data,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            batch_size=batch_size
+        )
+        
+        if result.get("success"):
+            # Update model references
+            self.model = trainer.lora_model
             self.model.eval()
+            self.lora_manager.model = self.model
+            self.lora_manager.lora_model = trainer.lora_model
             
-            logger.info(f"Fine-tuning completed. Loss: {train_result.training_loss:.4f}")
+            # Save weights to storage
+            weight_id = self.save_lora_weights(
+                cycle_number=cycle_number,
+                evolution_score=0.0,  # Will be set by evolution processor
+                interactions_used=len(training_data),
+                metadata={"training_loss": result.get("training_loss")}
+            )
             
-            return {
-                "success": True,
-                "training_loss": train_result.training_loss,
-                "examples_trained": len(training_data),
-                "epochs": epochs
-            }
-            
-        except Exception as e:
-            logger.error(f"Error during fine-tuning: {e}")
-            import traceback
-            traceback.print_exc()
-            return {"error": str(e)}
+            if weight_id:
+                result["weight_id"] = weight_id
+        
+        return result
 
     def _estimate_memory(self) -> int:
         """Estimate model memory usage in MB"""
