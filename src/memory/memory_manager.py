@@ -8,8 +8,8 @@ import os
 import json
 from ..storage.base import StorageInterface
 from ..utils.logger import get_logger
-from ..utils.json_parser import extract_json_from_llm_response
 from .recent_buffer import RecentConversationBuffer
+from .agents import MemoryCreator, MemorySelector
 
 logger = get_logger(__name__)
 
@@ -29,13 +29,15 @@ class ObeliskMemoryManager:
     Architecture:
     - RecentConversationBuffer: Sliding window of last k message pairs (for prompt injection)
     - Memory Summaries: Long-term storage of summarized conversations (for intelligent selection)
-    - Uses Qwen LLM for summarization and memory selection
+    - Memory Agents (in memory/agents/):
+      - MemoryCreator: Summarizes conversations into structured memories
+      - MemorySelector: Intelligently selects relevant memories for queries
     
     Flow:
     1. On init: Load only last k*2 messages into buffer (lightweight)
     2. On each interaction: Add to buffer, check if summarization needed
-    3. Every N interactions: Summarize recent interactions, save to memory
-    4. On each query: Select relevant memories using LLM, include in context
+    3. Every N interactions: MemoryCreator summarizes recent interactions, save to memory
+    4. On each query: MemorySelector selects relevant memories, include in context
     """
     
     def __init__(
@@ -65,6 +67,15 @@ class ObeliskMemoryManager:
         self.llm = llm
         self.mode = mode
         self.buffers: Dict[str, RecentConversationBuffer] = {}  # Store recent conversation buffers per user
+        self.interaction_counts: Dict[str, int] = {}  # Cache interaction counts per user to avoid disk reads
+        
+        # Initialize memory agents
+        if llm:
+            self.memory_creator = MemoryCreator(llm)
+            self.memory_selector = MemorySelector(llm)
+        else:
+            self.memory_creator = None
+            self.memory_selector = None
     
     def get_buffer(self, user_id: str) -> RecentConversationBuffer:
         """
@@ -73,6 +84,8 @@ class ObeliskMemoryManager:
         Loads only the last k*2 messages (k message pairs) - no heavy processing on init.
         This is just for prompt injection, not memory storage.
         
+        Also initializes interaction count cache for this user (reads from disk once).
+        
         Args:
             user_id: User identifier
             
@@ -80,8 +93,14 @@ class ObeliskMemoryManager:
             RecentConversationBuffer instance with last k message pairs
         """
         if user_id not in self.buffers:
-            # Load only recent messages (last k*2 messages = k message pairs)
+            # Load recent messages (last k*2 messages = k message pairs) for buffer
             interactions = self.storage.get_user_interactions(user_id, limit=self.k * 2)
+            
+            # Initialize interaction count cache from what we loaded
+            # This is just for the buffer - actual count will sync as we add interactions
+            if user_id not in self.interaction_counts:
+                # Start with count from loaded interactions - will be accurate after first add_interaction
+                self.interaction_counts[user_id] = len(interactions)
             
             # Create buffer
             buffer = RecentConversationBuffer(k=self.k)
@@ -101,16 +120,15 @@ class ObeliskMemoryManager:
     
     def _summarize_conversations(self, interactions: List[Dict[str, Any]], user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
-        Summarize conversations using Qwen LLM (solo mode) or Mistral (prod mode, optional)
-        In solo mode, always uses Qwen LLM
+        Summarize conversations using the Memory Creator agent.
+        In solo mode, always uses Qwen LLM via MemoryCreator.
         """
         if not interactions:
             return None
         
-        # Always use Qwen LLM for summarization (solo mode)
-        # In prod mode, we could optionally use Mistral, but for now we use Qwen
-        if self.llm:
-            return self._summarize_with_llm(interactions, user_id)
+        # Use Memory Creator agent if available
+        if self.memory_creator:
+            return self.memory_creator.summarize(interactions, user_id)
         
         # Fallback: simple summary if no LLM available
         return {
@@ -119,53 +137,6 @@ class ObeliskMemoryManager:
             'userContext': {},
             'importantFacts': []
         }
-    
-    def _summarize_with_llm(self, interactions: List[Dict[str, Any]], user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Summarize using the Qwen LLM"""
-        try:
-            # Format conversations
-            conversation_text = ""
-            for interaction in interactions:
-                query = interaction.get('query', '')
-                response = interaction.get('response', '')
-                if query:
-                    conversation_text += f"User: {query}\n"
-                if response:
-                    conversation_text += f"Overseer: {response}\n"
-            
-            # Create summarization prompt (simpler, more direct)
-            summary_prompt = f"""Extract key memories from this conversation. Return ONLY valid JSON, no other text.
-
-Conversation:
-{conversation_text}
-
-Return JSON with these exact keys:
-{{
-  "summary": "brief overview",
-  "keyTopics": ["topic1", "topic2"],
-  "userContext": {{"favorite_color": "green", "name": "Alvis"}},
-  "importantFacts": ["User's favorite color is green", "User's name is Alvis"]
-}}
-
-JSON only:"""
-            
-            # Generate summary - no redirection needed, same as thinking spinner
-            result = self.llm.generate(
-                query=summary_prompt,
-                quantum_influence=0.2,  # Lower influence for more consistent summaries
-                conversation_context=None,
-                max_length=500  # Allow more tokens for JSON generation
-            )
-            
-            summary_text = result.get('response', '').strip()
-            
-            # Extract JSON using utility (raises ValueError if parsing fails - critical error)
-            summary_data = extract_json_from_llm_response(summary_text, context="summary")
-            return summary_data
-            
-        except Exception as e:
-            logger.error(f"Error summarizing with LLM: {e}")
-            return None
     
     def _save_summary_to_storage(self, user_id: str, summary_data: Dict[str, Any], interactions: List[Dict[str, Any]]):
         """Save summary to storage"""
@@ -299,15 +270,21 @@ JSON only:"""
         buffer.add_user_message(query)
         buffer.add_ai_message(response)
         
-        # Check if we need to summarize (every N interactions)
-        # Each interaction is already a pair (query + response)
-        interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold * 2)
-        interaction_count = len(interactions)
+        # Update interaction count cache (increment after saving)
+        # Count should already be initialized in get_buffer() - if not, initialize to 0
+        if user_id not in self.interaction_counts:
+            # Fallback: should not happen if get_buffer() was called first, but handle gracefully
+            self.interaction_counts[user_id] = 0
         
+        # Increment cached count (we just saved one interaction)
+        self.interaction_counts[user_id] += 1
+        interaction_count = self.interaction_counts[user_id]
+        
+        # Check if we need to summarize (every N interactions)
         # Trigger summarization when we hit the threshold (every N interactions)
-        # Only summarize when we have exactly N interactions (not on every interaction after N)
         if interaction_count > 0 and interaction_count % self.summarize_threshold == 0:
             # Get only the recent interactions to summarize (last N pairs)
+            # Only read from disk when we actually need to summarize
             recent_interactions = self.storage.get_user_interactions(user_id, limit=self.summarize_threshold)
             
             # Summarize only these recent interactions (they'll be converted to memories)
@@ -319,7 +296,7 @@ JSON only:"""
     
     def _select_relevant_memories(self, user_query: str, summaries: List[Dict[str, Any]], top_k: int = 5) -> List[Dict[str, Any]]:
         """
-        Use LLM to select relevant memories from a list of summaries
+        Use Memory Selector agent to select relevant memories from a list of summaries
         
         Args:
             user_query: Current user query (required)
@@ -328,82 +305,17 @@ JSON only:"""
             
         Returns:
             List of selected relevant summary dictionaries
+            
+        Raises:
+            ValueError: If LLM returns invalid indices
+            RuntimeError: If selection fails critically
         """
-        if not summaries:
-            return []
+        if not self.memory_selector:
+            # Fallback if no selector available (shouldn't happen in solo mode)
+            logger.warning("Memory selector not available, returning all summaries")
+            return summaries[:top_k] if summaries else []
         
-        # LLM is guaranteed to exist (enforced in __init__ for solo mode)
-        if len(summaries) <= top_k:
-            # If we have fewer summaries than top_k, return all
-            return summaries
-        
-        try:
-            # Format summaries for analysis
-            summaries_text = ""
-            for i, summary in enumerate(summaries):
-                summary_str = f"Memory {i}:\n"
-                summary_str += f"  Summary: {summary.get('summary', 'N/A')}\n"
-                summary_str += f"  Topics: {', '.join(summary.get('keyTopics', []))}\n"
-                summary_str += f"  Facts: {', '.join(summary.get('importantFacts', []))}\n"
-                user_ctx = summary.get('userContext', {})
-                if user_ctx:
-                    summary_str += f"  Context: {', '.join([f'{k}={v}' for k, v in user_ctx.items()])}\n"
-                summaries_text += summary_str + "\n"
-            
-            # Create selection prompt
-            selection_prompt = f"""Analyze these memories and select the {top_k} most relevant ones for this user query.
-
-User Query: {user_query}
-
-Memories:
-{summaries_text}
-
-Return ONLY valid JSON with this exact format:
-{{
-  "selected_indices": [0, 2, 5],
-  "reason": "brief explanation of why these were selected"
-}}
-
-Return the indices (0-based) of the {top_k} most relevant memories. JSON only:"""
-            
-            # Use LLM to select (low temperature, no thinking mode for speed and simplicity)
-            result = self.llm.generate(
-                query=selection_prompt,
-                quantum_influence=0.1,  # Very low influence for consistent selection
-                conversation_context=None,
-                max_length=800,  # Enough for JSON response
-                enable_thinking=False  # Disable thinking mode for faster, simpler selection
-            )
-            
-            selection_text = result.get('response', '').strip()
-            
-            # Extract JSON using utility (raises ValueError if parsing fails - critical error)
-            selection_data = extract_json_from_llm_response(selection_text, context="memory selection")
-            
-            # Extract and validate indices
-            selected_indices = selection_data.get('selected_indices', [])
-            
-            # Validate indices and select memories
-            selected_memories = []
-            for idx in selected_indices:
-                if isinstance(idx, int) and 0 <= idx < len(summaries):
-                    selected_memories.append(summaries[idx])
-            
-            # If we got valid selections, return them
-            if selected_memories:
-                logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
-                return selected_memories
-            else:
-                # Critical error: LLM returned invalid indices - this should never happen
-                raise ValueError(
-                    f"Memory selection returned invalid indices: {selected_indices} "
-                    f"(valid range: 0-{len(summaries)-1}). This is a critical error."
-                )
-            
-        except Exception as e:
-            # Critical error: Memory selection failed - this should never happen
-            logger.error(f"Critical error selecting relevant memories: {e}")
-            raise RuntimeError(f"Memory selection failed: {e}") from e
+        return self.memory_selector.select(user_query, summaries, top_k)
     
     def get_conversation_context(self, user_id: str, user_query: str) -> Dict[str, Any]:
         """
