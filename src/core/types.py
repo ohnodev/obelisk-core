@@ -42,7 +42,7 @@ class LLMProtocol(Protocol):
         
         Args:
             query: User's query
-            quantum_influence: Quantum random value (0-0.1) to influence creativity
+            quantum_influence: Quantum random value (0.0-1.0, default: 0.7) to influence creativity
             max_length: Maximum response length
             conversation_context: Dict with 'messages' and 'memories'
             enable_thinking: Whether to enable thinking mode

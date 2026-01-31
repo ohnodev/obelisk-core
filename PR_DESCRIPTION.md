@@ -76,20 +76,22 @@ This fixes the `FileNotFoundError: config.py not found` error that was breaking 
 from src.core.types import LLMProtocol, MemoryManagerProtocol
 
 def process_with_llm(llm: LLMProtocol, memory: MemoryManagerProtocol):
-    context = memory.get_conversation_context("user123")
-    result = llm.generate("Hello", conversation_context=context)
+    user_id = "user123"
+    user_query = "Hello"
+    context = memory.get_conversation_context(user_id, user_query)
+    result = llm.generate(user_query, conversation_context=context)
     return result
 ```
 
 ### Using TypedDict for Structured Data
 
 ```python
-from src.core.types import ConversationContextDict, ConversationMessage
+from src.core.types import ConversationContextDict
 
 context: ConversationContextDict = {
     "messages": [
-        ConversationMessage(role="user", content="Hello"),
-        ConversationMessage(role="assistant", content="Hi there!")
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there!"}
     ],
     "memories": "User prefers technical explanations"
 }
