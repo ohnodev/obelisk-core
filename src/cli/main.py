@@ -370,7 +370,7 @@ def train(dataset, epochs, learning_rate, batch_size, mode):
         )
         
         if weight_id:
-            click.echo(f"✅ LoRA weights saved successfully!")
+            click.echo("✅ LoRA weights saved successfully!")
             click.echo(f"   Weight ID: {weight_id}")
             click.echo()
             click.echo("💡 The trained model will be automatically loaded when you run 'obelisk-core chat'")

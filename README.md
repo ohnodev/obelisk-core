@@ -289,7 +289,7 @@ The trained LoRA weights are automatically saved and loaded. The model will use 
 
 ## Architecture
 
-```
+```text
 obelisk-core/
 ├── src/
 │   ├── llm/                    # LLM inference (Qwen3-0.6B with thinking mode)
