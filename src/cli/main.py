@@ -98,11 +98,13 @@ def chat(mode):
             llm=llm,
             mode=Config.MODE
         )
+        
+        # Initialize buffer for CLI user on startup (avoids delay on first message)
+        user_id = "cli_user"
+        memory_manager.get_buffer(user_id)  # Initialize buffer and load recent interactions
     
     console.print("[bold green]✓[/bold green] [bold]The Overseer is ready[/bold]")
     console.print()
-    
-    user_id = "cli_user"
     
     # Welcome message
     welcome_text = Text()
