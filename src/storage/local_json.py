@@ -225,7 +225,9 @@ class LocalJSONStorage(StorageInterface):
                 try:
                     with open(metadata_file, 'r') as f:
                         metadata = json.load(f)
-                        if metadata.get('base_model') == base_model:
+                        # Check if base_model matches, or if base_model is missing (backward compatibility)
+                        saved_base_model = metadata.get('base_model') or metadata.get('metadata', {}).get('base_model')
+                        if saved_base_model == base_model or saved_base_model is None:
                             weights_files.append((metadata.get('created_at', ''), weights_file, metadata))
                 except:
                     continue
