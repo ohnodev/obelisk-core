@@ -37,8 +37,7 @@ def setup_logger(
         # Use Config.DEBUG if available, otherwise fall back to env var
         try:
             # Import here to avoid circular dependency
-            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            from config import Config
+            from ..core.config import Config
             debug_mode = Config.DEBUG
         except ImportError:
             # Fallback to env var if config not available

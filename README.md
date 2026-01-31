@@ -177,7 +177,7 @@ uvicorn src.api.server:app --host 0.0.0.0 --port 7779
 ### Python API
 
 ```python
-from config import Config
+from src.core.config import Config
 from src.llm.obelisk_llm import ObeliskLLM
 from src.storage import LocalJSONStorage
 

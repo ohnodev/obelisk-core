@@ -13,17 +13,8 @@ from rich.live import Live
 from rich.spinner import Spinner
 from rich import box
 
-from pathlib import Path
-import importlib.util
-
-# Import config from root directory (avoids sys.path hack)
-_config_path = Path(__file__).parent.parent.parent / "config.py"
-spec = importlib.util.spec_from_file_location("config", _config_path)
-config_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(config_module)
-Config = config_module.Config
-
 from src.core.bootstrap import get_container
+from src.core.config import Config
 from src.evolution.processor import process_evolution_cycle
 from src.evolution.training.lora_trainer import LoRATrainer
 from src.api.server import app

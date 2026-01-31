@@ -7,32 +7,15 @@ providing a single entry point to build all core services.
 """
 from typing import Optional
 import time
-from pathlib import Path
-import importlib.util
 
 from .container import ServiceContainer
+from .config import Config
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 # Cache containers by mode to avoid rebuilding expensive services
 _container_cache: dict[str, ServiceContainer] = {}
-
-
-def _import_config():
-    """Import Config from root directory (avoids sys.path hacks)"""
-    # Find config.py relative to this file
-    config_path = Path(__file__).parent.parent.parent / "config.py"
-    if not config_path.exists():
-        raise FileNotFoundError(f"config.py not found at {config_path}")
-    
-    spec = importlib.util.spec_from_file_location("config", config_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Failed to load config.py from {config_path}")
-    
-    config_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(config_module)
-    return config_module.Config
 
 
 def get_container(
@@ -66,9 +49,6 @@ def get_container(
         # API usage (with caching)
         container = get_container()  # Uses Config.MODE
     """
-    # Import Config (lazy import to avoid circular dependencies)
-    Config = _import_config()
-    
     # Resolve mode
     resolved_mode = mode or Config.MODE
     

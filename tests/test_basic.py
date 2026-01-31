@@ -22,9 +22,7 @@ except ImportError:
     pytest = MockPytest()
 
 # Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from config import Config
+from src.core.config import Config
 from src.storage import LocalJSONStorage
 from src.llm.obelisk_llm import ObeliskLLM
 from src.memory.memory_manager import ObeliskMemoryManager

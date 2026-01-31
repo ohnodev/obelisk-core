@@ -4,17 +4,9 @@ API routes for Obelisk Core
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Literal
-from pathlib import Path
-import importlib.util
-
-# Import config from root directory
-_config_path = Path(__file__).parent.parent.parent / "config.py"
-spec = importlib.util.spec_from_file_location("config", _config_path)
-config_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(config_module)
-Config = config_module.Config
 
 from ..core.container import ServiceContainer
+from ..core.config import Config
 
 router = APIRouter()
 
