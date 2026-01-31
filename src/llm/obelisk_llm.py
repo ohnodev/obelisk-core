@@ -366,19 +366,26 @@ class ObeliskLLM:
             generated_tokens = outputs[0][input_length:].tolist()
             
             # Parse thinking content from Qwen3 format (token 151668 = </think>)
-            thinking_tokens, content_tokens = split_thinking_tokens(generated_tokens)
-            
-            if thinking_tokens:
-                thinking_content = self.tokenizer.decode(thinking_tokens, skip_special_tokens=True).strip("\n")
+            # When enable_thinking=False, Qwen3 should not generate any thinking tokens at all
+            if enable_thinking:
+                thinking_tokens, content_tokens = split_thinking_tokens(generated_tokens)
+                
+                if thinking_tokens:
+                    thinking_content = self.tokenizer.decode(thinking_tokens, skip_special_tokens=True).strip("\n")
+                else:
+                    thinking_content = ""
+                    logger.debug("No thinking token (151668) found in output")
+                
+                if content_tokens:
+                    final_content = self.tokenizer.decode(content_tokens, skip_special_tokens=True).strip("\n")
+                else:
+                    final_content = ""
+                    logger.debug("No content tokens after thinking block")
             else:
+                # When thinking is disabled, all tokens are content (no thinking tokens should exist)
                 thinking_content = ""
-                logger.debug("No thinking token (151668) found in output")
-            
-            if content_tokens:
-                final_content = self.tokenizer.decode(content_tokens, skip_special_tokens=True).strip("\n")
-            else:
-                final_content = ""
-                logger.debug("No content tokens after thinking block")
+                final_content = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip("\n")
+                logger.debug("Thinking mode disabled - all tokens treated as content")
             
             raw_response = final_content
             

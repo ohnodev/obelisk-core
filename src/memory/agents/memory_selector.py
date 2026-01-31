@@ -56,8 +56,29 @@ class MemorySelector:
             for i, summary in enumerate(summaries):
                 summary_str = f"Memory {i}:\n"
                 summary_str += f"  Summary: {summary.get('summary', 'N/A')}\n"
-                summary_str += f"  Topics: {', '.join(summary.get('keyTopics', []))}\n"
-                summary_str += f"  Facts: {', '.join(summary.get('importantFacts', []))}\n"
+                
+                # Handle keyTopics - convert dicts to strings if needed
+                topics = summary.get('keyTopics', [])
+                topics_strs = []
+                for topic in topics:
+                    if isinstance(topic, dict):
+                        # Extract value from dict (e.g., {"topic": "color"} -> "color")
+                        topics_strs.append(str(list(topic.values())[0]) if topic.values() else str(topic))
+                    else:
+                        topics_strs.append(str(topic))
+                summary_str += f"  Topics: {', '.join(topics_strs)}\n"
+                
+                # Handle importantFacts - convert dicts to strings if needed
+                facts = summary.get('importantFacts', [])
+                facts_strs = []
+                for fact in facts:
+                    if isinstance(fact, dict):
+                        # Extract value from dict or stringify the whole dict
+                        facts_strs.append(str(list(fact.values())[0]) if fact.values() else str(fact))
+                    else:
+                        facts_strs.append(str(fact))
+                summary_str += f"  Facts: {', '.join(facts_strs)}\n"
+                
                 user_ctx = summary.get('userContext', {})
                 if user_ctx:
                     summary_str += f"  Context: {', '.join([f'{k}={v}' for k, v in user_ctx.items()])}\n"
