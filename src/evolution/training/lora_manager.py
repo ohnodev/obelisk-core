@@ -96,7 +96,11 @@ class LoRAManager:
             pickle.dump(state_dict, buffer)
             lora_weights_bytes = buffer.getvalue()
             
-            # Save to storage
+            # Save to storage (include model_name in metadata for retrieval)
+            if metadata is None:
+                metadata = {}
+            metadata['base_model'] = self.model_name
+            
             weight_id = self.storage.save_lora_weights(
                 cycle_number=cycle_number,
                 lora_weights=lora_weights_bytes,

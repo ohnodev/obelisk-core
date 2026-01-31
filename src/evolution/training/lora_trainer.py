@@ -78,14 +78,17 @@ class LoRATrainer:
             
             dataset = Dataset.from_list(formatted_data)
             
-            # Tokenize
+            # Tokenize with labels for causal language modeling
             def tokenize_function(examples):
-                return self.tokenizer(
+                tokenized = self.tokenizer(
                     examples["text"],
                     truncation=True,
                     max_length=512,
                     padding="max_length"
                 )
+                # For causal LM, labels are the same as input_ids (model will shift internally)
+                tokenized["labels"] = tokenized["input_ids"].copy()
+                return tokenized
             
             tokenized_dataset = dataset.map(tokenize_function, batched=True)
             

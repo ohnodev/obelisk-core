@@ -21,6 +21,7 @@ from src.storage import LocalJSONStorage, SupabaseStorage
 from src.llm.obelisk_llm import ObeliskLLM
 from src.quantum.ibm_quantum_service import IBMQuantumService
 from src.evolution.processor import process_evolution_cycle
+from src.evolution.training.lora_trainer import LoRATrainer
 from src.memory.memory_manager import ObeliskMemoryManager
 from src.api.server import app
 
@@ -48,7 +49,7 @@ def serve(port, mode, host):
         sys.exit(1)
     
     click.echo(f"🚀 Starting Obelisk Core API server in {Config.MODE} mode...")
-    click.echo(f"   [ALPHA VERSION]")
+    click.echo("   [ALPHA VERSION]")
     click.echo(f"   Host: {host}")
     click.echo(f"   Port: {port}")
     
@@ -257,14 +258,140 @@ def evolve(cycle_id, fine_tune):
         if result.get('model_training'):
             training = result['model_training']
             if training.get('success'):
-                click.echo(f"   Model training: ✅ Success")
+                click.echo("   Model training: ✅ Success")
                 click.echo(f"   Weight ID: {training.get('weight_id')}")
             else:
-                click.echo(f"   Model training: ❌ Failed")
+                click.echo("   Model training: ❌ Failed")
                 click.echo(f"   Error: {training.get('error')}")
         
     except Exception as e:
         click.echo(f"❌ Error processing evolution cycle: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--dataset', default='src/evolution/training/dataset_example.json', help='Path to training dataset JSON file')
+@click.option('--epochs', default=3, help='Number of training epochs')
+@click.option('--learning-rate', default=0.0001, help='Learning rate for training')
+@click.option('--batch-size', default=4, help='Batch size for training')
+@click.option('--mode', type=click.Choice(['solo', 'prod']), default='solo', help='Mode: solo or prod (default: solo)')
+def train(dataset, epochs, learning_rate, batch_size, mode):
+    """Train LoRA adapter on a dataset and save weights"""
+    os.environ['OBELISK_CORE_MODE'] = mode
+    Config.MODE = mode
+    
+    if not Config.validate():
+        click.echo("❌ Configuration validation failed. Please check your environment variables.")
+        sys.exit(1)
+    
+    # Load dataset
+    dataset_path = Path(dataset)
+    if not dataset_path.exists():
+        click.echo(f"❌ Dataset file not found: {dataset_path}")
+        sys.exit(1)
+    
+    try:
+        import json
+        with open(dataset_path, 'r') as f:
+            dataset_data = json.load(f)
+        
+        # Validate dataset structure
+        if not isinstance(dataset_data, list):
+            click.echo("❌ Dataset must be a JSON array of {user, assistant} objects")
+            sys.exit(1)
+        
+        # Convert to (query, response) tuples
+        training_data = [(item['user'], item['assistant']) for item in dataset_data]
+        
+        if len(training_data) < 5:
+            click.echo(f"❌ Need at least 5 training examples, found {len(training_data)}")
+            sys.exit(1)
+        
+        click.echo(f"📚 Loaded {len(training_data)} training examples from {dataset_path}")
+        click.echo(f"⚙️  Training parameters: epochs={epochs}, lr={learning_rate}, batch_size={batch_size}")
+        click.echo()
+        
+        # Initialize storage and LLM
+        with console.status("[bold cyan]Initializing model...", spinner="dots"):
+            storage = Config.get_storage()
+            llm = ObeliskLLM(storage=storage)
+            
+            if not llm.lora_manager:
+                click.echo("❌ LoRA manager not initialized")
+                sys.exit(1)
+        
+        # Create trainer
+        trainer = LoRATrainer(
+            model=llm.model,
+            tokenizer=llm.tokenizer,
+            lora_config=llm.lora_config,
+            lora_model=llm.lora_manager.lora_model,
+            device=llm.device,
+            get_system_prompt_fn=llm.get_system_prompt
+        )
+        
+        # Train
+        click.echo("🚀 Starting LoRA training...")
+        click.echo()
+        
+        training_result = trainer.fine_tune(
+            training_data=training_data,
+            epochs=epochs,
+            learning_rate=learning_rate,
+            batch_size=batch_size
+        )
+        
+        if 'error' in training_result:
+            click.echo(f"❌ Training failed: {training_result['error']}")
+            sys.exit(1)
+        
+        click.echo()
+        click.echo("✅ Training completed successfully!")
+        click.echo(f"   Training loss: {training_result.get('training_loss', 'N/A')}")
+        click.echo()
+        
+        # Update model references
+        llm.model = trainer.lora_model
+        llm.model.eval()
+        llm.lora_manager.model = llm.model
+        llm.lora_manager.lora_model = trainer.lora_model
+        
+        # Save weights
+        click.echo("💾 Saving LoRA weights...")
+        weight_id = llm.lora_manager.save_weights(
+            cycle_number=1,  # Use cycle 1 for manual training
+            evolution_score=0.0,  # No evolution score for manual training
+            interactions_used=len(training_data),
+            metadata={
+                'training_loss': training_result.get('training_loss'),
+                'epochs': epochs,
+                'learning_rate': learning_rate,
+                'batch_size': batch_size,
+                'dataset_path': str(dataset_path),
+                'manual_training': True
+            }
+        )
+        
+        if weight_id:
+            click.echo("✅ LoRA weights saved successfully!")
+            click.echo(f"   Weight ID: {weight_id}")
+            click.echo()
+            click.echo("💡 The trained model will be automatically loaded when you run 'obelisk-core chat'")
+        else:
+            click.echo("❌ Failed to save LoRA weights")
+            sys.exit(1)
+        
+    except json.JSONDecodeError as e:
+        click.echo(f"❌ Invalid JSON in dataset file: {e}")
+        sys.exit(1)
+    except KeyError as e:
+        click.echo(f"❌ Invalid dataset format: missing key {e}")
+        click.echo("   Expected format: [{\"user\": \"...\", \"assistant\": \"...\"}, ...]")
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Error during training: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -324,6 +451,37 @@ def config():
 
 @cli.command()
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
+def clear_lora(confirm):
+    """Clear all LoRA weights (revert to base model)"""
+    if Config.MODE == 'prod':
+        click.echo("❌ Clear LoRA command is only available in solo mode for safety.")
+        click.echo("   Use your database management tools to clear prod data.")
+        sys.exit(1)
+    
+    if not confirm:
+        click.echo("⚠️  This will delete ALL LoRA weights!")
+        click.echo("   The model will revert to the base model.")
+        if not click.confirm("   Are you sure you want to continue?"):
+            click.echo("   Cancelled.")
+            return
+    
+    try:
+        storage = Config.get_storage()
+        if storage.delete_lora_weights():
+            click.echo("✅ LoRA weights cleared successfully!")
+            click.echo("   The model will use the base model on next startup.")
+        else:
+            click.echo("❌ Failed to clear LoRA weights")
+            sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Error clearing LoRA weights: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
 def clear(confirm):
     """Clear all local memory and data (fresh start)"""
     if Config.MODE == 'prod':
@@ -378,7 +536,7 @@ def clear(confirm):
                 memory_folder.mkdir(parents=True, exist_ok=True)
                 (memory_folder / "interactions").mkdir(parents=True, exist_ok=True)
             
-            click.echo(f"✅ Cleared all local memory!")
+            click.echo("✅ Cleared all local memory!")
             click.echo(f"   Deleted {total_files} files")
             click.echo(f"   Storage path: {storage_path}")
             click.echo("   The Overseer's memory has been reset.")

@@ -60,6 +60,16 @@ class StorageInterface(ABC):
         """
         pass
     
+    def delete_lora_weights(self) -> bool:
+        """
+        Delete all LoRA weights from storage
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        # Default implementation - override in subclasses
+        return False
+    
     @abstractmethod
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's own interactions (for solo mode)"""

@@ -199,6 +199,7 @@ class LocalJSONStorage(StorageInterface):
                 'file_size_bytes': len(lora_weights),
                 'checksum': hashlib.sha256(lora_weights).hexdigest(),
                 'created_at': datetime.utcnow().isoformat(),
+                'base_model': metadata.get('base_model') if metadata else None,  # Extract base_model to top level
                 'metadata': metadata or {}
             }
             with open(metadata_file, 'w') as f:
@@ -224,7 +225,9 @@ class LocalJSONStorage(StorageInterface):
                 try:
                     with open(metadata_file, 'r') as f:
                         metadata = json.load(f)
-                        if metadata.get('base_model') == base_model:
+                        # Check if base_model matches, or if base_model is missing (backward compatibility)
+                        saved_base_model = metadata.get('base_model') or metadata.get('metadata', {}).get('base_model')
+                        if saved_base_model == base_model or saved_base_model is None:
                             weights_files.append((metadata.get('created_at', ''), weights_file, metadata))
                 except:
                     continue
@@ -241,6 +244,30 @@ class LocalJSONStorage(StorageInterface):
                 logger.error(f"Error loading weights: {e}")
                 return None
         return None
+    
+    def delete_lora_weights(self) -> bool:
+        """Delete all LoRA weights from storage"""
+        try:
+            deleted_count = 0
+            for weights_file in self.weights_path.glob("*.pkl"):
+                metadata_file = weights_file.with_suffix('.json')
+                try:
+                    weights_file.unlink()
+                    if metadata_file.exists():
+                        metadata_file.unlink()
+                    deleted_count += 1
+                except Exception as e:
+                    logger.warning(f"Error deleting {weights_file}: {e}")
+            
+            if deleted_count > 0:
+                logger.info(f"Deleted {deleted_count} LoRA weight file(s)")
+                return True
+            else:
+                logger.info("No LoRA weights found to delete")
+                return True  # Still return True if nothing to delete
+        except Exception as e:
+            logger.error(f"Error deleting LoRA weights: {e}")
+            return False
     
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's own interactions (for solo mode)"""
