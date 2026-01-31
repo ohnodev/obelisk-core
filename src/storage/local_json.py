@@ -245,6 +245,30 @@ class LocalJSONStorage(StorageInterface):
                 return None
         return None
     
+    def delete_lora_weights(self) -> bool:
+        """Delete all LoRA weights from storage"""
+        try:
+            deleted_count = 0
+            for weights_file in self.weights_path.glob("*.pkl"):
+                metadata_file = weights_file.with_suffix('.json')
+                try:
+                    weights_file.unlink()
+                    if metadata_file.exists():
+                        metadata_file.unlink()
+                    deleted_count += 1
+                except Exception as e:
+                    logger.warning(f"Error deleting {weights_file}: {e}")
+            
+            if deleted_count > 0:
+                logger.info(f"Deleted {deleted_count} LoRA weight file(s)")
+                return True
+            else:
+                logger.info("No LoRA weights found to delete")
+                return True  # Still return True if nothing to delete
+        except Exception as e:
+            logger.error(f"Error deleting LoRA weights: {e}")
+            return False
+    
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's own interactions (for solo mode)"""
         user_file = self._get_user_file(user_id)
