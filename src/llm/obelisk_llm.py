@@ -176,18 +176,27 @@ class ObeliskLLM:
 
 
     def get_system_prompt(self) -> str:
-        """Get The Overseer system prompt - loaded from config"""
+        """
+        Retrieve the system prompt for The Overseer agent.
+        
+        Returns:
+            The system prompt string (from Config.AGENT_PROMPT).
+        """
         return Config.AGENT_PROMPT
 
     def _prepare_sampling_parameters(self, quantum_influence: float) -> Dict[str, float]:
         """
-        Prepare and validate sampling parameters with quantum influence.
+        Compute sampling parameters adjusted by a quantum influence value.
         
-        Args:
-            quantum_influence: Quantum random value (0-0.1) to influence creativity
-            
+        Parameters:
+            quantum_influence (float): Value in the range 0.0–0.1 that slightly adjusts randomness/creativity; the value will be clamped to this range.
+        
         Returns:
-            Dict with temperature, top_p, top_k, repetition_penalty
+            Dict[str, float]: Mapping with keys:
+                - "temperature": Sampling temperature, clamped to [0.1, 0.9].
+                - "top_p": Nucleus sampling probability, clamped to [0.01, 1.0].
+                - "top_k": Top-K sampling cutoff (from configuration).
+                - "repetition_penalty": Repetition penalty (at least 1.0).
         """
         # Clamp quantum_influence to valid range [0.0, 0.1]
         quantum_influence = max(0.0, min(0.1, quantum_influence))
@@ -214,13 +223,15 @@ class ObeliskLLM:
 
     def _validate_and_truncate_query(self, query: str) -> Tuple[str, List[int]]:
         """
-        Validate and truncate user query if too long.
+        Ensure the user query does not exceed the configured maximum token length; truncate and decode it when necessary.
         
-        Args:
-            query: User's query string
-            
+        Parameters:
+            query (str): The user's input string to validate.
+        
         Returns:
-            Tuple of (validated_query, query_tokens)
+            tuple:
+                validated_query (str): The possibly truncated query text (decoded without special tokens) that fits within MAX_USER_QUERY_TOKENS.
+                query_tokens (List[int]): The token id list for the returned query (tokenized without adding special tokens).
         """
         query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
         if len(query_tokens) > self.MAX_USER_QUERY_TOKENS:
@@ -232,13 +243,16 @@ class ObeliskLLM:
 
     def _parse_conversation_context(self, conversation_context: Optional[Dict[str, Any]]) -> Tuple[List[Dict[str, str]], str]:
         """
-        Parse and clean conversation context.
+        Extracts conversation messages and memories from the provided context and returns a cleaned message history where assistant messages have any <think>...</think> blocks removed.
         
-        Args:
-            conversation_context: Dict with 'messages' and 'memories' keys
-            
+        Parameters:
+        	conversation_context (Optional[Dict[str, Any]]): Optional dict expected to contain 'messages' (list of message dicts with 'role' and 'content') and 'memories' (string). If None, returns empty history and empty memories.
+        
         Returns:
-            Tuple of (cleaned_conversation_history, memories_text)
+        	Tuple[List[Dict[str, str]], str]: A pair of (conversation_history, memories_text). conversation_history is a list of message dicts with assistant messages cleaned of any thinking blocks; memories_text is the extracted memories string.
+        
+        Raises:
+        	ValueError: If conversation_context is provided but is not a dict.
         """
         conversation_history = []
         memories_text = ""
@@ -269,15 +283,15 @@ class ObeliskLLM:
 
     def _build_messages(self, query: str, conversation_history: List[Dict[str, str]], memories_text: str) -> List[Dict[str, str]]:
         """
-        Build messages array for Qwen3 chat template.
+        Assemble Qwen3-style chat messages including the system prompt, optional memories, conversation history, and the current user query.
         
-        Args:
-            query: Current user query
-            conversation_history: List of previous messages
-            memories_text: Memories string to include in system message
-            
+        Parameters:
+            query (str): The current user query to include as the final user message.
+            conversation_history (List[Dict[str, str]]): Prior messages already formatted as Qwen3 message dicts (e.g., {"role": "assistant"|"user", "content": "..."}).
+            memories_text (str): Optional memories text to append to the system prompt when present.
+        
         Returns:
-            List of message dicts in Qwen3 format
+            List[Dict[str, str]]: Ordered list of message dicts suitable for the tokenizer's Qwen3 chat template, starting with the system message, then prior history, and ending with the user message.
         """
         system_prompt = self.get_system_prompt()
         system_content = system_prompt
@@ -294,14 +308,14 @@ class ObeliskLLM:
 
     def _validate_context_window(self, input_token_count: int, max_length: int) -> Optional[Dict[str, Any]]:
         """
-        Validate context window and return error if exceeded.
+        Check whether the requested generation would exceed the model's context window and return a fallback error when it would.
         
-        Args:
-            input_token_count: Number of input tokens
-            max_length: Requested max output length
-            
+        Parameters:
+            input_token_count (int): Number of tokens already present in the input context.
+            max_length (int): Requested maximum number of output tokens.
+        
         Returns:
-            Error dict if context window exceeded, None otherwise
+            Optional[Dict[str, Any]]: An error dictionary with keys `response`, `error`, and `source` if there is insufficient remaining context to generate safely (i.e., the available safe output tokens would be fewer than 10); `None` otherwise.
         """
         total_tokens_after_generation = input_token_count + self.MAX_OUTPUT_TOKENS
         if total_tokens_after_generation > self.MAX_CONTEXT_TOKENS:
@@ -317,16 +331,18 @@ class ObeliskLLM:
 
     def _generate_tokens(self, inputs, sampling_params: Dict[str, float], max_length: int, enable_thinking: bool) -> List[int]:
         """
-        Generate tokens from the model.
+        Generate new token IDs from the model using the provided tokenized inputs and sampling parameters.
         
-        Args:
-            inputs: Tokenized input tensors
-            sampling_params: Dict with temperature, top_p, top_k, repetition_penalty
-            max_length: Maximum output length
-            enable_thinking: Whether thinking mode is enabled
-            
+        This method respects device-specific output limits, caps the number of generated tokens to the smaller of `max_length` and the device limit, and returns only the newly generated token IDs (the input prompt is excluded).
+        
+        Parameters:
+            inputs: Tokenized model inputs (e.g., input_ids, attention_mask) produced by the tokenizer/chat template.
+            sampling_params: Sampling controls with keys `temperature`, `top_p`, `top_k`, and `repetition_penalty`.
+            max_length (int): Upper bound for the number of tokens to generate.
+            enable_thinking (bool): Whether thinking mode is enabled (affects upstream prompt construction).
+        
         Returns:
-            List of generated token IDs
+            List[int]: Generated token IDs excluding the input prompt tokens.
         """
         # Set output token limit (use GPU limit if available, otherwise CPU limit)
         max_output_for_device = Config.LLM_MAX_OUTPUT_TOKENS_GPU if self.device == "cuda" else Config.LLM_MAX_OUTPUT_TOKENS
@@ -356,14 +372,14 @@ class ObeliskLLM:
 
     def _parse_thinking_tokens(self, generated_tokens: List[int], enable_thinking: bool) -> Tuple[str, str]:
         """
-        Parse thinking and content tokens from generated output.
+        Split model output into an optional "thinking" portion and the final content.
         
-        Args:
-            generated_tokens: List of generated token IDs
-            enable_thinking: Whether thinking mode was enabled
-            
+        Parameters:
+            generated_tokens (List[int]): Token IDs produced by the model.
+            enable_thinking (bool): If True, attempt to separate an intermediate thinking segment from the final content; if False, treat all tokens as final content.
+        
         Returns:
-            Tuple of (thinking_content, final_content)
+            Tuple[str, str]: A pair (thinking_content, final_content) where each element is the decoded string for the respective segment; empty strings are used when a segment is not present.
         """
         if enable_thinking:
             thinking_tokens, content_tokens = split_thinking_tokens(generated_tokens)
@@ -389,13 +405,13 @@ class ObeliskLLM:
 
     def _post_process_response(self, raw_response: str) -> str:
         """
-        Post-process response to remove artifacts and clean up formatting.
+        Clean and sanitize a model-generated response by removing conversation markers and artifacts, normalizing whitespace, and returning a safe non-empty fallback when the result is too short.
         
-        Args:
-            raw_response: Raw response from model
-            
+        Parameters:
+            raw_response (str): Raw output produced by the model.
+        
         Returns:
-            Cleaned response string
+            str: The cleaned response text with conversation markers and trailing artifacts removed, excessive whitespace normalized, and a fallback message if the cleaned result would be empty or too short.
         """
         response = raw_response
         
@@ -438,18 +454,27 @@ class ObeliskLLM:
 
     def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None, enable_thinking: bool = True) -> Dict[str, Any]:
         """
-        Generate response from The Obelisk
+        Generate a response for a user query using the Obelisk LLM wrapper.
         
-        Args:
-            query: User's query
-            quantum_influence: Quantum random value (0-0.1) to influence creativity (will be clamped)
-            max_length: Maximum response length
-            conversation_context: Dict with 'messages' (list of message dicts) and 'memories' (string)
-                                 Format: {"messages": [{"role": "user", "content": "..."}, ...], "memories": "..."}
-            enable_thinking: Whether to enable thinking mode (default: True for best quality)
+        Parameters:
+        	query (str): The user's input text; will be token-truncated if it exceeds the configured per-query token limit.
+        	quantum_influence (float): Value influencing sampling (expected 0.0–0.1); will be clamped to the valid range.
+        	max_length (int): Maximum number of tokens to generate for the response.
+        	conversation_context (Optional[Dict[str, Any]]): Optional conversation state with keys:
+        		- "messages": list of {"role": str, "content": str} entries representing prior turns
+        		- "memories": optional string to include in the system prompt
+        	enable_thinking (bool): When True, enable "thinking" mode that separates intermediate reasoning from final content.
         
         Returns:
-            Dict with response, thinking_content, and metadata
+        	Dict[str, Any]: A result dictionary. On success contains:
+        		- "response" (str): The post-processed final reply.
+        		- "thinking_content" (str): Extracted thinking/inner content when thinking mode is enabled (empty otherwise).
+        		- "thinking_mode" (bool): Echoes the enable_thinking flag.
+        		- "quantum_influence" (float): The (clamped) influence value used.
+        		- "temperature" (float), "top_p" (float), "top_k" (int): Sampling parameters used.
+        		- "source" (str): Always "obelisk_llm" for normal responses.
+        		- "model" (str): The model name used.
+        	On fallback or error returns a dictionary containing a fallback "response" and an "error" string describing the condition.
         """
         if self.model is None or self.tokenizer is None:
             return {
