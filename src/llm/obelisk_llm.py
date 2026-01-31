@@ -184,21 +184,25 @@ class ObeliskLLM:
         Prepare and validate sampling parameters with quantum influence.
         
         Args:
-            quantum_influence: Quantum random value (0-0.1) to influence creativity
+            quantum_influence: Quantum random value (0-0.1) to influence creativity (will be clamped)
             
         Returns:
-            Dict with temperature, top_p, top_k, repetition_penalty
+            Dict with temperature, top_p, top_k, repetition_penalty, and clamped quantum_influence
         """
         # Clamp quantum_influence to valid range [0.0, 0.1]
-        quantum_influence = max(0.0, min(0.1, quantum_influence))
+        clamped_quantum_influence = max(0.0, min(0.1, quantum_influence))
+        
+        # Log if clamping occurred
+        if clamped_quantum_influence != quantum_influence:
+            logger.debug(f"quantum_influence clamped from {quantum_influence} to {clamped_quantum_influence}")
         
         # Apply quantum influence (ranges from config)
         base_temp = Config.LLM_TEMPERATURE_BASE
         base_top_p = Config.LLM_TOP_P_BASE
         top_k = Config.LLM_TOP_K
         
-        temperature = base_temp + (quantum_influence * Config.LLM_QUANTUM_TEMPERATURE_RANGE)
-        top_p = base_top_p + (quantum_influence * Config.LLM_QUANTUM_TOP_P_RANGE)
+        temperature = base_temp + (clamped_quantum_influence * Config.LLM_QUANTUM_TEMPERATURE_RANGE)
+        top_p = base_top_p + (clamped_quantum_influence * Config.LLM_QUANTUM_TOP_P_RANGE)
         
         # Validate and clamp sampling parameters to safe ranges
         temperature = max(0.1, min(0.9, temperature))
@@ -209,7 +213,8 @@ class ObeliskLLM:
             "temperature": temperature,
             "top_p": top_p,
             "top_k": top_k,
-            "repetition_penalty": repetition_penalty
+            "repetition_penalty": repetition_penalty,
+            "quantum_influence": clamped_quantum_influence  # Return clamped value for metadata
         }
 
     def _validate_and_truncate_query(self, query: str) -> Tuple[str, List[int]]:
@@ -572,7 +577,7 @@ class ObeliskLLM:
                 "response": response,
                 "thinking_content": thinking_content,
                 "thinking_mode": enable_thinking,
-                "quantum_influence": quantum_influence,
+                "quantum_influence": sampling_params["quantum_influence"],  # Use clamped value from sampling_params
                 "temperature": sampling_params["temperature"],
                 "top_p": sampling_params["top_p"],
                 "top_k": sampling_params["top_k"],
