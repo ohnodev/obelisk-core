@@ -111,7 +111,7 @@ def get_container(
                         logger.debug("Quantum service initialized")
                     else:
                         logger.debug("Quantum service skipped (no API key)")
-                except Exception as e:  # noqa: BLE001
+                except Exception:
                     # Broad catch is intentional - quantum service is optional
                     # Log full traceback for debugging
                     logger.exception("Failed to initialize quantum service")
@@ -140,5 +140,6 @@ def get_container(
 def clear_cache():
     """Clear the container cache (useful for testing or forced rebuilds)"""
     global _container_cache
-    _container_cache.clear()
+    with _container_lock:
+        _container_cache.clear()
     logger.debug("Container cache cleared")
