@@ -58,18 +58,18 @@ class MemoryManagerProtocol(Protocol):
     
     def get_conversation_context(
         self,
-        user_id: UserID,
-        max_messages: int = 10
-    ) -> Optional[Dict[str, Any]]:
+        user_id: str,
+        user_query: str
+    ) -> Dict[str, Any]:
         """
         Get conversation context for a user
         
         Args:
             user_id: User identifier
-            max_messages: Maximum number of recent messages to include
+            user_query: Current user query (required for memory selection)
         
         Returns:
-            Dict with 'messages' and 'memories', or None
+            Dict with 'messages' and 'memories'
         """
         ...
     
@@ -118,8 +118,8 @@ class StorageProtocol(Protocol):
         energy: float = 0.0,
         quantum_seed: float = 0.0,
         reward_score: float = 0.0
-    ) -> None:
-        """Save an interaction"""
+    ) -> str:
+        """Save an interaction and return the interaction ID"""
         ...
     
     def get_user_interactions(
