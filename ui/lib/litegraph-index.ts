@@ -13,15 +13,24 @@ const getGlobal = () => {
 
 const globals = getGlobal();
 
+// Create a dummy base class for SSR so class definitions don't fail
+class DummyLGraphNode {
+  constructor() {
+    if (typeof window === "undefined") {
+      throw new Error("LGraphNode can only be used on the client side");
+    }
+  }
+}
+
 // Re-export the classes from the global scope
 // These are available after the script tag loads in layout.tsx
-// On server side they'll be undefined, but that's OK since
-// all components using them have "use client" directive
-export const LiteGraph = globals.LiteGraph;
-export const LGraph = globals.LGraph;
-export const LGraphNode = globals.LGraphNode;
-export const LGraphCanvas = globals.LGraphCanvas;
-export const LLink = globals.LLink;
-export const LGraphGroup = globals.LGraphGroup;
-export const DragAndScale = globals.DragAndScale;
-export const ContextMenu = globals.ContextMenu;
+// On server side, provide dummy classes so class definitions don't fail
+// The actual classes will be used at runtime on the client
+export const LiteGraph = globals.LiteGraph || ({} as any);
+export const LGraph = globals.LGraph || (class {} as any);
+export const LGraphNode = globals.LGraphNode || (DummyLGraphNode as any);
+export const LGraphCanvas = globals.LGraphCanvas || (class {} as any);
+export const LLink = globals.LLink || (class {} as any);
+export const LGraphGroup = globals.LGraphGroup || (class {} as any);
+export const DragAndScale = globals.DragAndScale || (class {} as any);
+export const ContextMenu = globals.ContextMenu || (class {} as any);
