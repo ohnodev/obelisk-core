@@ -19,6 +19,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const workflowLoadedRef = useRef(false);
   const isDeserializingRef = useRef(false);
   const initialWorkflowLoadedRef = useRef(false);
+  const previousWorkflowRef = useRef<WorkflowGraph | undefined>(undefined);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -181,11 +182,23 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
-    // Load initial workflow only once on mount (not on every prop change)
+    // Load initial workflow - respond to changes in initialWorkflow prop
     // Store timeout IDs for cleanup
     let workflowLoadTimeout: NodeJS.Timeout | null = null;
     let deserializingTimeout: NodeJS.Timeout | null = null;
-    if (initialWorkflow && !initialWorkflowLoadedRef.current) {
+    
+    // Check if initialWorkflow changed (by comparing with previous value)
+    const workflowChanged = previousWorkflowRef.current !== initialWorkflow;
+    
+    if (initialWorkflow && (!initialWorkflowLoadedRef.current || workflowChanged)) {
+      // Reset the loaded flag if workflow changed
+      if (workflowChanged) {
+        initialWorkflowLoadedRef.current = false;
+        previousWorkflowRef.current = initialWorkflow;
+        // Clear existing nodes when loading a new workflow
+        graph.clear();
+      }
+      
       // Use setTimeout to ensure graph is fully initialized
       workflowLoadTimeout = setTimeout(() => {
         // Check if graph is empty (no nodes) before loading
@@ -307,7 +320,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       isDeserializingRef.current = false;
       initialWorkflowLoadedRef.current = false;
     };
-  }, [onWorkflowChange]); // Removed initialWorkflow - only load once on mount
+  }, [onWorkflowChange, initialWorkflow]); // Include initialWorkflow to respond to changes
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
