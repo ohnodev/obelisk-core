@@ -5,7 +5,7 @@ import { LGraphNode, LiteGraph } from "litegraph.js";
 class SamplerNode extends LGraphNode {
   static title = "Sampler";
   static desc = "Generates LLM response";
-  static title_color = "#d4af37";
+  static title_color = "#f7768e";
 
   constructor() {
     super();
@@ -16,6 +16,7 @@ class SamplerNode extends LGraphNode {
     this.addProperty("quantum_influence", 0.7, "number");
     this.addProperty("max_length", 1024, "number");
     this.size = [200, 120];
+    (this as any).type = "sampler";
   }
 
   onExecute() {
@@ -35,7 +36,7 @@ class SamplerNode extends LGraphNode {
     if (this.flags.collapsed) {
       return;
     }
-    ctx.fillStyle = "rgba(212, 175, 55, 0.1)";
+    ctx.fillStyle = "rgba(247, 118, 142, 0.1)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
 }

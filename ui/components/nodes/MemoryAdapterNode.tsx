@@ -5,7 +5,7 @@ import { LGraphNode, LiteGraph } from "litegraph.js";
 class MemoryAdapterNode extends LGraphNode {
   static title = "Memory Adapter";
   static desc = "Gets conversation context from memory";
-  static title_color = "#d4af37";
+  static title_color = "#bb9af7";
 
   constructor() {
     super();
@@ -13,6 +13,7 @@ class MemoryAdapterNode extends LGraphNode {
     this.addInput("query", "string");
     this.addOutput("context", "object");
     this.size = [200, 80];
+    (this as any).type = "memory_adapter";
   }
 
   onExecute() {
@@ -27,7 +28,7 @@ class MemoryAdapterNode extends LGraphNode {
     if (this.flags.collapsed) {
       return;
     }
-    ctx.fillStyle = "rgba(212, 175, 55, 0.1)";
+    ctx.fillStyle = "rgba(187, 154, 247, 0.1)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
 }

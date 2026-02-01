@@ -1,0 +1,281 @@
+/* ComfyUI-style Litegraph customizations */
+
+/* Canvas cursor states */
+.litegraph .lgraphcanvas {
+  cursor: default;
+}
+
+/* Panning cursor */
+.litegraph .lgraphcanvas[data-mode="pan"] {
+  cursor: grab;
+}
+
+.litegraph .lgraphcanvas[data-mode="pan"]:active {
+  cursor: grabbing;
+}
+
+/* Node dragging cursor */
+.litegraph .lgraphcanvas[data-mode="move"] {
+  cursor: move;
+}
+
+/* Connection drawing cursor */
+.litegraph .lgraphcanvas[data-mode="connect"] {
+  cursor: crosshair;
+}
+
+/* Node hover cursor */
+.litegraph .lgraphnode {
+  cursor: move;
+}
+
+.litegraph .lgraphnode:hover {
+  cursor: move;
+}
+
+/* Input/output socket cursors */
+.litegraph .lgraphnode .lgraphnode-input,
+.litegraph .lgraphnode .lgraphnode-output {
+  cursor: pointer;
+}
+
+.litegraph .lgraphnode .lgraphnode-input:hover,
+.litegraph .lgraphnode .lgraphnode-output:hover {
+  cursor: crosshair;
+}
+
+/* Node selection box cursor */
+.litegraph .lgraphcanvas .lgraph-selection-box {
+  cursor: crosshair;
+}
+
+/* ComfyUI-style node colors */
+.litegraph .lgraphnode[data-node-type="input_prompt"] {
+  --node-color: #4a9eff;
+  --node-title-bg: rgba(74, 158, 255, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="model_loader"] {
+  --node-color: #7aa2f7;
+  --node-title-bg: rgba(122, 162, 247, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="lora_loader"] {
+  --node-color: #9ece6a;
+  --node-title-bg: rgba(158, 206, 106, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="memory_adapter"] {
+  --node-color: #bb9af7;
+  --node-title-bg: rgba(187, 154, 247, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="sampler"] {
+  --node-color: #f7768e;
+  --node-title-bg: rgba(247, 118, 142, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="output_text"] {
+  --node-color: #e0af68;
+  --node-title-bg: rgba(224, 175, 104, 0.2);
+}
+
+/* Node styling with ComfyUI colors */
+.litegraph .lgraphnode {
+  background: var(--color-bg-card);
+  border: 1px solid var(--node-color, var(--color-border-primary));
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  min-width: 140px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+}
+
+/* Set node colors based on type - using title_color from node definition */
+.litegraph .lgraphnode[data-node-type="input_prompt"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("Input Prompt")) {
+  --node-color: #4a9eff;
+  --node-title-bg: rgba(74, 158, 255, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="model_loader"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("Model Loader")) {
+  --node-color: #7aa2f7;
+  --node-title-bg: rgba(122, 162, 247, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="lora_loader"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("LoRA Loader")) {
+  --node-color: #9ece6a;
+  --node-title-bg: rgba(158, 206, 106, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="memory_adapter"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("Memory Adapter")) {
+  --node-color: #bb9af7;
+  --node-title-bg: rgba(187, 154, 247, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="sampler"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("Sampler")) {
+  --node-color: #f7768e;
+  --node-title-bg: rgba(247, 118, 142, 0.2);
+}
+
+.litegraph .lgraphnode[data-node-type="output_text"],
+.litegraph .lgraphnode:has(.lgraphnode-title:contains("Output Text")) {
+  --node-color: #e0af68;
+  --node-title-bg: rgba(224, 175, 104, 0.2);
+}
+
+.litegraph .lgraphnode:hover {
+  border-color: var(--node-color, var(--color-primary));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.litegraph .lgraphnode.selected {
+  border-color: var(--node-color, var(--color-primary));
+  border-width: 2px;
+  box-shadow: 0 0 15px var(--node-color, var(--color-glow-primary));
+}
+
+/* Node title bar */
+.litegraph .lgraphnode .lgraphnode-title {
+  background: var(--node-title-bg, var(--color-button-primary-bg));
+  color: var(--node-color, var(--color-primary));
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--node-color, var(--color-border-primary));
+  border-radius: 4px 4px 0 0;
+  text-align: left;
+  user-select: none;
+}
+
+/* Node content area */
+.litegraph .lgraphnode .lgraphnode-content {
+  background: var(--color-bg-card);
+  padding: 8px;
+  min-height: 40px;
+}
+
+/* Input/output sockets */
+.litegraph .lgraphnode .lgraphnode-input,
+.litegraph .lgraphnode .lgraphnode-output {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--node-color, var(--color-border-primary));
+  background: var(--color-bg-card);
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.litegraph .lgraphnode .lgraphnode-input:hover,
+.litegraph .lgraphnode .lgraphnode-output:hover {
+  border-color: var(--node-color, var(--color-primary));
+  background: var(--node-color, var(--color-primary));
+  transform: scale(1.2);
+  box-shadow: 0 0 8px var(--node-color, var(--color-glow-primary));
+}
+
+/* Connection lines */
+.litegraph .lgraphcanvas .lgraph-link {
+  stroke: var(--node-color, var(--color-primary));
+  stroke-width: 2.5px;
+  fill: none;
+  filter: drop-shadow(0 0 2px var(--node-color, var(--color-glow-light)));
+}
+
+.litegraph .lgraphcanvas .lgraph-link:hover {
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 4px var(--node-color, var(--color-glow-primary)));
+}
+
+/* Canvas background */
+.litegraph .lgraphcanvas {
+  background: var(--color-bg-primary);
+  background-image: 
+    linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Property inputs */
+.litegraph .lgraphnode input[type="text"],
+.litegraph .lgraphnode input[type="number"],
+.litegraph .lgraphnode select {
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-input-border);
+  color: var(--color-input-text);
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: text;
+}
+
+.litegraph .lgraphnode input[type="text"]:focus,
+.litegraph .lgraphnode input[type="number"]:focus,
+.litegraph .lgraphnode select:focus {
+  outline: none;
+  border-color: var(--node-color, var(--color-primary));
+  box-shadow: 0 0 4px var(--node-color, var(--color-glow-light));
+}
+
+/* Widget styling */
+.litegraph .lgraphnode .widget {
+  margin: 4px 0;
+}
+
+.litegraph .lgraphnode .widget-value {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+/* Node property labels */
+.litegraph .lgraphnode .property-name {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+/* Selection box */
+.litegraph .lgraphcanvas .lgraph-selection-box {
+  border: 1px dashed var(--color-primary);
+  background: rgba(212, 175, 55, 0.1);
+  pointer-events: none;
+}
+
+/* Zoom controls */
+.litegraph .lgraphcanvas .lgraph-zoom-controls {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+}
+
+/* Context menu styling */
+.litegraph-context-menu {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Disable text selection on canvas */
+.litegraph .lgraphcanvas {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Allow text selection in inputs */
+.litegraph .lgraphnode input,
+.litegraph .lgraphnode textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}

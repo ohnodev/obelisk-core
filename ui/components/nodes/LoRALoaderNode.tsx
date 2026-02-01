@@ -5,7 +5,7 @@ import { LGraphNode, LiteGraph } from "litegraph.js";
 class LoRALoaderNode extends LGraphNode {
   static title = "LoRA Loader";
   static desc = "Applies LoRA weights to model";
-  static title_color = "#d4af37";
+  static title_color = "#9ece6a";
 
   constructor() {
     super();
@@ -13,6 +13,7 @@ class LoRALoaderNode extends LGraphNode {
     this.addOutput("model", "object");
     this.addProperty("lora_enabled", true, "boolean");
     this.size = [200, 60];
+    (this as any).type = "lora_loader";
   }
 
   onExecute() {
@@ -26,7 +27,7 @@ class LoRALoaderNode extends LGraphNode {
     if (this.flags.collapsed) {
       return;
     }
-    ctx.fillStyle = "rgba(212, 175, 55, 0.1)";
+    ctx.fillStyle = "rgba(158, 206, 106, 0.1)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
 }

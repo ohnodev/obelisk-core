@@ -30,6 +30,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     });
     canvasInstanceRef.current = canvas;
 
+    // Set up cursor changes - Litegraph handles this internally, but we can enhance it
+    // The CSS will handle cursor changes based on hover states
+
     // Handle right-click to show node menu
     const handleCanvasRightClick = (e: MouseEvent) => {
       e.preventDefault();

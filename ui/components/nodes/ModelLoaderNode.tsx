@@ -5,12 +5,13 @@ import { LGraphNode, LiteGraph } from "litegraph.js";
 class ModelLoaderNode extends LGraphNode {
   static title = "Model Loader";
   static desc = "Loads the LLM model";
-  static title_color = "#d4af37";
+  static title_color = "#7aa2f7";
 
   constructor() {
     super();
     this.addOutput("model", "object");
     this.size = [200, 60];
+    (this as any).type = "model_loader";
   }
 
   onExecute() {
@@ -23,7 +24,7 @@ class ModelLoaderNode extends LGraphNode {
     if (this.flags.collapsed) {
       return;
     }
-    ctx.fillStyle = "rgba(212, 175, 55, 0.1)";
+    ctx.fillStyle = "rgba(122, 162, 247, 0.1)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
 }
