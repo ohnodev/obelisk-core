@@ -316,7 +316,10 @@ class ExecutionEngine:
             if input_name not in resolved:  # Don't override connections
                 if isinstance(input_value, str) and input_value.startswith('{{') and input_value.endswith('}}'):
                     var_name = input_value[2:-2].strip()
-                    resolved[input_name] = context.variables.get(var_name)
+                    # Only resolve if variable exists in context (don't overwrite with None)
+                    if var_name in context.variables:
+                        resolved[input_name] = context.variables[var_name]
+                    # If variable doesn't exist, leave unresolved so get_input_value() can use defaults
                 else:
                     resolved[input_name] = input_value
         
