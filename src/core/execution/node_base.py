@@ -4,6 +4,7 @@ Base node class for execution engine
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
+import copy
 from ..types import NodeID, NodeData
 
 
@@ -37,7 +38,8 @@ class BaseNode(ABC):
         self.node_id = node_id
         self.node_data = node_data
         self.node_type = node_data.get('type', '')
-        self.inputs = node_data.get('inputs', {})
+        # Deep copy inputs to prevent mutations from affecting original workflow
+        self.inputs = copy.deepcopy(node_data.get('inputs', {}))
         self.position = node_data.get('position', {'x': 0, 'y': 0})
         self.metadata = node_data.get('metadata', {})
     
