@@ -1,6 +1,6 @@
 "use client";
 
-import { LGraphNode, LiteGraph } from "litegraph.js";
+import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class LoRALoaderNode extends LGraphNode {
   static title = "LoRA Loader";
@@ -9,11 +9,22 @@ class LoRALoaderNode extends LGraphNode {
 
   constructor() {
     super();
+    this.title = "LoRA Loader";
     this.addInput("model", "object");
     this.addOutput("model", "object");
     this.addProperty("lora_enabled", true, "boolean");
     this.size = [200, 60];
     (this as any).type = "lora_loader";
+    (this as any).resizable = true;
+  }
+
+  onDrawForeground(ctx: CanvasRenderingContext2D) {
+    const isSelected = (this as any).is_selected || (this as any).isSelected;
+    if (isSelected) {
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
+    }
   }
 
   onExecute() {
@@ -32,6 +43,9 @@ class LoRALoaderNode extends LGraphNode {
   }
 }
 
-LiteGraph.registerNodeType("lora_loader", LoRALoaderNode);
+// Only register on client side
+if (typeof window !== "undefined" && LiteGraph) {
+  LiteGraph.registerNodeType("lora_loader", LoRALoaderNode);
+}
 
 export default LoRALoaderNode;

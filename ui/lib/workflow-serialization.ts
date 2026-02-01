@@ -1,5 +1,4 @@
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
-import type { LGraph as LGraphType, LGraphNode as LGraphNodeType } from "./litegraph.d";
 
 export interface WorkflowNode {
   id: string;
@@ -26,12 +25,12 @@ export interface WorkflowGraph {
 /**
  * Serialize a Litegraph graph to our workflow JSON format
  */
-export function serializeGraph(graph: LGraphType): WorkflowGraph {
+export function serializeGraph(graph: InstanceType<typeof LGraph>): WorkflowGraph {
   const nodes: WorkflowNode[] = [];
   const connections: WorkflowConnection[] = [];
 
   // Serialize nodes - access nodes array directly
-  const graphNodes: LGraphNodeType[] = (graph as any)._nodes || [];
+  const graphNodes: InstanceType<typeof LGraphNode>[] = (graph as any)._nodes || [];
   for (const node of graphNodes) {
     const nodeData: WorkflowNode = {
       id: node.id.toString(),
@@ -95,23 +94,44 @@ export function serializeGraph(graph: LGraphType): WorkflowGraph {
 /**
  * Deserialize a workflow JSON to a Litegraph graph
  */
-export function deserializeGraph(graph: LGraphType, workflow: WorkflowGraph): void {
-  graph.clear();
+export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: WorkflowGraph): void {
+  // Ensure graph has clear method (safety check)
+  if (graph && typeof graph.clear === "function") {
+    graph.clear();
+  }
 
   // Create nodes
-  const nodeMap = new Map<string, LGraphNodeType>();
+  const nodeMap = new Map<string, InstanceType<typeof LGraphNode>>();
   workflow.nodes.forEach((nodeData) => {
     const node = LiteGraph.createNode(nodeData.type);
     if (node) {
       node.id = parseInt(nodeData.id);
-      node.pos = [nodeData.position?.x || 0, nodeData.position?.y || 0];
+      // Set position from workflow data
+      const posX = nodeData.position?.x ?? 0;
+      const posY = nodeData.position?.y ?? 0;
+      node.pos = [posX, posY];
       
-      // Set input values
+      // Set input values and properties
       if (nodeData.inputs) {
         Object.entries(nodeData.inputs).forEach(([key, value]) => {
           const input = node.inputs?.find((inp: any) => inp.name === key);
           if (input) {
+            // It's an actual input slot
             (input as any).value = value;
+          } else {
+            // It's a property, not an input slot
+            if (!node.properties) {
+              node.properties = {};
+            }
+            node.properties[key] = value;
+            // Also update widget if it exists
+            const widgets = (node as any).widgets as any[];
+            if (widgets) {
+              const widget = widgets.find((w: any) => w.name === key);
+              if (widget) {
+                widget.value = value;
+              }
+            }
           }
         });
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import { LGraphNode, LiteGraph } from "litegraph.js";
+import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class MemoryAdapterNode extends LGraphNode {
   static title = "Memory Adapter";
@@ -9,11 +9,22 @@ class MemoryAdapterNode extends LGraphNode {
 
   constructor() {
     super();
+    this.title = "Memory Adapter";
     this.addInput("user_id", "string");
     this.addInput("query", "string");
     this.addOutput("context", "object");
     this.size = [200, 80];
     (this as any).type = "memory_adapter";
+    (this as any).resizable = true;
+  }
+
+  onDrawForeground(ctx: CanvasRenderingContext2D) {
+    const isSelected = (this as any).is_selected || (this as any).isSelected;
+    if (isSelected) {
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
+    }
   }
 
   onExecute() {
@@ -33,6 +44,9 @@ class MemoryAdapterNode extends LGraphNode {
   }
 }
 
-LiteGraph.registerNodeType("memory_adapter", MemoryAdapterNode);
+// Only register on client side
+if (typeof window !== "undefined" && LiteGraph) {
+  LiteGraph.registerNodeType("memory_adapter", MemoryAdapterNode);
+}
 
 export default MemoryAdapterNode;

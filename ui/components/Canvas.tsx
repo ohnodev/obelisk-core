@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LGraph, LGraphCanvas, LiteGraph } from "litegraph.js";
-import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/litegraph";
+import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
+import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
-import "litegraph.js/css/litegraph.css";
+// LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {
   onWorkflowChange?: (workflow: WorkflowGraph) => void;
@@ -13,8 +13,10 @@ interface CanvasProps {
 
 export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const graphRef = useRef<LGraph | null>(null);
-  const canvasInstanceRef = useRef<LGraphCanvas | null>(null);
+  const graphRef = useRef<any>(null);
+  const canvasInstanceRef = useRef<any>(null);
+  const workflowLoadedRef = useRef(false);
+  const isDeserializingRef = useRef(false);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -25,47 +27,90 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     const graph = new LGraph();
     graphRef.current = graph;
 
-    const canvas = new LGraphCanvas(canvasRef.current, graph, {
+    // Configure LiteGraph colors for better text contrast BEFORE creating canvas
+    // Use type assertion since some constants may not be in TypeScript definitions
+    const LG = (typeof window !== "undefined" && (window as any).LiteGraph) || LiteGraph;
+    LG.NODE_TITLE_COLOR = "#FFFFFF"; // White title text for unselected nodes
+    LG.NODE_SELECTED_TITLE_COLOR = "#FFFFFF"; // White title text for selected nodes
+    LG.NODE_TEXT_COLOR = "#FFFFFF"; // White text for visibility
+    LG.NODE_SUBTEXT_SIZE = 12;
+    LG.NODE_TEXT_SIZE = 14;
+    LG.NODE_DEFAULT_COLOR = "#333333";
+    LG.NODE_DEFAULT_BGCOLOR = "#2a2a2a";
+    LG.NODE_DEFAULT_BOXCOLOR = "#666666";
+    LG.NODE_BOX_OUTLINE_COLOR = "#FFFFFF";
+    LG.NODE_SELECTED_BORDER_COLOR = "#d4af37"; // Golden border for selected nodes
+    LG.NODE_SELECTED_BORDER_WIDTH = 2;
+    LG.WIDGET_TEXT_COLOR = "#FFFFFF";
+    LG.WIDGET_SECONDARY_TEXT_COLOR = "#CCCCCC";
+    LG.WIDGET_BGCOLOR = "#1a1a1a";
+    LG.WIDGET_OUTLINE_COLOR = "#555555";
+
+
+    // Set up canvas with proper device pixel ratio for crisp rendering
+    const canvas = canvasRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.scale(dpr, dpr);
+    }
+
+    const graphCanvas = new LG.LGraphCanvas(canvas, graph, {
       autoresize: true,
     });
-    canvasInstanceRef.current = canvas;
-
-    // Set up cursor handling similar to ComfyUI
-    // Litegraph handles some cursor changes internally, but we enhance it
-    const updateCursor = () => {
-      if (!canvasRef.current) return;
-      
-      // Check if we're dragging
-      const isDragging = (canvas as any).is_dragging || (canvas as any).isDragging;
-      const isDraggingCanvas = (canvas as any).is_dragging_canvas || (canvas as any).isDraggingCanvas;
-      
-      if (isDraggingCanvas) {
-        canvasRef.current.style.cursor = 'grabbing';
-      } else if (isDragging) {
-        canvasRef.current.style.cursor = 'grabbing';
-      } else {
-        // Default cursor - Litegraph will update on hover
-        canvasRef.current.style.cursor = 'default';
+    
+    // Override LiteGraph's resize to maintain DPR
+    const originalResize = graphCanvas.resize.bind(graphCanvas);
+    graphCanvas.resize = function() {
+      if (!canvas) return originalResize();
+      const currentDPR = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * currentDPR;
+      canvas.height = rect.height * currentDPR;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(currentDPR, currentDPR);
       }
+      return originalResize();
     };
+    canvasInstanceRef.current = graphCanvas;
+    
+    // Enable node resizing (drag from bottom-right corner)
+    (graphCanvas as any).allow_resize_nodes = true;
+    
+    // Configure LiteGraph to not show node names in slot labels
+    // Override the slot label rendering to only show slot name
+    const originalDrawSlotLabel = (graphCanvas as any).drawSlotLabel;
+    if (originalDrawSlotLabel) {
+      (graphCanvas as any).drawSlotLabel = function(slot: any, ctx: CanvasRenderingContext2D, pos: number[]) {
+        // Only draw the slot name, not the node title
+        if (slot && slot.name) {
+          ctx.fillStyle = "#FFFFFF";
+          ctx.font = `${LiteGraph.NODE_SUBTEXT_SIZE}px Arial`;
+          ctx.textAlign = slot.type === "output" ? "right" : "left";
+          const labelX = slot.type === "output" ? pos[0] - 5 : pos[0] + 5;
+          ctx.fillText(slot.name, labelX, pos[1] + 4);
+        }
+      };
+    }
 
-    // Listen to mouse events for cursor updates
-    const handleMouseMove = () => {
-      updateCursor();
+    // Override drawNode to prevent title text from being drawn in body (only slots should show)
+    const originalDrawNode = (graphCanvas as any).drawNode;
+    (graphCanvas as any).drawNode = function(node: any, ctx: CanvasRenderingContext2D) {
+      // Temporarily clear title during body drawing, restore after
+      const originalTitle = node.title;
+      node.title = "";
+      originalDrawNode.call(this, node, ctx);
+      node.title = originalTitle;
     };
-
-    const handleMouseDown = () => {
-      updateCursor();
-    };
-
-    const handleMouseUp = () => {
-      updateCursor();
-    };
+    
+    // Store reference for resize handler
+    const canvasInstance = graphCanvas;
 
     const canvasElement = canvasRef.current;
-    canvasElement.addEventListener("mousemove", handleMouseMove);
-    canvasElement.addEventListener("mousedown", handleMouseDown);
-    canvasElement.addEventListener("mouseup", handleMouseUp);
 
     // Handle right-click to show node menu
     const handleCanvasRightClick = (e: MouseEvent) => {
@@ -80,17 +125,68 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
-    // Load initial workflow if provided
-    if (initialWorkflow) {
-      deserializeGraph(graph, initialWorkflow);
+    // Allow zoom with Ctrl/Cmd + wheel, prevent accidental zoom on normal scroll
+    const handleWheel = (e: WheelEvent) => {
+      // Only allow zoom if Ctrl or Cmd is held
+      if (e.ctrlKey || e.metaKey) {
+        // Allow zoom - don't prevent, let LiteGraph handle it
+        return;
+      }
+      // Normal scroll without modifier - prevent zoom but don't block the event
+      // LiteGraph's default behavior will be prevented by our override below
+    };
+
+    // Override LiteGraph's wheel handler to only allow zoom with modifier
+    const originalOnWheel = (graphCanvas as any).onWheel || (graphCanvas as any).on_mouse_wheel;
+    if (originalOnWheel) {
+      (graphCanvas as any).onWheel = function(e: WheelEvent) {
+        // Only allow zoom with explicit modifier
+        if (e.ctrlKey || e.metaKey) {
+          return originalOnWheel.call(this, e);
+        }
+        // Otherwise, prevent zoom (but don't prevent default to allow page scroll)
+        return false;
+      };
     }
 
-    // Poll for changes (simpler than event system)
-    let lastNodeCount = 0;
-    const checkForChanges = () => {
-      const currentNodeCount = (graph as any)._nodes?.length || 0;
-      if (currentNodeCount !== lastNodeCount || onWorkflowChange) {
-        lastNodeCount = currentNodeCount;
+    canvasElement.addEventListener("wheel", handleWheel, { passive: true });
+
+    // Load initial workflow if provided and graph is empty
+    // This ensures workflow loads on mount and after HMR refreshes
+    if (initialWorkflow) {
+      // Use setTimeout to ensure graph is fully initialized
+      setTimeout(() => {
+        // Check if graph is empty (no nodes) before loading
+        const nodeCount = (graph as any)._nodes?.length || 0;
+        if (nodeCount === 0) {
+          isDeserializingRef.current = true;
+          try {
+            deserializeGraph(graph, initialWorkflow);
+            workflowLoadedRef.current = true;
+            // Force canvas to redraw with correct positions
+            if (graphCanvas) {
+              graphCanvas.draw(true);
+            }
+          } finally {
+            // Allow change detection after deserialization completes
+            setTimeout(() => {
+              isDeserializingRef.current = false;
+            }, 100);
+          }
+        }
+      }, 0);
+    }
+
+    // Listen to graph changes - throttle to avoid killing FPS
+    let changeTimeout: NodeJS.Timeout | null = null;
+    const handleGraphChange = () => {
+      // Don't serialize during initial deserialization
+      if (isDeserializingRef.current) return;
+      
+      if (changeTimeout) return; // Already queued
+      
+      changeTimeout = setTimeout(() => {
+        changeTimeout = null;
         if (onWorkflowChange && graphRef.current) {
           try {
             const workflow = serializeGraph(graphRef.current);
@@ -99,30 +195,97 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
             console.error("Error serializing graph:", error);
           }
         }
-      }
+      }, 1000); // Only serialize every 1 second max to avoid FPS issues
     };
 
-    // Check for changes periodically
-    const changeInterval = setInterval(checkForChanges, 500);
+    // Use graph events instead of draw callback to avoid FPS issues
+    // Hook into node changes via graph methods
+    const originalAdd = graph.add.bind(graph);
+    graph.add = function(node: any) {
+      const result = originalAdd(node);
+      handleGraphChange();
+      return result;
+    };
+
+    const originalRemove = graph.remove.bind(graph);
+    graph.remove = function(node: any) {
+      const result = originalRemove(node);
+      handleGraphChange();
+      return result;
+    };
 
     // Start the graph
     graph.start();
 
+
+    // Handle window resize - maintain DPR
+    const handleResize = () => {
+      if (!canvasRef.current) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvasRef.current.getBoundingClientRect();
+      canvasRef.current.width = rect.width * dpr;
+      canvasRef.current.height = rect.height * dpr;
+      const ctx = canvasRef.current.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+      if (canvasInstance) {
+        canvasInstance.resize();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    
+      // Ensure DPR is maintained on every draw (LiteGraph might reset it)
+      const originalDrawWithDPR = graphCanvas.draw.bind(graphCanvas);
+      graphCanvas.draw = function(force: boolean) {
+        if (canvas) {
+          const currentDPR = window.devicePixelRatio || 1;
+          const rect = canvas.getBoundingClientRect();
+          const expectedWidth = rect.width * currentDPR;
+          const expectedHeight = rect.height * currentDPR;
+          
+          // Check if canvas size or transform is wrong
+          if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+            canvas.width = expectedWidth;
+            canvas.height = expectedHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.scale(currentDPR, currentDPR);
+            }
+          } else {
+            // Check transform
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              const transform = ctx.getTransform();
+              if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
+                ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
+              }
+            }
+          }
+        }
+        return originalDrawWithDPR(force);
+      };
+
     // Cleanup
     return () => {
-      clearInterval(changeInterval);
+      if (changeTimeout) {
+        clearTimeout(changeTimeout);
+      }
+      window.removeEventListener('resize', handleResize);
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
-      canvasElement.removeEventListener("mousemove", handleMouseMove);
-      canvasElement.removeEventListener("mousedown", handleMouseDown);
-      canvasElement.removeEventListener("mouseup", handleMouseUp);
+      canvasElement.removeEventListener("wheel", handleWheel);
       graph.stop();
+      // Reset refs on cleanup so workflow can reload on remount
+      workflowLoadedRef.current = false;
+      isDeserializingRef.current = false;
     };
-  }, [onWorkflowChange, initialWorkflow]);
+  }, [onWorkflowChange, initialWorkflow]); // Include initialWorkflow to reload on prop change
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current) return;
 
-    const node = LiteGraph.createNode(nodeType);
+    const LG = (typeof window !== "undefined" && (window as any).LiteGraph) || LiteGraph;
+    const node = LG.createNode(nodeType);
     if (node) {
       // Position node at menu click location (adjusted for canvas coordinates)
       const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -152,6 +315,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
             height: "100%",
             display: "block",
             background: "var(--color-bg-primary)",
+            imageRendering: "crisp-edges",
           }}
         />
       </div>

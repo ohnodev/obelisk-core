@@ -1,6 +1,6 @@
 "use client";
 
-import { LGraphNode, LiteGraph } from "litegraph.js";
+import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class SamplerNode extends LGraphNode {
   static title = "Sampler";
@@ -9,6 +9,7 @@ class SamplerNode extends LGraphNode {
 
   constructor() {
     super();
+    this.title = "Sampler";
     this.addInput("query", "string");
     this.addInput("model", "object");
     this.addInput("context", "object");
@@ -17,6 +18,16 @@ class SamplerNode extends LGraphNode {
     this.addProperty("max_length", 1024, "number");
     this.size = [200, 120];
     (this as any).type = "sampler";
+    (this as any).resizable = true;
+  }
+
+  onDrawForeground(ctx: CanvasRenderingContext2D) {
+    const isSelected = (this as any).is_selected || (this as any).isSelected;
+    if (isSelected) {
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
+    }
   }
 
   onExecute() {
@@ -41,6 +52,9 @@ class SamplerNode extends LGraphNode {
   }
 }
 
-LiteGraph.registerNodeType("sampler", SamplerNode);
+// Only register on client side
+if (typeof window !== "undefined" && LiteGraph) {
+  LiteGraph.registerNodeType("sampler", SamplerNode);
+}
 
 export default SamplerNode;

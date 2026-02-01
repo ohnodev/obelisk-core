@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { LGraphNode, LiteGraph } from "litegraph.js";
+import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 interface NodeMenuProps {
   visible: boolean;
