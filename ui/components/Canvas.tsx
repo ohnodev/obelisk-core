@@ -347,8 +347,15 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
         
         const result = originalDrawWithDPR(force);
         
-        // Update textarea widget positions synchronously with draw for smooth movement
-        updateTextareaWidgets();
+        // Update textarea widget positions - use RAF to batch React updates
+        // This prevents double-rendering artifacts while keeping updates smooth
+        if (!graphCanvas._textareaUpdateScheduled) {
+          graphCanvas._textareaUpdateScheduled = true;
+          requestAnimationFrame(() => {
+            updateTextareaWidgets();
+            graphCanvas._textareaUpdateScheduled = false;
+          });
+        }
         
         return result;
       };
@@ -463,9 +470,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
           }}
         />
         {/* Render React textarea widgets over canvas */}
-        {textareaWidgets.map((widget, index) => (
+        {textareaWidgets.map((widget) => (
           <TextareaWidget
-            key={`${widget.nodeId}-${widget.widgetName}-${index}`}
+            key={`${widget.nodeId}-${widget.widgetName}`}
             value={widget.value}
             onChange={(value) => handleTextareaChange(widget.nodeId, widget.widgetName, value)}
             x={widget.x}
