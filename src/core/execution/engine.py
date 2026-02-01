@@ -8,7 +8,7 @@ from ..types import NodeGraph, NodeID, ConnectionData, NodeData, GraphExecutionR
 from .node_base import BaseNode, ExecutionContext
 from .node_registry import get_node_class
 from ..container import ServiceContainer
-from ..utils.logger import get_logger
+from ...utils.logger import get_logger
 import time
 
 logger = get_logger(__name__)
