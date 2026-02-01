@@ -16,7 +16,7 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
       type: "text",
       position: { x: 100, y: 300 },
       inputs: {
-        text: "{{user_query}}",
+        text: "Hello world",
       },
     },
     {
@@ -102,38 +102,40 @@ export default function Home() {
 
       // Get the text value from the input node
       const inputText = (inputNode.properties as any)?.text || "";
-      const userQuery = inputText.replace(/\{\{user_query\}\}/g, "Hello, how are you?");
+      const userQuery = inputText || "Hello world";
       
       console.log("Executing workflow with query:", userQuery);
 
-      // Try to call backend API
+      // Try to call backend API (obelisk-core server on port 7779)
+      // Use /api/v1/generate endpoint for now (workflow execution endpoint coming)
       try {
-        const response = await fetch("/api/execute", {
+        const response = await fetch("http://localhost:7779/api/v1/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            workflow,
-            variables: {
-              user_query: userQuery,
-            },
+            prompt: userQuery,
+            user_id: "default_user",
           }),
         });
 
         if (response.ok) {
           const result = await response.json();
           
+          // Extract response from API result
+          const llmResponse = result.response || result.text || result.message || "";
+          
           // Update the output text node with the response
           const outputNode = graph.getNodeById(4);
-          if (outputNode && result.response) {
-            outputNode.setProperty("text", result.response);
+          if (outputNode && llmResponse) {
+            outputNode.setProperty("text", llmResponse);
             // Update widget value if it exists
             const widgets = (outputNode as any).widgets as any[];
             if (widgets) {
               const widget = widgets.find((w: any) => w.name === "text");
               if (widget) {
-                widget.value = result.response;
+                widget.value = llmResponse;
               }
             }
             // Force canvas redraw
