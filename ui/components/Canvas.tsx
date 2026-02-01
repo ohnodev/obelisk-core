@@ -53,6 +53,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     const canvas = canvasRef.current;
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
+    
+    // Set canvas size with DPR BEFORE creating LGraphCanvas
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     const ctx = canvas.getContext('2d');
@@ -60,16 +62,18 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       ctx.scale(dpr, dpr);
     }
 
+    // Create LGraphCanvas with autoresize disabled initially to prevent DPR reset
     const graphCanvas = new LG.LGraphCanvas(canvas, graph, {
-      autoresize: true,
+      autoresize: false, // We'll handle resize ourselves
     });
     
-    // Override LiteGraph's resize to maintain DPR
+    // Override LiteGraph's resize to always maintain DPR from the start
     const originalResize = graphCanvas.resize.bind(graphCanvas);
     graphCanvas.resize = function() {
       if (!canvas) return originalResize();
       const currentDPR = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
+      // Always set DPR correctly BEFORE calling original resize
       canvas.width = rect.width * currentDPR;
       canvas.height = rect.height * currentDPR;
       const ctx = canvas.getContext('2d');
@@ -78,6 +82,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }
       return originalResize();
     };
+    
+    // Call resize once to ensure everything is set up correctly
+    graphCanvas.resize();
     canvasInstanceRef.current = graphCanvas;
     
     // Enable node resizing (drag from bottom-right corner)
@@ -251,40 +258,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }
     };
     window.addEventListener('resize', handleResize);
-
-    // Maintain DPR on every draw - LiteGraph may reset the transform during drawing
-    // Optimized: quick transform check, only fix canvas size when it changes
-    const originalDraw = graphCanvas.draw.bind(graphCanvas);
-    const currentDPR = window.devicePixelRatio || 1;
-    
-    graphCanvas.draw = function(force: boolean) {
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          // Quick transform check - LiteGraph might reset it during draw
-          const transform = ctx.getTransform();
-          if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
-            // Fix transform if wrong (cheap operation)
-            ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
-          }
-          
-          // Check canvas size (only recalculate if needed)
-          const rect = canvas.getBoundingClientRect();
-          const expectedWidth = rect.width * currentDPR;
-          const expectedHeight = rect.height * currentDPR;
-          
-          // Only resize canvas if dimensions changed (expensive, so check first)
-          if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
-            canvas.width = expectedWidth;
-            canvas.height = expectedHeight;
-            // Re-apply scale after resize
-            ctx.scale(currentDPR, currentDPR);
-          }
-        }
-      }
-      
-      return originalDraw(force);
-    };
 
 
     // Cleanup
