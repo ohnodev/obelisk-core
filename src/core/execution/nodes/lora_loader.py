@@ -4,7 +4,7 @@ Applies LoRA weights to the model if enabled
 """
 from typing import Dict, Any, Optional
 from ..node_base import BaseNode, ExecutionContext
-from ...utils.logger import get_logger
+from ....utils.logger import get_logger
 
 logger = get_logger(__name__)
 
