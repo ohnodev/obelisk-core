@@ -252,8 +252,39 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     };
     window.addEventListener('resize', handleResize);
 
-    // DPR is now handled in handleResize - no need to check on every draw
-    // This improves performance significantly
+    // Maintain DPR on every draw - LiteGraph may reset the transform during drawing
+    // Optimized: quick transform check, only fix canvas size when it changes
+    const originalDraw = graphCanvas.draw.bind(graphCanvas);
+    const currentDPR = window.devicePixelRatio || 1;
+    
+    graphCanvas.draw = function(force: boolean) {
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          // Quick transform check - LiteGraph might reset it during draw
+          const transform = ctx.getTransform();
+          if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
+            // Fix transform if wrong (cheap operation)
+            ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
+          }
+          
+          // Check canvas size (only recalculate if needed)
+          const rect = canvas.getBoundingClientRect();
+          const expectedWidth = rect.width * currentDPR;
+          const expectedHeight = rect.height * currentDPR;
+          
+          // Only resize canvas if dimensions changed (expensive, so check first)
+          if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+            canvas.width = expectedWidth;
+            canvas.height = expectedHeight;
+            // Re-apply scale after resize
+            ctx.scale(currentDPR, currentDPR);
+          }
+        }
+      }
+      
+      return originalDraw(force);
+    };
 
 
     // Cleanup
