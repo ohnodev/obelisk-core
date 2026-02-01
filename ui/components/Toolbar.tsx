@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
+import PlayIcon from "./icons/PlayIcon";
+import SaveIcon from "./icons/SaveIcon";
+import LoadIcon from "./icons/LoadIcon";
 
 interface ToolbarProps {
   onExecute?: () => void;
@@ -73,98 +76,121 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "1rem",
+        justifyContent: "space-between",
         padding: "0.75rem 1rem",
         background: "var(--color-bg-secondary)",
         borderBottom: "1px solid var(--color-border-primary)",
         zIndex: 10,
       }}
     >
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <button
+          onClick={handleSave}
+          disabled={!workflow}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 0.75rem",
+            background: "var(--color-button-secondary-bg)",
+            color: "var(--color-button-secondary-text)",
+            border: "1px solid var(--color-button-secondary-border)",
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            cursor: workflow ? "pointer" : "not-allowed",
+            transition: "all 0.2s ease",
+            opacity: workflow ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => {
+            if (workflow) {
+              e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
+              e.currentTarget.style.borderColor = "var(--color-border-hover)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (workflow) {
+              e.currentTarget.style.background = "var(--color-button-secondary-bg)";
+              e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
+            }
+          }}
+        >
+          <SaveIcon />
+          <span>Save</span>
+        </button>
+
+        <button
+          onClick={handleLoad}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 0.75rem",
+            background: "var(--color-button-secondary-bg)",
+            color: "var(--color-button-secondary-text)",
+            border: "1px solid var(--color-button-secondary-border)",
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
+            e.currentTarget.style.borderColor = "var(--color-border-hover)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
+            e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
+          }}
+        >
+          <LoadIcon />
+          <span>Load</span>
+        </button>
+      </div>
+
       <button
         onClick={handleExecute}
         disabled={isExecuting}
         style={{
-          padding: "0.5rem 1rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.625rem 1.25rem",
           background: isExecuting
             ? "var(--color-button-secondary-bg)"
-            : "var(--color-button-primary-bg)",
-          color: "var(--color-button-primary-text)",
-          border: "1px solid var(--color-button-primary-border)",
-          borderRadius: "4px",
+            : "rgba(212, 175, 55, 0.15)",
+          color: isExecuting
+            ? "var(--color-text-muted)"
+            : "var(--color-primary)",
+          border: `1px solid ${isExecuting ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.4)"}`,
+          borderRadius: "6px",
           fontFamily: "var(--font-body)",
           fontSize: "0.875rem",
+          fontWeight: 500,
           cursor: isExecuting ? "not-allowed" : "pointer",
           transition: "all 0.2s ease",
+          boxShadow: isExecuting
+            ? "none"
+            : "0 2px 8px rgba(212, 175, 55, 0.2)",
         }}
         onMouseEnter={(e) => {
           if (!isExecuting) {
-            e.currentTarget.style.background = "var(--color-button-primary-bg-hover)";
-            e.currentTarget.style.borderColor = "var(--color-border-active)";
+            e.currentTarget.style.background = "rgba(212, 175, 55, 0.25)";
+            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.6)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(212, 175, 55, 0.3)";
           }
         }}
         onMouseLeave={(e) => {
           if (!isExecuting) {
-            e.currentTarget.style.background = "var(--color-button-primary-bg)";
-            e.currentTarget.style.borderColor = "var(--color-button-primary-border)";
+            e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
+            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
+            e.currentTarget.style.boxShadow = "0 2px 8px rgba(212, 175, 55, 0.2)";
           }
         }}
       >
-        {isExecuting ? "⏳ Executing..." : "▶ Play"}
-      </button>
-
-      <button
-        onClick={handleSave}
-        disabled={!workflow}
-        style={{
-          padding: "0.5rem 1rem",
-          background: "var(--color-button-secondary-bg)",
-          color: "var(--color-button-secondary-text)",
-          border: "1px solid var(--color-button-secondary-border)",
-          borderRadius: "4px",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.875rem",
-          cursor: workflow ? "pointer" : "not-allowed",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          if (workflow) {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
-            e.currentTarget.style.borderColor = "var(--color-border-hover)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (workflow) {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
-            e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
-          }
-        }}
-      >
-        💾 Save
-      </button>
-
-      <button
-        onClick={handleLoad}
-        style={{
-          padding: "0.5rem 1rem",
-          background: "var(--color-button-secondary-bg)",
-          color: "var(--color-button-secondary-text)",
-          border: "1px solid var(--color-button-secondary-border)",
-          borderRadius: "4px",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.875rem",
-          cursor: "pointer",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
-          e.currentTarget.style.borderColor = "var(--color-border-hover)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--color-button-secondary-bg)";
-          e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
-        }}
-      >
-        📂 Load
+        <PlayIcon />
+        <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
       </button>
     </div>
   );
