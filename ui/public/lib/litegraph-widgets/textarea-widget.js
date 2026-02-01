@@ -143,8 +143,11 @@
             if (otherWidgets.length > 0) {
                 var originalWidgets = node.widgets;
                 node.widgets = otherWidgets;
-                originalDrawNodeWidgets.call(this, node, posY, ctx, active_widget);
-                node.widgets = originalWidgets;
+                try {
+                    originalDrawNodeWidgets.call(this, node, posY, ctx, active_widget);
+                } finally {
+                    node.widgets = originalWidgets;
+                }
             }
 
             // Handle posY increment - textarea widgets don't increment
