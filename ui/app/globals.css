@@ -1,0 +1,86 @@
+@import "./styles/variables.css";
+@import "./styles/litegraph.css";
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* Hide scrollbars for specific containers that need it */
+/* Apply .hide-scrollbar class to containers that need hidden scrollbars */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: 100vh; /* Fallback for browsers that don't support dvh */
+  height: 100dvh;
+}
+
+body {
+  color: var(--color-text-primary);
+  background: var(--color-bg-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  height: 100vh; /* Fallback */
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+}
+
+/* Pattern overlay - Golden theme */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      var(--color-pattern-primary) 2px,
+      var(--color-pattern-primary) 4px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--color-pattern-secondary) 2px,
+      var(--color-pattern-secondary) 4px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* General heading styles */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+}
+
+/* Paragraph styles */
+p {
+  font-family: var(--font-body);
+}
+
+/* ComfyUI Litegraph styles - copied from ComfyUI_frontend */

@@ -1,0 +1,288 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import Canvas from "@/components/Canvas";
+import Toolbar from "@/components/Toolbar";
+import { WorkflowGraph } from "@/lib/litegraph";
+import "@/components/nodes"; // Register all node types
+
+// Default chat workflow - simple: Text -> Model Loader -> Sampler -> Text
+const DEFAULT_WORKFLOW: WorkflowGraph = {
+  id: "obelisk-chat-workflow",
+  name: "Basic Chat Workflow",
+  nodes: [
+    {
+      id: "1",
+      type: "text",
+      position: { x: 100, y: 300 },
+      metadata: {
+        text: "Hello world!",
+      },
+    },
+    {
+      id: "2",
+      type: "model_loader",
+      position: { x: 300, y: 120 },
+      inputs: {
+        model_path: "models/default_model",
+        auto_load: true,
+      },
+    },
+    {
+      id: "3",
+      type: "sampler",
+      position: { x: 700, y: 300 },
+      inputs: {
+        quantum_influence: 0.7,
+        max_length: 1024,
+      },
+    },
+    {
+      id: "4",
+      type: "text",
+      position: { x: 1000, y: 300 },
+      inputs: {
+        text: "",
+      },
+    },
+  ],
+  connections: [
+    {
+      from: "1",
+      from_output: "text",
+      to: "3",
+      to_input: "query",
+    },
+    {
+      from: "2",
+      from_output: "model",
+      to: "3",
+      to_input: "model",
+    },
+    {
+      from: "3",
+      from_output: "response",
+      to: "4",
+      to_input: "text",
+    },
+  ],
+};
+
+// Deep compare two workflow objects
+function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
+  if (a.id !== b.id || a.name !== b.name) return false;
+  if (a.nodes.length !== b.nodes.length) return false;
+  if (a.connections.length !== b.connections.length) return false;
+  
+  // Compare nodes
+  for (let i = 0; i < a.nodes.length; i++) {
+    const nodeA = a.nodes[i];
+    const nodeB = b.nodes[i];
+    if (nodeA.id !== nodeB.id || nodeA.type !== nodeB.type) return false;
+    // Compare positions
+    if (nodeA.position?.x !== nodeB.position?.x || nodeA.position?.y !== nodeB.position?.y) return false;
+    // Compare inputs (deep compare)
+    const inputsA = JSON.stringify(nodeA.inputs || {});
+    const inputsB = JSON.stringify(nodeB.inputs || {});
+    if (inputsA !== inputsB) return false;
+    // Compare metadata (deep compare)
+    const metadataA = JSON.stringify(nodeA.metadata || {});
+    const metadataB = JSON.stringify(nodeB.metadata || {});
+    if (metadataA !== metadataB) return false;
+  }
+  
+  // Compare connections
+  for (let i = 0; i < a.connections.length; i++) {
+    const connA = a.connections[i] as any;
+    const connB = b.connections[i] as any;
+    if (connA.from !== connB.from || connA.to !== connB.to ||
+        connA.from_output !== connB.from_output || connA.to_input !== connB.to_input) {
+      return false;
+    }
+    // Compare connection metadata if it exists
+    const metadataA = JSON.stringify(connA.metadata || {});
+    const metadataB = JSON.stringify(connB.metadata || {});
+    if (metadataA !== metadataB) return false;
+  }
+  
+  return true;
+}
+
+export default function Home() {
+  const [workflow, setWorkflow] = useState<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
+  const previousWorkflowRef = useRef<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
+
+  // Memoize onWorkflowChange to stabilize function reference
+  const handleWorkflowChange = useCallback((newWorkflow: WorkflowGraph) => {
+    // Only update if workflow actually changed (deep compare)
+    if (!previousWorkflowRef.current || !workflowsEqual(previousWorkflowRef.current, newWorkflow)) {
+      previousWorkflowRef.current = newWorkflow;
+      setWorkflow(newWorkflow);
+    }
+  }, []);
+
+  const handleExecute = async (getGraph?: () => any) => {
+    if (!workflow) {
+      console.warn("No workflow to execute");
+      return;
+    }
+
+    try {
+      if (!getGraph) {
+        console.warn("Graph getter not available");
+        return;
+      }
+      
+      const graph = getGraph();
+      if (!graph) {
+        console.warn("Graph not available");
+        return;
+      }
+
+      // Get the input text node
+      const inputNode = graph.getNodeById(1);
+      if (!inputNode) {
+        console.warn("Input node not found");
+        return;
+      }
+
+      // Get the text value from the input node - check both properties and metadata
+      const inputText = (inputNode.properties as any)?.text || (inputNode.metadata as any)?.text || "";
+      const userQuery = inputText || "Hello world";
+      
+      console.log("Executing workflow with query:", userQuery);
+
+      // Try to call backend API (obelisk-core server on port 7779)
+      // Use /api/v1/generate endpoint for now (workflow execution endpoint coming)
+      try {
+        const response = await fetch("http://localhost:7779/api/v1/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            prompt: userQuery,
+            user_id: "default_user",
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          // Extract response from API result
+          const llmResponse = result.response || result.text || result.message || "";
+          
+          // Update the output text node with the response (always update, even if empty)
+          const outputNode = graph.getNodeById(4);
+          if (outputNode) {
+            const responseText = String(llmResponse || "");
+            outputNode.setProperty("text", responseText);
+            // Also update metadata for serialization consistency
+            if (!outputNode.metadata) {
+              outputNode.metadata = {};
+            }
+            (outputNode.metadata as any).text = responseText;
+            // Update widget value if it exists
+            const widgets = (outputNode as any).widgets as any[];
+            if (widgets) {
+              const widget = widgets.find((w: any) => w.name === "text");
+              if (widget) {
+                widget.value = responseText;
+              }
+            }
+            // Force canvas redraw
+            const canvas = (window as any).__obeliskCanvas;
+            if (canvas) {
+              canvas.dirty_canvas = true;
+              canvas.draw(true);
+            }
+          }
+          return;
+        }
+      } catch (apiError) {
+        console.log("API not available, using simulation:", apiError);
+      }
+
+      // Fallback: simulate execution for testing
+      const outputNode = graph.getNodeById(4);
+      if (outputNode) {
+        const simulatedResponse = `[Simulated] Response to: "${userQuery}"\n\nThis is a simulated response. The backend API is not yet connected.`;
+        const responseText = String(simulatedResponse || "");
+        outputNode.setProperty("text", responseText);
+        // Also update metadata for serialization consistency
+        if (!outputNode.metadata) {
+          outputNode.metadata = {};
+        }
+        (outputNode.metadata as any).text = responseText;
+        // Update widget value if it exists
+        const widgets = (outputNode as any).widgets as any[];
+        if (widgets) {
+          const widget = widgets.find((w: any) => w.name === "text");
+          if (widget) {
+            widget.value = responseText;
+          }
+        }
+        // Force canvas redraw
+        const canvas = (window as any).__obeliskCanvas;
+        if (canvas) {
+          canvas.dirty_canvas = true;
+          canvas.draw(true);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to execute workflow:", error);
+    }
+  };
+
+  const handleLoad = (workflow: WorkflowGraph) => {
+    // Use imperative API to load workflow directly into canvas
+    const loadWorkflow = (window as any).__obeliskLoadWorkflow;
+    if (loadWorkflow) {
+      loadWorkflow(workflow);
+      // Also update state for consistency
+      setWorkflow(workflow);
+    } else {
+      // Fallback: update state (but Canvas won't reload without dependency)
+      setWorkflow(workflow);
+    }
+  };
+
+  const handleSave = (workflow: WorkflowGraph) => {
+    // This is handled in the Toolbar component
+    // Placeholder for consistency
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        width: "100vw",
+        overflow: "hidden",
+        position: "relative",
+        zIndex: 1,
+      }}
+    >
+      <Toolbar
+        onExecute={handleExecute}
+        onSave={handleSave}
+        onLoad={handleLoad}
+        workflow={workflow}
+      />
+      <div
+        style={{
+          flex: 1,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <Canvas 
+          onWorkflowChange={handleWorkflowChange} 
+          initialWorkflow={workflow || DEFAULT_WORKFLOW}
+          onExecute={handleExecute}
+        />
+      </div>
+    </div>
+  );
+}
