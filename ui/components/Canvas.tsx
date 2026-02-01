@@ -9,9 +9,10 @@ import NodeMenu from "./NodeMenu";
 interface CanvasProps {
   onWorkflowChange?: (workflow: WorkflowGraph) => void;
   initialWorkflow?: WorkflowGraph;
+  onExecute?: (getGraph: () => any) => Promise<void>;
 }
 
-export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProps) {
+export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const graphRef = useRef<any>(null);
   const canvasInstanceRef = useRef<any>(null);

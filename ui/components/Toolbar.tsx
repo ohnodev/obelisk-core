@@ -7,7 +7,7 @@ import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
 
 interface ToolbarProps {
-  onExecute?: () => void;
+  onExecute?: (getGraph?: () => any) => void | Promise<void>;
   onSave?: (workflow: WorkflowGraph) => void;
   onLoad?: () => void;
   workflow?: WorkflowGraph;
@@ -19,8 +19,14 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
   const handleExecute = async () => {
     setIsExecuting(true);
     try {
-      if (onExecute) {
-        await onExecute();
+      // Call the execute handler from window (exposed by Canvas)
+      const executeHandler = (window as any).__obeliskExecute;
+      if (executeHandler) {
+        await executeHandler();
+      } else if (onExecute) {
+        // Pass getGraph function if available
+        const getGraph = () => (window as any).__obeliskGraph;
+        await onExecute(getGraph);
       }
     } finally {
       setIsExecuting(false);

@@ -6,7 +6,7 @@ import Toolbar from "@/components/Toolbar";
 import { WorkflowGraph } from "@/lib/litegraph";
 import "@/components/nodes"; // Register all node types
 
-// Default chat workflow
+// Default chat workflow - simple: Text -> Model Loader -> Sampler -> Text
 const DEFAULT_WORKFLOW: WorkflowGraph = {
   id: "obelisk-chat-workflow",
   name: "Basic Chat Workflow",
@@ -14,7 +14,7 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     {
       id: "1",
       type: "text",
-      position: { x: 100, y: 200 },
+      position: { x: 100, y: 300 },
       inputs: {
         text: "{{user_query}}",
       },
@@ -22,7 +22,7 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     {
       id: "2",
       type: "model_loader",
-      position: { x: 500, y: 100 },
+      position: { x: 300, y: 120 },
       inputs: {
         model_path: "models/default_model",
         auto_load: true,
@@ -30,36 +30,17 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     },
     {
       id: "3",
-      type: "lora_loader",
-      position: { x: 800, y: 100 },
-      inputs: {
-        lora_path: "lora/default_lora",
-        auto_load: true,
-        lora_enabled: true,
-      },
-    },
-    {
-      id: "4",
-      type: "memory_adapter",
-      position: { x: 500, y: 400 },
-      inputs: {
-        user_id: "{{user_id}}",
-        query: "{{user_query}}",
-      },
-    },
-    {
-      id: "5",
       type: "sampler",
-      position: { x: 1100, y: 200 },
+      position: { x: 700, y: 300 },
       inputs: {
         quantum_influence: 0.7,
         max_length: 1024,
       },
     },
     {
-      id: "6",
+      id: "4",
       type: "text",
-      position: { x: 1400, y: 200 },
+      position: { x: 1000, y: 300 },
       inputs: {
         text: "",
       },
@@ -69,13 +50,7 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     {
       from: "1",
       from_output: "text",
-      to: "4",
-      to_input: "query",
-    },
-    {
-      from: "1",
-      from_output: "text",
-      to: "5",
+      to: "3",
       to_input: "query",
     },
     {
@@ -86,20 +61,8 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     },
     {
       from: "3",
-      from_output: "model",
-      to: "5",
-      to_input: "model",
-    },
-    {
-      from: "4",
-      from_output: "memory",
-      to: "5",
-      to_input: "memory",
-    },
-    {
-      from: "5",
       from_output: "response",
-      to: "6",
+      to: "4",
       to_input: "text",
     },
   ],
@@ -112,15 +75,103 @@ export default function Home() {
     setWorkflow(newWorkflow);
   };
 
-  const handleExecute = async () => {
+  const handleExecute = async (getGraph?: () => any) => {
     if (!workflow) {
       console.warn("No workflow to execute");
       return;
     }
 
-    // In a future PR, this will call the backend API
-    console.log("Executing workflow:", workflow);
-    // TODO: POST to /api/execute with workflow JSON
+    try {
+      if (!getGraph) {
+        console.warn("Graph getter not available");
+        return;
+      }
+      
+      const graph = getGraph();
+      if (!graph) {
+        console.warn("Graph not available");
+        return;
+      }
+
+      // Get the input text node
+      const inputNode = graph.getNodeById(1);
+      if (!inputNode) {
+        console.warn("Input node not found");
+        return;
+      }
+
+      // Get the text value from the input node
+      const inputText = (inputNode.properties as any)?.text || "";
+      const userQuery = inputText.replace(/\{\{user_query\}\}/g, "Hello, how are you?");
+      
+      console.log("Executing workflow with query:", userQuery);
+
+      // Try to call backend API
+      try {
+        const response = await fetch("/api/execute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            workflow,
+            variables: {
+              user_query: userQuery,
+            },
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          // Update the output text node with the response
+          const outputNode = graph.getNodeById(4);
+          if (outputNode && result.response) {
+            outputNode.setProperty("text", result.response);
+            // Update widget value if it exists
+            const widgets = (outputNode as any).widgets as any[];
+            if (widgets) {
+              const widget = widgets.find((w: any) => w.name === "text");
+              if (widget) {
+                widget.value = result.response;
+              }
+            }
+            // Force canvas redraw
+            const canvas = (window as any).__obeliskCanvas;
+            if (canvas) {
+              canvas.dirty_canvas = true;
+              canvas.draw(true);
+            }
+          }
+          return;
+        }
+      } catch (apiError) {
+        console.log("API not available, using simulation:", apiError);
+      }
+
+      // Fallback: simulate execution for testing
+      const outputNode = graph.getNodeById(4);
+      if (outputNode) {
+        const simulatedResponse = `[Simulated] Response to: "${userQuery}"\n\nThis is a simulated response. The backend API is not yet connected.`;
+        outputNode.setProperty("text", simulatedResponse);
+        // Update widget value if it exists
+        const widgets = (outputNode as any).widgets as any[];
+        if (widgets) {
+          const widget = widgets.find((w: any) => w.name === "text");
+          if (widget) {
+            widget.value = simulatedResponse;
+          }
+        }
+        // Force canvas redraw
+        const canvas = (window as any).__obeliskCanvas;
+        if (canvas) {
+          canvas.dirty_canvas = true;
+          canvas.draw(true);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to execute workflow:", error);
+    }
   };
 
   const handleLoad = () => {
@@ -159,7 +210,11 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
-        <Canvas onWorkflowChange={handleWorkflowChange} initialWorkflow={DEFAULT_WORKFLOW} />
+        <Canvas 
+          onWorkflowChange={handleWorkflowChange} 
+          initialWorkflow={DEFAULT_WORKFLOW}
+          onExecute={handleExecute}
+        />
       </div>
     </div>
   );
