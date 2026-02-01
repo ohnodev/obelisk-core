@@ -61,9 +61,7 @@ export default function TextareaWidget({
   return (
     <div
       style={{
-        position: "fixed",
-        left: `${x}px`,
-        top: `${y}px`,
+        position: "relative",
         width: `${width}px`,
         height: `${height}px`,
         pointerEvents: "auto",

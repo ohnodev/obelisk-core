@@ -20,14 +20,20 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
   const isDeserializingRef = useRef(false);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
-  const [textareaWidgets, setTextareaWidgets] = useState<Array<{
+  const [nodeContainers, setNodeContainers] = useState<Array<{
     nodeId: string;
-    widgetName: string;
-    value: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+    widgets: Array<{
+      widgetName: string;
+      value: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }>;
+    nodeX: number;
+    nodeY: number;
+    nodeWidth: number;
+    nodeHeight: number;
     visible: boolean;
   }>>([]);
 
@@ -246,22 +252,29 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     };
     const handleResizeWithUpdate = () => {
       handleResize();
-      updateTextareaWidgets();
+      updateNodeContainers();
     };
     window.addEventListener('resize', handleResizeWithUpdate);
     
-      // Function to update textarea widget positions
-      const updateTextareaWidgets = () => {
+      // Function to update node containers (like ComfyUI's Vue node components)
+      // Each node gets its own container, widgets are rendered inside
+      const updateNodeContainers = () => {
         if (!canvasRef.current || !graphCanvas) return;
         
-        const widgets: Array<{
+        const nodeContainers: Array<{
           nodeId: string;
-          widgetName: string;
-          value: string;
-          x: number;
-          y: number;
-          width: number;
-          height: number;
+          widgets: Array<{
+            widgetName: string;
+            value: string;
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+          }>;
+          nodeX: number;
+          nodeY: number;
+          nodeWidth: number;
+          nodeHeight: number;
           visible: boolean;
         }> = [];
 
@@ -272,48 +285,64 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
         for (const node of nodes) {
           if (!node.widgets) continue;
           
+          const nodeWidgets: Array<{
+            widgetName: string;
+            value: string;
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+          }> = [];
+          
           for (const widget of node.widgets) {
             if (widget.type === "textarea" && !widget.disabled) {
               const titleHeight = LG.NODE_TITLE_HEIGHT || 30;
               const padding = 10;
               const margin = 15;
               
-              // Calculate widget position in canvas coordinates
-              const widgetX = node.pos[0] + margin;
-              const widgetY = node.pos[1] + titleHeight + padding;
+              // Calculate widget position RELATIVE to node (not screen coordinates)
+              const widgetX = margin;
+              const widgetY = titleHeight + padding;
               const widgetWidth = (widget.width || node.size[0]) - (margin * 2);
               const widgetHeight = node.size[1] - titleHeight - (padding * 2);
               
-              // Convert to screen coordinates (accounting for canvas transform)
-              const screenX = canvasRect.left + (widgetX * ds.scale) + (ds.offset[0] || 0);
-              const screenY = canvasRect.top + (widgetY * ds.scale) + (ds.offset[1] || 0);
-              const screenWidth = widgetWidth * ds.scale;
-              const screenHeight = widgetHeight * ds.scale;
-              
-              // Check if node is visible (rough check)
-              const nodeScreenX = canvasRect.left + (node.pos[0] * ds.scale) + (ds.offset[0] || 0);
-              const nodeScreenY = canvasRect.top + (node.pos[1] * ds.scale) + (ds.offset[1] || 0);
-              const isVisible = 
-                nodeScreenX + (node.size[0] * ds.scale) > 0 &&
-                nodeScreenX < canvasRect.width &&
-                nodeScreenY + (node.size[1] * ds.scale) > 0 &&
-                nodeScreenY < canvasRect.height;
-              
-              widgets.push({
-                nodeId: String(node.id),
+              nodeWidgets.push({
                 widgetName: widget.name || "textarea",
                 value: String(widget.value || ""),
-                x: screenX,
-                y: screenY,
-                width: screenWidth,
-                height: screenHeight,
-                visible: isVisible && !node.flags?.collapsed,
+                x: widgetX,
+                y: widgetY,
+                width: widgetWidth,
+                height: widgetHeight,
               });
             }
           }
+          
+          if (nodeWidgets.length > 0) {
+            // Convert node position to screen coordinates
+            const nodeScreenX = canvasRect.left + (node.pos[0] * ds.scale) + (ds.offset[0] || 0);
+            const nodeScreenY = canvasRect.top + (node.pos[1] * ds.scale) + (ds.offset[1] || 0);
+            const nodeScreenWidth = node.size[0] * ds.scale;
+            const nodeScreenHeight = node.size[1] * ds.scale;
+            
+            const isVisible = 
+              nodeScreenX + nodeScreenWidth > 0 &&
+              nodeScreenX < canvasRect.width &&
+              nodeScreenY + nodeScreenHeight > 0 &&
+              nodeScreenY < canvasRect.height;
+            
+            nodeContainers.push({
+              nodeId: String(node.id),
+              widgets: nodeWidgets,
+              nodeX: nodeScreenX,
+              nodeY: nodeScreenY,
+              nodeWidth: nodeScreenWidth,
+              nodeHeight: nodeScreenHeight,
+              visible: isVisible && !node.flags?.collapsed,
+            });
+          }
         }
         
-        setTextareaWidgets(widgets);
+        setNodeContainers(nodeContainers);
       };
 
       // Ensure DPR is maintained on every draw (LiteGraph might reset it)
@@ -347,13 +376,12 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
         
         const result = originalDrawWithDPR(force);
         
-        // Update textarea widget positions - use RAF to batch React updates
-        // This prevents double-rendering artifacts while keeping updates smooth
-        if (!graphCanvas._textareaUpdateScheduled) {
-          graphCanvas._textareaUpdateScheduled = true;
+        // Update node containers - use RAF to batch React updates
+        if (!graphCanvas._nodeContainerUpdateScheduled) {
+          graphCanvas._nodeContainerUpdateScheduled = true;
           requestAnimationFrame(() => {
-            updateTextareaWidgets();
-            graphCanvas._textareaUpdateScheduled = false;
+            updateNodeContainers();
+            graphCanvas._nodeContainerUpdateScheduled = false;
           });
         }
         
@@ -361,16 +389,16 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
       };
 
       // Initial update
-      updateTextareaWidgets();
+      updateNodeContainers();
       
-      // Throttle updates on graph change to avoid excessive updates
+      // Throttle updates on graph change
       let updateTimeout: NodeJS.Timeout | null = null;
       const originalGraphChange = graph.onChange || (() => {});
       graph.onChange = function() {
         originalGraphChange.call(this);
         if (updateTimeout) clearTimeout(updateTimeout);
         updateTimeout = setTimeout(() => {
-          updateTextareaWidgets();
+          updateNodeContainers();
           updateTimeout = null;
         }, 16); // ~60fps
       };
@@ -469,19 +497,34 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
             imageRendering: "crisp-edges",
           }}
         />
-        {/* Render React textarea widgets over canvas */}
-        {textareaWidgets.map((widget) => (
-          <TextareaWidget
-            key={`${widget.nodeId}-${widget.widgetName}`}
-            value={widget.value}
-            onChange={(value) => handleTextareaChange(widget.nodeId, widget.widgetName, value)}
-            x={widget.x}
-            y={widget.y}
-            width={widget.width}
-            height={widget.height}
-            nodeId={widget.nodeId}
-            visible={widget.visible}
-          />
+        {/* Render React node containers (like ComfyUI's Vue node components) */}
+        {nodeContainers.map((container) => (
+          <div
+            key={container.nodeId}
+            style={{
+              position: "absolute",
+              left: `${container.nodeX}px`,
+              top: `${container.nodeY}px`,
+              width: `${container.nodeWidth}px`,
+              height: `${container.nodeHeight}px`,
+              pointerEvents: container.visible ? "auto" : "none",
+              zIndex: 10,
+            }}
+          >
+            {container.widgets.map((widget) => (
+              <TextareaWidget
+                key={`${container.nodeId}-${widget.widgetName}`}
+                value={widget.value}
+                onChange={(value) => handleTextareaChange(container.nodeId, widget.widgetName, value)}
+                x={widget.x}
+                y={widget.y}
+                width={widget.width}
+                height={widget.height}
+                nodeId={container.nodeId}
+                visible={container.visible}
+              />
+            ))}
+          </div>
         ))}
       </div>
       <NodeMenu
