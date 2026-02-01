@@ -54,7 +54,7 @@ class SamplerNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("sampler", SamplerNode);
+  LiteGraph?.registerNodeType("sampler", SamplerNode);
 }
 
 export default SamplerNode;

@@ -77,7 +77,7 @@ class ModelLoaderNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("model_loader", ModelLoaderNode);
+  LiteGraph?.registerNodeType("model_loader", ModelLoaderNode);
 }
 
 export default ModelLoaderNode;

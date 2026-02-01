@@ -81,7 +81,7 @@ class OutputTextNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("output_text", OutputTextNode);
+  LiteGraph?.registerNodeType("output_text", OutputTextNode);
 }
 
 export default OutputTextNode;

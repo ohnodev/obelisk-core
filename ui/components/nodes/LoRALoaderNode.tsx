@@ -84,7 +84,7 @@ class LoRALoaderNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("lora_loader", LoRALoaderNode);
+  LiteGraph?.registerNodeType("lora_loader", LoRALoaderNode);
 }
 
 export default LoRALoaderNode;

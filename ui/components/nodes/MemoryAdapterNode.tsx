@@ -48,7 +48,7 @@ class MemoryAdapterNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("memory_adapter", MemoryAdapterNode);
+  LiteGraph?.registerNodeType("memory_adapter", MemoryAdapterNode);
 }
 
 export default MemoryAdapterNode;

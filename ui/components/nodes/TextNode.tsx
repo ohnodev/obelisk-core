@@ -95,7 +95,7 @@ class TextNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph.registerNodeType("text", TextNode);
+  LiteGraph?.registerNodeType("text", TextNode);
 }
 
 export default TextNode;
