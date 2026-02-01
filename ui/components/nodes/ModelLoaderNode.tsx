@@ -11,7 +11,25 @@ class ModelLoaderNode extends LGraphNode {
     super();
     this.title = "Model Loader";
     this.addOutput("model", "object");
-    this.size = [200, 60];
+    
+    // Add model path widget (string input)
+    const defaultModelPath = "models/default_model";
+    this.addProperty("model_path", defaultModelPath, "string");
+    this.addWidget("string", "model_path", defaultModelPath, (value: string) => {
+      this.setProperty("model_path", value);
+    }, {
+      serialize: true
+    });
+    
+    // Add auto load toggle widget (default: true)
+    this.addProperty("auto_load", true, "boolean");
+    this.addWidget("toggle", "auto_load", true, (value: boolean) => {
+      this.setProperty("auto_load", value);
+    }, {
+      serialize: true
+    });
+    
+    this.size = [250, 120];
     (this as any).type = "model_loader";
     (this as any).resizable = true;
   }
@@ -26,9 +44,26 @@ class ModelLoaderNode extends LGraphNode {
   }
 
   onExecute() {
-    // In a real implementation, this would load the model
-    // For now, we just pass through a model reference
-    this.setOutputData(0, { type: "model", loaded: true });
+    const autoLoad = (this.properties as any)?.auto_load !== false; // Default to true
+    const modelPath = (this.properties as any)?.model_path || "models/default_model";
+    
+    if (autoLoad) {
+      // Auto load logic - follow current model loading logic
+      // In a real implementation, this would load the model from the path
+      // For now, we pass through a model reference with the path
+      this.setOutputData(0, { 
+        type: "model", 
+        path: modelPath,
+        loaded: true 
+      });
+    } else {
+      // Manual load - just pass the path, don't load yet
+      this.setOutputData(0, { 
+        type: "model", 
+        path: modelPath,
+        loaded: false 
+      });
+    }
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
