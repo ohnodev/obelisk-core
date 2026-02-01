@@ -24,12 +24,12 @@ interface NodeMenuItem {
 
 const NODE_CATEGORIES: NodeCategory[] = [
   {
-    name: "Input",
+    name: "Text",
     nodes: [
       {
-        type: "input_prompt",
-        title: "Input Prompt",
-        description: "User input prompt node",
+        type: "text",
+        title: "Text",
+        description: "Text input/output node with textarea",
       },
     ],
   },
@@ -65,16 +65,6 @@ const NODE_CATEGORIES: NodeCategory[] = [
         type: "sampler",
         title: "Sampler",
         description: "Generates LLM response",
-      },
-    ],
-  },
-  {
-    name: "Output",
-    nodes: [
-      {
-        type: "output_text",
-        title: "Output Text",
-        description: "Displays the final output",
       },
     ],
   },
