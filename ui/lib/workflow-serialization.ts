@@ -163,8 +163,9 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
 
   // Create connections - handle both formats (from/to and source_node/target_node)
   workflow.connections.forEach((conn: any) => {
-    const fromId = conn.from || conn.source_node;
-    const toId = conn.to || conn.target_node;
+    // Normalize IDs to strings for Map lookup
+    const fromId = String(conn.from ?? conn.source_node ?? "");
+    const toId = String(conn.to ?? conn.target_node ?? "");
     const fromOutputName = conn.from_output || conn.source_output;
     const toInputName = conn.to_input || conn.target_input;
 
@@ -178,7 +179,9 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
       if (fromOutput && toInput) {
         const outputSlot = (fromOutput as any).slot ?? fromNode.outputs?.indexOf(fromOutput);
         const inputSlot = (toInput as any).slot ?? toNode.inputs?.indexOf(toInput);
-        if (outputSlot !== undefined && inputSlot !== undefined) {
+        // Validate slots are non-negative integers before connecting
+        if (Number.isInteger(outputSlot) && outputSlot >= 0 && 
+            Number.isInteger(inputSlot) && inputSlot >= 0) {
           fromNode.connect(outputSlot, toNode, inputSlot);
         }
       }

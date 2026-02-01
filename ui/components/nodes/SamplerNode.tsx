@@ -12,7 +12,7 @@ class SamplerNode extends LGraphNode {
     this.title = "Sampler";
     this.addInput("query", "string");
     this.addInput("model", "object");
-    this.addInput("memory", "object"); // Input from Memory Adapter
+    this.addInput("context", "object"); // Input from Memory Adapter
     this.addOutput("response", "string");
     this.addProperty("quantum_influence", 0.7, "number");
     this.addProperty("max_length", 1024, "number");
@@ -33,9 +33,9 @@ class SamplerNode extends LGraphNode {
   onExecute() {
     const query = this.getInputData(0);
     const model = this.getInputData(1);
-    const memory = this.getInputData(2); // Get memory from Memory Adapter
-    const quantumInfluence = (this.properties as any)?.quantum_influence || 0.7;
-    const maxLength = (this.properties as any)?.max_length || 1024;
+    const context = this.getInputData(2); // Get context from Memory Adapter
+    const quantumInfluence = (this.properties as any)?.quantum_influence ?? 0.7;
+    const maxLength = (this.properties as any)?.max_length ?? 1024;
 
     // In a real implementation, this would call the LLM with memory context
     // For now, we just pass through a placeholder
@@ -53,7 +53,7 @@ class SamplerNode extends LGraphNode {
 }
 
 // Only register on client side
-if (typeof window !== "undefined" && LiteGraph) {
+if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
   LiteGraph.registerNodeType("sampler", SamplerNode);
 }
 

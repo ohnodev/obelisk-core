@@ -30,8 +30,9 @@ The frontend will be available at `http://localhost:3000` and will communicate w
 ## Features
 
 - **Visual Node Editor**: Drag-and-drop interface for building AI agent workflows
-- **4 Basic Nodes**: Input Prompt, Model Loader, Sampler, and Output Text
+- **Node Types**: Text (unified input/output), Model Loader, Sampler, Memory Adapter, LoRA Loader
 - **Workflow Management**: Save and load workflows as JSON
+- **Workflow Execution**: Real-time execution with backend API integration
 - **ComfyUI-style Dark Theme**: Golden accents on dark background
 
 ## Getting Started
@@ -71,7 +72,7 @@ npm run deploy
 
 ## Project Structure
 
-```
+```text
 ui/
 ├── app/
 │   ├── layout.tsx          # Root layout
@@ -96,36 +97,58 @@ ui/
 
 ## Usage
 
-1. **Add Nodes**: Right-click on the canvas to open the node menu, or use the node palette (coming soon)
+1. **Add Nodes**: Right-click on the canvas to open the node menu
 2. **Connect Nodes**: Drag from output sockets to input sockets
 3. **Configure Nodes**: Click on nodes to edit their properties
-4. **Execute Workflow**: Click the "Play" button in the toolbar (API integration coming soon)
-5. **Save/Load**: Use the Save and Load buttons to persist workflows
+4. **Execute Workflow**: Click the "Queue Prompt" button in the toolbar to execute the workflow
+5. **Save/Load**: Use the Save and Load buttons to persist workflows as JSON
 
 ## Node Types
 
-### Input Prompt
-- **Output**: `text` (string) - The user's input prompt
+### Text
+- **Input**: `text` (string) - Optional text input
+- **Output**: `text` (string) - Text output
+- **Widget**: Textarea for editing text content
+- Can serve as both input and output node
 
 ### Model Loader
 - **Output**: `model` (object) - The loaded LLM model
+- **Properties**:
+  - `model_path` (string) - Path to model file
+  - `auto_load` (boolean) - Auto-load model on execution
+
+### LoRA Loader
+- **Input**: `model` (object) - Model to apply LoRA to
+- **Output**: `model` (object) - Model with LoRA weights applied
+- **Properties**:
+  - `lora_path` (string) - Path to LoRA weights
+  - `auto_load` (boolean) - Auto-load LoRA on execution
+
+### Memory Adapter
+- **Inputs**: 
+  - `user_id` (string) - User identifier
+  - `query` (string) - Current query
+- **Output**: `context` (object) - Conversation context/memory
 
 ### Sampler
 - **Inputs**: 
   - `query` (string) - The input query
   - `model` (object) - The model to use
-  - `context` (object) - Conversation context
+  - `context` (object) - Conversation context from Memory Adapter
 - **Output**: `response` (string) - Generated response
 - **Properties**:
   - `quantum_influence` (number, default: 0.7)
   - `max_length` (number, default: 1024)
 
-### Output Text
-- **Input**: `response` (string) - The final output text
-
 ## API Integration
 
-The frontend generates JSON workflows that match the format expected by the Python backend execution engine (`src/core/execution/engine.py`). The Play button will POST workflow JSON to the backend API endpoint (to be implemented).
+The frontend executes workflows by calling the backend API at `http://localhost:7779/api/v1/generate`. The "Queue Prompt" button:
+1. Reads the input text from the Text node
+2. Sends a POST request to the backend with the user query
+3. Updates the output Text node with the LLM's response
+4. Falls back to a simulated response if the API is unavailable
+
+The runtime invokes the node execution pipeline, processing nodes in dependency order and passing data through connections.
 
 ## Future Enhancements
 

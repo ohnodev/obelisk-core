@@ -100,8 +100,8 @@ export default function Home() {
         return;
       }
 
-      // Get the text value from the input node
-      const inputText = (inputNode.properties as any)?.text || "";
+      // Get the text value from the input node - check both properties and metadata
+      const inputText = (inputNode.properties as any)?.text || (inputNode.metadata as any)?.text || "";
       const userQuery = inputText || "Hello world";
       
       console.log("Executing workflow with query:", userQuery);
@@ -126,16 +126,22 @@ export default function Home() {
           // Extract response from API result
           const llmResponse = result.response || result.text || result.message || "";
           
-          // Update the output text node with the response
+          // Update the output text node with the response (always update, even if empty)
           const outputNode = graph.getNodeById(4);
-          if (outputNode && llmResponse) {
-            outputNode.setProperty("text", llmResponse);
+          if (outputNode) {
+            const responseText = String(llmResponse || "");
+            outputNode.setProperty("text", responseText);
+            // Also update metadata for serialization consistency
+            if (!outputNode.metadata) {
+              outputNode.metadata = {};
+            }
+            (outputNode.metadata as any).text = responseText;
             // Update widget value if it exists
             const widgets = (outputNode as any).widgets as any[];
             if (widgets) {
               const widget = widgets.find((w: any) => w.name === "text");
               if (widget) {
-                widget.value = llmResponse;
+                widget.value = responseText;
               }
             }
             // Force canvas redraw
@@ -155,13 +161,19 @@ export default function Home() {
       const outputNode = graph.getNodeById(4);
       if (outputNode) {
         const simulatedResponse = `[Simulated] Response to: "${userQuery}"\n\nThis is a simulated response. The backend API is not yet connected.`;
-        outputNode.setProperty("text", simulatedResponse);
+        const responseText = String(simulatedResponse || "");
+        outputNode.setProperty("text", responseText);
+        // Also update metadata for serialization consistency
+        if (!outputNode.metadata) {
+          outputNode.metadata = {};
+        }
+        (outputNode.metadata as any).text = responseText;
         // Update widget value if it exists
         const widgets = (outputNode as any).widgets as any[];
         if (widgets) {
           const widget = widgets.find((w: any) => w.name === "text");
           if (widget) {
-            widget.value = simulatedResponse;
+            widget.value = responseText;
           }
         }
         // Force canvas redraw
@@ -176,10 +188,10 @@ export default function Home() {
     }
   };
 
-  const handleLoad = () => {
-    // The load functionality is handled in Toolbar component
-    // This is just a placeholder for future enhancements
-    console.log("Load workflow");
+  const handleLoad = (workflow: WorkflowGraph) => {
+    // Update the workflow state with the loaded workflow
+    setWorkflow(workflow);
+    // The Canvas component will handle deserialization when initialWorkflow changes
   };
 
   const handleSave = (workflow: WorkflowGraph) => {
@@ -214,7 +226,7 @@ export default function Home() {
       >
         <Canvas 
           onWorkflowChange={handleWorkflowChange} 
-          initialWorkflow={DEFAULT_WORKFLOW}
+          initialWorkflow={workflow || DEFAULT_WORKFLOW}
           onExecute={handleExecute}
         />
       </div>

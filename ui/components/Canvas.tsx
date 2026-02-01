@@ -117,10 +117,20 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     const handleCanvasRightClick = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setNodeMenuPosition({
-        x: e.clientX,
-        y: e.clientY,
-      });
+      // Convert event coordinates to canvas space for proper positioning
+      if (canvasInstanceRef.current && canvasRef.current) {
+        const canvasPos = canvasInstanceRef.current.convertEventToCanvasOffset(e);
+        setNodeMenuPosition({
+          x: canvasPos[0],
+          y: canvasPos[1],
+        });
+      } else {
+        // Fallback to screen coordinates if canvas not ready
+        setNodeMenuPosition({
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }
       setNodeMenuVisible(true);
     };
 
@@ -188,6 +198,33 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       handleGraphChange();
       return result;
     };
+
+    // Subscribe to broader graph change events (connections, node moves, property edits)
+    if ((graph as any).on_change) {
+      const originalOnChange = (graph as any).on_change;
+      (graph as any).on_change = function(this: any) {
+        if (originalOnChange) {
+          originalOnChange.apply(this, arguments);
+        }
+        handleGraphChange();
+      };
+    } else {
+      // If on_change doesn't exist, create it
+      (graph as any).on_change = function() {
+        handleGraphChange();
+      };
+    }
+
+    // Also listen for afterChange if available
+    if ((graph as any).onAfterChange) {
+      const originalOnAfterChange = (graph as any).onAfterChange;
+      (graph as any).onAfterChange = function(this: any) {
+        if (originalOnAfterChange) {
+          originalOnAfterChange.apply(this, arguments);
+        }
+        handleGraphChange();
+      };
+    }
 
     // Start the graph
     graph.start();
@@ -258,16 +295,13 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   }, [onWorkflowChange, initialWorkflow]); // Include initialWorkflow to reload on prop change
 
   const handleNodeSelect = (nodeType: string) => {
-    if (!graphRef.current || !canvasRef.current) return;
+    if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
 
     const LG = (typeof window !== "undefined" && (window as any).LiteGraph) || LiteGraph;
     const node = LG.createNode(nodeType);
     if (node) {
-      // Position node at menu click location (adjusted for canvas coordinates)
-      const canvasRect = canvasRef.current.getBoundingClientRect();
-      const canvasX = nodeMenuPosition.x - canvasRect.left;
-      const canvasY = nodeMenuPosition.y - canvasRect.top;
-      node.pos = [canvasX, canvasY];
+      // Position node at menu click location (already in canvas coordinates from handleCanvasRightClick)
+      node.pos = [nodeMenuPosition.x, nodeMenuPosition.y];
       graphRef.current.add(node);
     }
   };

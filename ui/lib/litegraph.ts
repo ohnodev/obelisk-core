@@ -128,8 +128,9 @@ export function deserializeGraph(graph: LGraphType, workflow: WorkflowGraph): vo
 
   // Create connections - handle both formats (from/to and source_node/target_node)
   workflow.connections.forEach((conn: any) => {
-    const fromId = conn.from || conn.source_node;
-    const toId = conn.to || conn.target_node;
+    // Normalize IDs to strings for Map lookup
+    const fromId = String(conn.from ?? conn.source_node ?? "");
+    const toId = String(conn.to ?? conn.target_node ?? "");
     const fromOutputName = conn.from_output || conn.source_output;
     const toInputName = conn.to_input || conn.target_input;
 

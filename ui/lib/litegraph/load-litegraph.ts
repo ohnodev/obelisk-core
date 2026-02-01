@@ -23,7 +23,7 @@ export function loadLiteGraph(): Promise<any> {
     return Promise.resolve((window as any).LiteGraph);
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     // Check if already loaded
     if ((window as any).LiteGraph) {
       liteGraphLoaded = true;
@@ -40,10 +40,15 @@ export function loadLiteGraph(): Promise<any> {
     };
     script.onerror = () => {
       // Fallback: try importing
-      import("./litegraph.js").then(() => {
-        liteGraphLoaded = true;
-        resolve((window as any).LiteGraph);
-      });
+      import("./litegraph.js")
+        .then(() => {
+          liteGraphLoaded = true;
+          resolve((window as any).LiteGraph);
+        })
+        .catch((err) => {
+          liteGraphLoaded = false;
+          reject(err);
+        });
     };
     document.head.appendChild(script);
   });

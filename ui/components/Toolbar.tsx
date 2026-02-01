@@ -9,7 +9,7 @@ import LoadIcon from "./icons/LoadIcon";
 interface ToolbarProps {
   onExecute?: (getGraph?: () => any) => void | Promise<void>;
   onSave?: (workflow: WorkflowGraph) => void;
-  onLoad?: () => void;
+  onLoad?: (workflow: WorkflowGraph) => void;
   workflow?: WorkflowGraph;
 }
 
@@ -61,13 +61,16 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
           reader.onload = (event) => {
             try {
               const workflow = JSON.parse(event.target?.result as string);
-              // The parent component should handle loading the workflow
+              // Pass the parsed workflow to the parent component
               if (onLoad) {
-                onLoad();
+                onLoad(workflow);
               }
             } catch (error) {
               console.error("Failed to load workflow:", error);
             }
+          };
+          reader.onerror = () => {
+            console.error("Failed to read workflow file");
           };
           reader.readAsText(file);
         }

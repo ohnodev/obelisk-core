@@ -11,9 +11,39 @@ class OutputTextNode extends LGraphNode {
     super();
     this.title = "Output Text";
     this.addInput("response", "string");
-    this.size = [200, 60];
+    
+    // Add output property and textarea widget
+    this.addProperty("output", "", "string");
+    const initialValue = (this.properties as any)?.output || "";
+    const widget = this.addWidget("textarea" as any, "output", initialValue, (value: string) => {
+      this.setProperty("output", value);
+    }, {
+      serialize: true,
+      rows: 8,
+      cols: 30
+    } as any);
+    
+    // Ensure widget value is set from property
+    if (widget) {
+      (widget as any).value = initialValue;
+    }
+    
+    this.size = [300, 200]; // Increased size to fit textarea
     (this as any).type = "output_text";
     (this as any).resizable = true;
+  }
+  
+  onPropertyChanged(name: string, value: any) {
+    // Sync widget value when property changes
+    if (name === "output") {
+      const widgets = (this as any).widgets as any[];
+      if (widgets) {
+        const widget = widgets.find((w: any) => w.name === "output");
+        if (widget) {
+          widget.value = value || "";
+        }
+      }
+    }
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
@@ -27,8 +57,17 @@ class OutputTextNode extends LGraphNode {
 
   onExecute() {
     const response = this.getInputData(0);
-    // Store the response for display
-    this.setProperty("output", response || "");
+    // Store the response for display - coerce to string
+    const outputText = String(response || "");
+    this.setProperty("output", outputText);
+    // Update widget value
+    const widgets = (this as any).widgets as any[];
+    if (widgets) {
+      const widget = widgets.find((w: any) => w.name === "output");
+      if (widget) {
+        widget.value = outputText;
+      }
+    }
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
@@ -41,7 +80,7 @@ class OutputTextNode extends LGraphNode {
 }
 
 // Only register on client side
-if (typeof window !== "undefined" && LiteGraph) {
+if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
   LiteGraph.registerNodeType("output_text", OutputTextNode);
 }
 

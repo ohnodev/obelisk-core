@@ -194,9 +194,18 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
               {category.name}
             </div>
             {category.nodes.map((node) => (
-              <div
+              <button
                 key={node.type}
                 onClick={() => handleNodeClick(node.type)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    if (e.key === " ") {
+                      e.preventDefault(); // Prevent scrolling
+                    }
+                    handleNodeClick(node.type);
+                  }
+                }}
+                aria-label={`Add ${node.title} node`}
                 style={{
                   padding: "0.75rem",
                   margin: "0.25rem 0",
@@ -205,6 +214,10 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
                   transition: "all 0.15s ease",
                   background: "transparent",
                   border: "1px solid transparent",
+                  width: "100%",
+                  textAlign: "left",
+                  fontFamily: "inherit",
+                  fontSize: "inherit",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "var(--color-button-primary-bg)";
@@ -236,7 +249,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
                     {node.description}
                   </div>
                 )}
-              </div>
+              </button>
             ))}
           </div>
         ))}

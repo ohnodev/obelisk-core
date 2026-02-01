@@ -104,7 +104,7 @@
             // Separate textarea widgets from others
             var textareaWidgets = [];
             var otherWidgets = [];
-            for (var i = 0; i < widgets.length; i++) {
+            for (let i = 0; i < widgets.length; i++) {
                 if (widgets[i].type === "textarea") {
                     textareaWidgets.push(widgets[i]);
                 } else {
@@ -116,7 +116,7 @@
             if (textareaWidgets.length > 0) {
                 ctx.save();
                 ctx.globalAlpha = this.editor_alpha;
-                for (var i = 0; i < textareaWidgets.length; i++) {
+                for (let i = 0; i < textareaWidgets.length; i++) {
                     var w = textareaWidgets[i];
                     var y = posY + 2;
                     if (w.y) {
@@ -185,7 +185,7 @@
                         
                         if (event.type === LG.pointerevents_method + "down") {
                             // Use prompt method like string widgets, with multiline=true
-                            var old_value = w.value;
+                            const oldValue = w.value;
                             this.prompt(
                                 w.label || w.name || "Text",
                                 String(w.value || ""),
@@ -198,7 +198,7 @@
                                         this.callback(v, that, node, pos, event);
                                     }
                                     if (node.onWidgetChanged) {
-                                        node.onWidgetChanged(this.name, v, old_value, this);
+                                        node.onWidgetChanged(this.name, v, oldValue, this);
                                     }
                                     if (node.graph) {
                                         node.graph._version++;
@@ -221,7 +221,7 @@
                 }
 
                 // Process non-textarea widgets using original method
-                var old_value = w.value;
+                const oldValue = w.value;
                 var result = originalProcessNodeWidgets.call(this, node, pos, event, active_widget);
                 if (result) {
                     return result;

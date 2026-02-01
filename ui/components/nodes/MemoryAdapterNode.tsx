@@ -12,7 +12,7 @@ class MemoryAdapterNode extends LGraphNode {
     this.title = "Memory Adapter";
     this.addInput("user_id", "string");
     this.addInput("query", "string");
-    this.addOutput("memory", "object"); // Output to Sampler's memory input
+    this.addOutput("context", "object"); // Output to Sampler's context input
     this.size = [200, 80];
     (this as any).type = "memory_adapter";
     (this as any).resizable = true;
@@ -47,7 +47,7 @@ class MemoryAdapterNode extends LGraphNode {
 }
 
 // Only register on client side
-if (typeof window !== "undefined" && LiteGraph) {
+if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
   LiteGraph.registerNodeType("memory_adapter", MemoryAdapterNode);
 }
 
