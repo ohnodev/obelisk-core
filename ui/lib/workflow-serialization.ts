@@ -105,7 +105,12 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
   workflow.nodes.forEach((nodeData) => {
     const node = LiteGraph.createNode(nodeData.type);
     if (node) {
-      node.id = parseInt(nodeData.id);
+      // Only set node.id if it's a valid finite integer
+      const parsedId = parseInt(nodeData.id, 10);
+      if (Number.isFinite(parsedId) && Number.isInteger(parsedId)) {
+        node.id = parsedId;
+      }
+      // Otherwise, let LiteGraph assign its own ID
       // Set position from workflow data
       const posX = nodeData.position?.x ?? 0;
       const posY = nodeData.position?.y ?? 0;

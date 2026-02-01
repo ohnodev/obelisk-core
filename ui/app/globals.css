@@ -7,13 +7,14 @@
   margin: 0;
 }
 
-/* Hide scrollbars globally but keep scrolling functionality */
-* {
+/* Hide scrollbars for specific containers that need it */
+/* Apply .hide-scrollbar class to containers that need hidden scrollbars */
+.hide-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
 }
 
-*::-webkit-scrollbar {
+.hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
 

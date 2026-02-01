@@ -117,19 +117,16 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     const handleCanvasRightClick = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      // Convert event coordinates to canvas space for proper positioning
-      if (canvasInstanceRef.current && canvasRef.current) {
+      // Use screen coordinates for menu position (NodeMenu uses position: fixed)
+      setNodeMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      // Store canvas coordinates for node placement (used in handleNodeSelect)
+      if (canvasInstanceRef.current) {
         const canvasPos = canvasInstanceRef.current.convertEventToCanvasOffset(e);
-        setNodeMenuPosition({
-          x: canvasPos[0],
-          y: canvasPos[1],
-        });
-      } else {
-        // Fallback to screen coordinates if canvas not ready
-        setNodeMenuPosition({
-          x: e.clientX,
-          y: e.clientY,
-        });
+        // Store in a ref or state for use in handleNodeSelect
+        (canvasInstanceRef.current as any)._lastRightClickCanvasPos = canvasPos;
       }
       setNodeMenuVisible(true);
     };
@@ -300,8 +297,14 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     const LG = (typeof window !== "undefined" && (window as any).LiteGraph) || LiteGraph;
     const node = LG.createNode(nodeType);
     if (node) {
-      // Position node at menu click location (already in canvas coordinates from handleCanvasRightClick)
-      node.pos = [nodeMenuPosition.x, nodeMenuPosition.y];
+      // Position node at menu click location using canvas coordinates
+      const canvasPos = (canvasInstanceRef.current as any)._lastRightClickCanvasPos;
+      if (canvasPos && Array.isArray(canvasPos) && canvasPos.length >= 2) {
+        node.pos = [canvasPos[0], canvasPos[1]];
+      } else {
+        // Fallback: use menu position (may not be accurate but better than nothing)
+        node.pos = [nodeMenuPosition.x, nodeMenuPosition.y];
+      }
       graphRef.current.add(node);
     }
   };
@@ -318,7 +321,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
   return (
     <>
-      <div className="canvas-container" style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div className="canvas-container hide-scrollbar" style={{ width: "100%", height: "100%", position: "relative" }} aria-label="Workflow canvas">
         <canvas
           ref={canvasRef}
           style={{
