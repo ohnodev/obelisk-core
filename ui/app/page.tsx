@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import { WorkflowGraph } from "@/lib/litegraph";
@@ -68,12 +68,46 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
   ],
 };
 
+// Deep compare two workflow objects
+function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
+  if (a.id !== b.id || a.name !== b.name) return false;
+  if (a.nodes.length !== b.nodes.length) return false;
+  if (a.connections.length !== b.connections.length) return false;
+  
+  // Compare nodes
+  for (let i = 0; i < a.nodes.length; i++) {
+    const nodeA = a.nodes[i];
+    const nodeB = b.nodes[i];
+    if (nodeA.id !== nodeB.id || nodeA.type !== nodeB.type) return false;
+    // Compare positions
+    if (nodeA.position?.x !== nodeB.position?.x || nodeA.position?.y !== nodeB.position?.y) return false;
+  }
+  
+  // Compare connections
+  for (let i = 0; i < a.connections.length; i++) {
+    const connA = a.connections[i];
+    const connB = b.connections[i];
+    if (connA.from !== connB.from || connA.to !== connB.to ||
+        connA.from_output !== connB.from_output || connA.to_input !== connB.to_input) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 export default function Home() {
   const [workflow, setWorkflow] = useState<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
+  const previousWorkflowRef = useRef<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
 
-  const handleWorkflowChange = (newWorkflow: WorkflowGraph) => {
-    setWorkflow(newWorkflow);
-  };
+  // Memoize onWorkflowChange to stabilize function reference
+  const handleWorkflowChange = useCallback((newWorkflow: WorkflowGraph) => {
+    // Only update if workflow actually changed (deep compare)
+    if (!previousWorkflowRef.current || !workflowsEqual(previousWorkflowRef.current, newWorkflow)) {
+      previousWorkflowRef.current = newWorkflow;
+      setWorkflow(newWorkflow);
+    }
+  }, []);
 
   const handleExecute = async (getGraph?: () => any) => {
     if (!workflow) {

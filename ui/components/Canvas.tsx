@@ -18,6 +18,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const canvasInstanceRef = useRef<any>(null);
   const workflowLoadedRef = useRef(false);
   const isDeserializingRef = useRef(false);
+  const initialWorkflowLoadedRef = useRef(false);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -133,12 +134,11 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
-    // Load initial workflow if provided and graph is empty
-    // This ensures workflow loads on mount and after HMR refreshes
+    // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
     let workflowLoadTimeout: NodeJS.Timeout | null = null;
     let deserializingTimeout: NodeJS.Timeout | null = null;
-    if (initialWorkflow) {
+    if (initialWorkflow && !initialWorkflowLoadedRef.current) {
       // Use setTimeout to ensure graph is fully initialized
       workflowLoadTimeout = setTimeout(() => {
         // Check if graph is empty (no nodes) before loading
@@ -148,6 +148,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           try {
             deserializeGraph(graph, initialWorkflow);
             workflowLoadedRef.current = true;
+            initialWorkflowLoadedRef.current = true; // Mark as loaded
             // Force canvas to redraw with correct positions
             if (graphCanvas) {
               graphCanvas.draw(true);
@@ -251,37 +252,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     };
     window.addEventListener('resize', handleResize);
 
-      // Ensure DPR is maintained on every draw (LiteGraph might reset it)
-      const originalDrawWithDPR = graphCanvas.draw.bind(graphCanvas);
-      graphCanvas.draw = function(force: boolean) {
-        if (canvas) {
-          const currentDPR = window.devicePixelRatio || 1;
-          const rect = canvas.getBoundingClientRect();
-          const expectedWidth = rect.width * currentDPR;
-          const expectedHeight = rect.height * currentDPR;
-          
-          // Check if canvas size or transform is wrong
-          if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
-            canvas.width = expectedWidth;
-            canvas.height = expectedHeight;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.scale(currentDPR, currentDPR);
-            }
-          } else {
-            // Check transform
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              const transform = ctx.getTransform();
-              if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
-                ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
-              }
-            }
-          }
-        }
-        
-        return originalDrawWithDPR(force);
-      };
+    // DPR is now handled in handleResize - no need to check on every draw
+    // This improves performance significantly
 
 
     // Cleanup
@@ -305,8 +277,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       // Reset refs on cleanup so workflow can reload on remount
       workflowLoadedRef.current = false;
       isDeserializingRef.current = false;
+      initialWorkflowLoadedRef.current = false;
     };
-  }, [onWorkflowChange, initialWorkflow]); // Include initialWorkflow to reload on prop change
+  }, [onWorkflowChange]); // Removed initialWorkflow - only load once on mount
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
