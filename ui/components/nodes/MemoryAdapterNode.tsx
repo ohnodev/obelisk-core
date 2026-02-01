@@ -12,9 +12,8 @@ class MemoryAdapterNode extends LGraphNode {
     this.title = "Memory Adapter";
     this.addInput("user_id", "string");
     this.addInput("query", "string");
-    this.addInput("model_response", "string"); // Input from Sampler node for memory summarization
-    this.addOutput("context", "object");
-    this.size = [200, 100];
+    this.addOutput("memory", "object"); // Output to Sampler's memory input
+    this.size = [200, 80];
     (this as any).type = "memory_adapter";
     (this as any).resizable = true;
   }
@@ -31,17 +30,11 @@ class MemoryAdapterNode extends LGraphNode {
   onExecute() {
     const userId = this.getInputData(0);
     const query = this.getInputData(1);
-    const modelResponse = this.getInputData(2); // Get model response from Sampler node
     
-    // In a real implementation, this would:
-    // 1. Retrieve context from memory based on user_id and query
-    // 2. Store/summarize the model_response in memory for future context
-    const context = { userId, query, messages: [] };
-    if (modelResponse) {
-      // Model response available for memory summarization
-      // This would be used to update memory with the conversation
-    }
-    this.setOutputData(0, context);
+    // In a real implementation, this would retrieve context from memory
+    // based on user_id and query, and return it for the Sampler
+    const memory = { userId, query, messages: [] };
+    this.setOutputData(0, memory);
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
