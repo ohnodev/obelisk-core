@@ -119,3 +119,13 @@ lora_output/
 
 # Quantum job outputs
 quantum_jobs/
+
+# UI (React/Next.js)
+ui/node_modules/
+ui/.next/
+ui/out/
+ui/.open-next/
+ui/.wrangler/
+ui/.vercel
+ui/.env*.local
+ui/*.tsbuildinfo
