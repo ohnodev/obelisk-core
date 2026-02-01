@@ -62,7 +62,8 @@
                     var lines = String(value).split("\n");
                     var lineHeight = 14;
                     var maxLines = Math.floor(textareaHeight / lineHeight);
-                    for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLines; lineIdx++) {
+                    var maxLinesClamped = Math.max(1, maxLines);
+                    for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLinesClamped; lineIdx++) {
                         ctx.fillText(
                             lines[lineIdx],
                             textareaX + 4,
@@ -70,8 +71,8 @@
                         );
                     }
                     // Show ellipsis if text is truncated
-                    if (lines.length > maxLines) {
-                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLines * lineHeight));
+                    if (lines.length > maxLinesClamped) {
+                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
                     }
                 }
             }
