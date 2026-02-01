@@ -161,7 +161,6 @@
             var y = pos[1] - node.pos[1];
             var width = node.size[0];
             var that = this;
-            var ref_window = this.getCanvasWindow();
 
             for (var i = 0; i < node.widgets.length; ++i) {
                 var w = node.widgets[i];
@@ -221,7 +220,6 @@
                 }
 
                 // Process non-textarea widgets using original method
-                const oldValue = w.value;
                 var result = originalProcessNodeWidgets.call(this, node, pos, event, active_widget);
                 if (result) {
                     return result;

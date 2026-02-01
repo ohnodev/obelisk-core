@@ -135,9 +135,12 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     // Load initial workflow if provided and graph is empty
     // This ensures workflow loads on mount and after HMR refreshes
+    // Store timeout IDs for cleanup
+    let workflowLoadTimeout: NodeJS.Timeout | null = null;
+    let deserializingTimeout: NodeJS.Timeout | null = null;
     if (initialWorkflow) {
       // Use setTimeout to ensure graph is fully initialized
-      setTimeout(() => {
+      workflowLoadTimeout = setTimeout(() => {
         // Check if graph is empty (no nodes) before loading
         const nodeCount = (graph as any)._nodes?.length || 0;
         if (nodeCount === 0) {
@@ -151,7 +154,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             }
           } finally {
             // Allow change detection after deserialization completes
-            setTimeout(() => {
+            deserializingTimeout = setTimeout(() => {
               isDeserializingRef.current = false;
             }, 100);
           }
@@ -226,6 +229,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     // Start the graph
     graph.start();
 
+    // Expose graph methods via global (for toolbar to use)
+    // Update globals whenever graph/canvas instances are created
+    (window as any).__obeliskGraph = graphRef.current;
+    (window as any).__obeliskCanvas = canvasInstanceRef.current;
 
     // Handle window resize - maintain DPR
     const handleResize = () => {
@@ -279,12 +286,22 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     // Cleanup
     return () => {
+      // Clear timeouts to prevent mutations after unmount
       if (changeTimeout) {
         clearTimeout(changeTimeout);
+      }
+      if (workflowLoadTimeout) {
+        clearTimeout(workflowLoadTimeout);
+      }
+      if (deserializingTimeout) {
+        clearTimeout(deserializingTimeout);
       }
       window.removeEventListener('resize', handleResize);
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
       graph.stop();
+      // Clear global references when component unmounts
+      (window as any).__obeliskGraph = undefined;
+      (window as any).__obeliskCanvas = undefined;
       // Reset refs on cleanup so workflow can reload on remount
       workflowLoadedRef.current = false;
       isDeserializingRef.current = false;
@@ -308,15 +325,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       graphRef.current.add(node);
     }
   };
-
-  // Expose graph methods via ref (for toolbar to use)
-  useEffect(() => {
-    if (canvasInstanceRef.current && graphRef.current) {
-      // Store references for external access if needed
-      (window as any).__obeliskGraph = graphRef.current;
-      (window as any).__obeliskCanvas = canvasInstanceRef.current;
-    }
-  }, []);
 
 
   return (
