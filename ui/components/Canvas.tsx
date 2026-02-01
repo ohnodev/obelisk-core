@@ -125,32 +125,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
-    // Allow zoom with Ctrl/Cmd + wheel, prevent accidental zoom on normal scroll
-    const handleWheel = (e: WheelEvent) => {
-      // Only allow zoom if Ctrl or Cmd is held
-      if (e.ctrlKey || e.metaKey) {
-        // Allow zoom - don't prevent, let LiteGraph handle it
-        return;
-      }
-      // Normal scroll without modifier - prevent zoom but don't block the event
-      // LiteGraph's default behavior will be prevented by our override below
-    };
-
-    // Override LiteGraph's wheel handler to only allow zoom with modifier
-    const originalOnWheel = (graphCanvas as any).onWheel || (graphCanvas as any).on_mouse_wheel;
-    if (originalOnWheel) {
-      (graphCanvas as any).onWheel = function(e: WheelEvent) {
-        // Only allow zoom with explicit modifier
-        if (e.ctrlKey || e.metaKey) {
-          return originalOnWheel.call(this, e);
-        }
-        // Otherwise, prevent zoom (but don't prevent default to allow page scroll)
-        return false;
-      };
-    }
-
-    canvasElement.addEventListener("wheel", handleWheel, { passive: true });
-
     // Load initial workflow if provided and graph is empty
     // This ensures workflow loads on mount and after HMR refreshes
     if (initialWorkflow) {
@@ -275,7 +249,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
       }
       window.removeEventListener('resize', handleResize);
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
-      canvasElement.removeEventListener("wheel", handleWheel);
       graph.stop();
       // Reset refs on cleanup so workflow can reload on remount
       workflowLoadedRef.current = false;
