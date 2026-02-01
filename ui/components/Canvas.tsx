@@ -19,6 +19,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const workflowLoadedRef = useRef(false);
   const isDeserializingRef = useRef(false);
   const initialWorkflowLoadedRef = useRef(false);
+  const deserializingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -108,9 +109,19 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           const ctx = canvas.getContext('2d');
           if (ctx) {
             const transform = ctx.getTransform();
-            if (Math.abs(transform.a - dpr) > 0.01 || Math.abs(transform.d - dpr) > 0.01) {
+            const epsilon = 0.01;
+            const needsFixX = Math.abs(transform.a - dpr) > epsilon;
+            const needsFixY = Math.abs(transform.d - dpr) > epsilon;
+            
+            if (needsFixX || needsFixY) {
               // Transform was reset, fix it using freshly computed dpr
-              ctx.scale(dpr / transform.a, dpr / transform.d);
+              // Guard against division by zero
+              const scaleX = Math.abs(transform.a) > epsilon ? dpr / transform.a : 1;
+              const scaleY = Math.abs(transform.d) > epsilon ? dpr / transform.d : 1;
+              // Only apply scale if values are finite
+              if (Number.isFinite(scaleX) && Number.isFinite(scaleY)) {
+                ctx.scale(scaleX, scaleY);
+              }
             }
           }
         }
@@ -232,6 +243,12 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     (window as any).__obeliskLoadWorkflow = (workflow: WorkflowGraph) => {
       if (graphRef.current && graphCanvas) {
         try {
+          // Clear any previous timeout to prevent mutations after unmount
+          if (deserializingTimeoutRef.current) {
+            clearTimeout(deserializingTimeoutRef.current);
+            deserializingTimeoutRef.current = null;
+          }
+          
           // Clear existing graph
           graphRef.current.clear();
           // Reset loaded flag to allow deserialization
@@ -243,8 +260,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           // Force redraw
           graphCanvas.draw(true);
           // Allow change detection after deserialization
-          setTimeout(() => {
+          // Store timeout ID in ref for cleanup
+          deserializingTimeoutRef.current = setTimeout(() => {
             isDeserializingRef.current = false;
+            deserializingTimeoutRef.current = null;
           }, 100);
         } catch (error) {
           console.error("Error loading workflow:", error);
@@ -270,6 +289,11 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }
       if (deserializingTimeout) {
         clearTimeout(deserializingTimeout);
+      }
+      // Clear timeout from __obeliskLoadWorkflow if it exists
+      if (deserializingTimeoutRef.current) {
+        clearTimeout(deserializingTimeoutRef.current);
+        deserializingTimeoutRef.current = null;
       }
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);

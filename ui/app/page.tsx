@@ -81,16 +81,28 @@ function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
     if (nodeA.id !== nodeB.id || nodeA.type !== nodeB.type) return false;
     // Compare positions
     if (nodeA.position?.x !== nodeB.position?.x || nodeA.position?.y !== nodeB.position?.y) return false;
+    // Compare inputs (deep compare)
+    const inputsA = JSON.stringify(nodeA.inputs || {});
+    const inputsB = JSON.stringify(nodeB.inputs || {});
+    if (inputsA !== inputsB) return false;
+    // Compare metadata (deep compare)
+    const metadataA = JSON.stringify(nodeA.metadata || {});
+    const metadataB = JSON.stringify(nodeB.metadata || {});
+    if (metadataA !== metadataB) return false;
   }
   
   // Compare connections
   for (let i = 0; i < a.connections.length; i++) {
-    const connA = a.connections[i];
-    const connB = b.connections[i];
+    const connA = a.connections[i] as any;
+    const connB = b.connections[i] as any;
     if (connA.from !== connB.from || connA.to !== connB.to ||
         connA.from_output !== connB.from_output || connA.to_input !== connB.to_input) {
       return false;
     }
+    // Compare connection metadata if it exists
+    const metadataA = JSON.stringify(connA.metadata || {});
+    const metadataB = JSON.stringify(connB.metadata || {});
+    if (metadataA !== metadataB) return false;
   }
   
   return true;
