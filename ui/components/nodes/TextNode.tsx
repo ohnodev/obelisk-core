@@ -26,9 +26,9 @@ class TextNode extends LGraphNode {
       cols: 30
     } as any);
     
-    // Ensure widget value is set
+    // Ensure widget value is set from property
     if (widget) {
-      (widget as any).value = initialValue;
+      (widget as any).value = (this.properties as any)?.text || "";
     }
     
     this.size = [300, 200];

@@ -135,11 +135,26 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
           }
         });
       }
-
-      // Set properties/metadata
+      
+      // Set properties/metadata - do this after inputs to ensure widgets get updated
       if (nodeData.metadata) {
+        if (!node.properties) {
+          node.properties = {};
+        }
         node.properties = { ...node.properties, ...nodeData.metadata };
+        // Update widgets for metadata properties
+        const widgets = (node as any).widgets as any[];
+        if (widgets) {
+          Object.entries(nodeData.metadata).forEach(([key, value]) => {
+            const widget = widgets.find((w: any) => w.name === key);
+            if (widget) {
+              widget.value = value;
+            }
+          });
+        }
       }
+
+      // Properties/metadata already handled above
 
       graph.add(node);
       nodeMap.set(nodeData.id, node);

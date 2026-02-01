@@ -15,8 +15,8 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
       id: "1",
       type: "text",
       position: { x: 100, y: 300 },
-      inputs: {
-        text: "Hello world",
+      metadata: {
+        text: "Hello world!",
       },
     },
     {
