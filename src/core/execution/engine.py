@@ -14,6 +14,11 @@ import time
 logger = get_logger(__name__)
 
 
+class CycleError(ValueError):
+    """Raised when a cycle is detected in the workflow graph"""
+    pass
+
+
 class ExecutionEngine:
     """
     Executes JSON workflow graphs
@@ -65,7 +70,17 @@ class ExecutionEngine:
         nodes = self._build_nodes(workflow)
         
         # Resolve execution order (topological sort)
-        execution_order = self.resolve_execution_order(workflow, nodes)
+        try:
+            execution_order = self.resolve_execution_order(workflow, nodes)
+        except CycleError as e:
+            return GraphExecutionResult(
+                graph_id=workflow.get('id', 'unknown'),
+                success=False,
+                node_results=[],
+                final_outputs={},
+                error=f"Cycle detected in workflow graph: {str(e)}",
+                total_execution_time=time.time() - start_time
+            )
         
         # Create execution context
         context = ExecutionContext(
@@ -230,9 +245,15 @@ class ExecutionEngine:
                     if in_degree[target_id] == 0:
                         queue.append(target_id)
         
-        # Check for cycles (shouldn't happen in DAG, but safety check)
+        # Check for cycles (shouldn't happen in DAG, but fail fast if detected)
         if len(execution_order) != len(nodes):
-            logger.warning(f"Possible cycle detected: {len(execution_order)}/{len(nodes)} nodes in execution order")
+            # Find nodes that weren't included in execution order (part of cycle)
+            executed_node_ids = set(execution_order)
+            cycle_nodes = [node_id for node_id in nodes.keys() if node_id not in executed_node_ids]
+            raise CycleError(
+                f"Cycle detected in workflow graph: {len(execution_order)}/{len(nodes)} nodes in execution order. "
+                f"Nodes involved in cycle: {cycle_nodes}"
+            )
         
         return execution_order
     
