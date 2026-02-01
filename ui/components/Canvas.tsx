@@ -49,12 +49,83 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     LG.WIDGET_OUTLINE_COLOR = "#555555";
 
 
-    // Create LGraphCanvas - let it handle DPR natively
+    // Create LGraphCanvas - let LiteGraph handle it normally
     const canvas = canvasRef.current;
     const graphCanvas = new LG.LGraphCanvas(canvas, graph, {
       autoresize: true,
     });
     canvasInstanceRef.current = graphCanvas;
+    
+    // Handle DPR separately like ComfyUI does - don't override resize
+    // Use ResizeObserver pattern to handle canvas sizing with DPR
+    const resizeCanvas = () => {
+      if (!canvas) return;
+      const scale = Math.max(window.devicePixelRatio || 1, 1);
+      const { width, height } = canvas.getBoundingClientRect();
+      const expectedWidth = Math.round(width * scale);
+      const expectedHeight = Math.round(height * scale);
+      
+      // Only resize if dimensions actually changed (avoid clearing canvas unnecessarily)
+      if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) {
+        canvas.width = expectedWidth;
+        canvas.height = expectedHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.scale(scale, scale);
+        }
+      }
+    };
+    
+    // Override draw() to maintain DPR - LiteGraph resets transform during draw
+    // Only check/fix DPR when canvas size actually changes (not every frame)
+    const originalDraw = graphCanvas.draw.bind(graphCanvas);
+    const currentDPR = Math.max(window.devicePixelRatio || 1, 1);
+    let lastCanvasWidth = 0;
+    let lastCanvasHeight = 0;
+    
+    graphCanvas.draw = function(force: boolean) {
+      if (canvas) {
+        // Only resize if dimensions actually changed (not on every draw)
+        const rect = canvas.getBoundingClientRect();
+        const expectedWidth = Math.round(rect.width * currentDPR);
+        const expectedHeight = Math.round(rect.height * currentDPR);
+        
+        if (canvas.width !== expectedWidth || canvas.height !== expectedHeight ||
+            lastCanvasWidth !== expectedWidth || lastCanvasHeight !== expectedHeight) {
+          // Canvas size changed, update DPR
+          canvas.width = expectedWidth;
+          canvas.height = expectedHeight;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.scale(currentDPR, currentDPR);
+          }
+          lastCanvasWidth = expectedWidth;
+          lastCanvasHeight = expectedHeight;
+        } else {
+          // Check if transform was reset (LiteGraph might have done it)
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const transform = ctx.getTransform();
+            if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
+              // Transform was reset, fix it
+              ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
+            }
+          }
+        }
+      }
+      // Then call LiteGraph's draw
+      return originalDraw(force);
+    };
+    
+    // Initial resize
+    resizeCanvas();
+    
+    // Watch for canvas size changes
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+      graphCanvas.draw(true, true);
+    });
+    resizeObserver.observe(canvas);
     
     // Enable node resizing (drag from bottom-right corner)
     (graphCanvas as any).allow_resize_nodes = true;
@@ -211,14 +282,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     (window as any).__obeliskGraph = graphRef.current;
     (window as any).__obeliskCanvas = canvasInstanceRef.current;
 
-    // Handle window resize - let LiteGraph handle it natively
-    const handleResize = () => {
-      if (canvasInstance) {
-        canvasInstance.resize();
-      }
-    };
-    window.addEventListener('resize', handleResize);
-
+    // ResizeObserver handles window resize automatically
 
     // Cleanup
     return () => {
@@ -232,7 +296,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       if (deserializingTimeout) {
         clearTimeout(deserializingTimeout);
       }
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
       graph.stop();
       // Clear global references when component unmounts
