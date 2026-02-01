@@ -49,42 +49,11 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     LG.WIDGET_OUTLINE_COLOR = "#555555";
 
 
-    // Set up canvas with proper device pixel ratio for crisp rendering
+    // Create LGraphCanvas - let it handle DPR natively
     const canvas = canvasRef.current;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    
-    // Set canvas size with DPR BEFORE creating LGraphCanvas
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.scale(dpr, dpr);
-    }
-
-    // Create LGraphCanvas with autoresize disabled initially to prevent DPR reset
     const graphCanvas = new LG.LGraphCanvas(canvas, graph, {
-      autoresize: false, // We'll handle resize ourselves
+      autoresize: true,
     });
-    
-    // Override LiteGraph's resize to always maintain DPR from the start
-    const originalResize = graphCanvas.resize.bind(graphCanvas);
-    graphCanvas.resize = function() {
-      if (!canvas) return originalResize();
-      const currentDPR = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      // Always set DPR correctly BEFORE calling original resize
-      canvas.width = rect.width * currentDPR;
-      canvas.height = rect.height * currentDPR;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(currentDPR, currentDPR);
-      }
-      return originalResize();
-    };
-    
-    // Call resize once to ensure everything is set up correctly
-    graphCanvas.resize();
     canvasInstanceRef.current = graphCanvas;
     
     // Enable node resizing (drag from bottom-right corner)
@@ -242,17 +211,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     (window as any).__obeliskGraph = graphRef.current;
     (window as any).__obeliskCanvas = canvasInstanceRef.current;
 
-    // Handle window resize - maintain DPR
+    // Handle window resize - let LiteGraph handle it natively
     const handleResize = () => {
-      if (!canvasRef.current) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvasRef.current.getBoundingClientRect();
-      canvasRef.current.width = rect.width * dpr;
-      canvasRef.current.height = rect.height * dpr;
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-      }
       if (canvasInstance) {
         canvasInstance.resize();
       }
