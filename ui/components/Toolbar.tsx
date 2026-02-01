@@ -34,9 +34,28 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
   };
 
   const handleSave = () => {
-    if (onSave && workflow) {
+    // Manually serialize current workflow from canvas
+    const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
+    if (serializeWorkflow) {
+      const currentWorkflow = serializeWorkflow();
+      if (currentWorkflow) {
+        if (onSave) {
+          onSave(currentWorkflow);
+        }
+        // Download as JSON file
+        const blob = new Blob([JSON.stringify(currentWorkflow, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${currentWorkflow.name || "workflow"}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } else if (onSave && workflow) {
+      // Fallback to prop workflow if serialize function not available
       onSave(workflow);
-      // Download as JSON file
       const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

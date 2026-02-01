@@ -223,9 +223,16 @@ export default function Home() {
   };
 
   const handleLoad = (workflow: WorkflowGraph) => {
-    // Update the workflow state with the loaded workflow
-    setWorkflow(workflow);
-    // The Canvas component will handle deserialization when initialWorkflow changes
+    // Use imperative API to load workflow directly into canvas
+    const loadWorkflow = (window as any).__obeliskLoadWorkflow;
+    if (loadWorkflow) {
+      loadWorkflow(workflow);
+      // Also update state for consistency
+      setWorkflow(workflow);
+    } else {
+      // Fallback: update state (but Canvas won't reload without dependency)
+      setWorkflow(workflow);
+    }
   };
 
   const handleSave = (workflow: WorkflowGraph) => {

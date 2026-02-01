@@ -19,7 +19,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const workflowLoadedRef = useRef(false);
   const isDeserializingRef = useRef(false);
   const initialWorkflowLoadedRef = useRef(false);
-  const previousWorkflowRef = useRef<WorkflowGraph | undefined>(undefined);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -182,23 +181,11 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
-    // Load initial workflow - respond to changes in initialWorkflow prop
+    // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
     let workflowLoadTimeout: NodeJS.Timeout | null = null;
     let deserializingTimeout: NodeJS.Timeout | null = null;
-    
-    // Check if initialWorkflow changed (by comparing with previous value)
-    const workflowChanged = previousWorkflowRef.current !== initialWorkflow;
-    
-    if (initialWorkflow && (!initialWorkflowLoadedRef.current || workflowChanged)) {
-      // Reset the loaded flag if workflow changed
-      if (workflowChanged) {
-        initialWorkflowLoadedRef.current = false;
-        previousWorkflowRef.current = initialWorkflow;
-        // Clear existing nodes when loading a new workflow
-        graph.clear();
-      }
-      
+    if (initialWorkflow && !initialWorkflowLoadedRef.current) {
       // Use setTimeout to ensure graph is fully initialized
       workflowLoadTimeout = setTimeout(() => {
         // Check if graph is empty (no nodes) before loading
@@ -223,69 +210,45 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }, 0);
     }
 
-    // Listen to graph changes - throttle to avoid killing FPS
-    let changeTimeout: NodeJS.Timeout | null = null;
-    const handleGraphChange = () => {
-      // Don't serialize during initial deserialization
-      if (isDeserializingRef.current) return;
-      
-      if (changeTimeout) return; // Already queued
-      
-      changeTimeout = setTimeout(() => {
-        changeTimeout = null;
-        if (onWorkflowChange && graphRef.current) {
-          try {
-            const workflow = serializeGraph(graphRef.current);
-            onWorkflowChange(workflow);
-          } catch (error) {
-            console.error("Error serializing graph:", error);
-          }
+    // Don't auto-save - user must click Save button manually
+    // Expose function to manually serialize workflow (for Save button)
+    (window as any).__obeliskSerializeWorkflow = () => {
+      if (graphRef.current && onWorkflowChange) {
+        try {
+          const workflow = serializeGraph(graphRef.current);
+          onWorkflowChange(workflow);
+          return workflow;
+        } catch (error) {
+          console.error("Error serializing graph:", error);
+          return null;
         }
-      }, 1000); // Only serialize every 1 second max to avoid FPS issues
+      }
+      return null;
     };
 
-    // Use graph events instead of draw callback to avoid FPS issues
-    // Hook into node changes via graph methods
-    const originalAdd = graph.add.bind(graph);
-    graph.add = function(node: any) {
-      const result = originalAdd(node);
-      handleGraphChange();
-      return result;
-    };
-
-    const originalRemove = graph.remove.bind(graph);
-    graph.remove = function(node: any) {
-      const result = originalRemove(node);
-      handleGraphChange();
-      return result;
-    };
-
-    // Subscribe to broader graph change events (connections, node moves, property edits)
-    if ((graph as any).on_change) {
-      const originalOnChange = (graph as any).on_change;
-      (graph as any).on_change = function(this: any) {
-        if (originalOnChange) {
-          originalOnChange.apply(this, arguments);
+    // Expose function to manually load workflow (for Load button)
+    (window as any).__obeliskLoadWorkflow = (workflow: WorkflowGraph) => {
+      if (graphRef.current && graphCanvas) {
+        try {
+          // Clear existing graph
+          graphRef.current.clear();
+          // Reset loaded flag to allow deserialization
+          initialWorkflowLoadedRef.current = false;
+          // Deserialize new workflow
+          isDeserializingRef.current = true;
+          deserializeGraph(graphRef.current, workflow);
+          initialWorkflowLoadedRef.current = true;
+          // Force redraw
+          graphCanvas.draw(true);
+          // Allow change detection after deserialization
+          setTimeout(() => {
+            isDeserializingRef.current = false;
+          }, 100);
+        } catch (error) {
+          console.error("Error loading workflow:", error);
         }
-        handleGraphChange();
-      };
-    } else {
-      // If on_change doesn't exist, create it
-      (graph as any).on_change = function() {
-        handleGraphChange();
-      };
-    }
-
-    // Also listen for afterChange if available
-    if ((graph as any).onAfterChange) {
-      const originalOnAfterChange = (graph as any).onAfterChange;
-      (graph as any).onAfterChange = function(this: any) {
-        if (originalOnAfterChange) {
-          originalOnAfterChange.apply(this, arguments);
-        }
-        handleGraphChange();
-      };
-    }
+      }
+    };
 
     // Start the graph
     graph.start();
@@ -300,9 +263,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     // Cleanup
     return () => {
       // Clear timeouts to prevent mutations after unmount
-      if (changeTimeout) {
-        clearTimeout(changeTimeout);
-      }
       if (workflowLoadTimeout) {
         clearTimeout(workflowLoadTimeout);
       }
@@ -315,12 +275,14 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       // Clear global references when component unmounts
       (window as any).__obeliskGraph = undefined;
       (window as any).__obeliskCanvas = undefined;
+      (window as any).__obeliskSerializeWorkflow = undefined;
+      (window as any).__obeliskLoadWorkflow = undefined;
       // Reset refs on cleanup so workflow can reload on remount
       workflowLoadedRef.current = false;
       isDeserializingRef.current = false;
       initialWorkflowLoadedRef.current = false;
     };
-  }, [onWorkflowChange, initialWorkflow]); // Include initialWorkflow to respond to changes
+  }, [onWorkflowChange]); // Removed initialWorkflow - only load once on mount, manual save via button
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
