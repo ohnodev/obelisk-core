@@ -261,7 +261,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
           visible: boolean;
         }> = [];
 
-        const nodes = graph.getAllNodes();
+        const nodes = (graph as any)._nodes || [];
         const canvasRect = canvasRef.current.getBoundingClientRect();
         const ds = (graphCanvas as any).ds || { scale: 1, offset: [0, 0] };
         
