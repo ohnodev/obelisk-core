@@ -149,8 +149,8 @@
         };
 
         /**
-         * Patch processNodeWidgets - add textarea click handling
-         * Based on string/text widget pattern from litegraph.js
+         * Patch processNodeWidgets - textarea widgets are handled by React components
+         * Don't intercept clicks, let React handle them
          */
         LGC.prototype.processNodeWidgets = function(node, pos, event, active_widget) {
             if (!node.widgets || !node.widgets.length || (!this.allow_interaction && !node.flags.allow_interaction)) {
@@ -160,9 +160,8 @@
             var x = pos[0] - node.pos[0];
             var y = pos[1] - node.pos[1];
             var width = node.size[0];
-            var that = this;
 
-            // First check for textarea widget clicks
+            // Skip textarea widgets - they're handled by React components
             for (var i = 0; i < node.widgets.length; ++i) {
                 var w = node.widgets[i];
                 if (!w || w.disabled || w.type !== "textarea") continue;
@@ -174,37 +173,12 @@
                 var textareaWidth = (w.width || width) - 30;
                 var textareaHeight = node.size[1] - titleHeight - (padding * 2);
 
-                // Check if click is within textarea bounds
+                // If click is within textarea bounds, don't process it here
+                // Let React component handle it
                 if (x >= textareaX && x <= textareaX + textareaWidth &&
                     y >= textareaY && y <= textareaY + textareaHeight) {
-                    
-                    if (event.type === LG.pointerevents_method + "down") {
-                        // Use prompt method like string widgets, with multiline=true
-                        var old_value = w.value;
-                        this.prompt(
-                            w.label || w.name || "Text",
-                            String(w.value || ""),
-                            function(v) {
-                                this.value = v;
-                                if (this.options && this.options.property) {
-                                    node.setProperty(this.options.property, v);
-                                }
-                                if (this.callback) {
-                                    this.callback(v, that, node, pos, event);
-                                }
-                                if (node.onWidgetChanged) {
-                                    node.onWidgetChanged(this.name, v, old_value, this);
-                                }
-                                if (node.graph) {
-                                    node.graph._version++;
-                                }
-                                that.dirty_canvas = true;
-                            }.bind(w),
-                            event,
-                            true // multiline = true for textarea
-                        );
-                        return w;
-                    }
+                    // Return null to indicate this widget was clicked but handled elsewhere
+                    return null;
                 }
             }
 

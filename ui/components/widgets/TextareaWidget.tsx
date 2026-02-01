@@ -61,15 +61,18 @@ export default function TextareaWidget({
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed",
         left: `${x}px`,
         top: `${y}px`,
         width: `${width}px`,
         height: `${height}px`,
         pointerEvents: "auto",
-        zIndex: isEditing ? 10000 : 1,
+        zIndex: isEditing ? 10000 : 10,
       }}
       onClick={handleClick}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerMove={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
     >
       {isEditing ? (
         <textarea
@@ -104,10 +107,12 @@ export default function TextareaWidget({
             color: "#FFFFFF",
             boxSizing: "border-box",
             borderRadius: "4px",
-            overflow: "auto",
+            overflow: "hidden",
             whiteSpace: "pre-wrap",
             wordWrap: "break-word",
             cursor: "text",
+            display: "flex",
+            alignItems: "flex-start",
           }}
         >
           {value || <span style={{ color: "#666" }}>Click to edit...</span>}

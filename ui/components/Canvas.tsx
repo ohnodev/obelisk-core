@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
+import TextareaWidget from "./widgets/TextareaWidget";
 // LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {
@@ -19,6 +20,16 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
   const isDeserializingRef = useRef(false);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
+  const [textareaWidgets, setTextareaWidgets] = useState<Array<{
+    nodeId: string;
+    widgetName: string;
+    value: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    visible: boolean;
+  }>>([]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -235,6 +246,72 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     };
     window.addEventListener('resize', handleResize);
     
+      // Function to update textarea widget positions
+      const updateTextareaWidgets = () => {
+        if (!canvasRef.current || !graphCanvas) return;
+        
+        const widgets: Array<{
+          nodeId: string;
+          widgetName: string;
+          value: string;
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+          visible: boolean;
+        }> = [];
+
+        const nodes = graph.getAllNodes();
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const ds = (graphCanvas as any).ds || { scale: 1, offset: [0, 0] };
+        
+        for (const node of nodes) {
+          if (!node.widgets) continue;
+          
+          for (const widget of node.widgets) {
+            if (widget.type === "textarea" && !widget.disabled) {
+              const titleHeight = LG.NODE_TITLE_HEIGHT || 30;
+              const padding = 10;
+              const margin = 15;
+              
+              // Calculate widget position in canvas coordinates
+              const widgetX = node.pos[0] + margin;
+              const widgetY = node.pos[1] + titleHeight + padding;
+              const widgetWidth = (widget.width || node.size[0]) - (margin * 2);
+              const widgetHeight = node.size[1] - titleHeight - (padding * 2);
+              
+              // Convert to screen coordinates (accounting for canvas transform)
+              const screenX = canvasRect.left + (widgetX * ds.scale) + (ds.offset[0] || 0);
+              const screenY = canvasRect.top + (widgetY * ds.scale) + (ds.offset[1] || 0);
+              const screenWidth = widgetWidth * ds.scale;
+              const screenHeight = widgetHeight * ds.scale;
+              
+              // Check if node is visible (rough check)
+              const nodeScreenX = canvasRect.left + (node.pos[0] * ds.scale) + (ds.offset[0] || 0);
+              const nodeScreenY = canvasRect.top + (node.pos[1] * ds.scale) + (ds.offset[1] || 0);
+              const isVisible = 
+                nodeScreenX + (node.size[0] * ds.scale) > 0 &&
+                nodeScreenX < canvasRect.width &&
+                nodeScreenY + (node.size[1] * ds.scale) > 0 &&
+                nodeScreenY < canvasRect.height;
+              
+              widgets.push({
+                nodeId: String(node.id),
+                widgetName: widget.name || "textarea",
+                value: String(widget.value || ""),
+                x: screenX,
+                y: screenY,
+                width: screenWidth,
+                height: screenHeight,
+                visible: isVisible && !node.flags?.collapsed,
+              });
+            }
+          }
+        }
+        
+        setTextareaWidgets(widgets);
+      };
+
       // Ensure DPR is maintained on every draw (LiteGraph might reset it)
       const originalDrawWithDPR = graphCanvas.draw.bind(graphCanvas);
       graphCanvas.draw = function(force: boolean) {
@@ -263,7 +340,25 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
             }
           }
         }
-        return originalDrawWithDPR(force);
+        
+        const result = originalDrawWithDPR(force);
+        
+        // Update textarea widget positions after draw (throttled)
+        requestAnimationFrame(() => {
+          updateTextareaWidgets();
+        });
+        
+        return result;
+      };
+
+      // Initial update and update on graph changes
+      updateTextareaWidgets();
+      
+      // Update on graph change
+      const originalGraphChange = graph.onChange || (() => {});
+      graph.onChange = function() {
+        originalGraphChange.call(this);
+        updateTextareaWidgets();
       };
 
     // Cleanup
@@ -305,6 +400,48 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     }
   }, []);
 
+  // Handle textarea widget value changes
+  const handleTextareaChange = (nodeId: string, widgetName: string, value: string) => {
+    if (!graphRef.current) return;
+    
+    const node = graphRef.current.getNodeById(Number(nodeId));
+    if (!node || !node.widgets) return;
+    
+    const widget = node.widgets.find((w: any) => w.name === widgetName && w.type === "textarea");
+    if (!widget) return;
+    
+    const oldValue = widget.value;
+    widget.value = value;
+    
+    // Update property if widget has one
+    if (widget.options && widget.options.property) {
+      node.setProperty(widget.options.property, value);
+    }
+    
+    // Call widget callback
+    if (widget.callback) {
+      const canvas = canvasInstanceRef.current;
+      const pos = canvas ? (canvas as any).graph_mouse : [0, 0];
+      widget.callback(value, canvas, node, pos, null);
+    }
+    
+    // Trigger node widget changed event
+    if (node.onWidgetChanged) {
+      node.onWidgetChanged(widgetName, value, oldValue, widget);
+    }
+    
+    // Mark graph as changed
+    if (node.graph) {
+      node.graph._version++;
+    }
+    
+    // Force canvas redraw
+    if (canvasInstanceRef.current) {
+      (canvasInstanceRef.current as any).dirty_canvas = true;
+      (canvasInstanceRef.current as any).draw(true);
+    }
+  };
+
   return (
     <>
       <div className="canvas-container" style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -318,6 +455,20 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
             imageRendering: "crisp-edges",
           }}
         />
+        {/* Render React textarea widgets over canvas */}
+        {textareaWidgets.map((widget, index) => (
+          <TextareaWidget
+            key={`${widget.nodeId}-${widget.widgetName}-${index}`}
+            value={widget.value}
+            onChange={(value) => handleTextareaChange(widget.nodeId, widget.widgetName, value)}
+            x={widget.x}
+            y={widget.y}
+            width={widget.width}
+            height={widget.height}
+            nodeId={widget.nodeId}
+            visible={widget.visible}
+          />
+        ))}
       </div>
       <NodeMenu
         visible={nodeMenuVisible}
