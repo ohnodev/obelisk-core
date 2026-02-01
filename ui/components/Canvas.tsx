@@ -244,7 +244,11 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
         canvasInstance.resize();
       }
     };
-    window.addEventListener('resize', handleResize);
+    const handleResizeWithUpdate = () => {
+      handleResize();
+      updateTextareaWidgets();
+    };
+    window.addEventListener('resize', handleResizeWithUpdate);
     
       // Function to update textarea widget positions
       const updateTextareaWidgets = () => {
@@ -343,22 +347,25 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
         
         const result = originalDrawWithDPR(force);
         
-        // Update textarea widget positions after draw (throttled)
-        requestAnimationFrame(() => {
-          updateTextareaWidgets();
-        });
+        // Update textarea widget positions synchronously with draw for smooth movement
+        updateTextareaWidgets();
         
         return result;
       };
 
-      // Initial update and update on graph changes
+      // Initial update
       updateTextareaWidgets();
       
-      // Update on graph change
+      // Throttle updates on graph change to avoid excessive updates
+      let updateTimeout: NodeJS.Timeout | null = null;
       const originalGraphChange = graph.onChange || (() => {});
       graph.onChange = function() {
         originalGraphChange.call(this);
-        updateTextareaWidgets();
+        if (updateTimeout) clearTimeout(updateTimeout);
+        updateTimeout = setTimeout(() => {
+          updateTextareaWidgets();
+          updateTimeout = null;
+        }, 16); // ~60fps
       };
 
     // Cleanup
