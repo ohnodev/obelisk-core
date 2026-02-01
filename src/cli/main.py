@@ -15,9 +15,11 @@ from rich import box
 
 from src.core.bootstrap import get_container
 from src.core.config import Config
+from src.core.execution import ExecutionEngine
 from src.evolution.processor import process_evolution_cycle
 from src.evolution.training.lora_trainer import LoRATrainer
 from src.api.server import app
+import json
 
 console = Console(force_terminal=True)
 
@@ -88,6 +90,18 @@ def chat(mode):
         # Build container (cached, so fast on subsequent calls)
         container = get_container(mode='solo')
         
+        # Initialize execution engine
+        engine = ExecutionEngine(container)
+        
+        # Load chat workflow
+        workflow_path = Path(__file__).parent.parent.parent / "workflows" / "chat.json"
+        if not workflow_path.exists():
+            console.print(f"[bold red]❌ Workflow not found: {workflow_path}[/bold red]")
+            sys.exit(1)
+        
+        with open(workflow_path, 'r') as f:
+            workflow = json.load(f)
+        
         # Initialize buffer for CLI user on startup (avoids delay on first message)
         user_id = "cli_user"
         container.memory_manager.get_buffer(user_id)  # Initialize buffer and load recent interactions
@@ -140,17 +154,21 @@ def chat(mode):
             # Show thinking indicator immediately after user input (includes memory selection)
             console.print()
             with console.status("[bold cyan]◊ The Overseer is thinking...[/bold cyan]", spinner="dots"):
-                # Get conversation context (includes memory selection - always runs)
-                context = container.memory_manager.get_conversation_context(user_id, user_query=query)
-                
-                # Generate response with selected memories
-                result = container.llm.generate(
-                    query=query,
-                    quantum_influence=0.7,
-                    conversation_context=context
+                # Execute workflow with user query
+                execution_result = engine.execute(
+                    workflow,
+                    context_variables={
+                        "user_id": user_id,
+                        "user_query": query
+                    }
                 )
             
-            response = result.get('response', 'The Overseer processes your query.')
+            if not execution_result['success']:
+                console.print(f"[bold red]❌ Execution failed: {execution_result.get('error', 'Unknown error')}[/bold red]")
+                continue
+            
+            # Get response from final outputs
+            response = execution_result['final_outputs'].get('text', 'The Overseer processes your query.')
             
             # Display response in a styled panel
             console.print()
