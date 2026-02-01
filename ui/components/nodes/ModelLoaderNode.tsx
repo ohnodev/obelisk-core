@@ -34,6 +34,19 @@ class ModelLoaderNode extends LGraphNode {
     (this as any).resizable = true;
   }
 
+  onPropertyChanged(name: string, value: any) {
+    // Sync widget value when property changes (e.g., during deserialization)
+    if (name === "model_path" || name === "auto_load") {
+      const widgets = (this as any).widgets as any[];
+      if (widgets) {
+        const widget = widgets.find((w: any) => w.name === name);
+        if (widget) {
+          widget.value = value;
+        }
+      }
+    }
+  }
+
   onDrawForeground(ctx: CanvasRenderingContext2D) {
     const isSelected = (this as any).is_selected || (this as any).isSelected;
     if (isSelected) {

@@ -34,8 +34,7 @@
             var textareaX = margin;
             var textareaY = titleHeight + padding;
             var textareaWidth = widget_width - (margin * 2);
-            // Clamp textareaHeight to non-negative to prevent negative values when node.size[1] is too small
-            var textareaHeight = Math.max(0, node.size[1] - titleHeight - (padding * 2));
+            var textareaHeight = node.size[1] - titleHeight - (padding * 2);
             
             // Store widget position for click handling
             w._textareaX = textareaX;
@@ -62,8 +61,7 @@
                     ctx.textBaseline = "top";
                     var lines = String(value).split("\n");
                     var lineHeight = 14;
-                    // Compute maxLines from clamped textareaHeight (ensuring maxLines is at least 0)
-                    var maxLines = Math.max(0, Math.floor(textareaHeight / lineHeight));
+                    var maxLines = Math.floor(textareaHeight / lineHeight);
                     var maxLinesClamped = Math.max(1, maxLines);
                     for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLinesClamped; lineIdx++) {
                         ctx.fillText(
@@ -164,6 +162,7 @@
             var y = pos[1] - node.pos[1];
             var width = node.size[0];
             var that = this;
+            var ref_window = this.getCanvasWindow();
 
             for (var i = 0; i < node.widgets.length; ++i) {
                 var w = node.widgets[i];
@@ -223,6 +222,7 @@
                 }
 
                 // Process non-textarea widgets using original method
+                const oldValue = w.value;
                 var result = originalProcessNodeWidgets.call(this, node, pos, event, active_widget);
                 if (result) {
                     return result;
