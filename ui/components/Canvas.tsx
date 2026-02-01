@@ -30,8 +30,42 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     });
     canvasInstanceRef.current = canvas;
 
-    // Set up cursor changes - Litegraph handles this internally, but we can enhance it
-    // The CSS will handle cursor changes based on hover states
+    // Set up cursor handling similar to ComfyUI
+    // Litegraph handles some cursor changes internally, but we enhance it
+    const updateCursor = () => {
+      if (!canvasRef.current) return;
+      
+      // Check if we're dragging
+      const isDragging = (canvas as any).is_dragging || (canvas as any).isDragging;
+      const isDraggingCanvas = (canvas as any).is_dragging_canvas || (canvas as any).isDraggingCanvas;
+      
+      if (isDraggingCanvas) {
+        canvasRef.current.style.cursor = 'grabbing';
+      } else if (isDragging) {
+        canvasRef.current.style.cursor = 'grabbing';
+      } else {
+        // Default cursor - Litegraph will update on hover
+        canvasRef.current.style.cursor = 'default';
+      }
+    };
+
+    // Listen to mouse events for cursor updates
+    const handleMouseMove = () => {
+      updateCursor();
+    };
+
+    const handleMouseDown = () => {
+      updateCursor();
+    };
+
+    const handleMouseUp = () => {
+      updateCursor();
+    };
+
+    const canvasElement = canvasRef.current;
+    canvasElement.addEventListener("mousemove", handleMouseMove);
+    canvasElement.addEventListener("mousedown", handleMouseDown);
+    canvasElement.addEventListener("mouseup", handleMouseUp);
 
     // Handle right-click to show node menu
     const handleCanvasRightClick = (e: MouseEvent) => {
@@ -44,8 +78,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
       setNodeMenuVisible(true);
     };
 
-    // Attach right-click handler to canvas
-    const canvasElement = canvasRef.current;
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
 
     // Load initial workflow if provided
@@ -80,6 +112,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow }: CanvasProp
     return () => {
       clearInterval(changeInterval);
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
+      canvasElement.removeEventListener("mousemove", handleMouseMove);
+      canvasElement.removeEventListener("mousedown", handleMouseDown);
+      canvasElement.removeEventListener("mouseup", handleMouseUp);
       graph.stop();
     };
   }, [onWorkflowChange, initialWorkflow]);
