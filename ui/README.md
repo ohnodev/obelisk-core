@@ -53,7 +53,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+The dev server will automatically find an available port starting from 3000 (e.g., 3000, 3001, 3002, etc.) and display the URL in the terminal. Open the displayed URL in your browser.
 
 ### Build
 
