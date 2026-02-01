@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { execSync } = require('child_process');
-const { getPort } = require('get-port');
+const getPort = require('get-port').default;
 
 async function startDev() {
   // Find an available port starting from 3000
