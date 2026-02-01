@@ -13,38 +13,44 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
   nodes: [
     {
       id: "1",
-      type: "input_prompt",
-      position: { x: 50, y: 100 },
+      type: "text",
+      position: { x: 100, y: 200 },
       inputs: {
-        prompt: "{{user_query}}",
+        text: "{{user_query}}",
       },
     },
     {
       id: "2",
       type: "model_loader",
-      position: { x: 250, y: 100 },
-      inputs: {},
+      position: { x: 500, y: 100 },
+      inputs: {
+        model_path: "models/default_model",
+        auto_load: true,
+      },
     },
     {
       id: "3",
       type: "lora_loader",
-      position: { x: 450, y: 100 },
+      position: { x: 800, y: 100 },
       inputs: {
+        lora_path: "lora/default_lora",
+        auto_load: true,
         lora_enabled: true,
       },
     },
     {
       id: "4",
       type: "memory_adapter",
-      position: { x: 250, y: 250 },
+      position: { x: 500, y: 400 },
       inputs: {
         user_id: "{{user_id}}",
+        query: "{{user_query}}",
       },
     },
     {
       id: "5",
       type: "sampler",
-      position: { x: 650, y: 100 },
+      position: { x: 1100, y: 200 },
       inputs: {
         quantum_influence: 0.7,
         max_length: 1024,
@@ -52,8 +58,11 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     },
     {
       id: "6",
-      type: "output_text",
-      position: { x: 850, y: 100 },
+      type: "text",
+      position: { x: 1400, y: 200 },
+      inputs: {
+        text: "",
+      },
     },
   ],
   connections: [
@@ -83,15 +92,15 @@ const DEFAULT_WORKFLOW: WorkflowGraph = {
     },
     {
       from: "4",
-      from_output: "context",
+      from_output: "memory",
       to: "5",
-      to_input: "context",
+      to_input: "memory",
     },
     {
       from: "5",
       from_output: "response",
       to: "6",
-      to_input: "response",
+      to_input: "text",
     },
   ],
 };
