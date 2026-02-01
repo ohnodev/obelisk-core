@@ -79,16 +79,18 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     // Override draw() to maintain DPR - LiteGraph resets transform during draw
     // Only check/fix DPR when canvas size actually changes (not every frame)
     const originalDraw = graphCanvas.draw.bind(graphCanvas);
-    const currentDPR = Math.max(window.devicePixelRatio || 1, 1);
     let lastCanvasWidth = 0;
     let lastCanvasHeight = 0;
     
-    graphCanvas.draw = function(force: boolean) {
+    graphCanvas.draw = function(forceFG?: boolean, forceBG?: boolean) {
+      // Recompute DPR at the start of each draw call (not stale)
+      const dpr = Math.max(window.devicePixelRatio || 1, 1);
+      
       if (canvas) {
         // Only resize if dimensions actually changed (not on every draw)
         const rect = canvas.getBoundingClientRect();
-        const expectedWidth = Math.round(rect.width * currentDPR);
-        const expectedHeight = Math.round(rect.height * currentDPR);
+        const expectedWidth = Math.round(rect.width * dpr);
+        const expectedHeight = Math.round(rect.height * dpr);
         
         if (canvas.width !== expectedWidth || canvas.height !== expectedHeight ||
             lastCanvasWidth !== expectedWidth || lastCanvasHeight !== expectedHeight) {
@@ -97,7 +99,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           canvas.height = expectedHeight;
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            ctx.scale(currentDPR, currentDPR);
+            ctx.scale(dpr, dpr);
           }
           lastCanvasWidth = expectedWidth;
           lastCanvasHeight = expectedHeight;
@@ -106,15 +108,15 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           const ctx = canvas.getContext('2d');
           if (ctx) {
             const transform = ctx.getTransform();
-            if (Math.abs(transform.a - currentDPR) > 0.01 || Math.abs(transform.d - currentDPR) > 0.01) {
-              // Transform was reset, fix it
-              ctx.scale(currentDPR / transform.a, currentDPR / transform.d);
+            if (Math.abs(transform.a - dpr) > 0.01 || Math.abs(transform.d - dpr) > 0.01) {
+              // Transform was reset, fix it using freshly computed dpr
+              ctx.scale(dpr / transform.a, dpr / transform.d);
             }
           }
         }
       }
-      // Then call LiteGraph's draw
-      return originalDraw(force);
+      // Then call LiteGraph's draw with both arguments
+      return originalDraw(forceFG, forceBG);
     };
     
     // Initial resize
