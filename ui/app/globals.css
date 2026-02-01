@@ -1,4 +1,5 @@
 @import "./styles/variables.css";
+@import "./styles/litegraph.css";
 
 * {
   box-sizing: border-box;
@@ -81,5 +82,4 @@ p {
   font-family: var(--font-body);
 }
 
-@import "./styles/litegraph.css";
 /* ComfyUI Litegraph styles - copied from ComfyUI_frontend */
