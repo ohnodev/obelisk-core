@@ -1,0 +1,236 @@
+/**
+ * Textarea Widget Extension for LiteGraph
+ * 
+ * Modular extension that adds native textarea widget support.
+ * This patches drawNodeWidgets and processNodeWidgets methods.
+ * 
+ * Based on ComfyUI's battle-tested implementation patterns.
+ */
+
+(function() {
+    'use strict';
+
+    function patchLiteGraph() {
+        if (!window.LiteGraph || !window.LGraphCanvas) {
+            return false;
+        }
+
+        var LG = window.LiteGraph;
+        var LGC = window.LGraphCanvas;
+
+        // Check if already patched
+        if (LGC.prototype._textareaWidgetPatched) {
+            return true;
+        }
+
+        // Store original methods
+        var originalDrawNodeWidgets = LGC.prototype.drawNodeWidgets;
+        var originalProcessNodeWidgets = LGC.prototype.processNodeWidgets;
+
+        /**
+         * Draw textarea widget - fills the node body
+         */
+        function drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color) {
+            var textareaX = margin;
+            var textareaY = titleHeight + padding;
+            var textareaWidth = widget_width - (margin * 2);
+            var textareaHeight = node.size[1] - titleHeight - (padding * 2);
+            
+            // Store widget position for click handling
+            w._textareaX = textareaX;
+            w._textareaY = textareaY;
+            w._textareaWidth = textareaWidth;
+            w._textareaHeight = textareaHeight;
+            
+            // Draw textarea background
+            ctx.fillStyle = background_color;
+            ctx.fillRect(textareaX, textareaY, textareaWidth, textareaHeight);
+            ctx.strokeStyle = outline_color;
+            ctx.lineWidth = 1;
+            if (show_text && !w.disabled) {
+                ctx.strokeRect(textareaX, textareaY, textareaWidth, textareaHeight);
+            }
+            
+            // Draw text content
+            if (show_text) {
+                var value = w.value || "";
+                if (value) {
+                    ctx.fillStyle = text_color;
+                    ctx.font = "12px Arial";
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "top";
+                    var lines = String(value).split("\n");
+                    var lineHeight = 14;
+                    var maxLines = Math.floor(textareaHeight / lineHeight);
+                    for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLines; lineIdx++) {
+                        ctx.fillText(
+                            lines[lineIdx],
+                            textareaX + 4,
+                            textareaY + 4 + (lineIdx * lineHeight)
+                        );
+                    }
+                    // Show ellipsis if text is truncated
+                    if (lines.length > maxLines) {
+                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLines * lineHeight));
+                    }
+                }
+            }
+            // Don't increment posY for textarea as it fills the node
+            if (!w.computeSize) {
+                w.computeSize = function() { return [0, 0]; };
+            }
+        }
+
+        /**
+         * Patch drawNodeWidgets - handle textarea widgets before calling original
+         */
+        LGC.prototype.drawNodeWidgets = function(node, posY, ctx, active_widget) {
+            if (!node.widgets || !node.widgets.length) {
+                return originalDrawNodeWidgets.call(this, node, posY, ctx, active_widget);
+            }
+
+            var width = node.size[0];
+            var widgets = node.widgets;
+            var H = LG.NODE_WIDGET_HEIGHT;
+            var show_text = this.ds.scale > 0.5;
+            var margin = 15;
+            var titleHeight = LG.NODE_TITLE_HEIGHT;
+            var padding = 10;
+            var outline_color = LG.WIDGET_OUTLINE_COLOR;
+            var background_color = LG.WIDGET_BGCOLOR;
+            var text_color = LG.WIDGET_TEXT_COLOR;
+            var secondary_text_color = LG.WIDGET_SECONDARY_TEXT_COLOR;
+
+            // Separate textarea widgets from others
+            var textareaWidgets = [];
+            var otherWidgets = [];
+            for (var i = 0; i < widgets.length; i++) {
+                if (widgets[i].type === "textarea") {
+                    textareaWidgets.push(widgets[i]);
+                } else {
+                    otherWidgets.push(widgets[i]);
+                }
+            }
+
+            // Draw textarea widgets first
+            if (textareaWidgets.length > 0) {
+                ctx.save();
+                ctx.globalAlpha = this.editor_alpha;
+                for (var i = 0; i < textareaWidgets.length; i++) {
+                    var w = textareaWidgets[i];
+                    var y = posY + 2;
+                    if (w.y) {
+                        y = w.y;
+                    }
+                    w.last_y = y;
+                    var widget_width = w.width || width;
+                    
+                    if (w.disabled) {
+                        ctx.globalAlpha *= 0.5;
+                    }
+                    
+                    drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color);
+                    
+                    ctx.globalAlpha = this.editor_alpha;
+                }
+                ctx.restore();
+            }
+
+            // Draw other widgets using original method
+            if (otherWidgets.length > 0) {
+                var originalWidgets = node.widgets;
+                node.widgets = otherWidgets;
+                originalDrawNodeWidgets.call(this, node, posY, ctx, active_widget);
+                node.widgets = originalWidgets;
+            }
+
+            // Handle posY increment - textarea widgets don't increment
+            // The original method already handled non-textarea widgets
+        };
+
+        /**
+         * Patch processNodeWidgets - add textarea click handling
+         * Based on string/text widget pattern from litegraph.js
+         */
+        LGC.prototype.processNodeWidgets = function(node, pos, event, active_widget) {
+            if (!node.widgets || !node.widgets.length || (!this.allow_interaction && !node.flags.allow_interaction)) {
+                return originalProcessNodeWidgets.call(this, node, pos, event, active_widget);
+            }
+
+            var x = pos[0] - node.pos[0];
+            var y = pos[1] - node.pos[1];
+            var width = node.size[0];
+            var that = this;
+
+            // First check for textarea widget clicks
+            for (var i = 0; i < node.widgets.length; ++i) {
+                var w = node.widgets[i];
+                if (!w || w.disabled || w.type !== "textarea") continue;
+
+                var titleHeight = LG.NODE_TITLE_HEIGHT;
+                var padding = 10;
+                var textareaX = 15; // margin
+                var textareaY = titleHeight + padding;
+                var textareaWidth = (w.width || width) - 30;
+                var textareaHeight = node.size[1] - titleHeight - (padding * 2);
+
+                // Check if click is within textarea bounds
+                if (x >= textareaX && x <= textareaX + textareaWidth &&
+                    y >= textareaY && y <= textareaY + textareaHeight) {
+                    
+                    if (event.type === LG.pointerevents_method + "down") {
+                        // Use prompt method like string widgets, with multiline=true
+                        var old_value = w.value;
+                        this.prompt(
+                            w.label || w.name || "Text",
+                            String(w.value || ""),
+                            function(v) {
+                                this.value = v;
+                                if (this.options && this.options.property) {
+                                    node.setProperty(this.options.property, v);
+                                }
+                                if (this.callback) {
+                                    this.callback(v, that, node, pos, event);
+                                }
+                                if (node.onWidgetChanged) {
+                                    node.onWidgetChanged(this.name, v, old_value, this);
+                                }
+                                if (node.graph) {
+                                    node.graph._version++;
+                                }
+                                that.dirty_canvas = true;
+                            }.bind(w),
+                            event,
+                            true // multiline = true for textarea
+                        );
+                        return w;
+                    }
+                }
+            }
+
+            // For non-textarea widgets, use original processing
+            return originalProcessNodeWidgets.call(this, node, pos, event, active_widget);
+        };
+
+        LGC.prototype._textareaWidgetPatched = true;
+        return true;
+    }
+
+    // Initialize when LiteGraph is available
+    if (typeof window !== "undefined") {
+        if (patchLiteGraph()) {
+            // Already loaded
+        } else {
+            // Wait for LiteGraph
+            var checkInterval = setInterval(function() {
+                if (patchLiteGraph()) {
+                    clearInterval(checkInterval);
+                }
+            }, 50);
+
+            window.addEventListener("load", function() {
+                setTimeout(patchLiteGraph, 100);
+            });
+        }
+    }
+})();

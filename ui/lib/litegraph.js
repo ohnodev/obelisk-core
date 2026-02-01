@@ -10069,67 +10069,13 @@ LGraphNode.prototype.executeAction = function(action)
 						ctx.restore();
                     }
                     break;
-                case "textarea":
-                    // Textarea widget fills the node body
-                    var titleHeight = LiteGraph.NODE_TITLE_HEIGHT;
-                    var padding = 10;
-                    var textareaX = margin;
-                    var textareaY = titleHeight + padding;
-                    var textareaWidth = widget_width - (margin * 2);
-                    var textareaHeight = node.size[1] - titleHeight - (padding * 2);
-                    
-                    // Store widget position for click handling
-                    w._textareaX = textareaX;
-                    w._textareaY = textareaY;
-                    w._textareaWidth = textareaWidth;
-                    w._textareaHeight = textareaHeight;
-                    
-                    // Draw textarea background
-                    ctx.fillStyle = background_color;
-                    ctx.fillRect(textareaX, textareaY, textareaWidth, textareaHeight);
-                    ctx.strokeStyle = outline_color;
-                    ctx.lineWidth = 1;
-                    if (show_text && !w.disabled) {
-                        ctx.strokeRect(textareaX, textareaY, textareaWidth, textareaHeight);
-                    }
-                    
-                    // Draw text content
-                    if (show_text) {
-                        var value = w.value || "";
-                        if (value) {
-                            ctx.fillStyle = text_color;
-                            ctx.font = "12px Arial";
-                            ctx.textAlign = "left";
-                            ctx.textBaseline = "top";
-                            var lines = String(value).split("\n");
-                            var lineHeight = 14;
-                            var maxLines = Math.floor(textareaHeight / lineHeight);
-                            for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLines; lineIdx++) {
-                                ctx.fillText(
-                                    lines[lineIdx],
-                                    textareaX + 4,
-                                    textareaY + 4 + (lineIdx * lineHeight)
-                                );
-                            }
-                            // Show ellipsis if text is truncated
-                            if (lines.length > maxLines) {
-                                ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLines * lineHeight));
-                            }
-                        }
-                    }
-                    // Don't increment posY for textarea as it fills the node
-                    // Skip the increment by setting computeSize to return 0
-                    if (!w.computeSize) {
-                        w.computeSize = function() { return [0, 0]; };
-                    }
-                    break;
                 default:
                     if (w.draw) {
                         w.draw(ctx, node, widget_width, y, H);
                     }
                     break;
             }
-            // Skip increment for textarea widgets as they fill the entire node
+            // Skip increment for textarea widgets (handled by extension)
             if (w.type !== "textarea") {
                 posY += (w.computeSize ? w.computeSize(widget_width)[1] : H) + 4;
             }

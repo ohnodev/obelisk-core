@@ -17,6 +17,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script src="/lib/litegraph/litegraph.js"></script>
+        <script src="/lib/litegraph-widgets/textarea-widget.js"></script>
       </head>
       <body>
         {children}
