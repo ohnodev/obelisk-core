@@ -28,78 +28,14 @@
         var originalProcessNodeWidgets = LGC.prototype.processNodeWidgets;
 
         /**
-         * Draw textarea widget - fills the node body
-         */
-        function drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color) {
-            var textareaX = margin;
-            var textareaY = titleHeight + padding;
-            var textareaWidth = widget_width - (margin * 2);
-            var textareaHeight = node.size[1] - titleHeight - (padding * 2);
-            
-            // Store widget position for click handling
-            w._textareaX = textareaX;
-            w._textareaY = textareaY;
-            w._textareaWidth = textareaWidth;
-            w._textareaHeight = textareaHeight;
-            
-            // Draw textarea background
-            ctx.fillStyle = background_color;
-            ctx.fillRect(textareaX, textareaY, textareaWidth, textareaHeight);
-            ctx.strokeStyle = outline_color;
-            ctx.lineWidth = 1;
-            if (show_text && !w.disabled) {
-                ctx.strokeRect(textareaX, textareaY, textareaWidth, textareaHeight);
-            }
-            
-            // Draw text content
-            if (show_text) {
-                var value = w.value || "";
-                if (value) {
-                    ctx.fillStyle = text_color;
-                    ctx.font = "12px Arial";
-                    ctx.textAlign = "left";
-                    ctx.textBaseline = "top";
-                    var lines = String(value).split("\n");
-                    var lineHeight = 14;
-                    var maxLines = Math.floor(textareaHeight / lineHeight);
-                    for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLines; lineIdx++) {
-                        ctx.fillText(
-                            lines[lineIdx],
-                            textareaX + 4,
-                            textareaY + 4 + (lineIdx * lineHeight)
-                        );
-                    }
-                    // Show ellipsis if text is truncated
-                    if (lines.length > maxLines) {
-                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLines * lineHeight));
-                    }
-                }
-            }
-            // Don't increment posY for textarea as it fills the node
-            if (!w.computeSize) {
-                w.computeSize = function() { return [0, 0]; };
-            }
-        }
-
-        /**
-         * Patch drawNodeWidgets - handle textarea widgets before calling original
+         * Patch drawNodeWidgets - skip textarea widgets (handled by React components)
          */
         LGC.prototype.drawNodeWidgets = function(node, posY, ctx, active_widget) {
             if (!node.widgets || !node.widgets.length) {
                 return originalDrawNodeWidgets.call(this, node, posY, ctx, active_widget);
             }
 
-            var width = node.size[0];
             var widgets = node.widgets;
-            var H = LG.NODE_WIDGET_HEIGHT;
-            var show_text = this.ds.scale > 0.5;
-            var margin = 15;
-            var titleHeight = LG.NODE_TITLE_HEIGHT;
-            var padding = 10;
-            var outline_color = LG.WIDGET_OUTLINE_COLOR;
-            var background_color = LG.WIDGET_BGCOLOR;
-            var text_color = LG.WIDGET_TEXT_COLOR;
-            var secondary_text_color = LG.WIDGET_SECONDARY_TEXT_COLOR;
 
             // Separate textarea widgets from others
             var textareaWidgets = [];
@@ -112,28 +48,13 @@
                 }
             }
 
-            // Draw textarea widgets first
-            if (textareaWidgets.length > 0) {
-                ctx.save();
-                ctx.globalAlpha = this.editor_alpha;
-                for (var i = 0; i < textareaWidgets.length; i++) {
-                    var w = textareaWidgets[i];
-                    var y = posY + 2;
-                    if (w.y) {
-                        y = w.y;
-                    }
-                    w.last_y = y;
-                    var widget_width = w.width || width;
-                    
-                    if (w.disabled) {
-                        ctx.globalAlpha *= 0.5;
-                    }
-                    
-                    drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color);
-                    
-                    ctx.globalAlpha = this.editor_alpha;
+            // Skip drawing textarea widgets - they're handled by React components
+            // Just ensure they don't increment posY
+            for (var i = 0; i < textareaWidgets.length; i++) {
+                var w = textareaWidgets[i];
+                if (!w.computeSize) {
+                    w.computeSize = function() { return [0, 0]; };
                 }
-                ctx.restore();
             }
 
             // Draw other widgets using original method
