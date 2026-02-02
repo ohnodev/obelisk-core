@@ -8,67 +8,10 @@ import { serializeGraph } from "@/lib/litegraph";
 import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
 import "@/components/nodes"; // Register all node types
 
-// Default chat workflow - simple: Text -> Model Loader -> Sampler -> Text
-const DEFAULT_WORKFLOW: WorkflowGraph = {
-  id: "obelisk-chat-workflow",
-  name: "Basic Chat Workflow",
-  nodes: [
-    {
-      id: "1",
-      type: "text",
-      position: { x: 100, y: 300 },
-      metadata: {
-        text: "Hello world!",
-      },
-    },
-    {
-      id: "2",
-      type: "model_loader",
-      position: { x: 300, y: 120 },
-      inputs: {
-        model_path: "models/default_model",
-        auto_load: true,
-      },
-    },
-    {
-      id: "3",
-      type: "sampler",
-      position: { x: 700, y: 300 },
-      inputs: {
-        quantum_influence: 0.7,
-        max_length: 1024,
-      },
-    },
-    {
-      id: "4",
-      type: "text",
-      position: { x: 1000, y: 300 },
-      inputs: {
-        text: "",
-      },
-    },
-  ],
-  connections: [
-    {
-      from: "1",
-      from_output: "text",
-      to: "3",
-      to_input: "query",
-    },
-    {
-      from: "2",
-      from_output: "model",
-      to: "3",
-      to_input: "model",
-    },
-    {
-      from: "3",
-      from_output: "response",
-      to: "4",
-      to_input: "text",
-    },
-  ],
-};
+// Load default workflow from JSON file
+import defaultWorkflowData from "../workflows/chat.json";
+
+const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
 
 // Deep compare two workflow objects
 function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {

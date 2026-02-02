@@ -1,88 +1,39 @@
 #!/usr/bin/env python3
 """
-Simple test script to execute the default workflow and verify output
+Test script to execute workflows and verify output
+Tests both simple 4-node workflow and 6-node memory workflow
 """
 import requests
 import json
 import sys
+import os
 
-# Default workflow from frontend (matches DEFAULT_WORKFLOW in page.tsx)
-DEFAULT_WORKFLOW = {
-    "id": "obelisk-chat-workflow",
-    "name": "Basic Chat Workflow",
-    "nodes": [
-        {
-            "id": "1",
-            "type": "text",
-            "position": {"x": 100, "y": 300},
-            "metadata": {
-                "text": "Hello world!",
-            },
-        },
-        {
-            "id": "2",
-            "type": "model_loader",
-            "position": {"x": 300, "y": 120},
-            "inputs": {
-                "model_path": "models/default_model",
-                "auto_load": True,
-            },
-        },
-        {
-            "id": "3",
-            "type": "sampler",
-            "position": {"x": 700, "y": 300},
-            "inputs": {
-                "quantum_influence": 0.7,
-                "max_length": 1024,
-            },
-        },
-        {
-            "id": "4",
-            "type": "text",
-            "position": {"x": 1000, "y": 300},
-            "inputs": {
-                "text": "",
-            },
-        },
-    ],
-    "connections": [
-        {
-            "from": "1",
-            "from_output": "text",
-            "to": "3",
-            "to_input": "query",
-        },
-        {
-            "from": "2",
-            "from_output": "model",
-            "to": "3",
-            "to_input": "model",
-        },
-        {
-            "from": "3",
-            "from_output": "response",
-            "to": "4",
-            "to_input": "text",
-        },
-    ],
-}
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+WORKFLOWS_DIR = os.path.join(SCRIPT_DIR, "ui", "workflows")
 
 API_BASE_URL = "http://localhost:7779"
 
 
-def test_workflow_execution():
-    """Test executing the default workflow"""
-    print("🧪 Testing workflow execution...")
-    print(f"📋 Workflow: {DEFAULT_WORKFLOW['name']}")
-    print(f"📦 Nodes: {len(DEFAULT_WORKFLOW['nodes'])}")
-    print(f"🔗 Connections: {len(DEFAULT_WORKFLOW['connections'])}")
+def load_workflow(filename: str) -> dict:
+    """Load workflow from JSON file"""
+    filepath = os.path.join(WORKFLOWS_DIR, filename)
+    with open(filepath, "r") as f:
+        return json.load(f)
+
+
+def test_workflow_execution(workflow: dict, workflow_name: str) -> bool:
+    """Test executing a workflow"""
+    print(f"\n🧪 Testing workflow: {workflow_name}")
+    print(f"📋 Workflow: {workflow.get('name', 'Unknown')}")
+    print(f"📦 Nodes: {len(workflow.get('nodes', []))}")
+    print(f"🔗 Connections: {len(workflow.get('connections', []))}")
     print()
 
     # Prepare request
     url = f"{API_BASE_URL}/api/v1/workflow/execute"
     payload = {
-        "workflow": DEFAULT_WORKFLOW,
+        "workflow": workflow,
         "options": {
             "client_id": "test_user",
         },
@@ -104,7 +55,6 @@ def test_workflow_execution():
             print(f"❌ Execution failed: {error_msg}")
             if result.get('message'):
                 print(f"   Message: {result.get('message')}")
-            print(f"   Full response: {json.dumps(result, indent=2)}")
             return False
 
         # Check results
@@ -124,24 +74,43 @@ def test_workflow_execution():
                     value_str = value_str[:100] + "..."
                 print(f"    - {output_name}: {value_str}")
 
-        # Verify output text node (node 4) was updated
-        node_4_result = results.get("4")
-        if node_4_result:
-            outputs = node_4_result.get("outputs", {})
-            text_output = outputs.get("text") or outputs.get("output")
-            
-            if text_output:
-                print()
-                print(f"✅ Output text node (4) updated successfully!")
-                print(f"📝 Output: {text_output[:200]}...")
-                return True
+        # Find output text node (last node or node with no outgoing connections)
+        output_node_id = None
+        node_ids = {node["id"] for node in workflow.get("nodes", [])}
+        connected_from = {conn.get("from") or conn.get("source_node") for conn in workflow.get("connections", [])}
+        
+        # Find nodes that are not sources of connections (likely output nodes)
+        potential_outputs = node_ids - connected_from
+        if potential_outputs:
+            # Use the last node ID as output (usually the final text node)
+            output_node_id = max(potential_outputs, key=lambda x: int(x) if x.isdigit() else 0)
+        else:
+            # Fallback: use the last node in the list
+            if workflow.get("nodes"):
+                output_node_id = workflow["nodes"][-1]["id"]
+
+        if output_node_id:
+            node_result = results.get(str(output_node_id))
+            if node_result:
+                outputs = node_result.get("outputs", {})
+                text_output = outputs.get("text") or outputs.get("output")
+                
+                if text_output:
+                    print()
+                    print(f"✅ Output text node ({output_node_id}) updated successfully!")
+                    print(f"📝 Output: {str(text_output)[:200]}...")
+                    return True
+                else:
+                    print()
+                    print(f"⚠️  Output text node ({output_node_id}) has no text output")
+                    return False
             else:
                 print()
-                print("⚠️  Output text node (4) has no text output")
+                print(f"⚠️  Output text node ({output_node_id}) not found in results")
                 return False
         else:
             print()
-            print("⚠️  Output text node (4) not found in results")
+            print("⚠️  Could not identify output node")
             return False
 
     except requests.exceptions.ConnectionError:
@@ -169,19 +138,46 @@ def test_workflow_execution():
         return False
 
 
-if __name__ == "__main__":
+def main():
     print("=" * 60)
-    print("Obelisk Core - Workflow Execution Test")
+    print("Obelisk Core - Workflow Execution Tests")
     print("=" * 60)
-    print()
 
-    success = test_workflow_execution()
+    # Test 1: Simple 4-node workflow
+    try:
+        simple_workflow = load_workflow("chat.json")
+        test1_passed = test_workflow_execution(simple_workflow, "Simple Chat (4 nodes)")
+    except FileNotFoundError:
+        print(f"\n❌ Could not find chat.json in {WORKFLOWS_DIR}")
+        test1_passed = False
+    except Exception as e:
+        print(f"\n❌ Error loading chat.json: {e}")
+        test1_passed = False
+
+    # Test 2: Memory workflow (6 nodes)
+    try:
+        memory_workflow = load_workflow("chat-memory.json")
+        test2_passed = test_workflow_execution(memory_workflow, "Chat with Memory (6 nodes)")
+    except FileNotFoundError:
+        print(f"\n❌ Could not find chat-memory.json in {WORKFLOWS_DIR}")
+        test2_passed = False
+    except Exception as e:
+        print(f"\n❌ Error loading chat-memory.json: {e}")
+        test2_passed = False
 
     print()
     print("=" * 60)
-    if success:
-        print("✅ Test PASSED")
+    if test1_passed and test2_passed:
+        print("✅ All Tests PASSED")
         sys.exit(0)
     else:
-        print("❌ Test FAILED")
+        print("❌ Some Tests FAILED")
+        if not test1_passed:
+            print("   - Simple Chat workflow failed")
+        if not test2_passed:
+            print("   - Chat with Memory workflow failed")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

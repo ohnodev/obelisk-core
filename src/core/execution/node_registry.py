@@ -37,18 +37,14 @@ def get_node_class(node_type: str) -> Optional[Type[BaseNode]]:
 # This ensures nodes are registered when the module is imported
 def _register_all_nodes():
     """Register all node types"""
-    from .nodes.input_prompt import InputPromptNode
     from .nodes.model_loader import ModelLoaderNode
     from .nodes.sampler import SamplerNode
-    from .nodes.output_text import OutputTextNode
     from .nodes.memory_adapter import MemoryAdapterNode
     from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
     
-    register_node("input_prompt", InputPromptNode)
     register_node("model_loader", ModelLoaderNode)
     register_node("sampler", SamplerNode)
-    register_node("output_text", OutputTextNode)
     register_node("memory_adapter", MemoryAdapterNode)
     register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)
