@@ -75,6 +75,37 @@
                         
                         for (var j = 0; j < words.length; j++) {
                             var word = words[j];
+                            
+                            // Handle very long words that exceed maxWidth - break them
+                            var wordMetrics = ctx.measureText(word);
+                            if (wordMetrics.width > maxWidth) {
+                                // Word is too long, break it character by character
+                                if (currentLine) {
+                                    wrappedLines.push(currentLine);
+                                    currentLine = "";
+                                }
+                                
+                                // Break long word into chunks
+                                var charIdx = 0;
+                                while (charIdx < word.length) {
+                                    var chunk = "";
+                                    while (charIdx < word.length) {
+                                        var testChunk = chunk + word[charIdx];
+                                        var chunkMetrics = ctx.measureText(testChunk);
+                                        if (chunkMetrics.width > maxWidth && chunk.length > 0) {
+                                            break;
+                                        }
+                                        chunk = testChunk;
+                                        charIdx++;
+                                    }
+                                    if (chunk) {
+                                        wrappedLines.push(chunk);
+                                    }
+                                }
+                                continue;
+                            }
+                            
+                            // Normal word wrapping
                             var testLine = currentLine ? currentLine + " " + word : word;
                             var metrics = ctx.measureText(testLine);
                             
