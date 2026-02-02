@@ -37,3 +37,4 @@ rich>=13.0.0
 
 # Testing
 pytest>=7.0.0
+requests>=2.31.0

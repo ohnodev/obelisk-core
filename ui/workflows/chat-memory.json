@@ -4,10 +4,10 @@
   "nodes": [
     {
       "id": "1",
-      "type": "input_prompt",
+      "type": "text",
       "position": {"x": 50, "y": 100},
-      "inputs": {
-        "prompt": "{{user_query}}"
+      "metadata": {
+        "text": "{{user_query}}"
       }
     },
     {
@@ -44,46 +44,49 @@
     },
     {
       "id": "6",
-      "type": "output_text",
-      "position": {"x": 850, "y": 100}
+      "type": "text",
+      "position": {"x": 850, "y": 100},
+      "inputs": {
+        "text": ""
+      }
     }
   ],
   "connections": [
     {
-      "source_node": "1",
-      "source_output": "text",
-      "target_node": "4",
-      "target_input": "query"
+      "from": "1",
+      "from_output": "text",
+      "to": "4",
+      "to_input": "query"
     },
     {
-      "source_node": "1",
-      "source_output": "text",
-      "target_node": "5",
-      "target_input": "query"
+      "from": "1",
+      "from_output": "text",
+      "to": "5",
+      "to_input": "query"
     },
     {
-      "source_node": "2",
-      "source_output": "model",
-      "target_node": "3",
-      "target_input": "model"
+      "from": "2",
+      "from_output": "model",
+      "to": "3",
+      "to_input": "model"
     },
     {
-      "source_node": "3",
-      "source_output": "model",
-      "target_node": "5",
-      "target_input": "model"
+      "from": "3",
+      "from_output": "model",
+      "to": "5",
+      "to_input": "model"
     },
     {
-      "source_node": "4",
-      "source_output": "context",
-      "target_node": "5",
-      "target_input": "context"
+      "from": "4",
+      "from_output": "context",
+      "to": "5",
+      "to_input": "context"
     },
     {
-      "source_node": "5",
-      "source_output": "response",
-      "target_node": "6",
-      "target_input": "response"
+      "from": "5",
+      "from_output": "response",
+      "to": "6",
+      "to_input": "text"
     }
   ]
 }

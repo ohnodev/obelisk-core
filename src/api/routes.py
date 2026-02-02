@@ -226,3 +226,201 @@ async def save_interaction(user_id: str, query: str, response: str, container: S
         return {"status": "saved"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Workflow Execution Endpoints
+class WorkflowExecuteRequest(BaseModel):
+    """Request model for workflow execution"""
+    workflow: Dict[str, Any] = Field(..., description="Workflow graph definition")
+    options: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Execution options (client_id, extra_data, etc.)"
+    )
+
+
+class WorkflowExecuteResponse(BaseModel):
+    """Response model for workflow execution"""
+    execution_id: Optional[str] = None
+    status: Literal["queued", "running", "completed", "error"]
+    results: Optional[Dict[str, Dict[str, Any]]] = None
+    error: Optional[str] = None
+    message: Optional[str] = None
+
+
+def _convert_frontend_to_backend_format(frontend_workflow: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert frontend workflow format to backend NodeGraph format
+    
+    Frontend format:
+    {
+        "id": "workflow-1",
+        "name": "Obelisk Workflow",
+        "nodes": [
+            {"id": "1", "type": "text", "position": {"x": 100, "y": 300}, "inputs": {...}, "metadata": {...}}
+        ],
+        "connections": [
+            {"from": "1", "from_output": "text", "to": "2", "to_input": "query"}
+        ]
+    }
+    
+    Backend format (NodeGraph):
+    {
+        "id": "workflow-1",
+        "name": "Obelisk Workflow",
+        "nodes": [
+            {"id": "1", "type": "text", "position": {"x": 100, "y": 300}, "inputs": {...}, "metadata": {...}}
+        ],
+        "connections": [
+            {"id": "conn-1", "source_node": "1", "source_output": "text", "target_node": "2", "target_input": "query", "data_type": "string"}
+        ]
+    }
+    """
+    backend_workflow = {
+        "id": frontend_workflow.get("id", "workflow-1"),
+        "name": frontend_workflow.get("name", "Obelisk Workflow"),
+        "nodes": [],
+        "connections": []
+    }
+    
+    # Convert nodes (merge inputs and metadata)
+    for node in frontend_workflow.get("nodes", []):
+        backend_node = {
+            "id": str(node["id"]),
+            "type": node["type"],
+            "position": node.get("position", {"x": 0, "y": 0}),
+        }
+        
+        # Merge inputs and metadata into inputs (backend expects inputs to contain both)
+        inputs = node.get("inputs", {}).copy()
+        metadata = node.get("metadata", {})
+        if metadata:
+            inputs.update(metadata)
+        
+        if inputs:
+            backend_node["inputs"] = inputs
+        
+        backend_workflow["nodes"].append(backend_node)
+    
+    # Convert connections
+    for i, conn in enumerate(frontend_workflow.get("connections", [])):
+        backend_conn = {
+            "id": f"conn-{i}",
+            "source_node": str(conn.get("from") or conn.get("source_node", "")),
+            "source_output": conn.get("from_output") or conn.get("source_output", "default"),
+            "target_node": str(conn.get("to") or conn.get("target_node", "")),
+            "target_input": conn.get("to_input") or conn.get("target_input", "default"),
+            "data_type": "string"  # Default, could be inferred from node types
+        }
+        backend_workflow["connections"].append(backend_conn)
+    
+    return backend_workflow
+
+
+def _convert_backend_to_frontend_results(execution_result: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """
+    Convert backend execution results to frontend format
+    
+    Backend format:
+    {
+        "graph_id": "workflow-1",
+        "success": True,
+        "node_results": [
+            {"node_id": "1", "success": True, "outputs": {"text": "..."}, ...}
+        ],
+        "final_outputs": {...}
+    }
+    
+    Frontend format:
+    {
+        "1": {"outputs": {"text": "..."}},
+        "4": {"outputs": {"text": "..."}}
+    }
+    """
+    def _serialize_value(value: Any) -> Any:
+        """Convert non-serializable values to strings"""
+        # Check if it's a basic serializable type
+        if isinstance(value, (str, int, float, bool, type(None))):
+            return value
+        # Check if it's a dict or list - recursively serialize
+        if isinstance(value, dict):
+            return {k: _serialize_value(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [_serialize_value(item) for item in value]
+        # For objects (like ObeliskLLM), convert to a simple representation
+        if hasattr(value, '__class__'):
+            return {
+                "_type": value.__class__.__name__,
+                "_module": getattr(value.__class__, '__module__', 'unknown'),
+                "_repr": str(value)[:100]  # Truncate long representations
+            }
+        # Fallback to string
+        return str(value)
+    
+    results = {}
+    
+    for node_result in execution_result.get("node_results", []):
+        node_id = node_result.get("node_id")
+        if node_id and node_result.get("success"):
+            outputs = node_result.get("outputs", {})
+            # Serialize outputs to ensure all values are JSON-serializable
+            serialized_outputs = {k: _serialize_value(v) for k, v in outputs.items()}
+            results[str(node_id)] = {
+                "outputs": serialized_outputs
+            }
+    
+    return results
+
+
+@router.post("/workflow/execute", response_model=WorkflowExecuteResponse)
+async def execute_workflow(
+    request: WorkflowExecuteRequest,
+    container: ServiceContainer = Depends(get_container)
+):
+    """
+    Execute a workflow graph (ComfyUI-style execution)
+    
+    Accepts a workflow graph from the frontend, converts it to backend format,
+    executes it using the ExecutionEngine, and returns results in frontend format.
+    """
+    try:
+        from ..core.execution.engine import ExecutionEngine
+        
+        # Convert frontend format to backend format
+        backend_workflow = _convert_frontend_to_backend_format(request.workflow)
+        
+        # Extract context variables from options
+        context_variables = {}
+        if request.options:
+            if "client_id" in request.options:
+                context_variables["user_id"] = request.options["client_id"]
+            if "extra_data" in request.options:
+                context_variables.update(request.options["extra_data"])
+        
+        # Create execution engine and execute
+        engine = ExecutionEngine(container)
+        execution_result = engine.execute(backend_workflow, context_variables)
+        
+        # Convert results to frontend format
+        if execution_result.get("success"):
+            results = _convert_backend_to_frontend_results(execution_result)
+            return WorkflowExecuteResponse(
+                execution_id=None,  # Could generate UUID if needed
+                status="completed",
+                results=results,
+                message="Workflow executed successfully"
+            )
+        else:
+            # Include more detailed error information
+            error_msg = execution_result.get("error", "Workflow execution failed")
+            
+            return WorkflowExecuteResponse(
+                status="error",
+                error=error_msg,
+                message="Workflow execution failed"
+            )
+            
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=error_msg)
