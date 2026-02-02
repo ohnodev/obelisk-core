@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import { WorkflowGraph } from "@/lib/litegraph";
+import { serializeGraph } from "@/lib/litegraph";
+import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
 import "@/components/nodes"; // Register all node types
 
 // Default chat workflow - simple: Text -> Model Loader -> Sampler -> Text
@@ -139,98 +141,38 @@ export default function Home() {
         return;
       }
 
-      // Get the input text node
-      const inputNode = graph.getNodeById(1);
-      if (!inputNode) {
-        console.warn("Input node not found");
+      // Serialize the current graph state to get latest workflow
+      const currentWorkflow = serializeGraph(graph);
+      console.log("Executing workflow:", currentWorkflow.name, "with", currentWorkflow.nodes.length, "nodes");
+
+      // Execute workflow using ComfyUI-style execution engine
+      const result = await executeWorkflow(currentWorkflow, {
+        client_id: "default_user",
+      });
+
+      if (result.status === "error") {
+        console.error("Workflow execution failed:", result.error);
+        // TODO: Show error in UI (toast, notification, etc.)
+        alert(`Execution failed: ${result.error}`);
         return;
       }
 
-      // Get the text value from the input node - check both properties and metadata
-      const inputText = (inputNode.properties as any)?.text || (inputNode.metadata as any)?.text || "";
-      const userQuery = inputText || "Hello world";
-      
-      console.log("Executing workflow with query:", userQuery);
-
-      // Try to call backend API (obelisk-core server on port 7779)
-      // Use /api/v1/generate endpoint for now (workflow execution endpoint coming)
-      try {
-        const response = await fetch("http://localhost:7779/api/v1/generate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: userQuery,
-            user_id: "default_user",
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          
-          // Extract response from API result
-          const llmResponse = result.response || result.text || result.message || "";
-          
-          // Update the output text node with the response (always update, even if empty)
-          const outputNode = graph.getNodeById(4);
-          if (outputNode) {
-            const responseText = String(llmResponse || "");
-            outputNode.setProperty("text", responseText);
-            // Also update metadata for serialization consistency
-            if (!outputNode.metadata) {
-              outputNode.metadata = {};
-            }
-            (outputNode.metadata as any).text = responseText;
-            // Update widget value if it exists
-            const widgets = (outputNode as any).widgets as any[];
-            if (widgets) {
-              const widget = widgets.find((w: any) => w.name === "text");
-              if (widget) {
-                widget.value = responseText;
-              }
-            }
-            // Force canvas redraw
-            const canvas = (window as any).__obeliskCanvas;
-            if (canvas) {
-              canvas.dirty_canvas = true;
-              canvas.draw(true);
-            }
-          }
-          return;
-        }
-      } catch (apiError) {
-        console.log("API not available, using simulation:", apiError);
-      }
-
-      // Fallback: simulate execution for testing
-      const outputNode = graph.getNodeById(4);
-      if (outputNode) {
-        const simulatedResponse = `[Simulated] Response to: "${userQuery}"\n\nThis is a simulated response. The backend API is not yet connected.`;
-        const responseText = String(simulatedResponse || "");
-        outputNode.setProperty("text", responseText);
-        // Also update metadata for serialization consistency
-        if (!outputNode.metadata) {
-          outputNode.metadata = {};
-        }
-        (outputNode.metadata as any).text = responseText;
-        // Update widget value if it exists
-        const widgets = (outputNode as any).widgets as any[];
-        if (widgets) {
-          const widget = widgets.find((w: any) => w.name === "text");
-          if (widget) {
-            widget.value = responseText;
-          }
-        }
-        // Force canvas redraw
+      // Update node outputs with results from backend
+      if (result.results) {
+        updateNodeOutputs(graph, result.results);
+        
+        // Force canvas redraw to show updated outputs
         const canvas = (window as any).__obeliskCanvas;
         if (canvas) {
           canvas.dirty_canvas = true;
           canvas.draw(true);
         }
       }
+
+      console.log("Workflow execution completed:", result.status);
     } catch (error) {
       console.error("Failed to execute workflow:", error);
+      alert(`Execution error: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 

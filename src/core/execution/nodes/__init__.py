@@ -7,6 +7,7 @@ from .sampler import SamplerNode
 from .output_text import OutputTextNode
 from .memory_adapter import MemoryAdapterNode
 from .lora_loader import LoRALoaderNode
+from .text import TextNode
 
 __all__ = [
     'InputPromptNode',
@@ -15,4 +16,5 @@ __all__ = [
     'OutputTextNode',
     'MemoryAdapterNode',
     'LoRALoaderNode',
+    'TextNode',
 ]

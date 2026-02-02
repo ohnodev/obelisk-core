@@ -43,6 +43,7 @@ def _register_all_nodes():
     from .nodes.output_text import OutputTextNode
     from .nodes.memory_adapter import MemoryAdapterNode
     from .nodes.lora_loader import LoRALoaderNode
+    from .nodes.text import TextNode
     
     register_node("input_prompt", InputPromptNode)
     register_node("model_loader", ModelLoaderNode)
@@ -50,6 +51,7 @@ def _register_all_nodes():
     register_node("output_text", OutputTextNode)
     register_node("memory_adapter", MemoryAdapterNode)
     register_node("lora_loader", LoRALoaderNode)
+    register_node("text", TextNode)
 
 
 # Auto-register on import
