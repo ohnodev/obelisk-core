@@ -9,9 +9,23 @@ import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
 import "@/components/nodes"; // Register all node types
 
 // Load default workflow from JSON file
-import defaultWorkflowData from "../workflows/chat.json";
+// Use dynamic import to handle JSON files in Next.js
+let DEFAULT_WORKFLOW: WorkflowGraph;
 
-const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
+try {
+  // In Next.js, we can import JSON directly
+  const defaultWorkflowData = require("../workflows/chat.json");
+  DEFAULT_WORKFLOW = defaultWorkflowData as WorkflowGraph;
+} catch (error) {
+  // Fallback workflow if JSON can't be loaded
+  console.warn("Could not load workflow from JSON, using fallback:", error);
+  DEFAULT_WORKFLOW = {
+    id: "obelisk-chat-workflow",
+    name: "Basic Chat Workflow",
+    nodes: [],
+    connections: [],
+  };
+}
 
 // Deep compare two workflow objects
 function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
