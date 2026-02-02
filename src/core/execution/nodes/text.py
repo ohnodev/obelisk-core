@@ -21,16 +21,34 @@ class TextNode(BaseNode):
     """
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
-        """Execute text node"""
-        # Check if input is connected
+        """
+        Execute text node
+        
+        Priority order:
+        1. Connected input value (from another node's output)
+        2. Direct input value (from self.inputs['text'])
+        3. Metadata property (from self.metadata['text'] - matches frontend node.properties)
+        
+        The frontend TextNode stores text in node.properties.text, which serializes
+        to metadata.text in the workflow JSON. This is separate from inputs, which
+        are for connected values or direct input assignments.
+        """
+        # 1. Check if input is connected (resolves from other nodes)
         input_text = self.get_input_value('text', context, None)
         
-        # If input is connected, use it; otherwise use property
         if input_text is not None:
+            # Input is connected - use the connected value
             text_value = str(input_text)
         else:
-            # Use text property from node inputs/metadata
-            text_value = str(self.inputs.get('text', ''))
+            # 2. Check direct input value (self.inputs['text'])
+            if 'text' in self.inputs:
+                text_value = str(self.inputs['text'])
+            # 3. Fallback to metadata (matches frontend node.properties.text)
+            elif 'text' in self.metadata:
+                text_value = str(self.metadata['text'])
+            else:
+                # Default empty string
+                text_value = ''
         
         return {
             'text': text_value
