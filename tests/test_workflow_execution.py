@@ -47,7 +47,7 @@ def test_workflow_execution(workflow: dict, workflow_name: str) -> bool:
         response.raise_for_status()
         
         result = response.json()
-        print(f"✅ Request successful!")
+        print("✅ Request successful!")
         print(f"📊 Status: {result.get('status')}")
         print()
 
