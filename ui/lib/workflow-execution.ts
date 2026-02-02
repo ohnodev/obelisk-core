@@ -154,15 +154,35 @@ export function updateNodeOutputs(
         // Also update properties if this is a property-based output
         // (e.g., text nodes store output in properties)
         if (outputName === "text" || outputName === "output") {
-          node.setProperty(outputName, outputValue);
+          // Convert output value to string and ensure it's properly formatted
+          const textValue = String(outputValue || "");
+          
+          node.setProperty(outputName, textValue);
           
           // Update widget if it exists
           const widgets = (node as any).widgets as any[];
           if (widgets) {
             const widget = widgets.find((w: any) => w.name === outputName);
             if (widget) {
-              widget.value = outputValue;
+              widget.value = textValue;
+              
+              // Trigger widget update callback if it exists
+              if (widget.callback) {
+                widget.callback(textValue, widget, node, [0, 0], null);
+              }
             }
+          }
+          
+          // Trigger property changed handler to sync widget
+          if (node.onPropertyChanged) {
+            node.onPropertyChanged(outputName, textValue);
+          }
+          
+          // Force canvas redraw
+          const canvas = (window as any).__obeliskCanvas;
+          if (canvas) {
+            canvas.dirty_canvas = true;
+            canvas.draw(true);
           }
         }
       }
