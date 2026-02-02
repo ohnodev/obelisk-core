@@ -123,8 +123,18 @@ export function updateNodeOutputs(
   if (!results || !graph) return;
 
   for (const [nodeId, nodeResult] of Object.entries(results)) {
-    const node = graph.getNodeById(parseInt(nodeId, 10));
-    if (!node) continue;
+    // Try to find node by raw string ID first (handles non-numeric IDs like "text-1" or UUIDs)
+    let node = graph.getNodeById(nodeId as any);
+    
+    // Fallback: if not found and ID looks numeric, try parsing as number
+    if (!node && /^\d+$/.test(nodeId)) {
+      node = graph.getNodeById(parseInt(nodeId, 10) as any);
+    }
+    
+    if (!node) {
+      console.warn(`Node ${nodeId} not found in graph`);
+      continue;
+    }
 
     // Update node outputs
     if (nodeResult.outputs) {
