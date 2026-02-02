@@ -42,10 +42,22 @@ class TextNode(BaseNode):
         else:
             # 2. Check direct input value (self.inputs['text'])
             if 'text' in self.inputs:
-                text_value = str(self.inputs['text'])
+                raw_value = self.inputs['text']
+                # Resolve template variables (e.g., "{{user_query}}")
+                if isinstance(raw_value, str) and raw_value.startswith('{{') and raw_value.endswith('}}'):
+                    var_name = raw_value[2:-2].strip()
+                    text_value = str(context.variables.get(var_name, raw_value))
+                else:
+                    text_value = str(raw_value)
             # 3. Fallback to metadata (matches frontend node.properties.text)
             elif 'text' in self.metadata:
-                text_value = str(self.metadata['text'])
+                raw_value = self.metadata['text']
+                # Resolve template variables (e.g., "{{user_query}}")
+                if isinstance(raw_value, str) and raw_value.startswith('{{') and raw_value.endswith('}}'):
+                    var_name = raw_value[2:-2].strip()
+                    text_value = str(context.variables.get(var_name, raw_value))
+                else:
+                    text_value = str(raw_value)
             else:
                 # Default empty string
                 text_value = ''
