@@ -91,33 +91,25 @@ export async function executeWorkflow(
 
 /**
  * Checks execution status (for long-running workflows)
- * Future: Use this for polling execution progress
+ * 
+ * TODO: This function is currently stubbed. The backend endpoint
+ * GET /api/v1/workflow/execute/{executionId} is not yet implemented.
+ * 
+ * To implement:
+ * 1. Add GET handler in src/api/routes.py: @router.get("/workflow/execute/{execution_id}")
+ * 2. Return ExecutionStatus matching POST /workflow/execute response shape
+ * 3. Store execution state in backend (e.g., in-memory cache or database)
+ * 
+ * Future: Use this for polling execution progress on long-running workflows
  */
 export async function getExecutionStatus(
   executionId: string,
   apiBaseUrl: string = "http://localhost:7779"
 ): Promise<ExecutionStatus> {
-  try {
-    const response = await fetch(
-      `${apiBaseUrl}/api/v1/workflow/execute/${executionId}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to get execution status"
-    );
-  }
+  // TODO: Implement backend endpoint GET /api/v1/workflow/execute/{executionId}
+  throw new Error(
+    `getExecutionStatus is not yet implemented. Backend endpoint GET /api/v1/workflow/execute/${executionId} needs to be added.`
+  );
 }
 
 /**

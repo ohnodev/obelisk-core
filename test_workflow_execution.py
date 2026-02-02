@@ -128,8 +128,9 @@ def test_workflow_execution(workflow: dict, workflow_name: str) -> bool:
             try:
                 error_json = e.response.json()
                 print(f"   Error details: {json.dumps(error_json, indent=2)}")
-            except:
-                pass
+            except json.JSONDecodeError as decode_err:
+                print(f"   ⚠️  Failed to parse error response as JSON: {decode_err}")
+                print(f"   Raw response text: {e.response.text[:500] if hasattr(e.response, 'text') else 'N/A'}")
         return False
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
