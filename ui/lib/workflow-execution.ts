@@ -159,6 +159,9 @@ export function updateNodeOutputs(
           
           node.setProperty(outputName, textValue);
           
+          // Get canvas instance for widget callbacks
+          const canvas = (window as any).__obeliskCanvas;
+          
           // Update widget if it exists
           const widgets = (node as any).widgets as any[];
           if (widgets) {
@@ -167,8 +170,13 @@ export function updateNodeOutputs(
               widget.value = textValue;
               
               // Trigger widget update callback if it exists
-              if (widget.callback) {
-                widget.callback(textValue, widget, node, [0, 0], null);
+              // Callback signature: (value, canvasInstance, node, pos, event)
+              // Since we're programmatically updating after execution, we don't have
+              // real pos/event, but we pass the canvas instance correctly
+              if (widget.callback && canvas) {
+                // Use node position as pos, no event for programmatic updates
+                const nodePos = node.pos || [0, 0];
+                widget.callback(textValue, canvas, node, nodePos, null);
               }
             }
           }
@@ -179,7 +187,6 @@ export function updateNodeOutputs(
           }
           
           // Force canvas redraw
-          const canvas = (window as any).__obeliskCanvas;
           if (canvas) {
             canvas.dirty_canvas = true;
             canvas.draw(true);
