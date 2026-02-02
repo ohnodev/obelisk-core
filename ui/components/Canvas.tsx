@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
-import WidgetOverlay from "./WidgetOverlay";
 // LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {

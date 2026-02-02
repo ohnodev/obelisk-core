@@ -9899,8 +9899,16 @@ LGraphNode.prototype.executeAction = function(action)
 				ctx.globalAlpha *= 0.5;
 			var widget_width = w.width || width;
 
-            // Skip canvas rendering for React widgets (textarea, react)
-            if (w.type === "textarea" || w.type === "react") {
+            // Handle textarea widgets - render on canvas (not skipping)
+            if (w.type === "textarea") {
+                // Render textarea widget on canvas using the patched drawNodeWidgets
+                // The textarea-widget.js patch handles the actual rendering
+                // Just continue to let the patched method handle it
+                continue;
+            }
+            
+            // Skip canvas rendering for React widgets (react type only)
+            if (w.type === "react") {
                 // Store position for React rendering
                 var padding = 10;
                 var titleHeight = LiteGraph.NODE_TITLE_HEIGHT;
