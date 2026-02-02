@@ -155,7 +155,8 @@ export function updateNodeOutputs(
         // (e.g., text nodes store output in properties)
         if (outputName === "text" || outputName === "output") {
           // Convert output value to string and ensure it's properly formatted
-          const textValue = String(outputValue || "");
+          // Use nullish coalescing to preserve falsy values like 0 and false
+          const textValue = String(outputValue ?? "");
           
           node.setProperty(outputName, textValue);
           
