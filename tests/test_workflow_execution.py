@@ -10,7 +10,9 @@ import os
 
 # Get the directory where this script is located
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-WORKFLOWS_DIR = os.path.join(SCRIPT_DIR, "ui", "workflows")
+# Go up one level to repo root, then into ui/workflows
+REPO_ROOT = os.path.dirname(SCRIPT_DIR)
+WORKFLOWS_DIR = os.path.join(REPO_ROOT, "ui", "workflows")
 
 API_BASE_URL = "http://localhost:7779"
 
