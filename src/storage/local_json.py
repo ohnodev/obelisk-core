@@ -111,9 +111,13 @@ class LocalJSONStorage(StorageInterface):
         
         interactions.append(interaction)
         
+        logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query='{query[:50]}...', total_interactions={len(interactions)}")
+        
         with open(user_file, 'w') as f:
             json.dump(interactions, f, indent=2)
         os.chmod(user_file, 0o600)  # User read/write only
+        
+        logger.debug(f"[LocalJSONStorage] Successfully saved interaction {interaction_id} to {user_file}")
         
         # If cycle_id provided, also save to cycle file
         if cycle_id:
@@ -272,14 +276,20 @@ class LocalJSONStorage(StorageInterface):
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's own interactions (for solo mode)"""
         user_file = self._get_user_file(user_id)
+        logger.debug(f"[LocalJSONStorage] Loading interactions for user_id={user_id}, file={user_file}, exists={user_file.exists()}")
+        
         if not user_file.exists():
+            logger.debug(f"[LocalJSONStorage] User file does not exist: {user_file}")
             return []
         
         try:
             with open(user_file, 'r') as f:
                 interactions = json.load(f)
+                logger.debug(f"[LocalJSONStorage] Loaded {len(interactions)} interactions from {user_file}")
                 if limit:
-                    return interactions[-limit:]
+                    limited = interactions[-limit:]
+                    logger.debug(f"[LocalJSONStorage] Returning last {len(limited)} interactions (limit={limit})")
+                    return limited
                 return interactions
         except Exception as e:
             logger.error(f"Error loading user interactions: {e}")

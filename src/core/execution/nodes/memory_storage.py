@@ -51,16 +51,24 @@ class MemoryStorageNode(BaseNode):
         # Normalize path (resolve to absolute)
         storage_path = str(Path(storage_path).resolve())
         
+        # DEBUG: Log storage path
+        from ...utils.logger import get_logger
+        logger = get_logger(__name__)
+        logger.debug(f"[MemoryStorage] Using storage_path={storage_path}, storage_type={storage_type}")
+        
         # Check cache first
         if storage_path in self._storage_cache:
+            logger.debug(f"[MemoryStorage] Using cached storage instance for path={storage_path}")
             return {
                 'storage_instance': self._storage_cache[storage_path]
             }
         
         # Create new storage instance
+        logger.debug(f"[MemoryStorage] Creating new storage instance for path={storage_path}")
         if storage_type == 'local_json':
             from src.storage.local_json import LocalJSONStorage
             storage_instance = LocalJSONStorage(storage_path=storage_path)
+            logger.debug(f"[MemoryStorage] Created LocalJSONStorage: base_path={storage_instance.base_path}, interactions_path={storage_instance.interactions_path}")
         elif storage_type == 'supabase':
             from src.storage.supabase import SupabaseStorage
             # For Supabase, we need URL and key from config or inputs
