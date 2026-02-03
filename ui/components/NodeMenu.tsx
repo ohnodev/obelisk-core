@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import {
   useFloating,
@@ -94,48 +94,47 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   
-  // Create a virtual reference element at the click position
-  // Memoize it so it updates when x/y changes
-  const virtualReference = useMemo(() => ({
-    getBoundingClientRect: () => ({
-      x,
-      y,
-      width: 0,
-      height: 0,
-      top: y,
-      left: x,
-      right: x,
-      bottom: y,
-    }),
-  }), [x, y]);
-
-  // Use Floating UI for smart positioning
+  // Use Floating UI for smart positioning with virtual reference
   const { refs, floatingStyles } = useFloating({
-    elements: {
-      reference: virtualReference as any,
-    },
     open: visible,
     placement: "bottom-start" as Placement,
     middleware: [
       offset(8), // 8px gap from click position
       flip({
         fallbackAxisSideDirection: "start",
-        padding: 8, // Keep 8px from viewport edges
+        padding: { top: 60, bottom: 8, left: 8, right: 8 }, // Account for toolbar height
       }),
       shift({
-        padding: 8, // Keep 8px from viewport edges
+        padding: { top: 60, bottom: 8, left: 8, right: 8 }, // Account for toolbar height
       }),
       size({
-        apply({ availableWidth, availableHeight, elements }) {
-          // Constrain menu size to available space
-          elements.floating.style.maxWidth = `${availableWidth}px`;
-          elements.floating.style.maxHeight = `${availableHeight}px`;
+        apply({ availableWidth, elements }) {
+          // Only constrain width, not height - we want a fixed small height
+          elements.floating.style.maxWidth = `${Math.min(availableWidth, 280)}px`;
         },
         padding: 8,
       }),
     ],
     whileElementsMounted: autoUpdate,
   });
+
+  // Set virtual reference position using setPositionReference
+  useEffect(() => {
+    if (visible) {
+      refs.setPositionReference({
+        getBoundingClientRect: () => ({
+          x,
+          y,
+          width: 0,
+          height: 0,
+          top: y,
+          left: x,
+          right: x,
+          bottom: y,
+        }),
+      });
+    }
+  }, [visible, x, y, refs]);
 
   // Filter nodes based on search query
   const filteredCategories = NODE_CATEGORIES.map((category) => ({
@@ -152,7 +151,21 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
   useEffect(() => {
     if (!visible) return;
 
+    // Add a small delay to prevent immediate closing when right-click releases
+    const openTime = Date.now();
+    const IGNORE_CLICKS_MS = 100; // Ignore clicks within 100ms of opening
+
     const handleClickOutside = (event: MouseEvent) => {
+      // Ignore right mouse button releases (button 2) - these are from the contextmenu trigger
+      if (event.button === 2) {
+        return;
+      }
+      
+      // Ignore clicks that happen too soon after opening (from mouse release)
+      if (Date.now() - openTime < IGNORE_CLICKS_MS) {
+        return;
+      }
+
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
@@ -166,13 +179,17 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
       }
     };
 
-    // Use both mousedown and click for better compatibility
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("click", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
+    // Use mouseup instead of mousedown to avoid catching the release of right-click
+    // Also use a small delay to ensure the menu is fully rendered
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mouseup", handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    }, IGNORE_CLICKS_MS);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      clearTimeout(timeoutId);
+      document.removeEventListener("mouseup", handleClickOutside);
       document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
@@ -192,15 +209,16 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
         refs.setFloating(node);
       }}
       style={{
-        position: "fixed",
         ...floatingStyles,
-        width: "320px",
-        maxHeight: "500px",
+        position: "fixed",
+        width: "280px",
+        height: "400px",
+        maxHeight: "400px",
         background: "var(--color-bg-card)",
         border: "1px solid var(--color-border-primary)",
         borderRadius: "6px",
         boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)",
-        zIndex: 1000,
+        zIndex: 10000,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",

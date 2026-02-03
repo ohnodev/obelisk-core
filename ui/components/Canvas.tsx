@@ -212,22 +212,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
     canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
-    
-    // Prevent LiteGraph's default double-click behavior (widget editor)
-    // Override processNodeDblClicked to prevent widget popover
-    if (graphCanvas && (graphCanvas as any).processNodeDblClicked) {
-      const originalProcessNodeDblClicked = (graphCanvas as any).processNodeDblClicked.bind(graphCanvas);
-      (graphCanvas as any).processNodeDblClicked = function(node: any) {
-        // Don't call the original - this prevents the widget editor from opening
-        // The canvas-level dblclick handler will show our custom menu instead
-        return;
-      };
-    }
-    
-    // Also override the graph's onNodeDblClicked callback if it exists
-    if (graph && (graph as any).onNodeDblClicked) {
-      (graph as any).onNodeDblClicked = null; // Disable the callback
-    }
 
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
@@ -368,7 +352,16 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
   return (
     <>
-      <div className="canvas-container hide-scrollbar" style={{ width: "100%", height: "100%", position: "relative" }} aria-label="Workflow canvas">
+      <div 
+        className="canvas-container hide-scrollbar" 
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          position: "relative",
+          overflow: "hidden",
+        }} 
+        aria-label="Workflow canvas"
+      >
         <canvas
           ref={canvasRef}
           style={{

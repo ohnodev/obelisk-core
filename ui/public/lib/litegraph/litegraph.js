@@ -6195,7 +6195,8 @@ LGraphNode.prototype.executeAction = function(action)
                         if (node.onDblClick) {
                             node.onDblClick( e, pos, this );
                         }
-                        this.processNodeDblClicked(node);
+                        // DISABLED: Widget editor disabled - custom node menu used instead
+                        // this.processNodeDblClicked(node);
                         block_drag_node = true;
                     }
 
@@ -7465,19 +7466,9 @@ LGraphNode.prototype.executeAction = function(action)
     };
 
     LGraphCanvas.prototype.processNodeDblClicked = function(n) {
-        if (this.onShowNodePanel) {
-            this.onShowNodePanel(n);
-        }
-		else
-		{
-			this.showShowNodePanel(n);
-		}
-
-        if (this.onNodeDblClicked) {
-            this.onNodeDblClicked(n);
-        }
-
-        this.setDirty(true);
+        // DISABLED: Widget editor popover disabled - use custom node menu instead
+        // Do nothing - prevent default widget editor from opening
+        return;
     };
 
     LGraphCanvas.prototype.processNodeSelected = function(node, e) {
@@ -12651,8 +12642,9 @@ LGraphNode.prototype.executeAction = function(action)
     
     LGraphCanvas.prototype.showShowNodePanel = function( node )
 	{
-		this.SELECTED_NODE = node;
-		this.closePanels();
+		// DISABLED: Widget editor popover disabled - use custom node menu instead
+		// Do nothing - prevent default widget editor from opening
+		return;
 		var ref_window = this.getCanvasWindow();
         var that = this;
 		var graphcanvas = this;
