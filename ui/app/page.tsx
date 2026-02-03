@@ -8,8 +8,8 @@ import { serializeGraph } from "@/lib/litegraph";
 import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
 import "@/components/nodes"; // Register all node types
 
-// Load default workflow from JSON file
-import defaultWorkflowData from "../workflows/chat.json";
+// Load default workflow from JSON file - using chained inference example
+import defaultWorkflowData from "../workflows/chain-example.json";
 
 const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
 
