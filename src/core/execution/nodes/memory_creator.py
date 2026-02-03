@@ -202,6 +202,7 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
                 cycle_id = None
         
         # Save interaction to storage
+        logger.debug(f"[MemoryCreator] Saving interaction for user_id={user_id}: query='{str(query)[:50]}...', response='{str(response)[:50]}...'")
         storage_instance.save_interaction(
             user_id=str(user_id),
             query=str(query),
@@ -210,6 +211,7 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
             energy=float(energy),
             quantum_seed=float(quantum_seed)
         )
+        logger.debug(f"[MemoryCreator] Interaction saved successfully for user_id={user_id}")
         
         # Add to recent conversation buffer
         buffer_manager = self._get_buffer_manager(storage_instance, int(k))

@@ -61,6 +61,15 @@ class RecentBufferManager:
         load_limit = limit if limit is not None else self.k * 2
         interactions = storage.get_user_interactions(user_id, limit=load_limit)
         
+        # DEBUG: Log what we're loading
+        logger.debug(f"[BufferManager] Loading {len(interactions)} interactions for user_id={user_id}, limit={load_limit}")
+        if interactions:
+            logger.debug(f"[BufferManager] First interaction: query='{interactions[0].get('query', '')[:50]}...', response='{interactions[0].get('response', '')[:50]}...'")
+            if len(interactions) > 1:
+                logger.debug(f"[BufferManager] Last interaction: query='{interactions[-1].get('query', '')[:50]}...', response='{interactions[-1].get('response', '')[:50]}...'")
+        else:
+            logger.debug(f"[BufferManager] No interactions found for user_id={user_id}")
+        
         # Create or update buffer
         if user_id not in self.buffers:
             buffer = RecentConversationBuffer(k=self.k)
@@ -71,13 +80,20 @@ class RecentBufferManager:
             buffer = self.buffers[user_id]
         
         # Convert interactions to LangChain messages (most recent first)
+        message_count = 0
         for interaction in reversed(interactions):  # Reverse to get chronological order
             query = interaction.get('query', '')
             response = interaction.get('response', '')
             if query:
                 buffer.add_user_message(query)
+                message_count += 1
             if response:
                 buffer.add_ai_message(response)
+                message_count += 1
+        
+        logger.debug(f"[BufferManager] Added {message_count} messages to buffer for user_id={user_id}")
+        final_messages = buffer.get_messages()
+        logger.debug(f"[BufferManager] Buffer now contains {len(final_messages)} messages")
         
         return buffer
     

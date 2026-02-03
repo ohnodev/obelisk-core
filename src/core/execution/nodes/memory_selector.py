@@ -284,6 +284,8 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
             buffer = buffer_manager.get_buffer(str(user_id), storage_instance)
             messages = buffer.get_messages()
             
+            logger.debug(f"[MemorySelector] Buffer enabled: loaded {len(messages)} messages from buffer for user_id={user_id}")
+            
             for msg in messages:
                 if hasattr(msg, 'content'):
                     # Convert LangChain messages to Qwen3 format
@@ -292,14 +294,20 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
                             "role": "user",
                             "content": msg.content
                         })
+                        logger.debug(f"[MemorySelector] Added user message: {msg.content[:100]}...")
                     elif isinstance(msg, AIMessage):
                         conversation_messages.append({
                             "role": "assistant",
                             "content": msg.content
                         })
+                        logger.debug(f"[MemorySelector] Added assistant message: {msg.content[:100]}...")
+        else:
+            logger.debug(f"[MemorySelector] Buffer disabled for user_id={user_id}")
         
         # Load all summaries and use intelligent selection (always runs)
         all_summaries = self._load_all_summaries_from_storage(storage_instance, str(user_id), limit=30)
+        
+        logger.debug(f"[MemorySelector] Loaded {len(all_summaries)} summaries for user_id={user_id}")
         
         if all_summaries:
             # Use LLM to select relevant memories if we have multiple summaries
