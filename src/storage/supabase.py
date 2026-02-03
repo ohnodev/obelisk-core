@@ -60,7 +60,6 @@ class SupabaseStorage(StorageInterface):
                 'user_id': user_id,
                 'query': query,
                 'response': response,
-                'energy_generated': 0.0,  # Deprecated - kept for database compatibility
                 'quantum_seed': quantum_seed,
                 'reward_score': reward_score,
                 'evolution_cycle_id': cycle_id
@@ -203,21 +202,19 @@ class SupabaseStorage(StorageInterface):
             return {
                 'user_id': user_id,
                 'interaction_count': interaction_count,
-                'total_energy': 0.0,  # Deprecated - kept for compatibility
                 'average_quality': average_quality,
                 'quantum_alignment': normalized_quantum,
                 'total_score': min(max(total_score, 0), 1)
             }
         except Exception as e:
             logger.error(f"Error calculating reward score: {e}")
-            return {
-                'user_id': user_id,
-                'interaction_count': 0,
-                'total_energy': 0.0,  # Deprecated - kept for compatibility
-                'average_quality': 0,
-                'quantum_alignment': 0,
-                'total_score': 0
-            }
+                return {
+                    'user_id': user_id,
+                    'interaction_count': 0,
+                    'average_quality': 0,
+                    'quantum_alignment': 0,
+                    'total_score': 0
+                }
     
     def create_reward(
         self,
@@ -346,7 +343,6 @@ class SupabaseStorage(StorageInterface):
             result = self.client.table('activities').insert({
                 'type': activity_type,
                 'message': message,
-                'energy': 0.0,  # Deprecated - kept for database compatibility
                 'metadata': metadata or {}
             }).execute()
             return result.data[0] if result.data else {}

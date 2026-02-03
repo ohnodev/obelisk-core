@@ -302,7 +302,6 @@ class LocalJSONStorage(StorageInterface):
             return {
                 'user_id': user_id,
                 'interaction_count': 0,
-                'total_energy': 0.0,  # Deprecated - kept for compatibility
                 'average_quality': 0,
                 'quantum_alignment': 0,
                 'total_score': 0
@@ -326,7 +325,6 @@ class LocalJSONStorage(StorageInterface):
         return {
             'user_id': user_id,
             'interaction_count': interaction_count,
-            'total_energy': 0.0,  # Deprecated - kept for compatibility
             'average_quality': average_quality,
             'quantum_alignment': normalized_quantum,
             'total_score': min(max(total_score, 0), 1)
