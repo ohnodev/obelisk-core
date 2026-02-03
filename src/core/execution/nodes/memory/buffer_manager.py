@@ -56,26 +56,30 @@ class RecentBufferManager:
         Returns:
             RecentConversationBuffer instance with last k message pairs
         """
-        if user_id not in self.buffers:
-            # Load recent messages (last k*2 messages = k message pairs) for buffer
-            load_limit = limit if limit is not None else self.k * 2
-            interactions = storage.get_user_interactions(user_id, limit=load_limit)
-            
-            # Create buffer
-            buffer = RecentConversationBuffer(k=self.k)
-            
-            # Convert interactions to LangChain messages (most recent first)
-            for interaction in reversed(interactions):  # Reverse to get chronological order
-                query = interaction.get('query', '')
-                response = interaction.get('response', '')
-                if query:
-                    buffer.add_user_message(query)
-                if response:
-                    buffer.add_ai_message(response)
-            
-            self.buffers[user_id] = buffer
+        # Always reload from storage to ensure we have the latest interactions
+        # This ensures that interactions saved in previous workflow executions are loaded
+        load_limit = limit if limit is not None else self.k * 2
+        interactions = storage.get_user_interactions(user_id, limit=load_limit)
         
-        return self.buffers[user_id]
+        # Create or update buffer
+        if user_id not in self.buffers:
+            buffer = RecentConversationBuffer(k=self.k)
+            self.buffers[user_id] = buffer
+        else:
+            # Clear existing buffer to reload fresh data
+            self.buffers[user_id].clear()
+            buffer = self.buffers[user_id]
+        
+        # Convert interactions to LangChain messages (most recent first)
+        for interaction in reversed(interactions):  # Reverse to get chronological order
+            query = interaction.get('query', '')
+            response = interaction.get('response', '')
+            if query:
+                buffer.add_user_message(query)
+            if response:
+                buffer.add_ai_message(response)
+        
+        return buffer
     
     def clear_buffer(self, user_id: str):
         """Clear recent conversation buffer for a user"""
