@@ -39,7 +39,6 @@ class MemoryCreatorNode(BaseNode):
         summarize_threshold: Number of interactions before summarizing (optional, default: 3)
         previous_interactions: List of previous interactions for summarization (optional, required for summarization to work)
         cycle_id: Evolution cycle ID (optional)
-        energy: Energy value (optional, default: 0.0)
         quantum_seed: Quantum seed value (optional, default: 0.7)
         k: Number of recent message pairs to keep in buffer (optional, default: 10)
     
@@ -171,7 +170,6 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
             logger.warning(f"[MemoryCreator] Invalid summarize_threshold value ({summarize_threshold_raw}), defaulting to 3")
             summarize_threshold = 3
         cycle_id = self.get_input_value('cycle_id', context, None)
-        energy = self.get_input_value('energy', context, 0.0)
         quantum_seed = self.get_input_value('quantum_seed', context, 0.7)
         k = self.get_input_value('k', context, 10)
         
@@ -222,7 +220,7 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
             query=str(query),
             response=str(response),
             cycle_id=cycle_id,
-            energy=float(energy),
+            energy=0.0,  # Not used - kept for storage interface compatibility
             quantum_seed=float(quantum_seed)
         )
         logger.debug(f"[MemoryCreator] Interaction saved successfully for user_id={user_id}")
