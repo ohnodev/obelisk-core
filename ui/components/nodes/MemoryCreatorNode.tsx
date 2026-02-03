@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class MemoryCreatorNode extends LGraphNode {
   static title = "Memory Creator";
-  static desc = "Creates and saves memory data (interactions, summaries) to storage";
+  static desc = "Creates and persists memory data (interactions, summaries) to storage. Automatically saves interactions and generates summaries when threshold is reached.";
   static title_color = "#bb9af7";
 
   constructor() {

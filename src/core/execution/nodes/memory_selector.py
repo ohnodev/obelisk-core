@@ -283,10 +283,27 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
             else:
                 raise ValueError("llm is required for MemorySelectorNode. Connect a ModelLoaderNode or provide llm input.")
         
+        # Validate and convert k parameter
+        try:
+            if isinstance(k, (int, float)):
+                k_int = int(k)
+            elif isinstance(k, str):
+                k_int = int(float(k))  # Handle "10.0" -> 10
+            else:
+                raise TypeError(f"k must be numeric, got {type(k).__name__}")
+            
+            if k_int < 1:
+                raise ValueError(f"k must be >= 1, got {k_int}")
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid k value for MemorySelectorNode (node_id={self.node_id}, storage_instance={id(storage_instance)}): "
+                f"k={repr(k)} ({type(k).__name__}). k must be a positive integer. Error: {e}"
+            ) from e
+        
         # Agent logic is embedded in _select_relevant_memories method
         
-        # Get buffer manager (shared per storage instance)
-        buffer_manager = self._get_buffer_manager(storage_instance, int(k))
+        # Get buffer manager (shared per storage instance and k value)
+        buffer_manager = self._get_buffer_manager(storage_instance, k_int)
         
         # Get conversation context
         conversation_messages = []

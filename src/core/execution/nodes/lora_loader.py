@@ -14,12 +14,12 @@ class LoRALoaderNode(BaseNode):
     Applies LoRA weights to the model if enabled
     
     LoRA loading is handled entirely by this node - model loading is separate.
+    Loads the latest LoRA weights from storage if available.
     
     Inputs:
         model: ObeliskLLM instance from ModelLoaderNode (required)
         storage_instance: StorageInterface instance (optional, only needed if loading LoRA weights)
         lora_enabled: Whether to apply LoRA weights (default: True)
-        lora_path: Path to LoRA weights (optional, defaults to latest in storage)
     
     Outputs:
         model: Model with LoRA applied (or original if disabled/not found)
@@ -30,7 +30,6 @@ class LoRALoaderNode(BaseNode):
         model = self.get_input_value('model', context)
         storage_instance = self.get_input_value('storage_instance', context, None)
         lora_enabled = self.get_input_value('lora_enabled', context, True)
-        lora_path = self.get_input_value('lora_path', context, None)
         
         if model is None:
             raise ValueError("model is required for LoRALoaderNode. Connect a ModelLoaderNode first.")
