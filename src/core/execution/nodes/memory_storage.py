@@ -5,6 +5,9 @@ Creates/accesses storage instances based on storage path
 from typing import Dict, Any, Optional
 from pathlib import Path
 from ..node_base import BaseNode, ExecutionContext
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class MemoryStorageNode(BaseNode):
@@ -52,8 +55,6 @@ class MemoryStorageNode(BaseNode):
         storage_path = str(Path(storage_path).resolve())
         
         # DEBUG: Log storage path
-        from ...utils.logger import get_logger
-        logger = get_logger(__name__)
         logger.debug(f"[MemoryStorage] Using storage_path={storage_path}, storage_type={storage_type}")
         
         # Check cache first
