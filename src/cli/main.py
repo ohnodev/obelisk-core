@@ -102,9 +102,9 @@ def chat(mode):
         with open(workflow_path, 'r') as f:
             workflow = json.load(f)
         
-        # Initialize buffer for CLI user on startup (avoids delay on first message)
+        # Buffer initialization is handled by workflow nodes (MemorySelectorNode, MemoryCreatorNode)
+        # No need to manually initialize - workflow execution will handle it
         user_id = "cli_user"
-        container.buffer_manager.get_buffer(user_id, container.storage)  # Initialize buffer and load recent interactions
     
     console.print("[bold green]✓[/bold green] [bold]The Overseer is ready[/bold]")
     console.print()
@@ -181,42 +181,8 @@ def chat(mode):
             ))
             console.print()
             
-            # Add to memory (handles storage internally)
-            # Check if summarization will occur (every N interactions)
-            # Use the cached count from memory_creator instead of reading from disk
-            # Get the current count from the creator's cache
-            current_count = container.memory_creator.interaction_counts.get(user_id, 0)
-            
-            # Check if this interaction will trigger summarization
-            # After adding this interaction, the count will be current_count + 1
-            # Summarization triggers when (current_count + 1) % summarize_threshold == 0
-            will_summarize = (current_count + 1) > 0 and (current_count + 1) % container.memory_creator.summarize_threshold == 0
-            
-            if will_summarize:
-                # Show spinner only when summarization will occur
-                console.print()  # Add blank line for spacing
-                with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory and summarizing...[/bold]", spinner="dots"):
-                    container.memory_creator.add_interaction(
-                        user_id=user_id,
-                        query=query,
-                        response=response,
-                        cycle_id=None,
-                        energy=0.0,
-                        quantum_seed=0.7,
-                        reward_score=0.0
-                    )
-                console.print()  # Add blank line after operation completes
-            else:
-                # Normal save - fast, no spinner needed
-                container.memory_creator.add_interaction(
-                    user_id=user_id,
-                    query=query,
-                    response=response,
-                    cycle_id=None,
-                    energy=0.0,
-                    quantum_seed=0.7,
-                    reward_score=0.0
-                )
+            # Memory creation is handled by the workflow's MemoryCreatorNode
+            # No need to manually add interactions - the workflow execution already did it
             
         except KeyboardInterrupt:
             console.print()

@@ -156,8 +156,18 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
         user_id = self.get_input_value('user_id', context, None)
         # Accept both 'model' (from ModelLoaderNode) and 'llm' (legacy/direct)
         llm = self.get_input_value('model', context, None) or self.get_input_value('llm', context, None)
-        summarize_threshold = self.get_input_value('summarize_threshold', context, 3)
+        summarize_threshold_raw = self.get_input_value('summarize_threshold', context, 3)
         previous_interactions = self.get_input_value('previous_interactions', context, None)
+        
+        # Validate and normalize summarize_threshold: ensure it's >= 1 to prevent ZeroDivisionError
+        try:
+            summarize_threshold = int(summarize_threshold_raw)
+            if summarize_threshold < 1:
+                logger.warning(f"[MemoryCreator] summarize_threshold ({summarize_threshold}) is less than 1, defaulting to 3")
+                summarize_threshold = 3
+        except (ValueError, TypeError):
+            logger.warning(f"[MemoryCreator] Invalid summarize_threshold value ({summarize_threshold_raw}), defaulting to 3")
+            summarize_threshold = 3
         cycle_id = self.get_input_value('cycle_id', context, None)
         energy = self.get_input_value('energy', context, 0.0)
         quantum_seed = self.get_input_value('quantum_seed', context, 0.7)
@@ -226,7 +236,8 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
         interaction_count = self._get_interaction_count(storage_instance, str(user_id))
         
         # Check if we should summarize (every N interactions)
-        should_summarize = interaction_count > 0 and interaction_count % int(summarize_threshold) == 0
+        # summarize_threshold is already validated and cast to int above
+        should_summarize = interaction_count > 0 and interaction_count % summarize_threshold == 0
         
         # Create and save summary if threshold reached
         if should_summarize and previous_interactions:
