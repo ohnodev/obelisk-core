@@ -128,18 +128,23 @@
                     var maxLines = Math.max(0, Math.floor(textareaHeight / lineHeight));
                     var maxLinesClamped = Math.max(1, maxLines);
                     
-                    // Draw wrapped lines
-                    for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
-                        ctx.fillText(
-                            wrappedLines[lineIdx],
-                            textareaX + 4,
-                            textareaY + 4 + (lineIdx * lineHeight)
-                        );
-                    }
-                    
-                    // Show ellipsis if text is truncated
-                    if (wrappedLines.length > maxLinesClamped) {
-                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
+                    // Hide text rendering if textarea element is focused
+                    if (w._textareaElement && document.activeElement === w._textareaElement) {
+                        // Don't draw text when editing
+                    } else {
+                        // Draw wrapped lines
+                        for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
+                            ctx.fillText(
+                                wrappedLines[lineIdx],
+                                textareaX + 4,
+                                textareaY + 4 + (lineIdx * lineHeight)
+                            );
+                        }
+                        
+                        // Show ellipsis if text is truncated
+                        if (wrappedLines.length > maxLinesClamped) {
+                            ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
+                        }
                     }
                 }
             }
