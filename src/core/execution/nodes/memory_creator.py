@@ -130,9 +130,10 @@ Example of correct JSON format:
 Now extract the memories from the conversation above. Return ONLY the JSON object, nothing else:"""
             
             # Generate summary using config parameters
+            # system_prompt sets the role, summary_prompt (as query) contains the detailed task instructions
             result = llm.generate(
                 query=summary_prompt,
-                system_prompt="You are a memory extraction system. Extract structured information from conversations and return only valid JSON.",
+                system_prompt="You are a memory extraction system. Your role is to analyze conversations and extract structured information as JSON. You must return ONLY valid JSON with no markdown, no explanations, and no text before or after the JSON object.",
                 quantum_influence=0.2,  # Lower influence for more consistent summaries
                 max_length=800,  # Allow enough tokens for complete JSON generation
                 conversation_history=None,
