@@ -16,15 +16,17 @@ class InferenceNode(BaseNode):
     Generates LLM response using the model
     
     Simple interface:
-    - system_prompt: System prompt (can include memories, user context, etc.)
-    - query: User query string
-    - model: ObeliskLLM instance (from ModelLoaderNode)
+    - system_prompt: System prompt from TextNode (required)
+    - query: User query string (required)
+    - model: ObeliskLLM instance from ModelLoaderNode (required)
+    - context: Conversation context from MemorySelectorNode (optional)
     - quantum_influence: Quantum influence value (default: 0.7)
     - max_length: Maximum response length (default: 1024)
     - enable_thinking: Whether to enable thinking mode (default: True)
     - conversation_history: Optional list of previous messages
     
     Outputs:
+        query: Original query (for use in memory creation, etc.)
         response: Generated response text
         result: Full LLMGenerationResult dict
     """
@@ -100,6 +102,10 @@ class InferenceNode(BaseNode):
         # Model is required - must be provided by ModelLoaderNode
         if model is None:
             raise ValueError("model is required for InferenceNode. Connect a ModelLoaderNode first.")
+        
+        # System prompt is required - must be provided by TextNode
+        if not system_prompt:
+            raise ValueError("system_prompt is required for InferenceNode. Connect a TextNode to system_prompt input.")
         
         # Generate response using the model
         result = model.generate(

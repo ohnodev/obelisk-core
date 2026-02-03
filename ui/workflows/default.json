@@ -40,7 +40,7 @@
       "type": "text",
       "position": {"x": 50, "y": 400},
       "metadata": {
-        "text": "You are The Obelisk, an advanced AI assistant."
+        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
       }
     },
     {

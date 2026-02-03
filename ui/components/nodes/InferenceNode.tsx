@@ -35,14 +35,16 @@ class InferenceNode extends LGraphNode {
   onExecute() {
     const query = this.getInputData(0);
     const model = this.getInputData(1);
-    const context = this.getInputData(2); // Get context from Memory Adapter
+    const systemPrompt = this.getInputData(2); // Get system prompt from TextNode
+    const context = this.getInputData(3); // Get context from Memory Selector
     const quantumInfluence = (this.properties as any)?.quantum_influence ?? 0.7;
     const maxLength = (this.properties as any)?.max_length ?? 1024;
 
-    // In a real implementation, this would call the LLM with memory context
+    // In a real implementation, this would call the LLM with system prompt and memory context
     // For now, we just pass through a placeholder
     const response = `[Inference: query="${query}", quantum=${quantumInfluence}, max_len=${maxLength}]`;
-    this.setOutputData(0, response);
+    this.setOutputData(0, query); // Output original query
+    this.setOutputData(1, response); // Output response
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
