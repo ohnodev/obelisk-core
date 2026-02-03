@@ -288,17 +288,18 @@
                             
                             // Calculate position on screen
                             var canvasRect = that.canvas.getBoundingClientRect();
-                            var nodeScreenX = node.pos[0] + textareaX;
-                            var nodeScreenY = node.pos[1] + textareaY;
                             
-                            // Account for canvas transform/scroll
-                            var transform = that.ds;
-                            var scale = transform.scale || 1;
-                            var offsetX = transform.offset ? transform.offset[0] : 0;
-                            var offsetY = transform.offset ? transform.offset[1] : 0;
+                            // Get canvas transform (zoom and pan)
+                            var scale = that.ds.scale || 1;
+                            var offsetX = that.ds.offset ? that.ds.offset[0] : 0;
+                            var offsetY = that.ds.offset ? that.ds.offset[1] : 0;
                             
-                            var screenX = canvasRect.left + (nodeScreenX * scale) + offsetX;
-                            var screenY = canvasRect.top + (nodeScreenY * scale) + offsetY;
+                            // Convert node position to screen coordinates
+                            var nodeScreenX = (node.pos[0] + textareaX) * scale + offsetX;
+                            var nodeScreenY = (node.pos[1] + textareaY) * scale + offsetY;
+                            
+                            var screenX = canvasRect.left + nodeScreenX;
+                            var screenY = canvasRect.top + nodeScreenY;
                             var screenWidth = textareaWidth * scale;
                             var screenHeight = textareaHeight * scale;
                             
@@ -367,16 +368,38 @@
                             
                             // Also handle clicks outside the editor
                             var handleOutsideClick = function(e) {
-                                if (!editor.contains(e.target)) {
+                                if (editor && !editor.contains(e.target)) {
                                     editor.blur();
+                                }
+                            };
+                            
+                            // Cleanup function
+                            var cleanup = function() {
+                                if (editor._outsideClickHandler) {
+                                    document.removeEventListener("mousedown", editor._outsideClickHandler);
+                                }
+                                if (editor.parentNode) {
+                                    editor.remove();
                                 }
                             };
                             
                             // Use setTimeout to avoid immediate blur from the click that opened it
                             setTimeout(function() {
-                                document.addEventListener("mousedown", handleOutsideClick);
-                                editor._outsideClickHandler = handleOutsideClick;
+                                if (editor && editor.parentNode) {
+                                    document.addEventListener("mousedown", handleOutsideClick);
+                                    editor._outsideClickHandler = handleOutsideClick;
+                                    editor._cleanup = cleanup;
+                                }
                             }, 100);
+                            
+                            // Cleanup on blur
+                            var originalBlur = handleBlur;
+                            handleBlur = function() {
+                                if (editor._cleanup) {
+                                    editor._cleanup();
+                                }
+                                originalBlur();
+                            };
                             
                             return w;
                         }
