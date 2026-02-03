@@ -349,49 +349,14 @@
                                 event.stopPropagation();
                             }
                             
-                            // Remove any existing textarea editor
-                            var existingEditor = document.getElementById("lg-textarea-editor");
-                            if (existingEditor) {
-                                existingEditor.remove();
+                            // Use the existing HTML textarea that's part of the widget
+                            if (w._htmlTextarea) {
+                                w._htmlTextarea.style.pointerEvents = "auto";
+                                w._htmlTextarea.style.opacity = "1";
+                                w._htmlTextarea.focus();
+                                w._htmlTextarea.select();
+                                return w;
                             }
-                            
-                            // Get canvas position
-                            var canvasRect = that.canvas.getBoundingClientRect();
-                            var scale = that.ds.scale || 1;
-                            var offsetX = that.ds.offset ? that.ds.offset[0] : 0;
-                            var offsetY = that.ds.offset ? that.ds.offset[1] : 0;
-                            
-                            // Simple positioning - just use the node's screen position
-                            var screenX = canvasRect.left + (node.pos[0] + textareaX) * scale + offsetX;
-                            var screenY = canvasRect.top + (node.pos[1] + textareaY) * scale + offsetY;
-                            
-                            // Create inline HTML textarea element - simple overlay
-                            var editor = document.createElement("textarea");
-                            editor.id = "lg-textarea-editor";
-                            editor.value = String(w.value || "");
-                            editor.style.position = "fixed";
-                            editor.style.left = screenX + "px";
-                            editor.style.top = screenY + "px";
-                            editor.style.width = (textareaWidth * scale) + "px";
-                            editor.style.height = (textareaHeight * scale) + "px";
-                            editor.style.zIndex = "10000";
-                            editor.style.border = "2px solid #d4af37";
-                            editor.style.borderRadius = "4px";
-                            editor.style.padding = "4px";
-                            editor.style.fontSize = "12px";
-                            editor.style.fontFamily = "Arial, sans-serif";
-                            editor.style.color = "#FFFFFF";
-                            editor.style.backgroundColor = "#1a1a1a";
-                            editor.style.resize = "none";
-                            editor.style.outline = "none";
-                            editor.style.boxSizing = "border-box";
-                            editor.style.overflow = "auto";
-                            editor.style.lineHeight = "14px";
-                            editor.style.margin = "0";
-                            
-                            document.body.appendChild(editor);
-                            editor.focus();
-                            editor.select();
                             
                             // Store reference to widget and node for cleanup
                             editor._widget = w;
