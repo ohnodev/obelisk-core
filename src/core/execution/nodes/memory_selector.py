@@ -346,10 +346,16 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
         
         memories_str = "\n".join(memories_parts) if memories_parts else ""
         
+        context_output = {
+            "messages": conversation_messages,
+            "memories": memories_str
+        }
+        
+        logger.debug(f"[MemorySelector] Final context for user_id={user_id}: {len(conversation_messages)} messages, {len(memories_str)} chars of memories")
+        if conversation_messages:
+            logger.debug(f"[MemorySelector] First message: {conversation_messages[0].get('role', 'unknown')} - {str(conversation_messages[0].get('content', ''))[:100]}...")
+        
         return {
             'query': str(query),  # Pass through original query for cleaner flow
-            'context': {
-                "messages": conversation_messages,
-                "memories": memories_str
-            }
+            'context': context_output
         }
