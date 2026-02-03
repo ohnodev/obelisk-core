@@ -239,6 +239,7 @@ class MemorySelectorNode(BaseNode):
         memories_str = "\n".join(memories_parts) if memories_parts else ""
         
         return {
+            'query': str(query),  # Pass through original query for cleaner flow
             'context': {
                 "messages": conversation_messages,
                 "memories": memories_str

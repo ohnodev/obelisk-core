@@ -16,6 +16,7 @@ class MemorySelectorNode extends LGraphNode {
     this.addInput("llm", "object");
     this.addInput("enable_recent_buffer", "boolean");
     this.addInput("k", "number");
+    this.addOutput("query", "string"); // Pass through original query for cleaner flow
     this.addOutput("context", "object"); // Output to Inference node's context input
     this.size = [240, 200];
     (this as any).type = "memory_selector";

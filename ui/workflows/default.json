@@ -81,8 +81,8 @@
       "to_input": "query"
     },
     {
-      "from": "1",
-      "from_output": "text",
+      "from": "3",
+      "from_output": "query",
       "to": "6",
       "to_input": "query"
     },
