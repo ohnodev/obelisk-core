@@ -120,13 +120,13 @@
       "from": "4",
       "from_output": "model",
       "to": "3",
-      "to_input": "model"
+      "to_input": "llm"
     },
     {
       "from": "4",
       "from_output": "model",
       "to": "8",
-      "to_input": "model"
+      "to_input": "llm"
     },
     {
       "from": "5",
