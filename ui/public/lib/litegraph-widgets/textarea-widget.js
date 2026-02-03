@@ -76,12 +76,13 @@
                         node.setProperty(w.options.property, htmlTextarea.value);
                     }
                     if (w.callback) {
-                        var canvasInstance = (window as any).__obeliskCanvas;
+                        var canvasInstance = window.__obeliskCanvas;
                         w.callback(htmlTextarea.value, canvasInstance, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], null);
                     }
                     if (node.graph) {
                         node.graph._version++;
                     }
+                    var canvasInstance = window.__obeliskCanvas;
                     if (canvasInstance) {
                         canvasInstance.dirty_canvas = true;
                         canvasInstance.draw(true);
@@ -92,7 +93,7 @@
                 htmlTextarea.addEventListener("blur", function() {
                     htmlTextarea.style.pointerEvents = "none";
                     htmlTextarea.style.opacity = "0";
-                    var canvasInstance = (window as any).__obeliskCanvas;
+                    var canvasInstance = window.__obeliskCanvas;
                     if (canvasInstance) {
                         canvasInstance.dirty_canvas = true;
                         canvasInstance.draw(true);
@@ -211,7 +212,7 @@
                     // Update HTML textarea position and size
                     if (w._htmlTextarea) {
                         var canvasRect = ctx.canvas.getBoundingClientRect();
-                        var canvasInstance = (window as any).__obeliskCanvas;
+                        var canvasInstance = window.__obeliskCanvas;
                         if (canvasInstance && canvasInstance.ds) {
                             var scale = canvasInstance.ds.scale || 1;
                             var offsetX = canvasInstance.ds.offset ? canvasInstance.ds.offset[0] : 0;
