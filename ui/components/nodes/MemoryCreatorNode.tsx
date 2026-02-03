@@ -31,17 +31,29 @@ class MemoryCreatorNode extends LGraphNode {
     this.addProperty("quantum_seed", 0.7, "number");
     
     // Add inline widgets
-    this.addWidget(
+    const user_id_widget = this.addWidget(
       "text" as any,
       "User ID",
       "",
       (value: string) => {
+        // Only allow editing if input is not connected
+        const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
+        if (user_id_input_index !== -1) {
+          const input = this.inputs[user_id_input_index];
+          const isConnected = !!(input as any).link;
+          if (isConnected) {
+            // Don't update property if input is connected
+            return;
+          }
+        }
         this.setProperty("user_id", value);
       },
       {
         serialize: true,
       } as any
     );
+    // Store reference to user_id widget for enabling/disabling
+    (this as any)._user_id_widget = user_id_widget;
     
     this.addWidget(
       "number" as any,
@@ -130,6 +142,50 @@ class MemoryCreatorNode extends LGraphNode {
       if (widget) {
         widget.value = value;
       }
+    }
+  }
+
+  onConnectionsChange(type: number, slot: number, isConnected: boolean, link: any, ioSlot: any) {
+    // Check if user_id input connection changed
+    const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
+    if (user_id_input_index !== -1 && slot === user_id_input_index) {
+      this.updateUserIDWidgetState();
+    }
+    // Call parent method if it exists
+    if (super.onConnectionsChange) {
+      super.onConnectionsChange(type, slot, isConnected, link, ioSlot);
+    }
+  }
+
+  updateUserIDWidgetState() {
+    // Check if user_id input is connected
+    const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
+    let isConnected = false;
+    if (user_id_input_index !== -1) {
+      const input = this.inputs[user_id_input_index];
+      // Check if input has a link (connection)
+      isConnected = !!(input as any).link || (this as any).graph?.getInputLinks?.(this, user_id_input_index)?.length > 0;
+    }
+    
+    // Update widget disabled state and visual appearance
+    const user_id_widget = (this as any)._user_id_widget;
+    if (user_id_widget) {
+      (user_id_widget as any).options = (user_id_widget as any).options || {};
+      (user_id_widget as any).options.disabled = isConnected;
+      // Store connection state for rendering
+      (user_id_widget as any)._connected = isConnected;
+      // Force redraw
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onAdded() {
+    // Check initial connection state when node is added
+    this.updateUserIDWidgetState();
+    if (super.onAdded) {
+      super.onAdded();
     }
   }
 

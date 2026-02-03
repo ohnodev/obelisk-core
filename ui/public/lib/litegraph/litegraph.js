@@ -6276,11 +6276,12 @@ LGraphNode.prototype.executeAction = function(action)
 						}
 					}
 
-					if (is_double_click && !this.read_only && this.allow_searchbox) {
-						this.showSearchBox(e);
-						e.preventDefault();
-						e.stopPropagation();
-					}
+					// DISABLED: Search box on double-click disabled - custom node menu used instead
+					// if (is_double_click && !this.read_only && this.allow_searchbox) {
+					// 	this.showSearchBox(e);
+					// 	e.preventDefault();
+					// 	e.stopPropagation();
+					// }
 
 					clicking_canvas_bg = true;
 				}
@@ -11523,6 +11524,9 @@ LGraphNode.prototype.executeAction = function(action)
 
     LGraphCanvas.search_limit = -1;
     LGraphCanvas.prototype.showSearchBox = function(event, options) {
+        // DISABLED: Search box disabled - custom node menu used instead
+        // Do nothing - prevent default search box from opening
+        return;
         // proposed defaults
         var def_options = { slot_from: null
                         ,node_from: null
