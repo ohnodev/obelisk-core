@@ -333,7 +333,11 @@ class ExecutionEngine:
                     # Only resolve if variable exists in context (don't overwrite with None)
                     if var_name in context.variables:
                         resolved[input_name] = context.variables[var_name]
-                    # If variable doesn't exist, leave unresolved so get_input_value() can use defaults
+                        logger.debug(f"[Engine] Resolved template variable {input_name}={{{{{var_name}}}}} to '{context.variables[var_name]}' for node {node.node_id}")
+                    else:
+                        # Variable doesn't exist - log warning and leave unresolved
+                        logger.warning(f"[Engine] Template variable {input_name}={{{{{var_name}}}}} not found in context.variables (available: {list(context.variables.keys())}) for node {node.node_id}")
+                        # Leave unresolved so get_input_value() can use defaults
                 else:
                     resolved[input_name] = input_value
         

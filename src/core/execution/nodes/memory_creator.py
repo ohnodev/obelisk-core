@@ -175,6 +175,7 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
         if isinstance(user_id, str) and user_id.startswith('{{') and user_id.endswith('}}'):
             var_name = user_id[2:-2].strip()
             user_id = context.variables.get(var_name, None)
+            logger.debug(f"[MemoryCreator] Resolved user_id template variable: {var_name} -> {user_id}")
         
         # Validate required inputs
         if storage_instance is None:
@@ -186,6 +187,7 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
         # Default user_id if not provided
         if user_id is None or user_id == '':
             user_id = f"user_{self.node_id}"
+            logger.warning(f"[MemoryCreator] user_id was None/empty, defaulting to {user_id} for node {self.node_id}. Available context variables: {list(context.variables.keys())}")
         
         # Default to container's LLM if not provided
         if llm is None:
