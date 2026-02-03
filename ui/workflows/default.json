@@ -95,12 +95,6 @@
     {
       "from": "2",
       "from_output": "storage_instance",
-      "to": "4",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "2",
-      "from_output": "storage_instance",
       "to": "8",
       "to_input": "storage_instance"
     },

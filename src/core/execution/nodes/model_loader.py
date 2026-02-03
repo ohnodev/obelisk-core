@@ -21,7 +21,7 @@ class ModelLoaderNode(BaseNode):
     
     Inputs:
         model_name: Optional model name override (defaults to container's config)
-        storage_instance: Optional StorageInterface (if not in container)
+        storage_instance: Optional StorageInterface (only needed for LoRA weights)
     
     Outputs:
         model: ObeliskLLM instance
@@ -40,14 +40,11 @@ class ModelLoaderNode(BaseNode):
                 'model': _model_cache[cache_key]
             }
         
-        # Load model (storage must be provided by StorageNode)
+        # Load model (storage is optional - only needed for LoRA weights)
         logger.info(f"Loading model: {cache_key}")
         from .inference.obelisk_llm import ObeliskLLM
         
-        # Storage must be provided - don't initialize it here
-        if storage_instance is None:
-            raise ValueError("storage_instance is required for ModelLoaderNode. Connect a MemoryStorageNode first.")
-        
+        # Storage is optional - only used for loading LoRA weights if available
         # Create and cache model
         llm = ObeliskLLM(storage=storage_instance)
         _model_cache[cache_key] = llm
