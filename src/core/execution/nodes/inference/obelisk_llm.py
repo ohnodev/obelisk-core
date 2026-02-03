@@ -105,7 +105,7 @@ class ObeliskLLM:
                     local_files_only=False  # Allow download on first run
                 )
             
-            # Initialize LoRA config (loaded from config)
+            # Initialize LoRA config (loaded from config) - used by LoRALoaderNode
             self.lora_config = LoraConfig(
                 r=Config.LLM_LORA_R,
                 lora_alpha=Config.LLM_LORA_ALPHA,
@@ -117,17 +117,8 @@ class ObeliskLLM:
             
             self.model.eval()
             
-            # Initialize LoRA manager and try to load weights from storage if available
-            if self.storage:
-                self.lora_manager = LoRAManager(
-                    model=self.model,
-                    lora_config=self.lora_config,
-                    storage=self.storage,
-                    model_name=self.MODEL_NAME
-                )
-                if self.lora_manager.load_weights():
-                    # Update model reference if weights were loaded
-                    self.model = self.lora_manager.model
+            # LoRA loading is now handled by LoRALoaderNode, not here
+            # This keeps model loading simple and LoRA loading separate
             
             # Optimize model for inference on CPU
             if self.device == "cpu":
