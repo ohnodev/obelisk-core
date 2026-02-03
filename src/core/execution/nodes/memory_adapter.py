@@ -36,7 +36,7 @@ class MemoryAdapterNode(BaseNode):
         self._last_query: Optional[str] = None
         self._last_response: Optional[str] = None
     
-    def initialize(self, workflow: Dict[str, Any], all_nodes: Dict[str, Any]) -> None:
+    def _setup(self, workflow: Dict[str, Any], all_nodes: Dict[str, Any]) -> None:
         """
         Initialize memory adapter - hook into connected inference nodes
         

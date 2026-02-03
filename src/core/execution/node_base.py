@@ -2,10 +2,13 @@
 Base node class for execution engine
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
 import copy
 from ..types import NodeID, NodeData
+
+if TYPE_CHECKING:
+    from ..types import NodeGraph
 
 
 @dataclass

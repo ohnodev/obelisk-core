@@ -270,6 +270,7 @@ class ExecutionEngine:
         """
         nodes: Dict[NodeID, BaseNode] = {}
         
+        # First pass: create all nodes (without workflow/all_nodes)
         for node_data in workflow['nodes']:
             node_id = node_data['id']
             node_type = node_data['type']
@@ -280,9 +281,9 @@ class ExecutionEngine:
             
             nodes[node_id] = node_class(node_id, node_data)
         
-        # Initialize all nodes (allows nodes to set up relationships, hooks, etc.)
+        # Second pass: setup all nodes (now they can discover other nodes)
         for node in nodes.values():
-            node.initialize(workflow, nodes)
+            node._setup(workflow, nodes)
         
         return nodes
     
