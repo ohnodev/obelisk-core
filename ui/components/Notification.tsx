@@ -40,27 +40,31 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
     switch (notification.type) {
       case "error":
         return {
-          bg: "#dc2626",
-          border: "#b91c1c",
+          bg: "rgba(220, 38, 38, 0.15)",
+          border: "rgba(185, 28, 28, 0.5)",
+          backdrop: "rgba(220, 38, 38, 0.1)",
           icon: "❌",
         };
       case "success":
         return {
-          bg: "#16a34a",
-          border: "#15803d",
+          bg: "rgba(22, 163, 74, 0.15)",
+          border: "rgba(21, 128, 61, 0.5)",
+          backdrop: "rgba(22, 163, 74, 0.1)",
           icon: "✅",
         };
       case "warning":
         return {
-          bg: "#ca8a04",
-          border: "#a16207",
+          bg: "rgba(202, 138, 4, 0.15)",
+          border: "rgba(161, 98, 7, 0.5)",
+          backdrop: "rgba(202, 138, 4, 0.1)",
           icon: "⚠️",
         };
       case "info":
       default:
         return {
-          bg: "#2563eb",
-          border: "#1d4ed8",
+          bg: "rgba(37, 99, 235, 0.15)",
+          border: "rgba(29, 78, 216, 0.5)",
+          backdrop: "rgba(37, 99, 235, 0.1)",
           icon: "ℹ️",
         };
     }
@@ -72,10 +76,15 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
     <div
       style={{
         backgroundColor: styles.bg,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
         borderLeft: `4px solid ${styles.border}`,
+        borderTop: `1px solid ${styles.border}`,
+        borderRight: `1px solid ${styles.border}`,
+        borderBottom: `1px solid ${styles.border}`,
         color: "white",
         padding: "16px 24px",
-        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1)",
         borderTopRightRadius: "8px",
         borderBottomRightRadius: "8px",
         marginBottom: "12px",
