@@ -128,10 +128,6 @@
                     var maxLines = Math.max(0, Math.floor(textareaHeight / lineHeight));
                     var maxLinesClamped = Math.max(1, maxLines);
                     
-                    // Hide text rendering if textarea element is focused
-                    if (w._textareaElement && document.activeElement === w._textareaElement) {
-                        // Don't draw text when editing
-                    } else {
                     // Draw wrapped lines
                     for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
                         ctx.fillText(
@@ -322,92 +318,6 @@
                                     editor.blur();
                                 }
                             });
-                            
-                            return w;
-                            
-                            // Handle blur (when user clicks away or presses Escape)
-                            var handleBlur = function() {
-                                var oldValue = w.value;
-                                var newValue = editor.value;
-                                
-                                // Update widget value
-                                w.value = newValue;
-                                
-                                // Update node property if specified
-                                if (w.options && w.options.property) {
-                                    node.setProperty(w.options.property, newValue);
-                                }
-                                
-                                // Call widget callback
-                                if (w.callback) {
-                                    w.callback(newValue, that, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], event);
-                                }
-                                
-                                // Call node widget changed handler
-                                if (node.onWidgetChanged) {
-                                    node.onWidgetChanged(w.name, newValue, oldValue, w);
-                                }
-                                
-                                // Mark graph as changed
-                                if (node.graph) {
-                                    node.graph._version++;
-                                }
-                                
-                                // Remove editor
-                                editor.remove();
-                                
-                                // Redraw canvas
-                                that.dirty_canvas = true;
-                                that.draw(true);
-                            };
-                            
-                            // Handle Escape key to cancel
-                            var handleKeyDown = function(e) {
-                                if (e.key === "Escape") {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    editor.value = String(w.value || ""); // Restore original value
-                                    editor.blur();
-                                }
-                            };
-                            
-                            editor.addEventListener("blur", handleBlur);
-                            editor.addEventListener("keydown", handleKeyDown);
-                            
-                            // Also handle clicks outside the editor
-                            var handleOutsideClick = function(e) {
-                                if (editor && !editor.contains(e.target)) {
-                                    editor.blur();
-                                }
-                            };
-                            
-                            // Cleanup function
-                            var cleanup = function() {
-                                if (editor._outsideClickHandler) {
-                                    document.removeEventListener("mousedown", editor._outsideClickHandler);
-                                }
-                                if (editor.parentNode) {
-                                    editor.remove();
-                                }
-                            };
-                            
-                            // Use setTimeout to avoid immediate blur from the click that opened it
-                            setTimeout(function() {
-                                if (editor && editor.parentNode) {
-                                    document.addEventListener("mousedown", handleOutsideClick);
-                                    editor._outsideClickHandler = handleOutsideClick;
-                                    editor._cleanup = cleanup;
-                                }
-                            }, 100);
-                            
-                            // Cleanup on blur
-                            var originalBlur = handleBlur;
-                            handleBlur = function() {
-                                if (editor._cleanup) {
-                                    editor._cleanup();
-                                }
-                                originalBlur();
-                            };
                             
                             return w;
                         }
