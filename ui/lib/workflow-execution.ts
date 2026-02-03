@@ -221,17 +221,23 @@ export function updateNodeOutputs(
           // Use nullish coalescing to preserve falsy values like 0 and false
           const textValue = String(outputValue ?? "");
           
-          node.setProperty(outputName, textValue);
+          console.log(`[updateNodeOutputs] Updating node ${nodeId} property ${outputName} to:`, textValue.substring(0, 50) + "...");
           
           // Get canvas instance for widget callbacks
           const canvas = (window as any).__obeliskCanvas;
           
-          // Update widget if it exists
+          // Update widget FIRST (before setting property) to ensure widget reflects the value
           const widgets = (node as any).widgets as any[];
           if (widgets) {
-            const widget = widgets.find((w: any) => w.name === outputName);
+            const widget = widgets.find((w: any) => w.name === outputName || w.name === "text");
             if (widget) {
+              // Update widget value directly
               widget.value = textValue;
+              
+              // If widget has an input element, update it directly
+              if (widget.input) {
+                widget.input.value = textValue;
+              }
               
               // Trigger widget update callback if it exists
               // Callback signature: (value, canvasInstance, node, pos, event)
@@ -240,14 +246,27 @@ export function updateNodeOutputs(
               if (widget.callback && canvas) {
                 // Use node position as pos, no event for programmatic updates
                 const nodePos = node.pos || [0, 0];
-                widget.callback(textValue, canvas, node, nodePos, null);
+                try {
+                  widget.callback(textValue, canvas, node, nodePos, null);
+                } catch (e) {
+                  console.warn(`[updateNodeOutputs] Widget callback error for node ${nodeId}:`, e);
+                }
               }
+            } else {
+              console.warn(`[updateNodeOutputs] Widget not found for node ${nodeId}, outputName: ${outputName}`);
             }
           }
           
-          // Trigger property changed handler to sync widget
+          // Set property (this should trigger onPropertyChanged)
+          node.setProperty(outputName, textValue);
+          
+          // Also explicitly trigger property changed handler to sync widget
           if (node.onPropertyChanged) {
-            node.onPropertyChanged(outputName, textValue);
+            try {
+              node.onPropertyChanged(outputName, textValue);
+            } catch (e) {
+              console.warn(`[updateNodeOutputs] onPropertyChanged error for node ${nodeId}:`, e);
+            }
           }
           
           // Force canvas redraw
