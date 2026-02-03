@@ -342,7 +342,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             imageRendering: "crisp-edges",
           }}
         />
-        <WidgetOverlay />
       </div>
       <NodeMenu
         visible={nodeMenuVisible}
