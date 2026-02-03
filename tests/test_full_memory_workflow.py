@@ -240,8 +240,10 @@ def test_full_memory_workflow() -> bool:
             try:
                 error_json = e.response.json()
                 print(f"   Error details: {json.dumps(error_json, indent=2)}")
-            except:
-                pass
+            except (ValueError, json.JSONDecodeError) as exc:
+                print(f"   Failed to parse error response as JSON: {exc}")
+            except Exception as exc:
+                print(f"   Unexpected error parsing JSON response: {exc}")
         return False
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
