@@ -192,7 +192,42 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       setNodeMenuVisible(true);
     };
 
+    // Handle double-click to show node menu (instead of LiteGraph's widget popover)
+    const handleCanvasDoubleClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Use screen coordinates for menu position (NodeMenu uses position: fixed)
+      setNodeMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      // Store canvas coordinates for node placement (used in handleNodeSelect)
+      if (canvasInstanceRef.current) {
+        const canvasPos = canvasInstanceRef.current.convertEventToCanvasOffset(e);
+        // Store in a ref or state for use in handleNodeSelect
+        (canvasInstanceRef.current as any)._lastRightClickCanvasPos = canvasPos;
+      }
+      setNodeMenuVisible(true);
+    };
+
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
+    canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
+    
+    // Prevent LiteGraph's default double-click behavior (widget editor)
+    // Override processNodeDblClicked to prevent widget popover
+    if (graphCanvas && (graphCanvas as any).processNodeDblClicked) {
+      const originalProcessNodeDblClicked = (graphCanvas as any).processNodeDblClicked.bind(graphCanvas);
+      (graphCanvas as any).processNodeDblClicked = function(node: any) {
+        // Don't call the original - this prevents the widget editor from opening
+        // The canvas-level dblclick handler will show our custom menu instead
+        return;
+      };
+    }
+    
+    // Also override the graph's onNodeDblClicked callback if it exists
+    if (graph && (graph as any).onNodeDblClicked) {
+      (graph as any).onNodeDblClicked = null; // Disable the callback
+    }
 
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
@@ -297,6 +332,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
+      canvasElement.removeEventListener("dblclick", handleCanvasDoubleClick);
       graph.stop();
       // Clear global references when component unmounts
       (window as any).__obeliskGraph = undefined;
