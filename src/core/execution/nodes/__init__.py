@@ -17,5 +17,4 @@ __all__ = [
     'MemoryCreatorNode',
     'LoRALoaderNode',
     'TextNode',
-    'SaveNode',
 ]
