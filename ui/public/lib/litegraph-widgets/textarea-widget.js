@@ -43,6 +43,63 @@
             w._textareaWidth = textareaWidth;
             w._textareaHeight = textareaHeight;
             
+            // Create HTML textarea element if it doesn't exist (reuse it, don't create new ones)
+            if (!w._htmlTextarea) {
+                var htmlTextarea = document.createElement("textarea");
+                htmlTextarea.style.position = "absolute";
+                htmlTextarea.style.pointerEvents = "none"; // Initially disabled, enable on click
+                htmlTextarea.style.border = "none";
+                htmlTextarea.style.background = "transparent";
+                htmlTextarea.style.color = "#FFFFFF";
+                htmlTextarea.style.fontSize = "12px";
+                htmlTextarea.style.fontFamily = "Arial, sans-serif";
+                htmlTextarea.style.resize = "none";
+                htmlTextarea.style.outline = "none";
+                htmlTextarea.style.overflow = "auto";
+                htmlTextarea.style.padding = "4px";
+                htmlTextarea.style.lineHeight = "14px";
+                htmlTextarea.style.boxSizing = "border-box";
+                htmlTextarea.style.opacity = "0"; // Hidden until clicked
+                
+                // Get canvas container
+                var canvas = ctx.canvas;
+                var canvasContainer = canvas.parentElement;
+                if (canvasContainer) {
+                    canvasContainer.appendChild(htmlTextarea);
+                    w._htmlTextarea = htmlTextarea;
+                }
+                
+                // Sync on input
+                htmlTextarea.addEventListener("input", function() {
+                    w.value = htmlTextarea.value;
+                    if (w.options && w.options.property) {
+                        node.setProperty(w.options.property, htmlTextarea.value);
+                    }
+                    if (w.callback) {
+                        var canvasInstance = (window as any).__obeliskCanvas;
+                        w.callback(htmlTextarea.value, canvasInstance, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], null);
+                    }
+                    if (node.graph) {
+                        node.graph._version++;
+                    }
+                    if (canvasInstance) {
+                        canvasInstance.dirty_canvas = true;
+                        canvasInstance.draw(true);
+                    }
+                });
+                
+                // Hide on blur
+                htmlTextarea.addEventListener("blur", function() {
+                    htmlTextarea.style.pointerEvents = "none";
+                    htmlTextarea.style.opacity = "0";
+                    var canvasInstance = (window as any).__obeliskCanvas;
+                    if (canvasInstance) {
+                        canvasInstance.dirty_canvas = true;
+                        canvasInstance.draw(true);
+                    }
+                });
+            }
+            
             // Draw textarea background
             ctx.fillStyle = background_color;
             ctx.fillRect(textareaX, textareaY, textareaWidth, textareaHeight);
@@ -132,6 +189,10 @@
                     if (w._textareaElement && document.activeElement === w._textareaElement) {
                         // Don't draw text when editing
                     } else {
+                    // Hide canvas text if HTML textarea is visible/editing
+                    var isEditing = w._htmlTextarea && (document.activeElement === w._htmlTextarea || w._htmlTextarea.style.opacity === "1");
+                    
+                    if (!isEditing) {
                         // Draw wrapped lines
                         for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
                             ctx.fillText(
@@ -145,6 +206,27 @@
                         if (wrappedLines.length > maxLinesClamped) {
                             ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
                         }
+                    }
+                    
+                    // Update HTML textarea position and size
+                    if (w._htmlTextarea) {
+                        var canvasRect = ctx.canvas.getBoundingClientRect();
+                        var canvasInstance = (window as any).__obeliskCanvas;
+                        if (canvasInstance && canvasInstance.ds) {
+                            var scale = canvasInstance.ds.scale || 1;
+                            var offsetX = canvasInstance.ds.offset ? canvasInstance.ds.offset[0] : 0;
+                            var offsetY = canvasInstance.ds.offset ? canvasInstance.ds.offset[1] : 0;
+                            
+                            var screenX = canvasRect.left + (node.pos[0] + textareaX) * scale + offsetX;
+                            var screenY = canvasRect.top + (node.pos[1] + textareaY) * scale + offsetY;
+                            
+                            w._htmlTextarea.style.left = screenX + "px";
+                            w._htmlTextarea.style.top = screenY + "px";
+                            w._htmlTextarea.style.width = (textareaWidth * scale) + "px";
+                            w._htmlTextarea.style.height = (textareaHeight * scale) + "px";
+                            w._htmlTextarea.value = String(w.value || '');
+                        }
+                    }
                     }
                 }
             }
