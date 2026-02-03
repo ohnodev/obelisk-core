@@ -58,13 +58,14 @@ export default function Home() {
   const previousWorkflowRef = useRef<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
 
   // Memoize onWorkflowChange to stabilize function reference
+  // Empty dependency array ensures this function reference never changes
   const handleWorkflowChange = useCallback((newWorkflow: WorkflowGraph) => {
     // Only update if workflow actually changed (deep compare)
     if (!previousWorkflowRef.current || !workflowsEqual(previousWorkflowRef.current, newWorkflow)) {
       previousWorkflowRef.current = newWorkflow;
       setWorkflow(newWorkflow);
     }
-  }, []);
+  }, []); // Empty deps - function reference never changes
 
   const handleExecute = async (getGraph?: () => any) => {
     if (!workflow) {

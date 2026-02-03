@@ -308,7 +308,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       isDeserializingRef.current = false;
       initialWorkflowLoadedRef.current = false;
     };
-  }, [onWorkflowChange]); // Removed initialWorkflow - only load once on mount, manual save via button
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - don't re-run when callbacks change
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
