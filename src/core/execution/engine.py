@@ -309,10 +309,12 @@ class ExecutionEngine:
         
         # Find all connections targeting this node
         for conn in connections:
-            if conn['target_node'] != node.node_id:
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            target_id = conn.get('target_node') or conn.get('to')
+            if target_id != node.node_id:
                 continue
             
-            source_id = conn['source_node']
+            source_id = conn.get('source_node') or conn.get('from')
             # Support both formats: 'from_output'/'to_input' (frontend) and 'source_output'/'target_input' (backend)
             source_output = conn.get('source_output') or conn.get('from_output', 'default')
             target_input = conn.get('target_input') or conn.get('to_input', 'default')
