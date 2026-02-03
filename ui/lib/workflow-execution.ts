@@ -154,15 +154,43 @@ export function updateNodeOutputs(
         // Also update properties if this is a property-based output
         // (e.g., text nodes store output in properties)
         if (outputName === "text" || outputName === "output") {
-          node.setProperty(outputName, outputValue);
+          // Convert output value to string and ensure it's properly formatted
+          // Use nullish coalescing to preserve falsy values like 0 and false
+          const textValue = String(outputValue ?? "");
+          
+          node.setProperty(outputName, textValue);
+          
+          // Get canvas instance for widget callbacks
+          const canvas = (window as any).__obeliskCanvas;
           
           // Update widget if it exists
           const widgets = (node as any).widgets as any[];
           if (widgets) {
             const widget = widgets.find((w: any) => w.name === outputName);
             if (widget) {
-              widget.value = outputValue;
+              widget.value = textValue;
+              
+              // Trigger widget update callback if it exists
+              // Callback signature: (value, canvasInstance, node, pos, event)
+              // Since we're programmatically updating after execution, we don't have
+              // real pos/event, but we pass the canvas instance correctly
+              if (widget.callback && canvas) {
+                // Use node position as pos, no event for programmatic updates
+                const nodePos = node.pos || [0, 0];
+                widget.callback(textValue, canvas, node, nodePos, null);
+              }
             }
+          }
+          
+          // Trigger property changed handler to sync widget
+          if (node.onPropertyChanged) {
+            node.onPropertyChanged(outputName, textValue);
+          }
+          
+          // Force canvas redraw
+          if (canvas) {
+            canvas.dirty_canvas = true;
+            canvas.draw(true);
           }
         }
       }

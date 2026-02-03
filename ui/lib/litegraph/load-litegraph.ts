@@ -39,16 +39,10 @@ export function loadLiteGraph(): Promise<any> {
       resolve((window as any).LiteGraph);
     };
     script.onerror = () => {
-      // Fallback: try importing
-      import("./litegraph.js")
-        .then(() => {
-          liteGraphLoaded = true;
-          resolve((window as any).LiteGraph);
-        })
-        .catch((err) => {
-          liteGraphLoaded = false;
-          reject(err);
-        });
+      // Script tag failed - this shouldn't happen in production
+      // The script should be served from /lib/litegraph/litegraph.js
+      liteGraphLoaded = false;
+      reject(new Error("Failed to load LiteGraph from /lib/litegraph/litegraph.js"));
     };
     document.head.appendChild(script);
   });

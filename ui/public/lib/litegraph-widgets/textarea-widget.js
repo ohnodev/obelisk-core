@@ -60,20 +60,85 @@
                     ctx.font = "12px Arial";
                     ctx.textAlign = "left";
                     ctx.textBaseline = "top";
-                    var lines = String(value).split("\n");
+                    
+                    // Split by newlines first
+                    var rawLines = String(value).split("\n");
                     var lineHeight = 14;
-                    // Compute maxLines from clamped textareaHeight (ensuring maxLines is at least 0)
+                    var maxWidth = textareaWidth - 8; // Account for padding
+                    var wrappedLines = [];
+                    
+                    // Word-wrap each line to fit within textarea width
+                    for (var i = 0; i < rawLines.length; i++) {
+                        var line = rawLines[i];
+                        var words = line.split(" ");
+                        var currentLine = "";
+                        
+                        for (var j = 0; j < words.length; j++) {
+                            var word = words[j];
+                            
+                            // Handle very long words that exceed maxWidth - break them
+                            var wordMetrics = ctx.measureText(word);
+                            if (wordMetrics.width > maxWidth) {
+                                // Word is too long, break it character by character
+                                if (currentLine) {
+                                    wrappedLines.push(currentLine);
+                                    currentLine = "";
+                                }
+                                
+                                // Break long word into chunks
+                                var charIdx = 0;
+                                while (charIdx < word.length) {
+                                    var chunk = "";
+                                    while (charIdx < word.length) {
+                                        var testChunk = chunk + word[charIdx];
+                                        var chunkMetrics = ctx.measureText(testChunk);
+                                        if (chunkMetrics.width > maxWidth && chunk.length > 0) {
+                                            break;
+                                        }
+                                        chunk = testChunk;
+                                        charIdx++;
+                                    }
+                                    if (chunk) {
+                                        wrappedLines.push(chunk);
+                                    }
+                                }
+                                continue;
+                            }
+                            
+                            // Normal word wrapping
+                            var testLine = currentLine ? currentLine + " " + word : word;
+                            var metrics = ctx.measureText(testLine);
+                            
+                            if (metrics.width > maxWidth && currentLine) {
+                                // Current line is full, start new line
+                                wrappedLines.push(currentLine);
+                                currentLine = word;
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+                        
+                        // Add the last line
+                        if (currentLine) {
+                            wrappedLines.push(currentLine);
+                        }
+                    }
+                    
+                    // Compute maxLines from clamped textareaHeight
                     var maxLines = Math.max(0, Math.floor(textareaHeight / lineHeight));
                     var maxLinesClamped = Math.max(1, maxLines);
-                    for (var lineIdx = 0; lineIdx < lines.length && lineIdx < maxLinesClamped; lineIdx++) {
+                    
+                    // Draw wrapped lines
+                    for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
                         ctx.fillText(
-                            lines[lineIdx],
+                            wrappedLines[lineIdx],
                             textareaX + 4,
                             textareaY + 4 + (lineIdx * lineHeight)
                         );
                     }
+                    
                     // Show ellipsis if text is truncated
-                    if (lines.length > maxLinesClamped) {
+                    if (wrappedLines.length > maxLinesClamped) {
                         ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
                     }
                 }
