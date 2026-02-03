@@ -13,7 +13,8 @@ class MemorySelectorNode extends LGraphNode {
     this.addInput("query", "string");
     this.addInput("storage_instance", "object");
     this.addInput("user_id", "string");
-    this.addInput("llm", "object");
+    this.addInput("model", "object"); // From ModelLoaderNode
+    this.addInput("llm", "object"); // Legacy/direct input
     this.addInput("enable_recent_buffer", "boolean");
     this.addInput("k", "number");
     this.addOutput("query", "string"); // Pass through original query for cleaner flow
