@@ -148,7 +148,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
     ),
   })).filter((category) => category.nodes.length > 0);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!visible) return;
 
@@ -160,15 +160,20 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
     };
 
+    // Use both mousedown and click for better compatibility
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
   }, [visible, onClose]);
@@ -202,11 +207,14 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
         fontFamily: "var(--font-body)",
       }}
     >
-      {/* Search bar */}
+      {/* Search bar with close button */}
       <div
         style={{
           padding: "0.75rem",
           borderBottom: "1px solid var(--color-border-primary)",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
         }}
       >
         <input
@@ -216,7 +224,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
           onChange={(e) => setSearchQuery(e.target.value)}
           autoFocus
           style={{
-            width: "100%",
+            flex: 1,
             padding: "0.5rem",
             background: "var(--color-input-bg)",
             border: "1px solid var(--color-input-border)",
@@ -229,8 +237,56 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             if (e.key === "Enter" && filteredCategories.length > 0 && filteredCategories[0].nodes.length > 0) {
               handleNodeClick(filteredCategories[0].nodes[0].type);
             }
+            if (e.key === "Escape") {
+              onClose();
+            }
           }}
         />
+        <button
+          onClick={onClose}
+          aria-label="Close menu"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "24px",
+            height: "24px",
+            padding: 0,
+            background: "transparent",
+            border: "1px solid transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            color: "var(--color-text-muted)",
+            transition: "all 0.15s ease",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
+            e.currentTarget.style.borderColor = "var(--color-border-primary)";
+            e.currentTarget.style.color = "var(--color-text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.color = "var(--color-text-muted)";
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 4L4 12M4 4l8 8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Node list */}
