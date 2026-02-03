@@ -1,6 +1,6 @@
 """
 Memory Creator Node
-Creates memory data (interactions, summaries) - does NOT save to storage
+Creates and saves memory data (interactions, summaries) to storage
 """
 from typing import Dict, Any, Optional
 from ..node_base import BaseNode, ExecutionContext
@@ -8,22 +8,32 @@ from ....utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# LangChain is REQUIRED for buffer management
+try:
+    from langchain_core.messages import HumanMessage, AIMessage
+except ImportError as e:
+    raise ImportError(
+        "LangChain is required for memory management. Please install it with: pip install langchain langchain-core"
+    ) from e
+
 
 class MemoryCreatorNode(BaseNode):
     """
-    Creates memory data (interactions, summaries) - pure computation, no storage
-    
-    This node only creates the data structures. Use SaveNode to save to storage.
+    Creates and saves memory data (interactions, summaries) to storage
     
     Handles:
     - Creating interaction data structures
+    - Saving interactions to storage
     - Tracking interaction count (in-memory, per user_id)
     - Triggering summarization when threshold reached
     - Using MemoryCreator agent to create summaries
+    - Saving summaries to storage
+    - Managing recent conversation buffers
     
     Inputs:
-        query: User query string
-        response: AI response string
+        storage_instance: StorageInterface instance (from MemoryStorageNode) - REQUIRED
+        query: User query string (required)
+        response: AI response string (required)
         user_id: User identifier (optional, defaults to user_{node_id})
         llm: ObeliskLLM instance (optional, uses container's LLM if not provided)
         summarize_threshold: Number of interactions before summarizing (optional, default: 3)
@@ -31,30 +41,47 @@ class MemoryCreatorNode(BaseNode):
         cycle_id: Evolution cycle ID (optional)
         energy: Energy value (optional, default: 0.0)
         quantum_seed: Quantum seed value (optional, default: 0.7)
+        k: Number of recent message pairs to keep in buffer (optional, default: 10)
     
     Outputs:
-        interaction_data: Dict with interaction data ready to save (always present)
-        summary_data: Dictionary with summary data if summarization occurred (only present when summary is created)
+        None - saves directly to storage
     """
     
     # Class-level cache for interaction counts per user_id
-    _interaction_counts: Dict[str, int] = {}  # user_id -> count
+    _interaction_counts: Dict[str, Dict[str, int]] = {}  # storage_id -> user_id -> count
+    
+    # Class-level cache for buffer managers per storage instance
+    _buffer_managers: Dict[str, Any] = {}
     
     def __init__(self, node_id: str, node_data: Dict[str, Any]):
         """Initialize memory creator node"""
         super().__init__(node_id, node_data)
     
-    def _get_interaction_count(self, user_id: str) -> int:
-        """Get interaction count for a user (from cache)"""
-        if user_id not in self._interaction_counts:
-            self._interaction_counts[user_id] = 0
-        return self._interaction_counts[user_id]
+    def _get_buffer_manager(self, storage_instance, k: int):
+        """Get or create buffer manager for storage instance"""
+        storage_id = id(storage_instance)
+        if storage_id not in self._buffer_managers:
+            from ....memory.buffer_manager import RecentBufferManager
+            self._buffer_managers[storage_id] = RecentBufferManager(k=k)
+        return self._buffer_managers[storage_id]
     
-    def _increment_interaction_count(self, user_id: str):
+    def _get_interaction_count(self, storage_instance, user_id: str) -> int:
+        """Get interaction count for a user (from cache)"""
+        storage_id = id(storage_instance)
+        if storage_id not in self._interaction_counts:
+            self._interaction_counts[storage_id] = {}
+        if user_id not in self._interaction_counts[storage_id]:
+            self._interaction_counts[storage_id][user_id] = 0
+        return self._interaction_counts[storage_id][user_id]
+    
+    def _increment_interaction_count(self, storage_instance, user_id: str):
         """Increment interaction count for a user"""
-        if user_id not in self._interaction_counts:
-            self._interaction_counts[user_id] = 0
-        self._interaction_counts[user_id] += 1
+        storage_id = id(storage_instance)
+        if storage_id not in self._interaction_counts:
+            self._interaction_counts[storage_id] = {}
+        if user_id not in self._interaction_counts[storage_id]:
+            self._interaction_counts[storage_id][user_id] = 0
+        self._interaction_counts[storage_id][user_id] += 1
     
     def _summarize_conversations(
         self,
@@ -71,7 +98,8 @@ class MemoryCreatorNode(BaseNode):
         return creator_agent.summarize(interactions, user_id)
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
-        """Execute memory creator node - creates data, does NOT save"""
+        """Execute memory creator node - creates and saves data to storage"""
+        storage_instance = self.get_input_value('storage_instance', context, None)
         query = self.get_input_value('query', context, '')
         response = self.get_input_value('response', context, '')
         user_id = self.get_input_value('user_id', context, None)
@@ -81,7 +109,7 @@ class MemoryCreatorNode(BaseNode):
         cycle_id = self.get_input_value('cycle_id', context, None)
         energy = self.get_input_value('energy', context, 0.0)
         quantum_seed = self.get_input_value('quantum_seed', context, 0.7)
-        k = self.get_input_value('k', context, 10)  # For reference, not used in creation but may be needed
+        k = self.get_input_value('k', context, 10)
         
         # Resolve template variables
         if isinstance(query, str) and query.startswith('{{') and query.endswith('}}'):
@@ -96,6 +124,13 @@ class MemoryCreatorNode(BaseNode):
             var_name = user_id[2:-2].strip()
             user_id = context.variables.get(var_name, None)
         
+        # Validate required inputs
+        if storage_instance is None:
+            raise ValueError("storage_instance is required for MemoryCreatorNode. Connect a MemoryStorageNode first.")
+        
+        if not query or not response:
+            raise ValueError("query and response are required for MemoryCreatorNode")
+        
         # Default user_id if not provided
         if user_id is None or user_id == '':
             user_id = f"user_{self.node_id}"
@@ -107,29 +142,37 @@ class MemoryCreatorNode(BaseNode):
             else:
                 raise ValueError("llm is required for MemoryCreatorNode. Connect a ModelLoaderNode or provide llm input.")
         
-        # Validate inputs
-        if not query or not response:
-            raise ValueError("query and response are required for MemoryCreatorNode")
+        # Get current cycle if not provided
+        if cycle_id is None:
+            try:
+                cycle_id = storage_instance.get_current_evolution_cycle()
+            except:
+                cycle_id = None
         
-        # Create interaction data structure (ready to save)
-        interaction_data = {
-            'user_id': str(user_id),
-            'query': str(query),
-            'response': str(response),
-            'cycle_id': cycle_id,
-            'energy': float(energy),
-            'quantum_seed': float(quantum_seed)
-        }
+        # Save interaction to storage
+        storage_instance.save_interaction(
+            user_id=str(user_id),
+            query=str(query),
+            response=str(response),
+            cycle_id=cycle_id,
+            energy=float(energy),
+            quantum_seed=float(quantum_seed)
+        )
+        
+        # Add to recent conversation buffer
+        buffer_manager = self._get_buffer_manager(storage_instance, int(k))
+        buffer = buffer_manager.get_buffer(str(user_id), storage_instance)
+        buffer.add_user_message(str(query))
+        buffer.add_ai_message(str(response))
         
         # Update interaction count
-        self._increment_interaction_count(str(user_id))
-        interaction_count = self._get_interaction_count(str(user_id))
+        self._increment_interaction_count(storage_instance, str(user_id))
+        interaction_count = self._get_interaction_count(storage_instance, str(user_id))
         
         # Check if we should summarize (every N interactions)
         should_summarize = interaction_count > 0 and interaction_count % int(summarize_threshold) == 0
         
-        # Create summary if threshold reached
-        summary_data = None
+        # Create and save summary if threshold reached
         if should_summarize and previous_interactions:
             # Import agent
             from ....memory.agents.memory_creator import MemoryCreator as MemoryCreatorAgent
@@ -142,13 +185,20 @@ class MemoryCreatorNode(BaseNode):
                 # Add metadata to summary
                 summary_data['interactions_count'] = len(previous_interactions)
                 summary_data['user_id'] = str(user_id)
+                
+                # Save summary to storage
+                metadata = {
+                    'summary_text': summary_data.get('summary', ''),
+                    'summary_data': summary_data,
+                    'interactions_count': summary_data.get('interactions_count', 0),
+                }
+                
+                storage_instance.create_activity_log(
+                    activity_type='conversation_summary',
+                    message=f'Conversation summary for user {user_id}',
+                    energy=0.0,
+                    metadata=metadata
+                )
         
-        result = {
-            'interaction_data': interaction_data
-        }
-        
-        # Only include summary_data if it was actually created
-        if summary_data:
-            result['summary_data'] = summary_data
-        
-        return result
+        # No outputs - saves directly to storage
+        return {}

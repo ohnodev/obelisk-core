@@ -10,14 +10,14 @@ class MemoryCreatorNode extends LGraphNode {
   constructor() {
     super();
     this.title = "Memory Creator";
+    this.addInput("storage_instance", "object"); // Required: Storage instance from MemoryStorageNode
     this.addInput("query", "string");
     this.addInput("response", "string");
     this.addInput("user_id", "string");
     this.addInput("llm", "object"); // Optional: LLM for summarization (uses container LLM if not provided)
     this.addInput("summarize_threshold", "number");
     this.addInput("previous_interactions", "array"); // Optional: Previous interactions for summarization
-    this.addOutput("interaction_data", "object"); // Always present: interaction data ready to save
-    this.addOutput("summary_data", "object"); // Only present when summarization occurs
+    // No outputs - saves directly to storage
     this.size = [280, 250];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;

@@ -71,15 +71,6 @@
         "k": 10,
         "quantum_seed": 0.7
       }
-    },
-    {
-      "id": "9",
-      "type": "save",
-      "position": {"x": 800, "y": 400},
-      "inputs": {
-        "data_type": "interaction",
-        "k": 10
-      }
     }
   ],
   "connections": [
@@ -110,7 +101,7 @@
     {
       "from": "2",
       "from_output": "storage_instance",
-      "to": "9",
+      "to": "8",
       "to_input": "storage_instance"
     },
     {
@@ -149,11 +140,5 @@
       "to": "8",
       "to_input": "response"
     },
-    {
-      "from": "8",
-      "from_output": "interaction_data",
-      "to": "9",
-      "to_input": "interaction_data"
-    }
   ]
 }
