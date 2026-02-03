@@ -181,11 +181,15 @@ class ExecutionEngine:
         node_ids = {node['id'] for node in workflow['nodes']}
         
         for conn in workflow['connections']:
-            if conn.get('source_node') not in node_ids:
-                logger.error(f"Connection references invalid source node: {conn.get('source_node')}")
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            
+            if source_id not in node_ids:
+                logger.error(f"Connection references invalid source node: {source_id}")
                 return False
-            if conn.get('target_node') not in node_ids:
-                logger.error(f"Connection references invalid target node: {conn.get('target_node')}")
+            if target_id not in node_ids:
+                logger.error(f"Connection references invalid target node: {target_id}")
                 return False
         
         # Check all node types are registered
