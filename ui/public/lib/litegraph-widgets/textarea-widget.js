@@ -240,7 +240,7 @@
                 var widget_height = w.computeSize ? w.computeSize(width)[1] : LG.NODE_WIDGET_HEIGHT;
                 var widget_width = w.width || width;
 
-                // Handle textarea widget clicks
+                // Handle textarea widget clicks - inline editing
                 if (w.type === "textarea") {
                     var titleHeight = LG.NODE_TITLE_HEIGHT;
                     var padding = 10;
@@ -254,30 +254,130 @@
                         y >= textareaY && y <= textareaY + textareaHeight) {
                         
                         if (event.type === LG.pointerevents_method + "down") {
-                            // Use prompt method like string widgets, with multiline=true
-                            const oldValue = w.value;
-                            this.prompt(
-                                w.label || w.name || "Text",
-                                String(w.value || ""),
-                                function(v) {
-                                    this.value = v;
-                                    if (this.options && this.options.property) {
-                                        node.setProperty(this.options.property, v);
-                                    }
-                                    if (this.callback) {
-                                        this.callback(v, that, node, pos, event);
-                                    }
-                                    if (node.onWidgetChanged) {
-                                        node.onWidgetChanged(this.name, v, oldValue, this);
-                                    }
-                                    if (node.graph) {
-                                        node.graph._version++;
-                                    }
-                                    that.dirty_canvas = true;
-                                }.bind(w),
-                                event,
-                                true // multiline = true for textarea
-                            );
+                            // Prevent default to avoid node selection
+                            if (event.preventDefault) {
+                                event.preventDefault();
+                            }
+                            if (event.stopPropagation) {
+                                event.stopPropagation();
+                            }
+                            
+                            // Remove any existing textarea editor
+                            var existingEditor = document.getElementById("lg-textarea-editor");
+                            if (existingEditor) {
+                                existingEditor.remove();
+                            }
+                            
+                            // Create inline HTML textarea element
+                            var editor = document.createElement("textarea");
+                            editor.id = "lg-textarea-editor";
+                            editor.value = String(w.value || "");
+                            editor.style.position = "fixed";
+                            editor.style.zIndex = "10000";
+                            editor.style.border = "2px solid #d4af37";
+                            editor.style.borderRadius = "4px";
+                            editor.style.padding = "8px";
+                            editor.style.fontSize = "12px";
+                            editor.style.fontFamily = "Arial, sans-serif";
+                            editor.style.color = "#FFFFFF";
+                            editor.style.backgroundColor = "#1a1a1a";
+                            editor.style.resize = "none";
+                            editor.style.outline = "none";
+                            editor.style.boxSizing = "border-box";
+                            editor.style.overflow = "auto";
+                            
+                            // Calculate position on screen
+                            var canvasRect = that.canvas.getBoundingClientRect();
+                            var nodeScreenX = node.pos[0] + textareaX;
+                            var nodeScreenY = node.pos[1] + textareaY;
+                            
+                            // Account for canvas transform/scroll
+                            var transform = that.ds;
+                            var scale = transform.scale || 1;
+                            var offsetX = transform.offset ? transform.offset[0] : 0;
+                            var offsetY = transform.offset ? transform.offset[1] : 0;
+                            
+                            var screenX = canvasRect.left + (nodeScreenX * scale) + offsetX;
+                            var screenY = canvasRect.top + (nodeScreenY * scale) + offsetY;
+                            var screenWidth = textareaWidth * scale;
+                            var screenHeight = textareaHeight * scale;
+                            
+                            editor.style.left = screenX + "px";
+                            editor.style.top = screenY + "px";
+                            editor.style.width = screenWidth + "px";
+                            editor.style.height = screenHeight + "px";
+                            
+                            document.body.appendChild(editor);
+                            editor.focus();
+                            editor.select();
+                            
+                            // Store reference to widget and node for cleanup
+                            editor._widget = w;
+                            editor._node = node;
+                            editor._canvas = that;
+                            
+                            // Handle blur (when user clicks away or presses Escape)
+                            var handleBlur = function() {
+                                var oldValue = w.value;
+                                var newValue = editor.value;
+                                
+                                // Update widget value
+                                w.value = newValue;
+                                
+                                // Update node property if specified
+                                if (w.options && w.options.property) {
+                                    node.setProperty(w.options.property, newValue);
+                                }
+                                
+                                // Call widget callback
+                                if (w.callback) {
+                                    w.callback(newValue, that, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], event);
+                                }
+                                
+                                // Call node widget changed handler
+                                if (node.onWidgetChanged) {
+                                    node.onWidgetChanged(w.name, newValue, oldValue, w);
+                                }
+                                
+                                // Mark graph as changed
+                                if (node.graph) {
+                                    node.graph._version++;
+                                }
+                                
+                                // Remove editor
+                                editor.remove();
+                                
+                                // Redraw canvas
+                                that.dirty_canvas = true;
+                                that.draw(true);
+                            };
+                            
+                            // Handle Escape key to cancel
+                            var handleKeyDown = function(e) {
+                                if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    editor.value = String(w.value || ""); // Restore original value
+                                    editor.blur();
+                                }
+                            };
+                            
+                            editor.addEventListener("blur", handleBlur);
+                            editor.addEventListener("keydown", handleKeyDown);
+                            
+                            // Also handle clicks outside the editor
+                            var handleOutsideClick = function(e) {
+                                if (!editor.contains(e.target)) {
+                                    editor.blur();
+                                }
+                            };
+                            
+                            // Use setTimeout to avoid immediate blur from the click that opened it
+                            setTimeout(function() {
+                                document.addEventListener("mousedown", handleOutsideClick);
+                                editor._outsideClickHandler = handleOutsideClick;
+                            }, 100);
+                            
                             return w;
                         }
                     }
