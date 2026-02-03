@@ -106,7 +106,7 @@ class BaseNode(ABC):
     def initialize(self, workflow: 'NodeGraph', all_nodes: Dict[NodeID, 'BaseNode']) -> None:
         """
         Initialize node after all nodes are built
-        Called by engine to allow nodes to set up relationships, hooks, etc.
+        Called by engine to allow nodes to set up relationships if needed.
         
         Args:
             workflow: Workflow definition with nodes and connections
@@ -119,7 +119,7 @@ class BaseNode(ABC):
     def _setup(self, workflow: 'NodeGraph', all_nodes: Dict[NodeID, 'BaseNode']) -> None:
         """
         Setup node after all nodes are built (alias for initialize for backward compatibility)
-        Called by engine to allow nodes to set up relationships, hooks, etc.
+        Called by engine to allow nodes to set up relationships if needed.
         
         Args:
             workflow: Workflow definition with nodes and connections
