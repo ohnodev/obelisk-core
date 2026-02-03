@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export type NotificationType = "success" | "error" | "warning" | "info";
 
@@ -19,21 +19,38 @@ interface NotificationProps {
 
 function NotificationItem({ notification, onDismiss }: NotificationProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const fadeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     // Trigger animation
     setIsVisible(true);
+    isMountedRef.current = true;
 
     // Auto-dismiss if duration is set
     if (notification.duration && notification.duration > 0) {
       const timer = setTimeout(() => {
         setIsVisible(false);
         // Wait for fade-out animation before removing
-        setTimeout(() => onDismiss(notification.id), 300);
+        fadeTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            onDismiss(notification.id);
+          }
+        }, 300);
       }, notification.duration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        if (fadeTimeoutRef.current) {
+          clearTimeout(fadeTimeoutRef.current);
+        }
+        isMountedRef.current = false;
+      };
     }
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [notification.id, notification.duration, onDismiss]);
 
   const getTypeStyles = () => {
@@ -106,7 +123,15 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
         <button
           onClick={() => {
             setIsVisible(false);
-            setTimeout(() => onDismiss(notification.id), 300);
+            // Clear any existing fade timeout
+            if (fadeTimeoutRef.current) {
+              clearTimeout(fadeTimeoutRef.current);
+            }
+            fadeTimeoutRef.current = setTimeout(() => {
+              if (isMountedRef.current) {
+                onDismiss(notification.id);
+              }
+            }, 300);
           }}
           style={{
             marginLeft: "16px",
