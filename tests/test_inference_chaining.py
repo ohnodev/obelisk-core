@@ -19,12 +19,12 @@ API_BASE_URL = "http://localhost:7779"
 
 def create_basic_chain_workflow() -> dict:
     """
-    Create a basic chaining workflow: Text → Inference → Text → Inference → Text
-    No memory adapter - just pure chaining
+    Create a basic direct chaining workflow: Text → Inference → Inference → Text
+    No memory adapter - direct inference-to-inference chaining (no intermediate text node)
     """
     return {
         "id": "basic-chain-test",
-        "name": "Basic Inference Chaining Test",
+        "name": "Direct Inference Chaining Test",
         "nodes": [
             {
                 "id": "1",
@@ -49,21 +49,15 @@ def create_basic_chain_workflow() -> dict:
             },
             {
                 "id": "4",
-                "type": "text",
-                "position": {"x": 700, "y": 200},
-                "inputs": {"text": ""}
-            },
-            {
-                "id": "5",
                 "type": "inference",
-                "position": {"x": 900, "y": 200},
+                "position": {"x": 800, "y": 200},
                 "inputs": {
                     "quantum_influence": 0.7,
                     "max_length": 1024
                 }
             },
             {
-                "id": "6",
+                "id": "5",
                 "type": "text",
                 "position": {"x": 1100, "y": 200},
                 "inputs": {"text": ""}
@@ -86,24 +80,18 @@ def create_basic_chain_workflow() -> dict:
                 "from": "3",
                 "from_output": "response",
                 "to": "4",
-                "to_input": "text"
-            },
-            {
-                "from": "4",
-                "from_output": "text",
-                "to": "5",
                 "to_input": "query"
             },
             {
                 "from": "2",
                 "from_output": "model",
-                "to": "5",
+                "to": "4",
                 "to_input": "model"
             },
             {
-                "from": "5",
+                "from": "4",
                 "from_output": "response",
-                "to": "6",
+                "to": "5",
                 "to_input": "text"
             }
         ]
@@ -377,12 +365,12 @@ def main():
     print("Obelisk Core - Inference Chaining Tests")
     print("=" * 60)
 
-    # Test 1: Basic chaining (no memory)
+    # Test 1: Basic direct chaining (no memory, no intermediate text node)
     print("\n" + "=" * 60)
-    print("TEST 1: Basic Inference Chaining (No Memory)")
+    print("TEST 1: Direct Inference Chaining (No Memory, No Intermediate Text)")
     print("=" * 60)
     basic_workflow = create_basic_chain_workflow()
-    test1_passed = test_workflow_execution(basic_workflow, "Basic Chain (Inference → Text → Inference)")
+    test1_passed = test_workflow_execution(basic_workflow, "Direct Chain (Inference → Inference)")
 
     # Test 2: Memory chaining
     print("\n" + "=" * 60)
