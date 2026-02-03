@@ -62,9 +62,9 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Generation",
     nodes: [
       {
-        type: "sampler",
-        title: "Sampler",
-        description: "Generates LLM response",
+        type: "inference",
+        title: "Inference",
+        description: "Generates LLM response (inference for LLM use cases)",
       },
     ],
   },

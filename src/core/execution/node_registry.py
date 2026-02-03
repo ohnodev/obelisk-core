@@ -38,13 +38,13 @@ def get_node_class(node_type: str) -> Optional[Type[BaseNode]]:
 def _register_all_nodes():
     """Register all node types"""
     from .nodes.model_loader import ModelLoaderNode
-    from .nodes.sampler import SamplerNode
+    from .nodes.inference import InferenceNode
     from .nodes.memory_adapter import MemoryAdapterNode
     from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
     
     register_node("model_loader", ModelLoaderNode)
-    register_node("sampler", SamplerNode)
+    register_node("inference", InferenceNode)
     register_node("memory_adapter", MemoryAdapterNode)
     register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)

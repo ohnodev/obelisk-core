@@ -12,7 +12,7 @@ class MemoryAdapterNode extends LGraphNode {
     this.title = "Memory Adapter";
     this.addInput("user_id", "string");
     this.addInput("query", "string");
-    this.addOutput("context", "object"); // Output to Sampler's context input
+    this.addOutput("context", "object"); // Output to Inference node's context input
     this.size = [200, 80];
     (this as any).type = "memory_adapter";
     (this as any).resizable = true;
@@ -32,7 +32,7 @@ class MemoryAdapterNode extends LGraphNode {
     const query = this.getInputData(1);
     
     // In a real implementation, this would retrieve context from memory
-    // based on user_id and query, and return it for the Sampler
+    // based on user_id and query, and return it for the Inference node
     const memory = { userId, query, messages: [] };
     this.setOutputData(0, memory);
   }

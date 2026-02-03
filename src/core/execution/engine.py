@@ -156,7 +156,8 @@ class ExecutionEngine:
             node_results=node_results,
             final_outputs=final_outputs,
             error="; ".join(errors) if errors else None,
-            total_execution_time=total_time
+            total_execution_time=total_time,
+            execution_order=execution_order  # Include execution order for frontend highlighting
         )
     
     def validate_graph(self, workflow: NodeGraph) -> bool:

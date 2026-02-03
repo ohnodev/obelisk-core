@@ -102,7 +102,7 @@ export default function Home() {
 
       // Update node outputs with results from backend
       if (result.results) {
-        updateNodeOutputs(graph, result.results);
+        updateNodeOutputs(graph, result.results, result.execution_order);
         
         // Force canvas redraw to show updated outputs
         const canvas = (window as any).__obeliskCanvas;

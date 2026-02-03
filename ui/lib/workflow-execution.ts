@@ -16,6 +16,7 @@ export interface ExecutionResult {
   };
   error?: string;
   message?: string;
+  execution_order?: string[]; // Order in which nodes were executed (for highlighting)
 }
 
 export interface ExecutionStatus {
@@ -113,14 +114,76 @@ export async function getExecutionStatus(
 }
 
 /**
+ * Highlights nodes during execution (like ComfyUI)
+ * Shows which nodes are currently executing or have completed
+ */
+export function highlightExecutingNodes(
+  graph: any,
+  executionOrder: string[] | undefined,
+  delay: number = 100
+): void {
+  if (!executionOrder || !graph) return;
+
+  // Clear any existing highlights
+  const allNodes = graph._nodes || [];
+  allNodes.forEach((node: any) => {
+    if (node) {
+      node.executing = false;
+      node.executed = false;
+    }
+  });
+
+  // Highlight nodes sequentially as they execute
+  executionOrder.forEach((nodeId, index) => {
+    setTimeout(() => {
+      const node = graph.getNodeById(nodeId as any) || 
+                  (/^\d+$/.test(nodeId) ? graph.getNodeById(parseInt(nodeId, 10) as any) : null);
+      
+      if (node) {
+        // Mark as executing
+        node.executing = true;
+        node.executed = false;
+        
+        // Force redraw
+        const canvas = (window as any).__obeliskCanvas;
+        if (canvas) {
+          canvas.dirty_canvas = true;
+          canvas.draw(true);
+        }
+        
+        // After a short delay, mark as executed
+        setTimeout(() => {
+          if (node) {
+            node.executing = false;
+            node.executed = true;
+            
+            // Force redraw again
+            if (canvas) {
+              canvas.dirty_canvas = true;
+              canvas.draw(true);
+            }
+          }
+        }, delay);
+      }
+    }, index * delay);
+  });
+}
+
+/**
  * Updates node outputs in the frontend graph after execution
  * This is called after receiving results from backend
  */
 export function updateNodeOutputs(
   graph: any,
-  results: ExecutionResult["results"]
+  results: ExecutionResult["results"],
+  executionOrder?: string[]
 ): void {
   if (!results || !graph) return;
+  
+  // Highlight nodes as they executed
+  if (executionOrder) {
+    highlightExecutingNodes(graph, executionOrder);
+  }
 
   for (const [nodeId, nodeResult] of Object.entries(results)) {
     // Try to find node by raw string ID first (handles non-numeric IDs like "text-1" or UUIDs)

@@ -245,6 +245,7 @@ class WorkflowExecuteResponse(BaseModel):
     results: Optional[Dict[str, Dict[str, Any]]] = None
     error: Optional[str] = None
     message: Optional[str] = None
+    execution_order: Optional[List[str]] = None  # Order in which nodes were executed (for highlighting)
 
 
 def _convert_frontend_to_backend_format(frontend_workflow: Dict[str, Any]) -> Dict[str, Any]:
@@ -407,7 +408,8 @@ async def execute_workflow(
                 execution_id=None,  # Could generate UUID if needed
                 status="completed",
                 results=results,
-                message="Workflow executed successfully"
+                message="Workflow executed successfully",
+                execution_order=execution_result.get("execution_order")  # Include execution order for highlighting
             )
         else:
             # Include more detailed error information

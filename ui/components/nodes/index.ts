@@ -3,4 +3,4 @@ import "./TextNode";
 import "./ModelLoaderNode";
 import "./LoRALoaderNode";
 import "./MemoryAdapterNode";
-import "./SamplerNode";
+import "./InferenceNode";

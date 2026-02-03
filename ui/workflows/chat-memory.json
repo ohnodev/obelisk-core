@@ -34,7 +34,7 @@
     },
     {
       "id": "5",
-      "type": "sampler",
+      "type": "inference",
       "position": {"x": 650, "y": 100},
       "inputs": {
         "quantum_influence": 0.7,

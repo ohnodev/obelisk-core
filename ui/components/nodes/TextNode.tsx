@@ -53,8 +53,28 @@ class TextNode extends LGraphNode {
     if (this.flags.collapsed) {
       return;
     }
-    ctx.fillStyle = "rgba(74, 158, 255, 0.1)";
-    ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    
+    // Execution highlighting (like ComfyUI)
+    const isExecuting = (this as any).executing;
+    const hasExecuted = (this as any).executed;
+    
+    if (isExecuting) {
+      // Highlight with pulsing yellow/orange when executing
+      ctx.fillStyle = "rgba(255, 200, 0, 0.3)";
+      ctx.fillRect(0, 0, this.size[0], this.size[1]);
+      // Add animated border
+      ctx.strokeStyle = "#ffc800";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
+    } else if (hasExecuted) {
+      // Subtle green tint when completed
+      ctx.fillStyle = "rgba(0, 255, 0, 0.1)";
+      ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    } else {
+      // Normal background
+      ctx.fillStyle = "rgba(74, 158, 255, 0.1)";
+      ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    }
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
