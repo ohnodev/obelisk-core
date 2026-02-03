@@ -139,7 +139,13 @@ function NotificationContainer({
   notifications,
   onDismiss,
 }: NotificationContainerProps) {
-  if (typeof window === "undefined") return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || typeof window === "undefined") return null;
 
   return createPortal(
     <div
