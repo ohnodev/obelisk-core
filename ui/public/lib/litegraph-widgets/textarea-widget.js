@@ -43,64 +43,6 @@
             w._textareaWidth = textareaWidth;
             w._textareaHeight = textareaHeight;
             
-            // Create HTML textarea element if it doesn't exist (reuse it, don't create new ones)
-            if (!w._htmlTextarea) {
-                var htmlTextarea = document.createElement("textarea");
-                htmlTextarea.style.position = "fixed"; // Fixed position for proper overlay
-                htmlTextarea.style.pointerEvents = "auto"; // Always clickable
-                htmlTextarea.style.border = "none";
-                htmlTextarea.style.background = "transparent";
-                htmlTextarea.style.color = "#FFFFFF";
-                htmlTextarea.style.fontSize = "12px";
-                htmlTextarea.style.fontFamily = "Arial, sans-serif";
-                htmlTextarea.style.resize = "none";
-                htmlTextarea.style.outline = "none";
-                htmlTextarea.style.overflow = "auto";
-                htmlTextarea.style.padding = "4px";
-                htmlTextarea.style.lineHeight = "14px";
-                htmlTextarea.style.boxSizing = "border-box";
-                htmlTextarea.style.opacity = "1"; // Always visible
-                htmlTextarea.style.zIndex = "1000";
-                
-                // Get canvas container
-                var canvas = ctx.canvas;
-                var canvasContainer = canvas.parentElement;
-                if (canvasContainer) {
-                    document.body.appendChild(htmlTextarea); // Append to body for fixed positioning
-                    w._htmlTextarea = htmlTextarea;
-                    w._node = node; // Store node reference for position updates
-                }
-                
-                // Sync on input
-                htmlTextarea.addEventListener("input", function() {
-                    w.value = htmlTextarea.value;
-                    if (w.options && w.options.property) {
-                        node.setProperty(w.options.property, htmlTextarea.value);
-                    }
-                    if (w.callback) {
-                        var canvasInstance = window.__obeliskCanvas;
-                        w.callback(htmlTextarea.value, canvasInstance, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], null);
-                    }
-                    if (node.graph) {
-                        node.graph._version++;
-                    }
-                    var canvasInstance = window.__obeliskCanvas;
-                    if (canvasInstance) {
-                        canvasInstance.dirty_canvas = true;
-                        canvasInstance.draw(true);
-                    }
-                });
-                
-                // Just redraw on blur (textarea stays visible)
-                htmlTextarea.addEventListener("blur", function() {
-                    var canvasInstance = window.__obeliskCanvas;
-                    if (canvasInstance) {
-                        canvasInstance.dirty_canvas = true;
-                        canvasInstance.draw(true);
-                    }
-                });
-            }
-            
             // Draw textarea background
             ctx.fillStyle = background_color;
             ctx.fillRect(textareaX, textareaY, textareaWidth, textareaHeight);
@@ -190,33 +132,18 @@
                     if (w._textareaElement && document.activeElement === w._textareaElement) {
                         // Don't draw text when editing
                     } else {
-                    // Don't draw canvas text - HTML textarea is always visible and handles display
-                    // Canvas text would overlap with HTML textarea
-                    
-                    // Update HTML textarea position and size on every draw
-                    if (w._htmlTextarea && w._node) {
-                        var canvasRect = ctx.canvas.getBoundingClientRect();
-                        var canvasInstance = window.__obeliskCanvas;
-                        if (canvasInstance && canvasInstance.ds) {
-                            var scale = canvasInstance.ds.scale || 1;
-                            var offsetX = canvasInstance.ds.offset ? canvasInstance.ds.offset[0] : 0;
-                            var offsetY = canvasInstance.ds.offset ? canvasInstance.ds.offset[1] : 0;
-                            
-                            // Calculate screen position accounting for canvas transform
-                            var nodeScreenX = (w._node.pos[0] + textareaX) * scale + offsetX;
-                            var nodeScreenY = (w._node.pos[1] + textareaY) * scale + offsetY;
-                            
-                            var screenX = canvasRect.left + nodeScreenX;
-                            var screenY = canvasRect.top + nodeScreenY;
-                            
-                            w._htmlTextarea.style.left = screenX + "px";
-                            w._htmlTextarea.style.top = screenY + "px";
-                            w._htmlTextarea.style.width = (textareaWidth * scale) + "px";
-                            w._htmlTextarea.style.height = (textareaHeight * scale) + "px";
-                            w._htmlTextarea.style.fontSize = (12 * scale) + "px"; // Scale font with zoom
-                            w._htmlTextarea.value = String(w.value || '');
-                        }
+                    // Draw wrapped lines
+                    for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
+                        ctx.fillText(
+                            wrappedLines[lineIdx],
+                            textareaX + 4,
+                            textareaY + 4 + (lineIdx * lineHeight)
+                        );
                     }
+                    
+                    // Show ellipsis if text is truncated
+                    if (wrappedLines.length > maxLinesClamped) {
+                        ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
                     }
                 }
             }
@@ -331,25 +258,72 @@
                         y >= textareaY && y <= textareaY + textareaHeight) {
                         
                         if (event.type === LG.pointerevents_method + "down") {
-                            // Prevent default to avoid node selection
-                            if (event.preventDefault) {
-                                event.preventDefault();
-                            }
-                            if (event.stopPropagation) {
-                                event.stopPropagation();
-                            }
+                            // Simple approach: use native prompt but styled better
+                            // Get click position for positioning the input
+                            var canvasRect = that.canvas.getBoundingClientRect();
+                            var scale = that.ds.scale || 1;
+                            var offsetX = that.ds.offset ? that.ds.offset[0] : 0;
+                            var offsetY = that.ds.offset ? that.ds.offset[1] : 0;
                             
-                            // Focus the existing HTML textarea
-                            if (w._htmlTextarea) {
-                                w._htmlTextarea.focus();
-                                w._htmlTextarea.select();
-                                return w;
-                            }
+                            var screenX = canvasRect.left + (node.pos[0] + textareaX) * scale + offsetX;
+                            var screenY = canvasRect.top + (node.pos[1] + textareaY) * scale + offsetY;
                             
-                            // Store reference to widget and node for cleanup
-                            editor._widget = w;
-                            editor._node = node;
-                            editor._canvas = that;
+                            // Create simple textarea overlay at click position
+                            var editor = document.createElement("textarea");
+                            editor.value = String(w.value || "");
+                            editor.style.position = "fixed";
+                            editor.style.left = screenX + "px";
+                            editor.style.top = screenY + "px";
+                            editor.style.width = (textareaWidth * scale) + "px";
+                            editor.style.height = (textareaHeight * scale) + "px";
+                            editor.style.zIndex = "10000";
+                            editor.style.border = "2px solid #d4af37";
+                            editor.style.borderRadius = "4px";
+                            editor.style.padding = "4px";
+                            editor.style.fontSize = (12 * scale) + "px";
+                            editor.style.fontFamily = "Arial, sans-serif";
+                            editor.style.color = "#FFFFFF";
+                            editor.style.backgroundColor = "#1a1a1a";
+                            editor.style.resize = "none";
+                            editor.style.outline = "none";
+                            editor.style.boxSizing = "border-box";
+                            editor.style.overflow = "auto";
+                            editor.style.lineHeight = "14px";
+                            
+                            document.body.appendChild(editor);
+                            editor.focus();
+                            editor.select();
+                            
+                            // Save on blur
+                            var saveAndRemove = function() {
+                                var newValue = editor.value;
+                                w.value = newValue;
+                                if (w.options && w.options.property) {
+                                    node.setProperty(w.options.property, newValue);
+                                }
+                                if (w.callback) {
+                                    w.callback(newValue, that, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], event);
+                                }
+                                if (node.onWidgetChanged) {
+                                    node.onWidgetChanged(w.name, newValue, w.value, w);
+                                }
+                                if (node.graph) {
+                                    node.graph._version++;
+                                }
+                                editor.remove();
+                                that.dirty_canvas = true;
+                                that.draw(true);
+                            };
+                            
+                            editor.addEventListener("blur", saveAndRemove);
+                            editor.addEventListener("keydown", function(e) {
+                                if (e.key === "Escape") {
+                                    editor.value = String(w.value || "");
+                                    editor.blur();
+                                }
+                            });
+                            
+                            return w;
                             
                             // Handle blur (when user clicks away or presses Escape)
                             var handleBlur = function() {
