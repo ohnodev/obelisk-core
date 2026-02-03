@@ -35,12 +35,13 @@ class ObeliskLLM:
     # Note: model.generate() returns [input_tokens...][new_tokens...]
     # Total must be: input_tokens + output_tokens <= MAX_CONTEXT_TOKENS
     
-    def __init__(self, storage=None):
+    def __init__(self, storage=None, debug_logging=False):
         """
         Initialize Obelisk LLM
         
         Args:
             storage: StorageInterface instance (deprecated - LoRA loading handled by LoRALoaderNode)
+            debug_logging: If True, enables verbose logging of prompts and responses (default: False)
         """
         self.model = None
         self.tokenizer = None
@@ -48,6 +49,7 @@ class ObeliskLLM:
         self.lora_config = None
         self.storage = storage  # Kept for backward compatibility, but LoRA handled by LoRALoaderNode
         self.lora_manager = None
+        self.debug_logging = debug_logging  # Gated debug flag for sensitive data logging
         self._load_model()
 
     def _load_model(self):
@@ -406,6 +408,37 @@ class ObeliskLLM:
         
         return thinking_content, final_content
 
+    def _redact_and_truncate(self, text: str, max_chars: int = 200) -> str:
+        """
+        Redact PII and truncate long content for safe logging.
+        
+        Args:
+            text: Text to redact and truncate
+            max_chars: Maximum characters to keep (default: 200)
+        
+        Returns:
+            Redacted and truncated text safe for logging
+        """
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Basic PII redaction patterns (email, phone, credit card, SSN-like patterns)
+        # Email pattern
+        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL_REDACTED]', text)
+        # Phone pattern (various formats)
+        text = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[PHONE_REDACTED]', text)
+        text = re.sub(r'\b\(\d{3}\)\s?\d{3}[-.]?\d{4}\b', '[PHONE_REDACTED]', text)
+        # Credit card pattern (16 digits, possibly with spaces/dashes)
+        text = re.sub(r'\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b', '[CARD_REDACTED]', text)
+        # SSN pattern
+        text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[SSN_REDACTED]', text)
+        
+        # Truncate if too long
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+        
+        return text
+
     def _post_process_response(self, raw_response: str) -> str:
         """
         Post-process response to remove artifacts and clean up formatting.
@@ -495,12 +528,14 @@ class ObeliskLLM:
                 enable_thinking=enable_thinking
             )
             
-            # Debug: Show full prompt
-            logger.debug("\n" + "="*80)
-            logger.debug(f"Full prompt sent to LLM (thinking_mode={enable_thinking}):")
-            logger.debug("="*80)
-            logger.debug(prompt_text)
-            logger.debug("="*80 + "\n")
+            # Debug: Show full prompt (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_prompt = self._redact_and_truncate(prompt_text, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug(f"Full prompt sent to LLM (thinking_mode={enable_thinking}):")
+                logger.debug("="*80)
+                logger.debug(safe_prompt)
+                logger.debug("="*80 + "\n")
             
             # Tokenize input
             inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
@@ -528,24 +563,30 @@ class ObeliskLLM:
             # Parse thinking and content tokens
             thinking_content, final_content = self._parse_thinking_tokens(generated_tokens, enable_thinking)
             
-            # Debug: Show raw response before post-processing
-            logger.debug("\n" + "="*80)
-            logger.debug("Raw response from LLM (before post-processing):")
-            logger.debug("="*80)
-            logger.debug(repr(final_content))
-            logger.debug("="*80 + "\n")
+            # Debug: Show raw response before post-processing (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_content = self._redact_and_truncate(final_content, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug("Raw response from LLM (before post-processing):")
+                logger.debug("="*80)
+                logger.debug(safe_content)
+                logger.debug("="*80 + "\n")
             
             # Post-process response
             response = self._post_process_response(final_content)
             
-            # Debug: Show final processed response
-            logger.debug("\n" + "="*80)
-            logger.debug("Final processed response:")
-            logger.debug("="*80)
-            logger.debug(repr(response))
-            logger.debug("="*80 + "\n")
+            # Debug: Show final processed response (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_response = self._redact_and_truncate(response, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug("Final processed response:")
+                logger.debug("="*80)
+                logger.debug(safe_response)
+                logger.debug("="*80 + "\n")
             
-            logger.debug(f"Generated response: {response[:100]}... ({len(response)} chars)")
+            # Always log summary (truncated and redacted)
+            safe_summary = self._redact_and_truncate(response, max_chars=100)
+            logger.debug(f"Generated response: {safe_summary}... ({len(response)} chars)")
             
             return {
                 "response": response,
