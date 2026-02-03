@@ -132,9 +132,10 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
             # Generate summary using config parameters
             result = llm.generate(
                 query=summary_prompt,
+                system_prompt="You are a memory extraction system. Extract structured information from conversations and return only valid JSON.",
                 quantum_influence=0.2,  # Lower influence for more consistent summaries
-                conversation_context=None,
                 max_length=800,  # Allow enough tokens for complete JSON generation
+                conversation_history=None,
                 enable_thinking=False  # Disable thinking mode for faster, more reliable JSON output
             )
             
