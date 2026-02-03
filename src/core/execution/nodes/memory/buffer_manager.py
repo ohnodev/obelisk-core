@@ -4,8 +4,8 @@ Manages RecentConversationBuffer instances per user_id
 """
 from typing import Dict, Optional
 from .recent_buffer import RecentConversationBuffer
-from ...storage.base import StorageInterface
-from ...utils.logger import get_logger
+from src.storage.base import StorageInterface
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
