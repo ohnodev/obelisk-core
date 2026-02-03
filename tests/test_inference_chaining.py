@@ -223,7 +223,7 @@ def create_memory_chain_workflow() -> dict:
     }
 
 
-def test_workflow_execution(workflow: dict, workflow_name: str) -> bool:
+def run_workflow_execution(workflow: dict, workflow_name: str) -> bool:
     """Test executing a workflow"""
     print(f"\n🧪 Testing workflow: {workflow_name}")
     print(f"📋 Workflow: {workflow.get('name', 'Unknown')}")
@@ -376,14 +376,14 @@ def main():
     print("TEST 1: Direct Inference Chaining (No Memory, No Intermediate Text)")
     print("=" * 60)
     basic_workflow = create_basic_chain_workflow()
-    test1_passed = test_workflow_execution(basic_workflow, "Direct Chain (Inference → Inference)")
+    test1_passed = run_workflow_execution(basic_workflow, "Direct Chain (Inference → Inference)")
 
     # Test 2: Memory chaining
     print("\n" + "=" * 60)
     print("TEST 2: Memory Inference Chaining")
     print("=" * 60)
     memory_workflow = create_memory_chain_workflow()
-    test2_passed = test_workflow_execution(memory_workflow, "Memory Chain (Memory → Inference → Text → Inference)")
+    test2_passed = run_workflow_execution(memory_workflow, "Memory Chain (Memory → Inference → Text → Inference)")
 
     print()
     print("=" * 60)
