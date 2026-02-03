@@ -3,7 +3,7 @@ Inference Node
 Generates LLM response (inference, not sampling)
 Simple interface: system_prompt + query -> response
 """
-from typing import Dict, Any, List, Callable, Optional
+from typing import Dict, Any, Optional
 from ...node_base import BaseNode, ExecutionContext
 from .obelisk_llm import ObeliskLLM
 from src.utils.logger import get_logger
@@ -34,34 +34,9 @@ class InferenceNode(BaseNode):
     def __init__(self, node_id: str, node_data: Dict[str, Any]):
         """Initialize inference node"""
         super().__init__(node_id, node_data)
-        # Lifecycle hooks - can be registered by other nodes
-        self._before_input_hooks: List[Callable] = []
-        self._after_input_hooks: List[Callable] = []
-        self._before_output_hooks: List[Callable] = []
-        self._after_output_hooks: List[Callable] = []
-    
-    def register_before_input_hook(self, hook: Callable[[ExecutionContext], None]) -> None:
-        """Register a hook to be called before inputs are resolved"""
-        self._before_input_hooks.append(hook)
-    
-    def register_after_input_hook(self, hook: Callable[[ExecutionContext, Dict[str, Any]], Dict[str, Any]]) -> None:
-        """Register a hook to be called after inputs are resolved (can modify inputs)"""
-        self._after_input_hooks.append(hook)
-    
-    def register_before_output_hook(self, hook: Callable[[ExecutionContext, Dict[str, Any]], Dict[str, Any]]) -> None:
-        """Register a hook to be called before outputs are returned (can modify outputs)"""
-        self._before_output_hooks.append(hook)
-    
-    def register_after_output_hook(self, hook: Callable[[ExecutionContext, Dict[str, Any]], None]) -> None:
-        """Register a hook to be called after outputs are returned"""
-        self._after_output_hooks.append(hook)
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
-        """Execute inference node with lifecycle hooks"""
-        # Hook: beforeInput - called before inputs are resolved
-        for hook in self._before_input_hooks:
-            hook(context)
-        
+        """Execute inference node"""
         # Resolve inputs
         model = self.get_input_value('model', context)
         system_prompt = self.get_input_value('system_prompt', context, '')
@@ -85,30 +60,6 @@ class InferenceNode(BaseNode):
             # Use context messages as conversation_history if not provided separately
             if conversation_history is None:
                 conversation_history = context_messages
-        
-        # Prepare resolved inputs dict
-        resolved_inputs = {
-            'model': model,
-            'system_prompt': system_prompt,
-            'query': query,
-            'quantum_influence': quantum_influence,
-            'max_length': max_length,
-            'enable_thinking': enable_thinking,
-            'conversation_history': conversation_history
-        }
-        
-        # Hook: afterInput - allows modifying resolved inputs
-        for hook in self._after_input_hooks:
-            resolved_inputs = hook(context, resolved_inputs)
-        
-        # Extract potentially modified inputs
-        model = resolved_inputs.get('model', model)
-        system_prompt = resolved_inputs.get('system_prompt', system_prompt)
-        query = resolved_inputs.get('query', query)
-        quantum_influence = resolved_inputs.get('quantum_influence', quantum_influence)
-        max_length = resolved_inputs.get('max_length', max_length)
-        enable_thinking = resolved_inputs.get('enable_thinking', enable_thinking)
-        conversation_history = resolved_inputs.get('conversation_history', conversation_history)
         
         # Debug logging
         logger.debug(f"InferenceNode {self.node_id}: query={query[:100] if query else 'None'}, "
@@ -136,18 +87,8 @@ class InferenceNode(BaseNode):
         logger.debug(f"InferenceNode {self.node_id}: generated response length={len(response_text)}")
         
         # Prepare outputs
-        outputs = {
+        return {
             'query': str(query),  # Output original query for use in memory creation, etc.
             'response': response_text,
             'result': result
         }
-        
-        # Hook: beforeOutput - allows modifying outputs
-        for hook in self._before_output_hooks:
-            outputs = hook(context, outputs)
-        
-        # Hook: afterOutput - called after outputs are returned (for post-processing)
-        for hook in self._after_output_hooks:
-            hook(context, outputs)
-        
-        return outputs

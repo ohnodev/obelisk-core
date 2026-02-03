@@ -224,8 +224,9 @@ class ExecutionEngine:
         # Process connections to build dependency graph
         connections = workflow.get('connections', [])
         for conn in connections:
-            source_id = conn['source_node']
-            target_id = conn['target_node']
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
             
             if source_id not in dependencies[target_id]:
                 dependencies[target_id].add(source_id)
@@ -308,8 +309,9 @@ class ExecutionEngine:
                 continue
             
             source_id = conn['source_node']
-            source_output = conn.get('source_output', 'default')
-            target_input = conn.get('target_input', 'default')
+            # Support both formats: 'from_output'/'to_input' (frontend) and 'source_output'/'target_input' (backend)
+            source_output = conn.get('source_output') or conn.get('from_output', 'default')
+            target_input = conn.get('target_input') or conn.get('to_input', 'default')
             
             # Get output from source node
             if source_id in context.node_outputs:

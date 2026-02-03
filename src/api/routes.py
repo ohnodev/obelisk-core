@@ -373,19 +373,20 @@ async def execute_workflow(
         execution_result = engine.execute(backend_workflow, context_variables)
         
         # Convert results to frontend format
-        if execution_result.success:
+        # GraphExecutionResult is a TypedDict, access as dict
+        if execution_result.get('success', False):
             results = _convert_backend_to_frontend_results(execution_result)
             return WorkflowExecuteResponse(
                 execution_id=request.options.get("execution_id"),
                 status="completed",
                 results=results,
                 message="Workflow executed successfully",
-                execution_order=execution_result.execution_order
+                execution_order=execution_result.get('execution_order', [])
             )
         else:
             return WorkflowExecuteResponse(
                 status="error",
-                error=execution_result.error,
+                error=execution_result.get('error', 'Unknown error'),
                 message="Workflow execution failed"
             )
             
