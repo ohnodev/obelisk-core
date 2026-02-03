@@ -25,7 +25,7 @@ class InferenceNode(BaseNode):
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute inference node"""
-        from ...utils.logger import get_logger
+        from ....utils.logger import get_logger
         logger = get_logger(__name__)
         
         model = self.get_input_value('model', context)
