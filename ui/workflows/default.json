@@ -111,6 +111,18 @@
       "to_input": "model"
     },
     {
+      "from": "4",
+      "from_output": "model",
+      "to": "3",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "8",
+      "to_input": "model"
+    },
+    {
       "from": "5",
       "from_output": "text",
       "to": "6",

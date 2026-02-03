@@ -232,7 +232,8 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
         query = self.get_input_value('query', context, '')
         storage_instance = self.get_input_value('storage_instance', context, None)
         user_id = self.get_input_value('user_id', context, None)
-        llm = self.get_input_value('llm', context, None)
+        # Accept both 'model' (from ModelLoaderNode) and 'llm' (legacy/direct)
+        llm = self.get_input_value('model', context, None) or self.get_input_value('llm', context, None)
         enable_recent_buffer = self.get_input_value('enable_recent_buffer', context, True)
         k = self.get_input_value('k', context, 10)
         
@@ -254,16 +255,19 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
         if user_id is None or user_id == '':
             user_id = f"user_{self.node_id}"
         
-        # Default to container's LLM if not provided
-        if llm is None:
-            llm = context.container.llm
-        
         # Validate inputs
         if not storage_instance:
             raise ValueError("storage_instance is required for MemorySelectorNode")
         
         if not query:
             raise ValueError("query is required for MemorySelectorNode")
+        
+        # Default to container's LLM if not provided
+        if llm is None:
+            if context.container and context.container.llm:
+                llm = context.container.llm
+            else:
+                raise ValueError("llm is required for MemorySelectorNode. Connect a ModelLoaderNode or provide llm input.")
         
         # Agent logic is embedded in _select_relevant_memories method
         
