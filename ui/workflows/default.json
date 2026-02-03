@@ -139,6 +139,6 @@
       "from_output": "response",
       "to": "8",
       "to_input": "response"
-    },
+    }
   ]
 }
