@@ -276,7 +276,7 @@
                             editor.style.zIndex = "10000";
                             editor.style.border = "2px solid #d4af37";
                             editor.style.borderRadius = "4px";
-                            editor.style.padding = "8px";
+                            editor.style.padding = "1px";
                             editor.style.fontSize = "12px";
                             editor.style.fontFamily = "Arial, sans-serif";
                             editor.style.color = "#FFFFFF";
