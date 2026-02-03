@@ -31,7 +31,7 @@ class MemoryStorageNode extends LGraphNode {
     const initialPath = (this.properties as any)?.storage_path || "default";
     this.addWidget(
       "text" as any,
-      "Storage Folder",
+      "Storage Path",
       initialPath,
       (value: string) => {
         this.setProperty("storage_path", value);

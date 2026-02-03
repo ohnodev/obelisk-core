@@ -169,6 +169,31 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       node.title = originalTitle;
     };
     
+    // Override processMouseWheel to prevent page scrolling and handle zoom
+    const originalProcessMouseWheel = (graphCanvas as any).processMouseWheel;
+    (graphCanvas as any).processMouseWheel = function(e: WheelEvent) {
+      // Prevent page scrolling
+      e.preventDefault();
+      e.stopPropagation();
+      // Legacy support
+      if ((e as any).cancelBubble !== undefined) {
+        (e as any).cancelBubble = true;
+      }
+      
+      // Compute delta for zoom
+      const delta = e.deltaY || (e as any).wheelDelta || 0;
+      // Convert event to canvas coordinates
+      const canvas_pos = this.convertEventToCanvasOffset(e);
+      
+      // Calculate zoom factor (negative delta = zoom in, positive = zoom out)
+      const zoomFactor = delta > 0 ? 0.9 : 1.1;
+      
+      // Apply zoom using LiteGraph's changeDeltaScale method
+      if (this.changeDeltaScale) {
+        this.changeDeltaScale(zoomFactor, canvas_pos);
+      }
+    };
+    
     // Store reference for resize handler
     const canvasInstance = graphCanvas;
 

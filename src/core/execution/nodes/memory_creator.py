@@ -211,7 +211,10 @@ Example of correct JSON format:
         if cycle_id is None:
             try:
                 cycle_id = storage_instance.get_current_evolution_cycle()
-            except:
+            except Exception as e:
+                # Log the error but continue with cycle_id = None
+                # SystemExit/KeyboardInterrupt are not caught by Exception, so they will propagate
+                logger.warning(f"[MemoryCreator] Failed to get current evolution cycle for node {self.node_id}: {e}. Continuing with cycle_id=None.")
                 cycle_id = None
         
         # Save interaction to storage
