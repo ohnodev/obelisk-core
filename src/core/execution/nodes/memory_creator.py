@@ -61,7 +61,7 @@ class MemoryCreatorNode(BaseNode):
         """Get or create buffer manager for storage instance"""
         storage_id = id(storage_instance)
         if storage_id not in self._buffer_managers:
-            from ....memory.buffer_manager import RecentBufferManager
+            from .memory.buffer_manager import RecentBufferManager
             self._buffer_managers[storage_id] = RecentBufferManager(k=k)
         return self._buffer_managers[storage_id]
     
