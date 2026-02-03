@@ -64,12 +64,17 @@ class RecentBufferManager:
         # DEBUG: Log what we're loading (safe metadata only, no sensitive content)
         logger.debug(f"[BufferManager] Loading {len(interactions)} interactions for user_id={user_id}, limit={load_limit}")
         if interactions:
-            first_query_len = len(interactions[0].get('query', ''))
-            first_response_len = len(interactions[0].get('response', ''))
+            # Use truthy fallback pattern to handle None values (get() returns None if key exists with None value)
+            first_query = interactions[0].get('query') or ''
+            first_response = interactions[0].get('response') or ''
+            first_query_len = len(first_query)
+            first_response_len = len(first_response)
             logger.debug(f"[BufferManager] First interaction [index=0]: query_len={first_query_len}, response_len={first_response_len}")
             if len(interactions) > 1:
-                last_query_len = len(interactions[-1].get('query', ''))
-                last_response_len = len(interactions[-1].get('response', ''))
+                last_query = interactions[-1].get('query') or ''
+                last_response = interactions[-1].get('response') or ''
+                last_query_len = len(last_query)
+                last_response_len = len(last_response)
                 logger.debug(f"[BufferManager] Last interaction [index={len(interactions)-1}]: query_len={last_query_len}, response_len={last_response_len}")
         else:
             logger.debug(f"[BufferManager] No interactions found for user_id={user_id}")
