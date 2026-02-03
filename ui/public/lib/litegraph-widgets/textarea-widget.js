@@ -253,7 +253,17 @@
                     if (x >= textareaX && x <= textareaX + textareaWidth &&
                         y >= textareaY && y <= textareaY + textareaHeight) {
                         
-                        if (event.type === LG.pointerevents_method + "down") {
+                        // Handle both mousedown and touchstart events
+                        if (event.type === "mousedown" || event.type === "touchstart" || 
+                            event.type === (LG.pointerevents_method || "mousedown") + "down") {
+                            
+                            // Prevent default to avoid node selection
+                            if (event.preventDefault) {
+                                event.preventDefault();
+                            }
+                            if (event.stopPropagation) {
+                                event.stopPropagation();
+                            }
                             // Simple approach: use native prompt but styled better
                             // Get click position for positioning the input
                             var canvasRect = that.canvas.getBoundingClientRect();
