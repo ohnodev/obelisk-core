@@ -40,27 +40,27 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
     switch (notification.type) {
       case "error":
         return {
-          bg: "bg-red-600",
-          border: "border-red-700",
+          bg: "#dc2626",
+          border: "#b91c1c",
           icon: "❌",
         };
       case "success":
         return {
-          bg: "bg-green-600",
-          border: "border-green-700",
+          bg: "#16a34a",
+          border: "#15803d",
           icon: "✅",
         };
       case "warning":
         return {
-          bg: "bg-yellow-600",
-          border: "border-yellow-700",
+          bg: "#ca8a04",
+          border: "#a16207",
           icon: "⚠️",
         };
       case "info":
       default:
         return {
-          bg: "bg-blue-600",
-          border: "border-blue-700",
+          bg: "#2563eb",
+          border: "#1d4ed8",
           icon: "ℹ️",
         };
     }
@@ -70,16 +70,28 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
 
   return (
     <div
-      className={`${styles.bg} ${styles.border} border-l-4 text-white px-6 py-4 shadow-lg rounded-r-lg mb-3 min-w-[300px] max-w-[500px] transition-all duration-300 ${
-        isVisible ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-full"
-      }`}
+      style={{
+        backgroundColor: styles.bg,
+        borderLeft: `4px solid ${styles.border}`,
+        color: "white",
+        padding: "16px 24px",
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+        borderTopRightRadius: "8px",
+        borderBottomRightRadius: "8px",
+        marginBottom: "12px",
+        minWidth: "300px",
+        maxWidth: "500px",
+        transition: "all 0.3s ease",
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "translateX(0)" : "translateX(-100%)",
+      }}
       role="alert"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex items-start">
-          <span className="text-xl mr-3">{styles.icon}</span>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">{notification.message}</p>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
+          <span style={{ fontSize: "20px", marginRight: "12px" }}>{styles.icon}</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: 600, fontSize: "14px", margin: 0 }}>{notification.message}</p>
           </div>
         </div>
         <button
@@ -87,17 +99,28 @@ function NotificationItem({ notification, onDismiss }: NotificationProps) {
             setIsVisible(false);
             setTimeout(() => onDismiss(notification.id), 300);
           }}
-          className="ml-4 text-white hover:text-gray-200 focus:outline-none"
+          style={{
+            marginLeft: "16px",
+            color: "white",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           aria-label="Dismiss notification"
         >
           <svg
-            className="w-5 h-5"
+            width="20"
+            height="20"
             fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            stroke="currentColor"
             strokeWidth="2"
             viewBox="0 0 24 24"
-            stroke="currentColor"
           >
             <path d="M6 18L18 6M6 6l12 12"></path>
           </svg>
@@ -120,10 +143,17 @@ function NotificationContainer({
 
   return createPortal(
     <div
-      className="fixed top-4 right-4 z-[9999] pointer-events-none"
-      style={{ maxHeight: "calc(100vh - 2rem)", overflowY: "auto" }}
+      style={{
+        position: "fixed",
+        top: "16px",
+        right: "16px",
+        zIndex: 9999,
+        pointerEvents: "none",
+        maxHeight: "calc(100vh - 2rem)",
+        overflowY: "auto",
+      }}
     >
-      <div className="pointer-events-auto">
+      <div style={{ pointerEvents: "auto" }}>
         {notifications.map((notification) => (
           <NotificationItem
             key={notification.id}
