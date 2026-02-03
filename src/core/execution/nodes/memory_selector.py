@@ -51,12 +51,13 @@ class MemorySelectorNode(BaseNode):
     
     def _get_buffer_manager(self, storage_instance, k: int):
         """Get or create buffer manager for storage instance"""
-        # Use storage instance id or path as cache key
+        # Use tuple of (storage_instance_id, k) as cache key to handle different k values
         storage_id = id(storage_instance)
-        if storage_id not in self._buffer_managers:
+        cache_key = (storage_id, int(k))
+        if cache_key not in self._buffer_managers:
             from .memory.buffer_manager import RecentBufferManager
-            self._buffer_managers[storage_id] = RecentBufferManager(k=k)
-        return self._buffer_managers[storage_id]
+            self._buffer_managers[cache_key] = RecentBufferManager(k=int(k))
+        return self._buffer_managers[cache_key]
     
     def _load_all_summaries_from_storage(self, storage_instance, user_id: str, limit: int = 30) -> List[Dict[str, Any]]:
         """Load all summaries from storage (up to limit, most recent first)"""
