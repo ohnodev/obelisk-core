@@ -105,9 +105,11 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0.75rem 1rem",
-        background: "var(--color-bg-secondary)",
-        borderBottom: "1px solid var(--color-border-primary)",
+        padding: "0.5rem 1rem",
+        background: "rgba(15, 20, 25, 0.15)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
         zIndex: 10,
       }}
     >
@@ -184,15 +186,15 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
           display: "flex",
           alignItems: "center",
           gap: "0.5rem",
-          padding: "0.625rem 1.25rem",
+          padding: "0.5rem 1.25rem",
           background: isExecuting
             ? "var(--color-button-secondary-bg)"
-            : "rgba(212, 175, 55, 0.15)",
+            : "rgba(212, 175, 55, 0.08)",
           color: isExecuting
             ? "var(--color-text-muted)"
             : "var(--color-primary)",
-          border: `1px solid ${isExecuting ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.4)"}`,
-          borderRadius: "6px",
+          border: `1px solid ${isExecuting ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.25)"}`,
+          borderRadius: "4px",
           fontFamily: "var(--font-body)",
           fontSize: "0.875rem",
           fontWeight: 500,
@@ -200,20 +202,20 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
           transition: "all 0.2s ease",
           boxShadow: isExecuting
             ? "none"
-            : "0 2px 8px rgba(212, 175, 55, 0.2)",
+            : "0 2px 6px rgba(212, 175, 55, 0.15)",
         }}
         onMouseEnter={(e) => {
           if (!isExecuting) {
-            e.currentTarget.style.background = "rgba(212, 175, 55, 0.25)";
-            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.6)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(212, 175, 55, 0.3)";
+            e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
+            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
+            e.currentTarget.style.boxShadow = "0 3px 10px rgba(212, 175, 55, 0.2)";
           }
         }}
         onMouseLeave={(e) => {
           if (!isExecuting) {
-            e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
-            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
-            e.currentTarget.style.boxShadow = "0 2px 8px rgba(212, 175, 55, 0.2)";
+            e.currentTarget.style.background = "rgba(212, 175, 55, 0.08)";
+            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.25)";
+            e.currentTarget.style.boxShadow = "0 2px 6px rgba(212, 175, 55, 0.15)";
           }
         }}
       >
