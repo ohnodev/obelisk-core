@@ -178,13 +178,10 @@ class MemorySelectorNode(BaseNode):
                     summary_str += f"  Context: {', '.join([f'{k}={v}' for k, v in user_ctx.items()])}\n"
                 summaries_text += summary_str + "\n"
             
-            # Memory Selector prompt (from config)
-            selection_prompt = f"""You are analyzing memories to select the {top_k} most relevant ones for a user query. You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with {{ and end with }}.
+            # System prompt with detailed instructions (persistent context - saves tokens)
+            system_prompt = f"""You are a memory selector. Your role is to analyze memories and select the {top_k} most relevant ones for a user query.
 
-User Query: {user_query}
-
-Available Memories:
-{summaries_text}
+You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with {{ and end with }}.
 
 Analyze which memories are most relevant to the user query and return a JSON object with:
 - selected_indices: Array of 0-based indices of the {top_k} most relevant memories (e.g., [0, 2, 5])
@@ -194,14 +191,15 @@ Example of correct JSON format:
 {{
   "selected_indices": [0, 2, 5],
   "reason": "Memory 0 discusses the main topic, Memory 2 contains relevant context, Memory 5 has related facts"
-}}
-
-Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY the JSON object, nothing else:"""
+}}"""
+            
+            # Query with just the user query and available memories (minimal - saves tokens)
+            query = f"User Query: {user_query}\n\nAvailable Memories:\n{summaries_text}\n\nReturn the indices (0-based) of the {top_k} most relevant memories. Return ONLY the JSON object, nothing else."
             
             # Use LLM to select using config parameters
             result = llm.generate(
-                query=selection_prompt,
-                system_prompt="You are a memory selector. Return only valid JSON.",
+                query=query,
+                system_prompt=system_prompt,
                 quantum_influence=0.1,  # Very low influence for consistent selection
                 max_length=800,  # Enough for JSON response
                 conversation_history=None,
