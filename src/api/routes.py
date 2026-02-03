@@ -381,7 +381,7 @@ async def execute_workflow(
         if execution_result.get('success', False):
             results = _convert_backend_to_frontend_results(execution_result)
             return WorkflowExecuteResponse(
-                execution_id=request.options.get("execution_id"),
+                execution_id=(request.options or {}).get("execution_id") if request.options else None,
                 status="completed",
                 results=results,
                 message="Workflow executed successfully",
