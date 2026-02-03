@@ -488,6 +488,15 @@ class ObeliskLLM:
         
         return response
 
+    def get_system_prompt(self) -> str:
+        """
+        Get the default system prompt for The Overseer.
+        
+        Returns:
+            Default system prompt string
+        """
+        return Config.AGENT_PROMPT
+
     def generate(self, query: str, system_prompt: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_history: Optional[List[Dict[str, str]]] = None, enable_thinking: bool = True) -> Dict[str, Any]:
         """
         Generate response from The Obelisk
