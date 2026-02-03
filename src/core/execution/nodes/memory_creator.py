@@ -226,10 +226,27 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
         logger.debug(f"[MemoryCreator] Interaction saved successfully for user_id={user_id}")
         
         # Add to recent conversation buffer
+        # Get buffer manager and buffer once (get_buffer reloads from storage, which now includes our saved interaction)
         buffer_manager = self._get_buffer_manager(storage_instance, int(k))
         buffer = buffer_manager.get_buffer(str(user_id), storage_instance)
-        buffer.add_user_message(str(query))
-        buffer.add_ai_message(str(response))
+        
+        # Check if the last messages in buffer match what we're about to add to avoid duplication
+        # get_buffer() reloads from storage, so it already includes the interaction we just saved
+        messages = buffer.get_messages()
+        should_add = True
+        if len(messages) >= 2:
+            # Check if last two messages match the query/response we're about to add
+            last_user_msg = messages[-2] if isinstance(messages[-2], HumanMessage) else None
+            last_ai_msg = messages[-1] if isinstance(messages[-1], AIMessage) else None
+            
+            if last_user_msg and last_ai_msg:
+                if last_user_msg.content == str(query) and last_ai_msg.content == str(response):
+                    should_add = False
+                    logger.debug(f"[MemoryCreator] Buffer already contains this interaction, skipping duplicate add")
+        
+        if should_add:
+            buffer.add_user_message(str(query))
+            buffer.add_ai_message(str(response))
         
         # Update interaction count
         self._increment_interaction_count(storage_instance, str(user_id))
