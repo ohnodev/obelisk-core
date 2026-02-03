@@ -220,7 +220,6 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
             query=str(query),
             response=str(response),
             cycle_id=cycle_id,
-            energy=0.0,  # Not used - kept for storage interface compatibility
             quantum_seed=float(quantum_seed)
         )
         logger.debug(f"[MemoryCreator] Interaction saved successfully for user_id={user_id}")
@@ -259,7 +258,6 @@ Now extract the memories from the conversation above. Return ONLY the JSON objec
                 storage_instance.create_activity_log(
                     activity_type='conversation_summary',
                     message=f'Conversation summary for user {user_id}',
-                    energy=0.0,
                     metadata=metadata
                 )
         
