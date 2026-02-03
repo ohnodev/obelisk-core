@@ -61,9 +61,9 @@ class InferenceNode(BaseNode):
             if conversation_history is None:
                 conversation_history = context_messages
         
-        # Debug logging
-        logger.debug(f"InferenceNode {self.node_id}: query={query[:100] if query else 'None'}, "
-                    f"system_prompt_length={len(system_prompt)}")
+        # Validate query - must be a non-empty string
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query is required and must be a non-empty string for InferenceNode")
         
         # Model is required - must be provided by ModelLoaderNode
         if model is None:
@@ -72,6 +72,11 @@ class InferenceNode(BaseNode):
         # System prompt is required - must be provided by TextNode
         if not system_prompt:
             raise ValueError("system_prompt is required for InferenceNode. Connect a TextNode to system_prompt input.")
+        
+        # Debug logging (query is now validated as non-empty string)
+        query_preview = query[:100] if len(query) > 100 else query
+        logger.debug(f"InferenceNode {self.node_id}: query={query_preview}, "
+                    f"system_prompt_length={len(system_prompt)}")
         
         # Generate response using the model
         result = model.generate(
