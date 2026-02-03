@@ -13,43 +13,55 @@ class LoRALoaderNode(BaseNode):
     """
     Applies LoRA weights to the model if enabled
     
+    LoRA loading is handled entirely by this node - model loading is separate.
+    
     Inputs:
-        model: ObeliskLLM instance from ModelLoaderNode
+        model: ObeliskLLM instance from ModelLoaderNode (required)
+        storage_instance: StorageInterface instance (optional, only needed if loading LoRA weights)
         lora_enabled: Whether to apply LoRA weights (default: True)
+        lora_path: Path to LoRA weights (optional, defaults to latest in storage)
     
     Outputs:
-        model: Model with LoRA applied (or original if disabled)
+        model: Model with LoRA applied (or original if disabled/not found)
     """
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute LoRA loader node"""
         model = self.get_input_value('model', context)
+        storage_instance = self.get_input_value('storage_instance', context, None)
         lora_enabled = self.get_input_value('lora_enabled', context, True)
+        lora_path = self.get_input_value('lora_path', context, None)
         
         if model is None:
-            # Fallback to container's model
-            model = context.container.llm
+            raise ValueError("model is required for LoRALoaderNode. Connect a ModelLoaderNode first.")
         
         # If LoRA is enabled, try to load weights from storage
-        if lora_enabled and model.storage:
+        if lora_enabled and storage_instance:
             try:
-                # Check if model has lora_manager (created during initialization if storage available)
-                if hasattr(model, 'lora_manager') and model.lora_manager:
-                    # Try to load latest LoRA weights
-                    # load_weights() returns True if weights were loaded, False otherwise
-                    weights_loaded = model.lora_manager.load_weights()
-                    if weights_loaded:
-                        # Update model reference if weights were loaded
-                        model.model = model.lora_manager.model
-                        logger.debug("LoRA weights loaded successfully")
-                    else:
-                        logger.debug("No LoRA weights found in storage, using base model")
+                # Initialize LoRA manager if not already done
+                if not hasattr(model, 'lora_manager') or model.lora_manager is None:
+                    from src.evolution.training import LoRAManager
+                    model.lora_manager = LoRAManager(
+                        model=model.model,
+                        lora_config=model.lora_config,
+                        storage=storage_instance,
+                        model_name=model.MODEL_NAME
+                    )
+                
+                # Try to load LoRA weights
+                # load_weights() returns True if weights were loaded, False otherwise
+                weights_loaded = model.lora_manager.load_weights()
+                if weights_loaded:
+                    # Update model reference if weights were loaded
+                    model.model = model.lora_manager.model
+                    logger.info("LoRA weights loaded successfully")
                 else:
-                    # LoRA manager not initialized (shouldn't happen if storage is available)
-                    logger.debug("LoRA manager not available, using base model")
+                    logger.debug("No LoRA weights found in storage, using base model")
             except Exception as e:
                 # If LoRA loading fails, continue without it
                 logger.warning(f"Failed to load LoRA weights: {e}, continuing without LoRA", exc_info=True)
+        elif lora_enabled and not storage_instance:
+            logger.debug("LoRA enabled but no storage_instance provided, using base model")
         
         return {
             'model': model

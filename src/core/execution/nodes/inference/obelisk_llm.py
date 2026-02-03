@@ -40,13 +40,13 @@ class ObeliskLLM:
         Initialize Obelisk LLM
         
         Args:
-            storage: StorageInterface instance (optional, for loading/saving LoRA weights)
+            storage: StorageInterface instance (deprecated - LoRA loading handled by LoRALoaderNode)
         """
         self.model = None
         self.tokenizer = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.lora_config = None
-        self.storage = storage
+        self.storage = storage  # Kept for backward compatibility, but LoRA handled by LoRALoaderNode
         self.lora_manager = None
         self._load_model()
 
