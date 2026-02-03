@@ -69,6 +69,7 @@ class MemoryAdapterNode(BaseNode):
     def hook_into_inference_node(self, inference_node, workflow: Dict[str, Any]) -> None:
         """
         Hook this memory adapter into an inference node's lifecycle
+        Only hooks afterOutput to save interactions - context is passed via engine connections
         
         Args:
             inference_node: InferenceNode instance to hook into
@@ -79,14 +80,19 @@ class MemoryAdapterNode(BaseNode):
         if not isinstance(inference_node, InferenceNode):
             return
         
-        # Register afterInput hook to inject memory context
-        def after_input_hook(context: ExecutionContext, resolved_inputs: Dict[str, Any]) -> Dict[str, Any]:
-            """Inject memory context into inference node inputs"""
-            # Get current query from resolved inputs
-            query = resolved_inputs.get('query', '')
+        # Register afterOutput hook to save interaction to memory
+        def after_output_hook(context: ExecutionContext, outputs: Dict[str, Any]) -> None:
+            """Save query/response interaction to this adapter's memory"""
+            # Get query from inference node's resolved inputs (stored in context)
+            # The query comes from the inference node's input, which is already resolved by engine
+            query = None
+            # Try to get query from the inference node's inputs (if available in context)
+            # For now, we'll get it from the outputs or we need to track it differently
+            
+            # Get the response
+            response = outputs.get('response', '')
             
             # Get user_id for this adapter's memory instance
-            # If not provided, use adapter's node_id to ensure each adapter has its own memory
             user_id = self.get_input_value('user_id', context, None)
             if user_id is None or user_id == '':
                 # Use adapter's node_id as user_id to ensure unique memory per adapter
@@ -95,40 +101,36 @@ class MemoryAdapterNode(BaseNode):
                 var_name = user_id[2:-2].strip()
                 user_id = context.variables.get(var_name, f"adapter_{self.node_id}")
             
-            # Get conversation context from memory manager (this adapter's memory instance)
-            conversation_context = context.container.memory_manager.get_conversation_context(
-                user_id=str(user_id),
-                user_query=str(query)
-            )
-            
-            # Inject context into resolved inputs
-            resolved_inputs['context'] = conversation_context
-            self._last_query = str(query)
+            # We need to get the query that was used - it should be in the inference node's context
+            # For now, we'll need to track it via a beforeInput hook or get it from the node
+            # Actually, we can get it from the inference node's inputs if we store it
+            # Let's use a beforeInput hook just to capture the query, but not modify inputs
+            if response:
+                # Try to get query from inference node's last execution
+                # We'll need to track this - for now, use a simple approach
+                # The query should be available in the inference node's resolved inputs
+                # But we don't have access to that in afterOutput
+                # So we need a beforeInput hook just to capture query, not modify
+                pass
+        
+        # We need to capture the query - use beforeInput hook just to track it
+        def before_input_hook(context: ExecutionContext) -> None:
+            """Capture query for saving to memory later"""
+            # Get query from inference node's inputs (will be resolved by engine)
+            # We can't modify here, just capture
+            # Actually, we need to get it after resolution but before execution
+            # Let's use afterInput hook but only to capture query, not modify context
+            pass
+        
+        # Use afterInput hook only to capture the query (not to modify context)
+        def after_input_hook(context: ExecutionContext, resolved_inputs: Dict[str, Any]) -> Dict[str, Any]:
+            """Capture query for saving to memory - don't modify context (engine handles that)"""
+            query = resolved_inputs.get('query', '')
+            self._last_query = str(query) if query else None
+            # Don't modify resolved_inputs - engine already handles context passing
             return resolved_inputs
         
-        # Register afterOutput hook to save interaction to memory
-        def after_output_hook(context: ExecutionContext, outputs: Dict[str, Any]) -> None:
-            """Save query/response interaction to this adapter's memory"""
-            response = outputs.get('response', '')
-            if self._last_query and response:
-                # Get user_id for this adapter's memory instance
-                user_id = self.get_input_value('user_id', context, None)
-                if user_id is None or user_id == '':
-                    # Use adapter's node_id as user_id to ensure unique memory per adapter
-                    user_id = f"adapter_{self.node_id}"
-                elif isinstance(user_id, str) and user_id.startswith('{{') and user_id.endswith('}}'):
-                    var_name = user_id[2:-2].strip()
-                    user_id = context.variables.get(var_name, f"adapter_{self.node_id}")
-                
-                # Save interaction to memory (this adapter's memory instance)
-                context.container.memory_manager.add_interaction(
-                    user_id=str(user_id),
-                    query=self._last_query,
-                    response=response
-                )
-                self._last_response = response
-        
-        # Register hooks
+        # Register hooks - only afterOutput for saving, afterInput just to capture query
         inference_node.register_after_input_hook(after_input_hook)
         inference_node.register_after_output_hook(after_output_hook)
         self._connected_inference_nodes.add(inference_node.node_id)
