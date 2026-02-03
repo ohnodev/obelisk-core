@@ -77,6 +77,15 @@
         "k": 10,
         "quantum_seed": 0.7
       }
+    },
+    {
+      "id": "10",
+      "type": "telegram_bot",
+      "position": {"x": 1050, "y": 100},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_DEV_BOT_TOKEN}}",
+        "group_id": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
     }
   ],
   "connections": [
@@ -163,6 +172,12 @@
       "from_output": "text",
       "to": "8",
       "to_input": "user_id"
+    },
+    {
+      "from": "7",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "message"
     }
   ]
 }
