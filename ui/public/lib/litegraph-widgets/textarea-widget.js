@@ -259,6 +259,8 @@
                                 w.label || w.name || "Text",
                                 String(w.value || ""),
                                 function(v) {
+                                    // Capture old value before assignment
+                                    var oldValue = w.value;
                                     w.value = v;
                                     if (w.options && w.options.property) {
                                         node.setProperty(w.options.property, v);
@@ -267,7 +269,7 @@
                                         w.callback(v, that, node, pos, event);
                                     }
                                     if (node.onWidgetChanged) {
-                                        node.onWidgetChanged(w.name, v, w.value, w);
+                                        node.onWidgetChanged(w.name, v, oldValue, w);
                                     }
                                     if (node.graph) {
                                         node.graph._version++;
