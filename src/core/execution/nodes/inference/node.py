@@ -19,11 +19,11 @@ class InferenceNode(BaseNode):
     - system_prompt: System prompt from TextNode (required)
     - query: User query string (required)
     - model: ObeliskLLM instance from ModelLoaderNode (required)
-    - context: Conversation context from MemorySelectorNode (optional)
+    - context: Conversation context from MemorySelectorNode with 'messages' and 'memories' (optional)
     - quantum_influence: Quantum influence value (default: 0.7)
     - max_length: Maximum response length (default: 1024)
     - enable_thinking: Whether to enable thinking mode (default: True)
-    - conversation_history: Optional list of previous messages
+    - conversation_history: Optional list of previous messages (overrides context.messages if provided)
     
     Outputs:
         query: Original query (for use in memory creation, etc.)
@@ -66,10 +66,25 @@ class InferenceNode(BaseNode):
         model = self.get_input_value('model', context)
         system_prompt = self.get_input_value('system_prompt', context, '')
         query = self.get_input_value('query', context, '')
+        context_dict = self.get_input_value('context', context, None)  # From MemorySelectorNode
         quantum_influence = self.get_input_value('quantum_influence', context, 0.7)
         max_length = self.get_input_value('max_length', context, 1024)
         enable_thinking = self.get_input_value('enable_thinking', context, True)
         conversation_history = self.get_input_value('conversation_history', context, None)
+        
+        # Extract messages and memories from context if provided
+        if context_dict and isinstance(context_dict, dict):
+            # Context from MemorySelectorNode has 'messages' and 'memories'
+            context_messages = context_dict.get('messages', [])
+            context_memories = context_dict.get('memories', '')
+            
+            # Merge memories into system prompt
+            if context_memories:
+                system_prompt = f"{system_prompt}\n\n{context_memories}" if system_prompt else context_memories
+            
+            # Use context messages as conversation_history if not provided separately
+            if conversation_history is None:
+                conversation_history = context_messages
         
         # Prepare resolved inputs dict
         resolved_inputs = {
