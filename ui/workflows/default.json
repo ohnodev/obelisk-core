@@ -15,7 +15,7 @@
       "type": "memory_storage",
       "position": {"x": 50, "y": 250},
       "inputs": {
-        "storage_path": "",
+        "storage_path": "default",
         "storage_type": "local_json"
       }
     },

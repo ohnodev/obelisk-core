@@ -49,7 +49,18 @@ class MemoryStorageNode(BaseNode):
         # Default storage path
         if storage_path is None or storage_path == '':
             home = Path.home()
-            storage_path = str(home / ".obelisk-core" / "data")
+            storage_path = str(home / ".obelisk-core" / "data" / "default")
+        else:
+            # If storage_path is provided but not absolute, treat it as a folder name
+            # and construct path: ~/.obelisk-core/data/{folder_name}/
+            path_obj = Path(storage_path)
+            if not path_obj.is_absolute():
+                # It's a folder name, construct full path
+                home = Path.home()
+                storage_path = str(home / ".obelisk-core" / "data" / storage_path)
+            else:
+                # It's already an absolute path, use as-is
+                storage_path = str(path_obj)
         
         # Normalize path (resolve to absolute)
         storage_path = str(Path(storage_path).resolve())

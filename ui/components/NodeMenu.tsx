@@ -1,7 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  size,
+  Placement,
+} from "@floating-ui/react";
 
 interface NodeMenuProps {
   visible: boolean;
@@ -84,6 +93,49 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Create a virtual reference element at the click position
+  // Memoize it so it updates when x/y changes
+  const virtualReference = useMemo(() => ({
+    getBoundingClientRect: () => ({
+      x,
+      y,
+      width: 0,
+      height: 0,
+      top: y,
+      left: x,
+      right: x,
+      bottom: y,
+    }),
+  }), [x, y]);
+
+  // Use Floating UI for smart positioning
+  const { refs, floatingStyles } = useFloating({
+    elements: {
+      reference: virtualReference as any,
+    },
+    open: visible,
+    placement: "bottom-start" as Placement,
+    middleware: [
+      offset(8), // 8px gap from click position
+      flip({
+        fallbackAxisSideDirection: "start",
+        padding: 8, // Keep 8px from viewport edges
+      }),
+      shift({
+        padding: 8, // Keep 8px from viewport edges
+      }),
+      size({
+        apply({ availableWidth, availableHeight, elements }) {
+          // Constrain menu size to available space
+          elements.floating.style.maxWidth = `${availableWidth}px`;
+          elements.floating.style.maxHeight = `${availableHeight}px`;
+        },
+        padding: 8,
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
 
   // Filter nodes based on search query
   const filteredCategories = NODE_CATEGORIES.map((category) => ({
@@ -130,11 +182,13 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
 
   return (
     <div
-      ref={menuRef}
+      ref={(node) => {
+        menuRef.current = node;
+        refs.setFloating(node);
+      }}
       style={{
         position: "fixed",
-        left: `${x}px`,
-        top: `${y}px`,
+        ...floatingStyles,
         width: "320px",
         maxHeight: "500px",
         background: "var(--color-bg-card)",
