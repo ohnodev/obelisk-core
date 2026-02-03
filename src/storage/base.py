@@ -21,7 +21,6 @@ class StorageInterface(ABC):
         query: str,
         response: str,
         cycle_id: Optional[str] = None,
-        energy: float = 0.0,
         quantum_seed: float = 0.0,
         reward_score: float = 0.0
     ) -> str:
@@ -118,7 +117,6 @@ class StorageInterface(ABC):
         self,
         activity_type: str,
         message: str,
-        energy: float,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create activity log entry"""

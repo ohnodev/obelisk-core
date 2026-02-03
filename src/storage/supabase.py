@@ -51,7 +51,6 @@ class SupabaseStorage(StorageInterface):
         query: str,
         response: str,
         cycle_id: Optional[str] = None,
-        energy: float = 0.0,
         quantum_seed: float = 0.0,
         reward_score: float = 0.0
     ) -> str:
@@ -61,7 +60,6 @@ class SupabaseStorage(StorageInterface):
                 'user_id': user_id,
                 'query': query,
                 'response': response,
-                'energy_generated': energy,
                 'quantum_seed': quantum_seed,
                 'reward_score': reward_score,
                 'evolution_cycle_id': cycle_id
@@ -111,7 +109,7 @@ class SupabaseStorage(StorageInterface):
             version_result = self.client.table('model_weights').select('version').eq('cycle_number', cycle_number).order('version', desc=True).limit(1).execute()
             next_version = (version_result.data[0]['version'] + 1) if version_result.data else 1
             
-            from src.llm.obelisk_llm import ObeliskLLM
+            from src.core.execution.nodes.inference.obelisk_llm import ObeliskLLM
             base_model = ObeliskLLM.MODEL_NAME
             
             # Deactivate old weights
@@ -146,7 +144,7 @@ class SupabaseStorage(StorageInterface):
     
     def get_latest_model_weights(self, base_model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get latest active model weights"""
-        from src.llm.obelisk_llm import ObeliskLLM
+        from src.core.execution.nodes.inference.obelisk_llm import ObeliskLLM
         if base_model is None:
             base_model = ObeliskLLM.MODEL_NAME
         try:
@@ -187,26 +185,23 @@ class SupabaseStorage(StorageInterface):
                 }
             
             interaction_count = len(interactions)
-            total_energy = sum(float(i.get('energy_generated', 0) or 0) for i in interactions)
             average_quality = sum(float(i.get('reward_score', 0) or 0) for i in interactions) / interaction_count
             quantum_alignment = sum(float(i.get('quantum_seed', 0) or 0) for i in interactions) / interaction_count
             
             normalized_interactions = min(interaction_count / 100, 1)
-            normalized_energy = min(total_energy / 10, 1)
             normalized_quality = average_quality
             normalized_quantum = quantum_alignment
             
+            # Redistributed weights: removed energy (0.3), redistributed to interactions (0.4->0.57), quality (0.2->0.29), quantum (0.1->0.14)
             total_score = (
-                normalized_interactions * 0.4 +
-                normalized_energy * 0.3 +
-                normalized_quality * 0.2 +
-                normalized_quantum * 0.1
+                normalized_interactions * 0.57 +
+                normalized_quality * 0.29 +
+                normalized_quantum * 0.14
             )
             
             return {
                 'user_id': user_id,
                 'interaction_count': interaction_count,
-                'total_energy': total_energy,
                 'average_quality': average_quality,
                 'quantum_alignment': normalized_quantum,
                 'total_score': min(max(total_score, 0), 1)
@@ -216,7 +211,6 @@ class SupabaseStorage(StorageInterface):
             return {
                 'user_id': user_id,
                 'interaction_count': 0,
-                'total_energy': 0,
                 'average_quality': 0,
                 'quantum_alignment': 0,
                 'total_score': 0
@@ -342,7 +336,6 @@ class SupabaseStorage(StorageInterface):
         self,
         activity_type: str,
         message: str,
-        energy: float,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create activity log entry"""
@@ -350,7 +343,6 @@ class SupabaseStorage(StorageInterface):
             result = self.client.table('activities').insert({
                 'type': activity_type,
                 'message': message,
-                'energy': energy,
                 'metadata': metadata or {}
             }).execute()
             return result.data[0] if result.data else {}

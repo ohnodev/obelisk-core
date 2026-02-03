@@ -2,6 +2,15 @@
 
 import { useState, useEffect, useRef } from "react";
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  size,
+  Placement,
+} from "@floating-ui/react";
 
 interface NodeMenuProps {
   visible: boolean;
@@ -52,9 +61,19 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Memory",
     nodes: [
       {
-        type: "memory_adapter",
-        title: "Memory Adapter",
-        description: "Gets conversation context from memory",
+        type: "memory_storage",
+        title: "Memory Storage",
+        description: "Creates/accesses storage instances based on storage path",
+      },
+      {
+        type: "memory_selector",
+        title: "Memory Selector",
+        description: "Selects relevant conversation context from storage",
+      },
+      {
+        type: "memory_creator",
+        title: "Memory Creator",
+        description: "Saves query/response interactions to storage",
       },
     ],
   },
@@ -62,9 +81,9 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Generation",
     nodes: [
       {
-        type: "sampler",
-        title: "Sampler",
-        description: "Generates LLM response",
+        type: "inference",
+        title: "Inference",
+        description: "Generates LLM response (inference for LLM use cases)",
       },
     ],
   },
@@ -74,6 +93,48 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Use Floating UI for smart positioning with virtual reference
+  const { refs, floatingStyles } = useFloating({
+    open: visible,
+    placement: "bottom-start" as Placement,
+    middleware: [
+      offset(8), // 8px gap from click position
+      flip({
+        fallbackAxisSideDirection: "start",
+        padding: { top: 60, bottom: 8, left: 8, right: 8 }, // Account for toolbar height
+      }),
+      shift({
+        padding: { top: 60, bottom: 8, left: 8, right: 8 }, // Account for toolbar height
+      }),
+      size({
+        apply({ availableWidth, elements }) {
+          // Only constrain width, not height - we want a fixed small height
+          elements.floating.style.maxWidth = `${Math.min(availableWidth, 280)}px`;
+        },
+        padding: 8,
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
+
+  // Set virtual reference position using setPositionReference
+  useEffect(() => {
+    if (visible) {
+      refs.setPositionReference({
+        getBoundingClientRect: () => ({
+          x,
+          y,
+          width: 0,
+          height: 0,
+          top: y,
+          left: x,
+          right: x,
+          bottom: y,
+        }),
+      });
+    }
+  }, [visible, x, y, refs]);
 
   // Filter nodes based on search query
   const filteredCategories = NODE_CATEGORIES.map((category) => ({
@@ -86,11 +147,25 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
     ),
   })).filter((category) => category.nodes.length > 0);
 
-  // Close menu when clicking outside
+  // Close menu when clicking outside or pressing Escape
   useEffect(() => {
     if (!visible) return;
 
+    // Add a small delay to prevent immediate closing when right-click releases
+    const openTime = Date.now();
+    const IGNORE_CLICKS_MS = 100; // Ignore clicks within 100ms of opening
+
     const handleClickOutside = (event: MouseEvent) => {
+      // Ignore right mouse button releases (button 2) - these are from the contextmenu trigger
+      if (event.button === 2) {
+        return;
+      }
+      
+      // Ignore clicks that happen too soon after opening (from mouse release)
+      if (Date.now() - openTime < IGNORE_CLICKS_MS) {
+        return;
+      }
+
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
@@ -98,15 +173,24 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
         onClose();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
+    // Use mouseup instead of mousedown to avoid catching the release of right-click
+    // Also use a small delay to ensure the menu is fully rendered
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mouseup", handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
+      document.addEventListener("keydown", handleEscape);
+    }, IGNORE_CLICKS_MS);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      clearTimeout(timeoutId);
+      document.removeEventListener("mouseup", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
   }, [visible, onClose]);
@@ -120,29 +204,35 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
 
   return (
     <div
-      ref={menuRef}
+      ref={(node) => {
+        menuRef.current = node;
+        refs.setFloating(node);
+      }}
       style={{
+        ...floatingStyles,
         position: "fixed",
-        left: `${x}px`,
-        top: `${y}px`,
-        width: "320px",
-        maxHeight: "500px",
+        width: "280px",
+        height: "400px",
+        maxHeight: "400px",
         background: "var(--color-bg-card)",
         border: "1px solid var(--color-border-primary)",
         borderRadius: "6px",
         boxShadow: "0 4px 20px rgba(0, 0, 0, 0.5)",
-        zIndex: 1000,
+        zIndex: 10000,
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
         fontFamily: "var(--font-body)",
       }}
     >
-      {/* Search bar */}
+      {/* Search bar with close button */}
       <div
         style={{
           padding: "0.75rem",
           borderBottom: "1px solid var(--color-border-primary)",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
         }}
       >
         <input
@@ -152,7 +242,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
           onChange={(e) => setSearchQuery(e.target.value)}
           autoFocus
           style={{
-            width: "100%",
+            flex: 1,
             padding: "0.5rem",
             background: "var(--color-input-bg)",
             border: "1px solid var(--color-input-border)",
@@ -165,8 +255,56 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             if (e.key === "Enter" && filteredCategories.length > 0 && filteredCategories[0].nodes.length > 0) {
               handleNodeClick(filteredCategories[0].nodes[0].type);
             }
+            if (e.key === "Escape") {
+              onClose();
+            }
           }}
         />
+        <button
+          onClick={onClose}
+          aria-label="Close menu"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "24px",
+            height: "24px",
+            padding: 0,
+            background: "transparent",
+            border: "1px solid transparent",
+            borderRadius: "4px",
+            cursor: "pointer",
+            color: "var(--color-text-muted)",
+            transition: "all 0.15s ease",
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
+            e.currentTarget.style.borderColor = "var(--color-border-primary)";
+            e.currentTarget.style.color = "var(--color-text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = "transparent";
+            e.currentTarget.style.color = "var(--color-text-muted)";
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 4L4 12M4 4l8 8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Node list */}

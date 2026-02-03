@@ -373,7 +373,6 @@ Return JSON array with ratings and brief reasoning for each."""
             storage.create_activity_log(
                 activity_type='evolution_evaluation',
                 message=message,
-                energy=0.0,  # Evaluation doesn't generate energy, just assesses
                 metadata={
                     'cycle_id': cycle_id,
                     'interactions_rated': interactions_rated,

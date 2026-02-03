@@ -240,7 +240,7 @@
                 var widget_height = w.computeSize ? w.computeSize(width)[1] : LG.NODE_WIDGET_HEIGHT;
                 var widget_width = w.width || width;
 
-                // Handle textarea widget clicks
+                // Handle textarea widget clicks - inline editing
                 if (w.type === "textarea") {
                     var titleHeight = LG.NODE_TITLE_HEIGHT;
                     var padding = 10;
@@ -253,22 +253,23 @@
                     if (x >= textareaX && x <= textareaX + textareaWidth &&
                         y >= textareaY && y <= textareaY + textareaHeight) {
                         
-                        if (event.type === LG.pointerevents_method + "down") {
-                            // Use prompt method like string widgets, with multiline=true
-                            const oldValue = w.value;
-                            this.prompt(
+                        // Use LiteGraph's built-in prompt (like string/text widgets)
+                        if (event.type == LG.pointerevents_method + "down") {
+                            that.prompt(
                                 w.label || w.name || "Text",
                                 String(w.value || ""),
                                 function(v) {
-                                    this.value = v;
-                                    if (this.options && this.options.property) {
-                                        node.setProperty(this.options.property, v);
+                                    // Capture old value before assignment
+                                    var oldValue = w.value;
+                                    w.value = v;
+                                    if (w.options && w.options.property) {
+                                        node.setProperty(w.options.property, v);
                                     }
-                                    if (this.callback) {
-                                        this.callback(v, that, node, pos, event);
+                                    if (w.callback) {
+                                        w.callback(v, that, node, pos, event);
                                     }
                                     if (node.onWidgetChanged) {
-                                        node.onWidgetChanged(this.name, v, oldValue, this);
+                                        node.onWidgetChanged(w.name, v, oldValue, w);
                                     }
                                     if (node.graph) {
                                         node.graph._version++;

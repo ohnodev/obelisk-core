@@ -30,12 +30,12 @@ class ExecutionEngine:
     - State management across execution
     """
     
-    def __init__(self, container: ServiceContainer):
+    def __init__(self, container: Optional[ServiceContainer] = None):
         """
         Initialize execution engine
         
         Args:
-            container: ServiceContainer with all services
+            container: Optional ServiceContainer (for backward compatibility, nodes should be self-contained)
         """
         self.container = container
     
@@ -156,7 +156,8 @@ class ExecutionEngine:
             node_results=node_results,
             final_outputs=final_outputs,
             error="; ".join(errors) if errors else None,
-            total_execution_time=total_time
+            total_execution_time=total_time,
+            execution_order=execution_order  # Include execution order for frontend highlighting
         )
     
     def validate_graph(self, workflow: NodeGraph) -> bool:
@@ -180,11 +181,15 @@ class ExecutionEngine:
         node_ids = {node['id'] for node in workflow['nodes']}
         
         for conn in workflow['connections']:
-            if conn.get('source_node') not in node_ids:
-                logger.error(f"Connection references invalid source node: {conn.get('source_node')}")
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            
+            if source_id not in node_ids:
+                logger.error(f"Connection references invalid source node: {source_id}")
                 return False
-            if conn.get('target_node') not in node_ids:
-                logger.error(f"Connection references invalid target node: {conn.get('target_node')}")
+            if target_id not in node_ids:
+                logger.error(f"Connection references invalid target node: {target_id}")
                 return False
         
         # Check all node types are registered
@@ -223,8 +228,9 @@ class ExecutionEngine:
         # Process connections to build dependency graph
         connections = workflow.get('connections', [])
         for conn in connections:
-            source_id = conn['source_node']
-            target_id = conn['target_node']
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
             
             if source_id not in dependencies[target_id]:
                 dependencies[target_id].add(source_id)
@@ -269,6 +275,7 @@ class ExecutionEngine:
         """
         nodes: Dict[NodeID, BaseNode] = {}
         
+        # First pass: create all nodes (without workflow/all_nodes)
         for node_data in workflow['nodes']:
             node_id = node_data['id']
             node_type = node_data['type']
@@ -278,6 +285,10 @@ class ExecutionEngine:
                 raise ValueError(f"Unknown node type: {node_type}")
             
             nodes[node_id] = node_class(node_id, node_data)
+        
+        # Second pass: setup all nodes (now they can discover other nodes)
+        for node in nodes.values():
+            node._setup(workflow, nodes)
         
         return nodes
     
@@ -298,12 +309,15 @@ class ExecutionEngine:
         
         # Find all connections targeting this node
         for conn in connections:
-            if conn['target_node'] != node.node_id:
+            # Support both formats: 'from'/'to' (frontend) and 'source_node'/'target_node' (backend)
+            target_id = conn.get('target_node') or conn.get('to')
+            if target_id != node.node_id:
                 continue
             
-            source_id = conn['source_node']
-            source_output = conn.get('source_output', 'default')
-            target_input = conn.get('target_input', 'default')
+            source_id = conn.get('source_node') or conn.get('from')
+            # Support both formats: 'from_output'/'to_input' (frontend) and 'source_output'/'target_input' (backend)
+            source_output = conn.get('source_output') or conn.get('from_output', 'default')
+            target_input = conn.get('target_input') or conn.get('to_input', 'default')
             
             # Get output from source node
             if source_id in context.node_outputs:
@@ -319,7 +333,11 @@ class ExecutionEngine:
                     # Only resolve if variable exists in context (don't overwrite with None)
                     if var_name in context.variables:
                         resolved[input_name] = context.variables[var_name]
-                    # If variable doesn't exist, leave unresolved so get_input_value() can use defaults
+                        logger.debug(f"[Engine] Resolved template variable {input_name}={{{{{var_name}}}}} to '{context.variables[var_name]}' for node {node.node_id}")
+                    else:
+                        # Variable doesn't exist - log warning and leave unresolved
+                        logger.warning(f"[Engine] Template variable {input_name}={{{{{var_name}}}}} not found in context.variables (available: {list(context.variables.keys())}) for node {node.node_id}")
+                        # Leave unresolved so get_input_value() can use defaults
                 else:
                     resolved[input_name] = input_value
         

@@ -1,33 +1,29 @@
 """
 Service Container
-Holds all core services in a single, testable container
+Minimal container for node-based architecture
+Nodes initialize their own dependencies as needed
 """
 from dataclasses import dataclass
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # Import concrete types for runtime type checking
     from ..storage.base import StorageInterface
-    from ..llm.obelisk_llm import ObeliskLLM
-    from ..memory.memory_manager import ObeliskMemoryManager
+    from ..core.execution.nodes.inference.obelisk_llm import ObeliskLLM
     from ..quantum.ibm_quantum_service import IBMQuantumService
 
 
 @dataclass
 class ServiceContainer:
     """
-    Container holding all core services for Obelisk Core
+    Minimal container for node-based architecture
     
-    This provides a single source of truth for service instances,
-    eliminating duplication between API and CLI initialization.
-    
-    Note: Concrete implementations should conform to the Protocols
-    defined in src.core.types (LLMProtocol, MemoryManagerProtocol, etc.)
-    for better type safety and testability.
+    In a fully node-based architecture, nodes initialize their own dependencies.
+    This container is minimal - it may hold config or be empty.
+    Nodes can access it to share state if needed.
     """
-    storage: 'StorageInterface'
-    llm: 'ObeliskLLM'
-    memory_manager: 'ObeliskMemoryManager'
+    # Optional services that nodes can initialize and cache
+    storage: Optional['StorageInterface'] = None
+    llm: Optional['ObeliskLLM'] = None
     quantum_service: Optional['IBMQuantumService'] = None
     
     # Metadata

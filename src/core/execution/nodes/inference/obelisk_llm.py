@@ -1,5 +1,5 @@
 """
-The Obelisk LLM Service
+The Obelisk LLM
 Hosts a small quantized LLM for The Obelisk AGI
 Uses Qwen3-0.6B with thinking mode support for enhanced reasoning
 Supports LoRA fine-tuning with weights stored via storage abstraction
@@ -11,11 +11,11 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig, get_peft_model
-from ..evolution.training import LoRAManager
+from src.evolution.training import LoRAManager
 from .thinking_token_utils import split_thinking_tokens
 import warnings
-from ..core.config import Config
-from ..utils.logger import get_logger
+from src.core.config import Config
+from src.utils.logger import get_logger
 
 warnings.filterwarnings("ignore")
 
@@ -35,19 +35,21 @@ class ObeliskLLM:
     # Note: model.generate() returns [input_tokens...][new_tokens...]
     # Total must be: input_tokens + output_tokens <= MAX_CONTEXT_TOKENS
     
-    def __init__(self, storage=None):
+    def __init__(self, storage=None, debug_logging=False):
         """
         Initialize Obelisk LLM
         
         Args:
-            storage: StorageInterface instance (optional, for loading/saving LoRA weights)
+            storage: StorageInterface instance (deprecated - LoRA loading handled by LoRALoaderNode)
+            debug_logging: If True, enables verbose logging of prompts and responses (default: False)
         """
         self.model = None
         self.tokenizer = None
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.lora_config = None
-        self.storage = storage
+        self.storage = storage  # Kept for backward compatibility, but LoRA handled by LoRALoaderNode
         self.lora_manager = None
+        self.debug_logging = debug_logging  # Gated debug flag for sensitive data logging
         self._load_model()
 
     def _load_model(self):
@@ -105,7 +107,7 @@ class ObeliskLLM:
                     local_files_only=False  # Allow download on first run
                 )
             
-            # Initialize LoRA config (loaded from config)
+            # Initialize LoRA config (loaded from config) - used by LoRALoaderNode
             self.lora_config = LoraConfig(
                 r=Config.LLM_LORA_R,
                 lora_alpha=Config.LLM_LORA_ALPHA,
@@ -117,17 +119,8 @@ class ObeliskLLM:
             
             self.model.eval()
             
-            # Initialize LoRA manager and try to load weights from storage if available
-            if self.storage:
-                self.lora_manager = LoRAManager(
-                    model=self.model,
-                    lora_config=self.lora_config,
-                    storage=self.storage,
-                    model_name=self.MODEL_NAME
-                )
-                if self.lora_manager.load_weights():
-                    # Update model reference if weights were loaded
-                    self.model = self.lora_manager.model
+            # LoRA loading is now handled by LoRALoaderNode, not here
+            # This keeps model loading simple and LoRA loading separate
             
             # Optimize model for inference on CPU
             if self.device == "cpu":
@@ -166,10 +159,6 @@ class ObeliskLLM:
         except:
             return 400  # Default estimate
 
-
-    def get_system_prompt(self) -> str:
-        """Get The Overseer system prompt - loaded from config"""
-        return Config.AGENT_PROMPT
 
     def _prepare_sampling_parameters(self, quantum_influence: float) -> Dict[str, float]:
         """
@@ -264,19 +253,19 @@ class ObeliskLLM:
         
         return conversation_history, memories_text
 
-    def _build_messages(self, query: str, conversation_history: List[Dict[str, str]], memories_text: str) -> List[Dict[str, str]]:
+    def _build_messages(self, query: str, conversation_history: List[Dict[str, str]], system_prompt: str, memories_text: str = "") -> List[Dict[str, str]]:
         """
         Build messages array for Qwen3 chat template.
         
         Args:
             query: Current user query
             conversation_history: List of previous messages
-            memories_text: Memories string to include in system message
+            system_prompt: System prompt (can include memories)
+            memories_text: Additional memories text (optional, can be merged into system_prompt)
             
         Returns:
             List of message dicts in Qwen3 format
         """
-        system_prompt = self.get_system_prompt()
         system_content = system_prompt
         if memories_text:
             system_content = f"{system_prompt}\n\n{memories_text}"
@@ -419,6 +408,37 @@ class ObeliskLLM:
         
         return thinking_content, final_content
 
+    def _redact_and_truncate(self, text: str, max_chars: int = 200) -> str:
+        """
+        Redact PII and truncate long content for safe logging.
+        
+        Args:
+            text: Text to redact and truncate
+            max_chars: Maximum characters to keep (default: 200)
+        
+        Returns:
+            Redacted and truncated text safe for logging
+        """
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Basic PII redaction patterns (email, phone, credit card, SSN-like patterns)
+        # Email pattern
+        text = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', '[EMAIL_REDACTED]', text)
+        # Phone pattern (various formats)
+        text = re.sub(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', '[PHONE_REDACTED]', text)
+        text = re.sub(r'\b\(\d{3}\)\s?\d{3}[-.]?\d{4}\b', '[PHONE_REDACTED]', text)
+        # Credit card pattern (16 digits, possibly with spaces/dashes)
+        text = re.sub(r'\b\d{4}[-.\s]?\d{4}[-.\s]?\d{4}[-.\s]?\d{4}\b', '[CARD_REDACTED]', text)
+        # SSN pattern
+        text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[SSN_REDACTED]', text)
+        
+        # Truncate if too long
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+        
+        return text
+
     def _post_process_response(self, raw_response: str) -> str:
         """
         Post-process response to remove artifacts and clean up formatting.
@@ -468,16 +488,25 @@ class ObeliskLLM:
         
         return response
 
-    def generate(self, query: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_context: Optional[Dict[str, Any]] = None, enable_thinking: bool = True) -> Dict[str, Any]:
+    def get_system_prompt(self) -> str:
+        """
+        Get the default system prompt for The Overseer.
+        
+        Returns:
+            Default system prompt string
+        """
+        return Config.AGENT_PROMPT
+
+    def generate(self, query: str, system_prompt: str, quantum_influence: float = 0.7, max_length: int = 1024, conversation_history: Optional[List[Dict[str, str]]] = None, enable_thinking: bool = True) -> Dict[str, Any]:
         """
         Generate response from The Obelisk
         
         Args:
             query: User's query
+            system_prompt: System prompt (can include memories, user context, etc.)
             quantum_influence: Quantum random value (0-0.1) to influence creativity (will be clamped)
             max_length: Maximum response length
-            conversation_context: Dict with 'messages' (list of message dicts) and 'memories' (string)
-                                 Format: {"messages": [{"role": "user", "content": "..."}, ...], "memories": "..."}
+            conversation_history: Optional list of previous messages [{"role": "user", "content": "..."}, ...]
             enable_thinking: Whether to enable thinking mode (default: True for best quality)
         
         Returns:
@@ -497,11 +526,8 @@ class ObeliskLLM:
             # Validate and truncate query
             query, query_tokens = self._validate_and_truncate_query(query)
             
-            # Parse conversation context
-            conversation_history, memories_text = self._parse_conversation_context(conversation_context)
-            
             # Build messages array for Qwen3
-            messages = self._build_messages(query, conversation_history, memories_text)
+            messages = self._build_messages(query, conversation_history or [], system_prompt, memories_text="")
             
             # Apply Qwen3 chat template
             prompt_text = self.tokenizer.apply_chat_template(
@@ -511,26 +537,26 @@ class ObeliskLLM:
                 enable_thinking=enable_thinking
             )
             
-            # Debug: Show full prompt
-            logger.debug("\n" + "="*80)
-            logger.debug(f"Full prompt sent to LLM (thinking_mode={enable_thinking}):")
-            logger.debug("="*80)
-            logger.debug(prompt_text)
-            logger.debug("="*80 + "\n")
+            # Debug: Show full prompt (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_prompt = self._redact_and_truncate(prompt_text, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug(f"Full prompt sent to LLM (thinking_mode={enable_thinking}):")
+                logger.debug("="*80)
+                logger.debug(safe_prompt)
+                logger.debug("="*80 + "\n")
             
             # Tokenize input
             inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
             input_token_count = inputs['input_ids'].shape[1]
             
             # Log token usage
-            system_content = messages[0]['content']
-            system_content_tokens = len(self.tokenizer.encode(system_content, add_special_tokens=False))
+            system_content_tokens = len(self.tokenizer.encode(system_prompt, add_special_tokens=False))
             history_token_count = sum(
                 len(self.tokenizer.encode(f"{msg['role']}: {msg['content']}", add_special_tokens=False))
-                for msg in conversation_history
+                for msg in (conversation_history or [])
             )
-            memories_token_count = len(self.tokenizer.encode(memories_text, add_special_tokens=False)) if memories_text else 0
-            logger.debug(f"Input tokens: {input_token_count} (system: {system_content_tokens}, history: {history_token_count}, memories: {memories_token_count}, query: {len(query_tokens)}, messages: {len(conversation_history)})")
+            logger.debug(f"Input tokens: {input_token_count} (system: {system_content_tokens}, history: {history_token_count}, query: {len(query_tokens)})")
             
             # Validate context window and get safe output token limit
             context_validation = self._validate_context_window(input_token_count, max_length)
@@ -546,24 +572,30 @@ class ObeliskLLM:
             # Parse thinking and content tokens
             thinking_content, final_content = self._parse_thinking_tokens(generated_tokens, enable_thinking)
             
-            # Debug: Show raw response before post-processing
-            logger.debug("\n" + "="*80)
-            logger.debug("Raw response from LLM (before post-processing):")
-            logger.debug("="*80)
-            logger.debug(repr(final_content))
-            logger.debug("="*80 + "\n")
+            # Debug: Show raw response before post-processing (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_content = self._redact_and_truncate(final_content, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug("Raw response from LLM (before post-processing):")
+                logger.debug("="*80)
+                logger.debug(safe_content)
+                logger.debug("="*80 + "\n")
             
             # Post-process response
             response = self._post_process_response(final_content)
             
-            # Debug: Show final processed response
-            logger.debug("\n" + "="*80)
-            logger.debug("Final processed response:")
-            logger.debug("="*80)
-            logger.debug(repr(response))
-            logger.debug("="*80 + "\n")
+            # Debug: Show final processed response (gated by debug_logging flag)
+            if self.debug_logging:
+                safe_response = self._redact_and_truncate(response, max_chars=200)
+                logger.debug("\n" + "="*80)
+                logger.debug("Final processed response:")
+                logger.debug("="*80)
+                logger.debug(safe_response)
+                logger.debug("="*80 + "\n")
             
-            logger.debug(f"Generated response: {response[:100]}... ({len(response)} chars)")
+            # Always log summary (truncated and redacted)
+            safe_summary = self._redact_and_truncate(response, max_chars=100)
+            logger.debug(f"Generated response: {safe_summary}... ({len(response)} chars)")
             
             return {
                 "response": response,
@@ -578,7 +610,7 @@ class ObeliskLLM:
             }
             
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
+            logger.exception("Error generating response")
             return {
                 "response": f"◊ The Overseer encounters an error: {str(e)[:50]} ◊",
                 "error": str(e),
@@ -588,7 +620,8 @@ class ObeliskLLM:
     def test(self) -> Dict[str, Any]:
         """Test the LLM with a simple query"""
         test_query = "What is your purpose?"
-        result = self.generate(test_query, quantum_influence=0.5)
+        system_prompt = Config.AGENT_PROMPT
+        result = self.generate(test_query, system_prompt, quantum_influence=0.5)
         return {
             "test_query": test_query,
             "result": result,

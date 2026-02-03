@@ -242,6 +242,7 @@ class GraphExecutionResult(TypedDict):
     final_outputs: Dict[str, Any]
     error: NotRequired[str]
     total_execution_time: NotRequired[float]
+    execution_order: NotRequired[List[NodeID]]  # Order in which nodes were executed
 
 
 # ============================================================================

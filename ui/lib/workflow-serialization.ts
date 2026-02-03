@@ -167,6 +167,7 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
   });
 
   // Create connections - handle both formats (from/to and source_node/target_node)
+  let connectionCount = 0;
   workflow.connections.forEach((conn: any) => {
     // Normalize IDs to strings for Map lookup
     const fromId = String(conn.from ?? conn.source_node ?? "");
@@ -177,19 +178,44 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
     const fromNode = nodeMap.get(fromId);
     const toNode = nodeMap.get(toId);
 
-    if (fromNode && toNode) {
-      const fromOutput = fromNode.outputs?.find((out: any) => out.name === fromOutputName);
-      const toInput = toNode.inputs?.find((inp: any) => inp.name === toInputName);
+    if (!fromNode) {
+      console.warn(`[deserializeGraph] From node not found: ${fromId}`);
+      return;
+    }
+    if (!toNode) {
+      console.warn(`[deserializeGraph] To node not found: ${toId}`);
+      return;
+    }
 
-      if (fromOutput && toInput) {
-        const outputSlot = (fromOutput as any).slot ?? fromNode.outputs?.indexOf(fromOutput);
-        const inputSlot = (toInput as any).slot ?? toNode.inputs?.indexOf(toInput);
-        // Validate slots are non-negative integers before connecting
-        if (Number.isInteger(outputSlot) && outputSlot >= 0 && 
-            Number.isInteger(inputSlot) && inputSlot >= 0) {
-          fromNode.connect(outputSlot, toNode, inputSlot);
-        }
+    const fromOutput = fromNode.outputs?.find((out: any) => out.name === fromOutputName);
+    const toInput = toNode.inputs?.find((inp: any) => inp.name === toInputName);
+
+    if (!fromOutput) {
+      console.warn(`[deserializeGraph] Output '${fromOutputName}' not found on node ${fromId} (${fromNode.type})`);
+      return;
+    }
+    if (!toInput) {
+      console.warn(`[deserializeGraph] Input '${toInputName}' not found on node ${toId} (${toNode.type})`);
+      return;
+    }
+
+    const outputSlot = (fromOutput as any).slot ?? fromNode.outputs?.indexOf(fromOutput);
+    const inputSlot = (toInput as any).slot ?? toNode.inputs?.indexOf(toInput);
+    
+    // Validate slots are non-negative integers before connecting
+    if (Number.isInteger(outputSlot) && outputSlot >= 0 && 
+        Number.isInteger(inputSlot) && inputSlot >= 0) {
+      try {
+        fromNode.connect(outputSlot, toNode, inputSlot);
+        connectionCount++;
+        console.log(`[deserializeGraph] Connected: ${fromId}(${fromOutputName}) -> ${toId}(${toInputName})`);
+      } catch (error) {
+        console.error(`[deserializeGraph] Failed to connect ${fromId}(${fromOutputName}) -> ${toId}(${toInputName}):`, error);
       }
+    } else {
+      console.warn(`[deserializeGraph] Invalid slots: outputSlot=${outputSlot}, inputSlot=${inputSlot}`);
     }
   });
+  
+  console.log(`[deserializeGraph] Created ${connectionCount}/${workflow.connections.length} connections`);
 }

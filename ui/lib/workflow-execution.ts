@@ -3,6 +3,8 @@ import { validateWorkflow, ValidationResult } from "./workflow-validation";
 
 export interface ExecutionOptions {
   client_id?: string;
+  user_id?: string;
+  user_query?: string;
   extra_data?: Record<string, any>;
 }
 
@@ -16,6 +18,7 @@ export interface ExecutionResult {
   };
   error?: string;
   message?: string;
+  execution_order?: string[]; // Order in which nodes were executed (for highlighting)
 }
 
 export interface ExecutionStatus {
@@ -113,14 +116,76 @@ export async function getExecutionStatus(
 }
 
 /**
+ * Highlights nodes during execution (like ComfyUI)
+ * Shows which nodes are currently executing or have completed
+ */
+export function highlightExecutingNodes(
+  graph: any,
+  executionOrder: string[] | undefined,
+  delay: number = 100
+): void {
+  if (!executionOrder || !graph) return;
+
+  // Clear any existing highlights
+  const allNodes = graph._nodes || [];
+  allNodes.forEach((node: any) => {
+    if (node) {
+      node.executing = false;
+      node.executed = false;
+    }
+  });
+
+  // Highlight nodes sequentially as they execute
+  executionOrder.forEach((nodeId, index) => {
+    setTimeout(() => {
+      const node = graph.getNodeById(nodeId as any) || 
+                  (/^\d+$/.test(nodeId) ? graph.getNodeById(parseInt(nodeId, 10) as any) : null);
+      
+      if (node) {
+        // Mark as executing
+        node.executing = true;
+        node.executed = false;
+        
+        // Force redraw
+        const canvas = (window as any).__obeliskCanvas;
+        if (canvas) {
+          canvas.dirty_canvas = true;
+          canvas.draw(true);
+        }
+        
+        // After a short delay, mark as executed
+        setTimeout(() => {
+          if (node) {
+            node.executing = false;
+            node.executed = true;
+            
+            // Force redraw again
+            if (canvas) {
+              canvas.dirty_canvas = true;
+              canvas.draw(true);
+            }
+          }
+        }, delay);
+      }
+    }, index * delay);
+  });
+}
+
+/**
  * Updates node outputs in the frontend graph after execution
  * This is called after receiving results from backend
  */
 export function updateNodeOutputs(
   graph: any,
-  results: ExecutionResult["results"]
+  results: ExecutionResult["results"],
+  executionOrder?: string[]
 ): void {
   if (!results || !graph) return;
+  
+  // Highlight nodes as they executed
+  if (executionOrder) {
+    highlightExecutingNodes(graph, executionOrder);
+  }
 
   for (const [nodeId, nodeResult] of Object.entries(results)) {
     // Try to find node by raw string ID first (handles non-numeric IDs like "text-1" or UUIDs)
@@ -158,17 +223,23 @@ export function updateNodeOutputs(
           // Use nullish coalescing to preserve falsy values like 0 and false
           const textValue = String(outputValue ?? "");
           
-          node.setProperty(outputName, textValue);
+          console.log(`[updateNodeOutputs] Updating node ${nodeId} property ${outputName} to:`, textValue.substring(0, 50) + "...");
           
           // Get canvas instance for widget callbacks
           const canvas = (window as any).__obeliskCanvas;
           
-          // Update widget if it exists
+          // Update widget FIRST (before setting property) to ensure widget reflects the value
           const widgets = (node as any).widgets as any[];
           if (widgets) {
-            const widget = widgets.find((w: any) => w.name === outputName);
+            const widget = widgets.find((w: any) => w.name === outputName || w.name === "text");
             if (widget) {
+              // Update widget value directly
               widget.value = textValue;
+              
+              // If widget has an input element, update it directly
+              if (widget.input) {
+                widget.input.value = textValue;
+              }
               
               // Trigger widget update callback if it exists
               // Callback signature: (value, canvasInstance, node, pos, event)
@@ -177,14 +248,27 @@ export function updateNodeOutputs(
               if (widget.callback && canvas) {
                 // Use node position as pos, no event for programmatic updates
                 const nodePos = node.pos || [0, 0];
-                widget.callback(textValue, canvas, node, nodePos, null);
+                try {
+                  widget.callback(textValue, canvas, node, nodePos, null);
+                } catch (e) {
+                  console.warn(`[updateNodeOutputs] Widget callback error for node ${nodeId}:`, e);
+                }
               }
+            } else {
+              console.warn(`[updateNodeOutputs] Widget not found for node ${nodeId}, outputName: ${outputName}`);
             }
           }
           
-          // Trigger property changed handler to sync widget
+          // Set property (this should trigger onPropertyChanged)
+          node.setProperty(outputName, textValue);
+          
+          // Also explicitly trigger property changed handler to sync widget
           if (node.onPropertyChanged) {
-            node.onPropertyChanged(outputName, textValue);
+            try {
+              node.onPropertyChanged(outputName, textValue);
+            } catch (e) {
+              console.warn(`[updateNodeOutputs] onPropertyChanged error for node ${nodeId}:`, e);
+            }
           }
           
           // Force canvas redraw

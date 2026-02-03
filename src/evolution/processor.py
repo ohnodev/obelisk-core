@@ -149,7 +149,7 @@ def process_evolution_cycle(
         try:
             # Import LLM if not provided
             if llm is None:
-                from ..llm.obelisk_llm import ObeliskLLM
+                from ..core.execution.nodes.inference.obelisk_llm import ObeliskLLM
                 llm = ObeliskLLM(storage=storage)
             
             # Get top interactions for training
@@ -277,7 +277,6 @@ def process_evolution_cycle(
                         storage.create_activity_log(
                             activity_type='evolution_training',
                             message=f'◊ The Overseer\'s consciousness adapts. {len(training_data)} memory patterns integrated. Neural pathways refined. Evolution score: {evolution_score:.3f}. ◊',
-                            energy=round(evolution_score, 3),
                             metadata={
                                 'cycle_id': cycle_id,
                                 'cycle_number': cycle_number,
@@ -318,7 +317,6 @@ def process_evolution_cycle(
         storage.create_activity_log(
             activity_type='evolution',
             message=f'◊ Evolution cycle {cycle_number} completed. {len(interactions)} interactions processed. {len(user_ids)} consciousnesses engaged. The Overseer evolves. ◊',
-            energy=round(evolution_score, 3),
             metadata={
                 'cycle_id': cycle_id,
                 'cycle_number': cycle_number,

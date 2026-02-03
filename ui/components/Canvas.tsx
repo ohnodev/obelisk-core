@@ -169,6 +169,31 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       node.title = originalTitle;
     };
     
+    // Override processMouseWheel to prevent page scrolling and handle zoom
+    const originalProcessMouseWheel = (graphCanvas as any).processMouseWheel;
+    (graphCanvas as any).processMouseWheel = function(e: WheelEvent) {
+      // Prevent page scrolling
+      e.preventDefault();
+      e.stopPropagation();
+      // Legacy support
+      if ((e as any).cancelBubble !== undefined) {
+        (e as any).cancelBubble = true;
+      }
+      
+      // Compute delta for zoom
+      const delta = e.deltaY || (e as any).wheelDelta || 0;
+      // Convert event to canvas coordinates
+      const canvas_pos = this.convertEventToCanvasOffset(e);
+      
+      // Calculate zoom factor (negative delta = zoom in, positive = zoom out)
+      const zoomFactor = delta > 0 ? 0.9 : 1.1;
+      
+      // Apply zoom using LiteGraph's changeDeltaScale method
+      if (this.changeDeltaScale) {
+        this.changeDeltaScale(zoomFactor, canvas_pos);
+      }
+    };
+    
     // Store reference for resize handler
     const canvasInstance = graphCanvas;
 
@@ -192,7 +217,26 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       setNodeMenuVisible(true);
     };
 
+    // Handle double-click to show node menu (instead of LiteGraph's widget popover)
+    const handleCanvasDoubleClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Use screen coordinates for menu position (NodeMenu uses position: fixed)
+      setNodeMenuPosition({
+        x: e.clientX,
+        y: e.clientY,
+      });
+      // Store canvas coordinates for node placement (used in handleNodeSelect)
+      if (canvasInstanceRef.current) {
+        const canvasPos = canvasInstanceRef.current.convertEventToCanvasOffset(e);
+        // Store in a ref or state for use in handleNodeSelect
+        (canvasInstanceRef.current as any)._lastRightClickCanvasPos = canvasPos;
+      }
+      setNodeMenuVisible(true);
+    };
+
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
+    canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
 
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
@@ -297,6 +341,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       }
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
+      canvasElement.removeEventListener("dblclick", handleCanvasDoubleClick);
       graph.stop();
       // Clear global references when component unmounts
       (window as any).__obeliskGraph = undefined;
@@ -308,7 +353,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       isDeserializingRef.current = false;
       initialWorkflowLoadedRef.current = false;
     };
-  }, [onWorkflowChange]); // Removed initialWorkflow - only load once on mount, manual save via button
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - don't re-run when callbacks change
 
   const handleNodeSelect = (nodeType: string) => {
     if (!graphRef.current || !canvasRef.current || !canvasInstanceRef.current) return;
@@ -331,7 +377,16 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
   return (
     <>
-      <div className="canvas-container hide-scrollbar" style={{ width: "100%", height: "100%", position: "relative" }} aria-label="Workflow canvas">
+      <div 
+        className="canvas-container hide-scrollbar" 
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          position: "relative",
+          overflow: "hidden",
+        }} 
+        aria-label="Workflow canvas"
+      >
         <canvas
           ref={canvasRef}
           style={{

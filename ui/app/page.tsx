@@ -6,10 +6,11 @@ import Toolbar from "@/components/Toolbar";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { serializeGraph } from "@/lib/litegraph";
 import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
+import { useNotifications } from "@/components/Notification";
 import "@/components/nodes"; // Register all node types
 
-// Load default workflow from JSON file
-import defaultWorkflowData from "../workflows/chat.json";
+// Load default workflow from JSON file - default agent with memory
+import defaultWorkflowData from "../workflows/default.json";
 
 const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
 
@@ -56,15 +57,17 @@ function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
 export default function Home() {
   const [workflow, setWorkflow] = useState<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
   const previousWorkflowRef = useRef<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
+  const { showNotification, NotificationProvider } = useNotifications();
 
   // Memoize onWorkflowChange to stabilize function reference
+  // Empty dependency array ensures this function reference never changes
   const handleWorkflowChange = useCallback((newWorkflow: WorkflowGraph) => {
     // Only update if workflow actually changed (deep compare)
     if (!previousWorkflowRef.current || !workflowsEqual(previousWorkflowRef.current, newWorkflow)) {
       previousWorkflowRef.current = newWorkflow;
       setWorkflow(newWorkflow);
     }
-  }, []);
+  }, []); // Empty deps - function reference never changes
 
   const handleExecute = async (getGraph?: () => any) => {
     if (!workflow) {
@@ -88,21 +91,42 @@ export default function Home() {
       const currentWorkflow = serializeGraph(graph);
       console.log("Executing workflow:", currentWorkflow.name, "with", currentWorkflow.nodes.length, "nodes");
 
+      // Extract user_query from text nodes that have {{user_query}} placeholder
+      let userQuery = "";
+      for (const node of currentWorkflow.nodes) {
+        if (node.type === "text") {
+          const textContent = (node.metadata?.text || node.inputs?.text || "").toString();
+          if (textContent.includes("{{user_query}}")) {
+            // Try to get actual value from the graph node
+            const graphNode = graph.getNodeById(node.id as any) || 
+                            (/^\d+$/.test(node.id) ? graph.getNodeById(parseInt(node.id, 10) as any) : null);
+            if (graphNode) {
+              const nodeText = (graphNode.properties as any)?.text || "";
+              // If it's still the placeholder, use empty string (will be filled by backend)
+              if (nodeText && nodeText !== "{{user_query}}") {
+                userQuery = nodeText;
+              }
+            }
+          }
+        }
+      }
+
       // Execute workflow using ComfyUI-style execution engine
       const result = await executeWorkflow(currentWorkflow, {
         client_id: "default_user",
+        user_id: "default_user",
+        user_query: userQuery || "Hello", // Default query if not found
       });
 
       if (result.status === "error") {
         console.error("Workflow execution failed:", result.error);
-        // TODO: Show error in UI (toast, notification, etc.)
-        alert(`Execution failed: ${result.error}`);
+        showNotification(`Execution failed: ${result.error}`, "error", 8000);
         return;
       }
 
       // Update node outputs with results from backend
       if (result.results) {
-        updateNodeOutputs(graph, result.results);
+        updateNodeOutputs(graph, result.results, result.execution_order);
         
         // Force canvas redraw to show updated outputs
         const canvas = (window as any).__obeliskCanvas;
@@ -113,9 +137,14 @@ export default function Home() {
       }
 
       console.log("Workflow execution completed:", result.status);
+      showNotification("Workflow executed successfully", "success", 3000);
     } catch (error) {
       console.error("Failed to execute workflow:", error);
-      alert(`Execution error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      showNotification(
+        `Execution error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        "error",
+        8000
+      );
     }
   };
 
@@ -138,36 +167,39 @@ export default function Home() {
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        width: "100vw",
-        overflow: "hidden",
-        position: "relative",
-        zIndex: 1,
-      }}
-    >
-      <Toolbar
-        onExecute={handleExecute}
-        onSave={handleSave}
-        onLoad={handleLoad}
-        workflow={workflow}
-      />
+    <>
+      <NotificationProvider />
       <div
         style={{
-          flex: 1,
-          position: "relative",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          width: "100vw",
           overflow: "hidden",
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        <Canvas 
-          onWorkflowChange={handleWorkflowChange} 
-          initialWorkflow={workflow || DEFAULT_WORKFLOW}
+        <Toolbar
           onExecute={handleExecute}
+          onSave={handleSave}
+          onLoad={handleLoad}
+          workflow={workflow}
         />
+        <div
+          style={{
+            flex: 1,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <Canvas 
+            onWorkflowChange={handleWorkflowChange} 
+            initialWorkflow={workflow || DEFAULT_WORKFLOW}
+            onExecute={handleExecute}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 }

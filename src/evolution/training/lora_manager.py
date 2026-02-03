@@ -5,7 +5,7 @@ Handles saving and loading LoRA adapter weights from storage
 import io
 import pickle
 from typing import Dict, Any, Optional
-from peft import get_peft_model
+from peft import get_peft_model, PeftModel
 
 from ...utils.logger import get_logger
 
@@ -50,8 +50,14 @@ class LoRAManager:
                     # Already a dict
                     state_dict = lora_weights_bytes
                 
-                # Apply LoRA to model
-                self.lora_model = get_peft_model(self.model, self.lora_config)
+                # Apply LoRA to model - only wrap if not already a PeftModel
+                if isinstance(self.model, PeftModel):
+                    # Model is already a PeftModel, use it directly
+                    self.lora_model = self.model
+                else:
+                    # Model is not a PeftModel, wrap it
+                    self.lora_model = get_peft_model(self.model, self.lora_config)
+                
                 self.lora_model.load_state_dict(state_dict, strict=False)
                 self.lora_model.eval()
                 
@@ -86,7 +92,13 @@ class LoRAManager:
             if self.lora_model is None:
                 logger.info("No LoRA model to save, creating new LoRA adapter...")
                 # Create LoRA adapter if it doesn't exist
-                self.lora_model = get_peft_model(self.model, self.lora_config)
+                # Check if model is already a PeftModel to avoid re-wrapping
+                if isinstance(self.model, PeftModel):
+                    # Model is already a PeftModel, use it directly
+                    self.lora_model = self.model
+                else:
+                    # Model is not a PeftModel, wrap it
+                    self.lora_model = get_peft_model(self.model, self.lora_config)
             
             # Get state dict from LoRA adapter
             state_dict = self.lora_model.state_dict()

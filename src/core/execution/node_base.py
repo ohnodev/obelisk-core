@@ -2,16 +2,19 @@
 Base node class for execution engine
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
 import copy
 from ..types import NodeID, NodeData
+
+if TYPE_CHECKING:
+    from ..types import NodeGraph
 
 
 @dataclass
 class ExecutionContext:
     """Context passed to nodes during execution"""
-    container: Any  # ServiceContainer
+    container: Any = None  # Optional ServiceContainer (for backward compatibility, nodes should be self-contained)
     variables: Dict[str, Any] = field(default_factory=dict)  # Runtime variables (user_id, user_query, etc.)
     node_outputs: Dict[NodeID, Dict[str, Any]] = field(default_factory=dict)  # Cached outputs from previous nodes
 
@@ -99,3 +102,28 @@ class BaseNode(ABC):
         # This will be resolved by the engine based on connections
         # For now, return None - engine handles connection resolution
         return None
+    
+    def initialize(self, workflow: 'NodeGraph', all_nodes: Dict[NodeID, 'BaseNode']) -> None:
+        """
+        Initialize node after all nodes are built
+        Called by engine to allow nodes to set up relationships if needed.
+        
+        Args:
+            workflow: Workflow definition with nodes and connections
+            all_nodes: Dictionary of all node instances (node_id -> node)
+        """
+        # Default implementation does nothing
+        # Override in subclasses for custom initialization
+        pass
+    
+    def _setup(self, workflow: 'NodeGraph', all_nodes: Dict[NodeID, 'BaseNode']) -> None:
+        """
+        Setup node after all nodes are built (alias for initialize for backward compatibility)
+        Called by engine to allow nodes to set up relationships if needed.
+        
+        Args:
+            workflow: Workflow definition with nodes and connections
+            all_nodes: Dictionary of all node instances (node_id -> node)
+        """
+        # Call initialize for backward compatibility
+        self.initialize(workflow, all_nodes)

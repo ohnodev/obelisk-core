@@ -1,41 +1,28 @@
 {
-  "id": "obelisk-chat-workflow",
-  "name": "Basic Chat Workflow",
+  "id": "chain-example-workflow",
+  "name": "Direct Inference Chaining Example",
   "nodes": [
     {
       "id": "1",
       "type": "text",
-      "position": {"x": 50, "y": 100},
+      "position": {"x": 100, "y": 300},
       "metadata": {
-        "text": "{{user_query}}"
+        "text": "What is the capital of France?"
       }
     },
     {
       "id": "2",
       "type": "model_loader",
-      "position": {"x": 250, "y": 100},
-      "inputs": {}
+      "position": {"x": 300, "y": 100},
+      "inputs": {
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
     },
     {
       "id": "3",
-      "type": "lora_loader",
-      "position": {"x": 450, "y": 100},
-      "inputs": {
-        "lora_enabled": true
-      }
-    },
-    {
-      "id": "4",
-      "type": "memory_adapter",
-      "position": {"x": 250, "y": 250},
-      "inputs": {
-        "user_id": "{{user_id}}"
-      }
-    },
-    {
-      "id": "5",
       "type": "inference",
-      "position": {"x": 650, "y": 100},
+      "position": {"x": 500, "y": 300},
       "inputs": {
         "quantum_influence": 0.7,
         "max_length": 1024,
@@ -43,9 +30,19 @@
       }
     },
     {
-      "id": "6",
+      "id": "4",
+      "type": "inference",
+      "position": {"x": 800, "y": 300},
+      "inputs": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "5",
       "type": "text",
-      "position": {"x": 850, "y": 100},
+      "position": {"x": 1100, "y": 300},
       "inputs": {
         "text": ""
       }
@@ -55,13 +52,7 @@
     {
       "from": "1",
       "from_output": "text",
-      "to": "4",
-      "to_input": "query"
-    },
-    {
-      "from": "1",
-      "from_output": "text",
-      "to": "5",
+      "to": "3",
       "to_input": "query"
     },
     {
@@ -72,20 +63,20 @@
     },
     {
       "from": "3",
+      "from_output": "response",
+      "to": "4",
+      "to_input": "query"
+    },
+    {
+      "from": "2",
       "from_output": "model",
-      "to": "5",
+      "to": "4",
       "to_input": "model"
     },
     {
       "from": "4",
-      "from_output": "context",
-      "to": "5",
-      "to_input": "context"
-    },
-    {
-      "from": "5",
       "from_output": "response",
-      "to": "6",
+      "to": "5",
       "to_input": "text"
     }
   ]

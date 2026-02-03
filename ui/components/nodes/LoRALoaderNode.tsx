@@ -11,6 +11,7 @@ class LoRALoaderNode extends LGraphNode {
     super();
     this.title = "LoRA Loader";
     this.addInput("model", "object");
+    this.addInput("storage_instance", "object"); // Optional: only needed for loading LoRA weights
     this.addOutput("model", "object");
     
     // Add LoRA path widget (string input)

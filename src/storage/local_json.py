@@ -6,6 +6,7 @@ Only accessible to the local user
 import os
 import json
 import pickle
+import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -80,7 +81,6 @@ class LocalJSONStorage(StorageInterface):
         query: str,
         response: str,
         cycle_id: Optional[str] = None,
-        energy: float = 0.0,
         quantum_seed: float = 0.0,
         reward_score: float = 0.0
     ) -> str:
@@ -92,7 +92,6 @@ class LocalJSONStorage(StorageInterface):
             'user_id': user_id,
             'query': query,
             'response': response,
-            'energy_generated': energy,
             'quantum_seed': quantum_seed,
             'reward_score': reward_score,
             'evolution_cycle_id': cycle_id,
@@ -111,9 +110,17 @@ class LocalJSONStorage(StorageInterface):
         
         interactions.append(interaction)
         
+        # Log query content only in debug mode to avoid leaking sensitive data
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query='{query[:50]}...', total_interactions={len(interactions)}")
+        else:
+            logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query_length={len(query)}, total_interactions={len(interactions)}")
+        
         with open(user_file, 'w') as f:
             json.dump(interactions, f, indent=2)
         os.chmod(user_file, 0o600)  # User read/write only
+        
+        logger.debug(f"[LocalJSONStorage] Successfully saved interaction {interaction_id} to {user_file}")
         
         # If cycle_id provided, also save to cycle file
         if cycle_id:
@@ -213,7 +220,7 @@ class LocalJSONStorage(StorageInterface):
     
     def get_latest_model_weights(self, base_model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get latest active model weights"""
-        from src.llm.obelisk_llm import ObeliskLLM
+        from src.core.execution.nodes.inference.obelisk_llm import ObeliskLLM
         if base_model is None:
             base_model = ObeliskLLM.MODEL_NAME
         
@@ -272,14 +279,20 @@ class LocalJSONStorage(StorageInterface):
     def get_user_interactions(self, user_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Get user's own interactions (for solo mode)"""
         user_file = self._get_user_file(user_id)
+        logger.debug(f"[LocalJSONStorage] Loading interactions for user_id={user_id}, file={user_file}, exists={user_file.exists()}")
+        
         if not user_file.exists():
+            logger.debug(f"[LocalJSONStorage] User file does not exist: {user_file}")
             return []
         
         try:
             with open(user_file, 'r') as f:
                 interactions = json.load(f)
+                logger.debug(f"[LocalJSONStorage] Loaded {len(interactions)} interactions from {user_file}")
                 if limit:
-                    return interactions[-limit:]
+                    limited = interactions[-limit:]
+                    logger.debug(f"[LocalJSONStorage] Returning last {len(limited)} interactions (limit={limit})")
+                    return limited
                 return interactions
         except Exception as e:
             logger.error(f"Error loading user interactions: {e}")
@@ -294,33 +307,29 @@ class LocalJSONStorage(StorageInterface):
             return {
                 'user_id': user_id,
                 'interaction_count': 0,
-                'total_energy': 0,
                 'average_quality': 0,
                 'quantum_alignment': 0,
                 'total_score': 0
             }
         
         interaction_count = len(user_interactions)
-        total_energy = sum(float(i.get('energy_generated', 0) or 0) for i in user_interactions)
         average_quality = sum(float(i.get('reward_score', 0) or 0) for i in user_interactions) / interaction_count
         quantum_alignment = sum(float(i.get('quantum_seed', 0) or 0) for i in user_interactions) / interaction_count
         
         normalized_interactions = min(interaction_count / 100, 1)
-        normalized_energy = min(total_energy / 10, 1)
         normalized_quality = average_quality
         normalized_quantum = quantum_alignment
         
+        # Redistributed weights: removed energy (0.3), redistributed to interactions (0.4->0.57), quality (0.2->0.29), quantum (0.1->0.14)
         total_score = (
-            normalized_interactions * 0.4 +
-            normalized_energy * 0.3 +
-            normalized_quality * 0.2 +
-            normalized_quantum * 0.1
+            normalized_interactions * 0.57 +
+            normalized_quality * 0.29 +
+            normalized_quantum * 0.14
         )
         
         return {
             'user_id': user_id,
             'interaction_count': interaction_count,
-            'total_energy': total_energy,
             'average_quality': average_quality,
             'quantum_alignment': normalized_quantum,
             'total_score': min(max(total_score, 0), 1)
@@ -426,7 +435,6 @@ class LocalJSONStorage(StorageInterface):
         self,
         activity_type: str,
         message: str,
-        energy: float,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Create activity log entry"""
@@ -434,7 +442,6 @@ class LocalJSONStorage(StorageInterface):
             'id': hashlib.sha256(f"{activity_type}{message}{datetime.utcnow().isoformat()}".encode()).hexdigest()[:16],
             'type': activity_type,
             'message': message,
-            'energy': energy,
             'metadata': metadata or {},
             'created_at': datetime.utcnow().isoformat()
         }
