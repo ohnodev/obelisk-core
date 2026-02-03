@@ -208,13 +208,13 @@ class SupabaseStorage(StorageInterface):
             }
         except Exception as e:
             logger.error(f"Error calculating reward score: {e}")
-                return {
-                    'user_id': user_id,
-                    'interaction_count': 0,
-                    'average_quality': 0,
-                    'quantum_alignment': 0,
-                    'total_score': 0
-                }
+            return {
+                'user_id': user_id,
+                'interaction_count': 0,
+                'average_quality': 0,
+                'quantum_alignment': 0,
+                'total_score': 0
+            }
     
     def create_reward(
         self,
