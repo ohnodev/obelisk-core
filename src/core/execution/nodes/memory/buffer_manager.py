@@ -79,9 +79,10 @@ class RecentBufferManager:
             self.buffers[user_id].clear()
             buffer = self.buffers[user_id]
         
-        # Convert interactions to LangChain messages (most recent first)
+        # Convert interactions to LangChain messages in chronological order (oldest→newest)
+        # get_user_interactions returns interactions in chronological order (oldest first)
         message_count = 0
-        for interaction in reversed(interactions):  # Reverse to get chronological order
+        for interaction in interactions:  # Iterate in original order to preserve chronological order
             query = interaction.get('query', '')
             response = interaction.get('response', '')
             if query:

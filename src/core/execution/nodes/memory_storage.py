@@ -65,18 +65,32 @@ class MemoryStorageNode(BaseNode):
         # Normalize path (resolve to absolute)
         storage_path = str(Path(storage_path).resolve())
         
+        # Build composite cache key including storage_type and backend-specific config
+        # This ensures different storage types with same path get different instances
+        import os
+        if storage_type == 'supabase':
+            supabase_url = os.getenv('SUPABASE_URL', '')
+            supabase_key = os.getenv('SUPABASE_KEY', '')
+            if not supabase_url or not supabase_key:
+                raise ValueError("Supabase storage requires SUPABASE_URL and SUPABASE_KEY environment variables")
+            # Include supabase_url in cache key to handle different Supabase instances
+            cache_key = f"{storage_type}::{storage_path}::{supabase_url}"
+        else:
+            # For local_json, just use storage_type and path
+            cache_key = f"{storage_type}::{storage_path}"
+        
         # DEBUG: Log storage path
-        logger.debug(f"[MemoryStorage] Using storage_path={storage_path}, storage_type={storage_type}")
+        logger.debug(f"[MemoryStorage] Using storage_path={storage_path}, storage_type={storage_type}, cache_key={cache_key}")
         
         # Check cache first
-        if storage_path in self._storage_cache:
-            logger.debug(f"[MemoryStorage] Using cached storage instance for path={storage_path}")
+        if cache_key in self._storage_cache:
+            logger.debug(f"[MemoryStorage] Using cached storage instance for cache_key={cache_key}")
             return {
-                'storage_instance': self._storage_cache[storage_path]
+                'storage_instance': self._storage_cache[cache_key]
             }
         
         # Create new storage instance
-        logger.debug(f"[MemoryStorage] Creating new storage instance for path={storage_path}")
+        logger.debug(f"[MemoryStorage] Creating new storage instance for cache_key={cache_key}")
         if storage_type == 'local_json':
             from src.storage.local_json import LocalJSONStorage
             storage_instance = LocalJSONStorage(storage_path=storage_path)
@@ -85,17 +99,12 @@ class MemoryStorageNode(BaseNode):
             from src.storage.supabase import SupabaseStorage
             # For Supabase, we need URL and key from config or inputs
             # For now, try to get from environment or context
-            import os
-            supabase_url = os.getenv('SUPABASE_URL', '')
-            supabase_key = os.getenv('SUPABASE_KEY', '')
-            if not supabase_url or not supabase_key:
-                raise ValueError("Supabase storage requires SUPABASE_URL and SUPABASE_KEY environment variables")
             storage_instance = SupabaseStorage(supabase_url=supabase_url, supabase_key=supabase_key)
         else:
             raise ValueError(f"Unknown storage_type: {storage_type}. Must be 'local_json' or 'supabase'")
         
-        # Cache the instance
-        self._storage_cache[storage_path] = storage_instance
+        # Cache the instance using composite key
+        self._storage_cache[cache_key] = storage_instance
         
         return {
             'storage_instance': storage_instance

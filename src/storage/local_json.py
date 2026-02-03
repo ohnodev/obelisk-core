@@ -6,6 +6,7 @@ Only accessible to the local user
 import os
 import json
 import pickle
+import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -109,7 +110,11 @@ class LocalJSONStorage(StorageInterface):
         
         interactions.append(interaction)
         
-        logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query='{query[:50]}...', total_interactions={len(interactions)}")
+        # Log query content only in debug mode to avoid leaking sensitive data
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query='{query[:50]}...', total_interactions={len(interactions)}")
+        else:
+            logger.debug(f"[LocalJSONStorage] Saving interaction to {user_file}: user_id={user_id}, query_length={len(query)}, total_interactions={len(interactions)}")
         
         with open(user_file, 'w') as f:
             json.dump(interactions, f, indent=2)
