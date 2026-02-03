@@ -120,7 +120,7 @@ def test_full_memory_workflow() -> bool:
                 if node_type == "memory_storage":
                     if "storage_instance" in outputs:
                         node_checks["memory_storage"] = True
-                        print(f"    ✅ Storage instance created")
+                        print("    ✅ Storage instance created")
                 
                 elif node_type == "memory_selector":
                     if "context" in outputs and "query" in outputs:
@@ -132,7 +132,7 @@ def test_full_memory_workflow() -> bool:
                 elif node_type == "model_loader":
                     if "model" in outputs:
                         node_checks["model_loader"] = True
-                        print(f"    ✅ Model loaded")
+                        print("    ✅ Model loaded")
                 
                 elif node_type == "inference":
                     if "response" in outputs and "query" in outputs:
@@ -147,7 +147,7 @@ def test_full_memory_workflow() -> bool:
                     # Check that it's in the execution order and results
                     if node_id in results:
                         node_checks["memory_creator"] = True
-                        print(f"    ✅ Memory saved (no outputs - saves directly)")
+                        print("    ✅ Memory saved (no outputs - saves directly)")
                 
                 elif node_type == "text":
                     # Check if this is the output text node
@@ -210,12 +210,12 @@ def test_full_memory_workflow() -> bool:
                     response_text = node_result.get("outputs", {}).get("response", "")
                     response_lower = str(response_text).lower()
                     if "alice" in response_lower:
-                        print(f"✅ Memory persistence verified!")
+                        print("✅ Memory persistence verified!")
                         print(f"   Response to 'What is my name?': {response_text[:200]}...")
                         return True
                     else:
                         print(f"⚠️  Response did not contain 'Alice': {response_text[:200]}...")
-                        print(f"   This might indicate memory wasn't saved or retrieved correctly")
+                        print("   This might indicate memory wasn't saved or retrieved correctly")
                         return False
             
             print("⚠️  Could not find inference response in second query")
