@@ -36,6 +36,36 @@ class MemoryAdapterNode(BaseNode):
         self._last_query: Optional[str] = None
         self._last_response: Optional[str] = None
     
+    def initialize(self, workflow: Dict[str, Any], all_nodes: Dict[str, Any]) -> None:
+        """
+        Initialize memory adapter - hook into connected inference nodes
+        
+        Called by engine after all nodes are built to allow memory adapter
+        to discover and hook into inference nodes it's connected to.
+        
+        Args:
+            workflow: Workflow definition with nodes and connections
+            all_nodes: Dictionary of all node instances (node_id -> node)
+        """
+        from .inference import InferenceNode
+        
+        connections = workflow.get('connections', [])
+        
+        # Find all inference nodes I'm connected to
+        for conn in connections:
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            target_input = conn.get('target_input') or conn.get('to_input')
+            
+            # Check if this is a connection from me to an inference node
+            if (source_id == self.node_id and 
+                target_id in all_nodes and 
+                target_input == 'context'):
+                target_node = all_nodes[target_id]
+                if isinstance(target_node, InferenceNode):
+                    # Hook this memory adapter into the inference node
+                    self.hook_into_inference_node(target_node, workflow)
+    
     def hook_into_inference_node(self, inference_node, workflow: Dict[str, Any]) -> None:
         """
         Hook this memory adapter into an inference node's lifecycle

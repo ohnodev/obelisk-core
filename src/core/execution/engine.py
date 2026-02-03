@@ -280,51 +280,11 @@ class ExecutionEngine:
             
             nodes[node_id] = node_class(node_id, node_data)
         
-        # Hook memory adapters into inference nodes
-        self._hook_memory_adapters(nodes, workflow)
+        # Initialize all nodes (allows nodes to set up relationships, hooks, etc.)
+        for node in nodes.values():
+            node.initialize(workflow, nodes)
         
         return nodes
-    
-    def _hook_memory_adapters(self, nodes: Dict[NodeID, BaseNode], workflow: NodeGraph) -> None:
-        """
-        Automatically hook memory adapter nodes into inference nodes they're connected to
-        
-        Args:
-            nodes: Dictionary of node_id -> node instance
-            workflow: Workflow definition to check connections
-        """
-        from .nodes.memory_adapter import MemoryAdapterNode
-        from .nodes.inference import InferenceNode
-        
-        connections = workflow.get('connections', [])
-        
-        # Find all memory adapter nodes
-        memory_adapters: Dict[NodeID, MemoryAdapterNode] = {}
-        for node_id, node in nodes.items():
-            if isinstance(node, MemoryAdapterNode):
-                memory_adapters[node_id] = node
-        
-        # Find all inference nodes
-        inference_nodes: Dict[NodeID, InferenceNode] = {}
-        for node_id, node in nodes.items():
-            if isinstance(node, InferenceNode):
-                inference_nodes[node_id] = node
-        
-        # For each connection from memory adapter to inference node
-        for conn in connections:
-            source_id = conn.get('source_node') or conn.get('from')
-            target_id = conn.get('target_node') or conn.get('to')
-            target_input = conn.get('target_input') or conn.get('to_input')
-            
-            # Check if this is a memory adapter -> inference node connection
-            if (source_id in memory_adapters and 
-                target_id in inference_nodes and 
-                target_input == 'context'):
-                # Hook the memory adapter into the inference node
-                memory_adapters[source_id].hook_into_inference_node(
-                    inference_nodes[target_id],
-                    workflow
-                )
     
     def _resolve_node_inputs(self, node: BaseNode, workflow: NodeGraph, context: ExecutionContext) -> Dict[str, Any]:
         """

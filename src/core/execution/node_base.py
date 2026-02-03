@@ -99,3 +99,16 @@ class BaseNode(ABC):
         # This will be resolved by the engine based on connections
         # For now, return None - engine handles connection resolution
         return None
+    
+    def initialize(self, workflow: 'NodeGraph', all_nodes: Dict[NodeID, 'BaseNode']) -> None:
+        """
+        Initialize node after all nodes are built
+        Called by engine to allow nodes to set up relationships, hooks, etc.
+        
+        Args:
+            workflow: Workflow definition with nodes and connections
+            all_nodes: Dictionary of all node instances (node_id -> node)
+        """
+        # Default implementation does nothing
+        # Override in subclasses for custom initialization
+        pass
