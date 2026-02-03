@@ -34,18 +34,8 @@ class MemoryStorageNode(BaseNode):
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute memory storage node - create or retrieve storage instance"""
-        # Get storage_path from inputs (check both get_input_value and node_data)
         storage_path = self.get_input_value('storage_path', context, None)
-        if storage_path is None:
-            # Fallback: check node_data inputs directly
-            node_inputs = self.node_data.get('inputs', {})
-            storage_path = node_inputs.get('storage_path', None)
-        
         storage_type = self.get_input_value('storage_type', context, 'local_json')
-        if storage_type == 'local_json':
-            # Fallback: check node_data inputs directly
-            node_inputs = self.node_data.get('inputs', {})
-            storage_type = node_inputs.get('storage_type', 'local_json')
         
         # Resolve template variables
         if isinstance(storage_path, str) and storage_path.startswith('{{') and storage_path.endswith('}}'):

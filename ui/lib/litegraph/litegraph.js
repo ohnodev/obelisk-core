@@ -5213,8 +5213,7 @@ LGraphNode.prototype.executeAction = function(action)
                 : e.deltaY
                 ? -e.deltaY / 3
                 : 0;
-            // Reduced zoom sensitivity: 0.01 instead of 0.05 (5x less sensitive)
-            this.changeDeltaScale(1.0 + e.delta * 100);
+            this.changeDeltaScale(1.0 + e.delta * 0.05);
         }
 
         this.last_mouse[0] = x;
@@ -7009,10 +7008,11 @@ LGraphNode.prototype.executeAction = function(action)
 
         var scale = this.ds.scale;
 
+        // Reduced zoom sensitivity: use 1.02 instead of 1.1 (much less sensitive)
         if (delta > 0) {
-            scale *= 1.1;
+            scale *= 1.02;
         } else if (delta < 0) {
-            scale *= 1 / 1.1;
+            scale *= 1 / 1.02;
         }
 
         //this.setZoom( scale, [ e.clientX, e.clientY ] );
