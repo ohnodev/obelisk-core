@@ -107,33 +107,32 @@ class MemoryCreatorNode(BaseNode):
                 if response:
                     conversation_text += f"Overseer: {response}\n"
             
-            # Memory Creator prompt (from config)
-            summary_prompt = f"""You are extracting key memories from a conversation. You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with {{ and end with }}.
+            # System prompt with detailed instructions (persistent context - saves tokens)
+            system_prompt = """You are a memory extraction system. Your role is to analyze conversations and extract structured information as JSON.
 
-Conversation to analyze:
-{conversation_text}
+You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with { and end with }.
 
 Extract and structure the following information as JSON with these EXACT keys:
 - summary: A brief 1-2 sentence overview of the conversation
 - keyTopics: Array of main topics discussed (e.g., ["AI", "quantum computing", "memory systems"])
-- userContext: Object containing any user preferences, settings, or context mentioned (e.g., {{"preferred_language": "English", "timezone": "UTC"}})
+- userContext: Object containing any user preferences, settings, or context mentioned (e.g., {"preferred_language": "English", "timezone": "UTC"})
 - importantFacts: Array of factual statements extracted from the conversation (e.g., ["Current year is 2026", "User prefers concise responses"])
 
 Example of correct JSON format:
-{{
+{
   "summary": "Discussion about AI memory systems and their implementation",
   "keyTopics": ["artificial intelligence", "memory architecture", "neural networks"],
-  "userContext": {{"preferred_format": "technical", "current_year": 2026}},
+  "userContext": {"preferred_format": "technical", "current_year": 2026},
   "importantFacts": ["Current year is 2026", "Memory systems use JSON for storage", "Neural networks require structured data"]
-}}
-
-Now extract the memories from the conversation above. Return ONLY the JSON object, nothing else:"""
+}"""
+            
+            # Query with just the conversation text (minimal - saves tokens)
+            query = f"Extract memories from this conversation:\n\n{conversation_text}\n\nReturn ONLY the JSON object, nothing else."
             
             # Generate summary using config parameters
-            # system_prompt sets the role, summary_prompt (as query) contains the detailed task instructions
             result = llm.generate(
-                query=summary_prompt,
-                system_prompt="You are a memory extraction system. Your role is to analyze conversations and extract structured information as JSON. You must return ONLY valid JSON with no markdown, no explanations, and no text before or after the JSON object.",
+                query=query,
+                system_prompt=system_prompt,
                 quantum_influence=0.2,  # Lower influence for more consistent summaries
                 max_length=800,  # Allow enough tokens for complete JSON generation
                 conversation_history=None,
