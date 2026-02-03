@@ -253,82 +253,30 @@
                     if (x >= textareaX && x <= textareaX + textareaWidth &&
                         y >= textareaY && y <= textareaY + textareaHeight) {
                         
-                        // Handle both mousedown and touchstart events
-                        if (event.type === "mousedown" || event.type === "touchstart" || 
-                            event.type === (LG.pointerevents_method || "mousedown") + "down") {
-                            
-                            // Prevent default to avoid node selection
-                            if (event.preventDefault) {
-                                event.preventDefault();
-                            }
-                            if (event.stopPropagation) {
-                                event.stopPropagation();
-                            }
-                            // Simple approach: use native prompt but styled better
-                            // Get click position for positioning the input
-                            var canvasRect = that.canvas.getBoundingClientRect();
-                            var scale = that.ds.scale || 1;
-                            var offsetX = that.ds.offset ? that.ds.offset[0] : 0;
-                            var offsetY = that.ds.offset ? that.ds.offset[1] : 0;
-                            
-                            var screenX = canvasRect.left + (node.pos[0] + textareaX) * scale + offsetX;
-                            var screenY = canvasRect.top + (node.pos[1] + textareaY) * scale + offsetY;
-                            
-                            // Create simple textarea overlay at click position
-                            var editor = document.createElement("textarea");
-                            editor.value = String(w.value || "");
-                            editor.style.position = "fixed";
-                            editor.style.left = screenX + "px";
-                            editor.style.top = screenY + "px";
-                            editor.style.width = (textareaWidth * scale) + "px";
-                            editor.style.height = (textareaHeight * scale) + "px";
-                            editor.style.zIndex = "10000";
-                            editor.style.border = "2px solid #d4af37";
-                            editor.style.borderRadius = "4px";
-                            editor.style.padding = "4px";
-                            editor.style.fontSize = (12 * scale) + "px";
-                            editor.style.fontFamily = "Arial, sans-serif";
-                            editor.style.color = "#FFFFFF";
-                            editor.style.backgroundColor = "#1a1a1a";
-                            editor.style.resize = "none";
-                            editor.style.outline = "none";
-                            editor.style.boxSizing = "border-box";
-                            editor.style.overflow = "auto";
-                            editor.style.lineHeight = "14px";
-                            
-                            document.body.appendChild(editor);
-                            editor.focus();
-                            editor.select();
-                            
-                            // Save on blur
-                            var saveAndRemove = function() {
-                                var newValue = editor.value;
-                                w.value = newValue;
-                                if (w.options && w.options.property) {
-                                    node.setProperty(w.options.property, newValue);
-                                }
-                                if (w.callback) {
-                                    w.callback(newValue, that, node, [node.pos[0] + textareaX, node.pos[1] + textareaY], event);
-                                }
-                                if (node.onWidgetChanged) {
-                                    node.onWidgetChanged(w.name, newValue, w.value, w);
-                                }
-                                if (node.graph) {
-                                    node.graph._version++;
-                                }
-                                editor.remove();
-                                that.dirty_canvas = true;
-                                that.draw(true);
-                            };
-                            
-                            editor.addEventListener("blur", saveAndRemove);
-                            editor.addEventListener("keydown", function(e) {
-                                if (e.key === "Escape") {
-                                    editor.value = String(w.value || "");
-                                    editor.blur();
-                                }
-                            });
-                            
+                        // Use LiteGraph's built-in prompt (like string/text widgets)
+                        if (event.type == LG.pointerevents_method + "down") {
+                            that.prompt(
+                                w.label || w.name || "Text",
+                                String(w.value || ""),
+                                function(v) {
+                                    w.value = v;
+                                    if (w.options && w.options.property) {
+                                        node.setProperty(w.options.property, v);
+                                    }
+                                    if (w.callback) {
+                                        w.callback(v, that, node, pos, event);
+                                    }
+                                    if (node.onWidgetChanged) {
+                                        node.onWidgetChanged(w.name, v, w.value, w);
+                                    }
+                                    if (node.graph) {
+                                        node.graph._version++;
+                                    }
+                                    that.dirty_canvas = true;
+                                }.bind(w),
+                                event,
+                                true // multiline = true for textarea
+                            );
                             return w;
                         }
                     }
