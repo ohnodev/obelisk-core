@@ -38,6 +38,7 @@ class MemorySelectorNode(BaseNode):
         k: Number of recent message pairs to keep in buffer (optional, default: 10)
     
     Outputs:
+        query: Original query (pass-through for cleaner flow)
         context: ConversationContextDict with 'messages' and 'memories'
     """
     
