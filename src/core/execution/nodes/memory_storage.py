@@ -59,10 +59,10 @@ class MemoryStorageNode(BaseNode):
         
         # Create new storage instance
         if storage_type == 'local_json':
-            from ...storage.local_json import LocalJSONStorage
+            from src.storage.local_json import LocalJSONStorage
             storage_instance = LocalJSONStorage(storage_path=storage_path)
         elif storage_type == 'supabase':
-            from ...storage.supabase import SupabaseStorage
+            from src.storage.supabase import SupabaseStorage
             # For Supabase, we need URL and key from config or inputs
             # For now, try to get from environment or context
             import os

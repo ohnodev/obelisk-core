@@ -364,6 +364,10 @@ async def execute_workflow(
         if request.options:
             if "client_id" in request.options:
                 context_variables["user_id"] = request.options["client_id"]
+            if "user_id" in request.options:
+                context_variables["user_id"] = request.options["user_id"]
+            if "user_query" in request.options:
+                context_variables["user_query"] = request.options["user_query"]
             if "extra_data" in request.options:
                 context_variables.update(request.options["extra_data"])
             if "variables" in request.options:
