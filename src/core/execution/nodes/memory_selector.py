@@ -81,11 +81,24 @@ class MemorySelectorNode(BaseNode):
                     activities = json.load(f)
                 
                 # Find all conversation_summary activities for this user
-                user_summaries = [
-                    activity for activity in activities
-                    if activity.get('type') == 'conversation_summary'
-                    and activity.get('message', '').endswith(f'user {user_id}')
-                ]
+                # Use robust user_id lookup: prefer metadata.summary_data.user_id, then metadata.user_id, fallback to message pattern
+                user_summaries = []
+                for activity in activities:
+                    if activity.get('type') != 'conversation_summary':
+                        continue
+                    
+                    # Prefer metadata.summary_data.user_id (where MemoryCreatorNode stores it)
+                    metadata = activity.get('metadata', {})
+                    summary_data = metadata.get('summary_data', {})
+                    activity_user_id = summary_data.get('user_id') or metadata.get('user_id')
+                    
+                    # Match user_id if found in metadata, otherwise fallback to message pattern
+                    if activity_user_id and activity_user_id == user_id:
+                        user_summaries.append(activity)
+                    elif not activity_user_id:
+                        # Fallback: check message pattern only if metadata.user_id is absent
+                        if activity.get('message', '').endswith(f'user {user_id}'):
+                            user_summaries.append(activity)
                 
                 # Sort by created_at (most recent first) and limit
                 user_summaries.sort(key=lambda x: x.get('created_at', ''), reverse=True)
