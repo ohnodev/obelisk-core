@@ -47,7 +47,7 @@
             if (!w._htmlTextarea) {
                 var htmlTextarea = document.createElement("textarea");
                 htmlTextarea.style.position = "absolute";
-                htmlTextarea.style.pointerEvents = "none"; // Initially disabled, enable on click
+                htmlTextarea.style.pointerEvents = "auto"; // Always clickable
                 htmlTextarea.style.border = "none";
                 htmlTextarea.style.background = "transparent";
                 htmlTextarea.style.color = "#FFFFFF";
@@ -59,7 +59,7 @@
                 htmlTextarea.style.padding = "4px";
                 htmlTextarea.style.lineHeight = "14px";
                 htmlTextarea.style.boxSizing = "border-box";
-                htmlTextarea.style.opacity = "0"; // Hidden until clicked
+                htmlTextarea.style.opacity = "1"; // Always visible
                 
                 // Get canvas container
                 var canvas = ctx.canvas;
@@ -89,10 +89,8 @@
                     }
                 });
                 
-                // Hide on blur
+                // Just redraw on blur (textarea stays visible)
                 htmlTextarea.addEventListener("blur", function() {
-                    htmlTextarea.style.pointerEvents = "none";
-                    htmlTextarea.style.opacity = "0";
                     var canvasInstance = window.__obeliskCanvas;
                     if (canvasInstance) {
                         canvasInstance.dirty_canvas = true;
@@ -190,24 +188,8 @@
                     if (w._textareaElement && document.activeElement === w._textareaElement) {
                         // Don't draw text when editing
                     } else {
-                    // Hide canvas text if HTML textarea is visible/editing
-                    var isEditing = w._htmlTextarea && (document.activeElement === w._htmlTextarea || w._htmlTextarea.style.opacity === "1");
-                    
-                    if (!isEditing) {
-                        // Draw wrapped lines
-                        for (var lineIdx = 0; lineIdx < wrappedLines.length && lineIdx < maxLinesClamped; lineIdx++) {
-                            ctx.fillText(
-                                wrappedLines[lineIdx],
-                                textareaX + 4,
-                                textareaY + 4 + (lineIdx * lineHeight)
-                            );
-                        }
-                        
-                        // Show ellipsis if text is truncated
-                        if (wrappedLines.length > maxLinesClamped) {
-                            ctx.fillText("...", textareaX + 4, textareaY + 4 + (maxLinesClamped * lineHeight));
-                        }
-                    }
+                    // Don't draw canvas text - HTML textarea is always visible and handles display
+                    // Canvas text would overlap with HTML textarea
                     
                     // Update HTML textarea position and size
                     if (w._htmlTextarea) {
