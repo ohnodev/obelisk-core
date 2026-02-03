@@ -88,13 +88,14 @@ async def generate(request: GenerateRequest, container: ServiceContainer = Depen
     """Generate response from The Obelisk"""
     try:
         llm = container.llm
-        memory_manager = container.memory_manager
+        memory_selector = container.memory_selector
+        memory_creator = container.memory_creator
         
         # Get conversation context if user_id provided (always runs memory selection)
         conversation_context = request.conversation_context
         if request.user_id and not conversation_context:
-            # Get context from memory manager (returns dict format)
-            context_dict = memory_manager.get_conversation_context(request.user_id, user_query=request.prompt)
+            # Get context from memory selector (returns dict format)
+            context_dict = memory_selector.get_conversation_context(request.user_id, user_query=request.prompt)
             # Convert to ConversationContext model for validation
             conversation_context = ConversationContext(**context_dict) if context_dict else None
         
@@ -107,9 +108,9 @@ async def generate(request: GenerateRequest, container: ServiceContainer = Depen
             conversation_context=context_dict
         )
         
-        # Add to memory if user_id provided (handles storage internally - Option C)
+        # Add to memory if user_id provided (handles storage internally)
         if request.user_id:
-            memory_manager.add_interaction(
+            memory_creator.add_interaction(
                 user_id=request.user_id,
                 query=request.prompt,
                 response=result.get('response', ''),
@@ -207,9 +208,9 @@ async def get_cycle_status(cycle_id: str, container: ServiceContainer = Depends(
 async def get_memory(user_id: str, container: ServiceContainer = Depends(get_container)):
     """Get conversation context for user"""
     try:
-        memory_manager = container.memory_manager
+        memory_selector = container.memory_selector
         # Note: This endpoint doesn't have a query, use empty string (will use most recent memories)
-        context = memory_manager.get_conversation_context(user_id, user_query="")
+        context = memory_selector.get_conversation_context(user_id, user_query="")
         return {
             "user_id": user_id,
             "context": context
@@ -221,8 +222,8 @@ async def get_memory(user_id: str, container: ServiceContainer = Depends(get_con
 async def save_interaction(user_id: str, query: str, response: str, container: ServiceContainer = Depends(get_container)):
     """Save interaction to memory"""
     try:
-        memory_manager = container.memory_manager
-        memory_manager.add_interaction(user_id, query, response)
+        memory_creator = container.memory_creator
+        memory_creator.add_interaction(user_id, query, response)
         return {"status": "saved"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

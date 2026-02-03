@@ -52,9 +52,19 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Memory",
     nodes: [
       {
-        type: "memory_adapter",
-        title: "Memory Adapter",
-        description: "Gets conversation context from memory",
+        type: "memory_storage",
+        title: "Memory Storage",
+        description: "Creates/accesses storage instances based on storage path",
+      },
+      {
+        type: "memory_selector",
+        title: "Memory Selector",
+        description: "Selects relevant conversation context from storage",
+      },
+      {
+        type: "memory_creator",
+        title: "Memory Creator",
+        description: "Saves query/response interactions to storage",
       },
     ],
   },

@@ -100,8 +100,9 @@ def create_basic_chain_workflow() -> dict:
 
 def create_memory_chain_workflow() -> dict:
     """
-    Create a memory chaining workflow: Text → Memory → Inference → Text → Inference → Text
-    Memory adapter hooks into both inference nodes
+    Create a memory chaining workflow: 
+    Text → Memory Storage → Memory Selector → Inference → Memory Creator → Text
+    Uses the new decomposed memory nodes
     """
     return {
         "id": "memory-chain-test",
@@ -121,34 +122,39 @@ def create_memory_chain_workflow() -> dict:
             },
             {
                 "id": "3",
-                "type": "memory_adapter",
+                "type": "memory_storage",
                 "position": {"x": 300, "y": 300},
                 "inputs": {
-                    "user_id": "test_user_memory"
+                    "storage_type": "local_json"
                 }
             },
             {
                 "id": "4",
-                "type": "inference",
+                "type": "memory_selector",
                 "position": {"x": 500, "y": 300},
+                "inputs": {
+                    "user_id": "test_user_memory",
+                    "enable_recent_buffer": True,
+                    "k": 10
+                }
+            },
+            {
+                "id": "5",
+                "type": "inference",
+                "position": {"x": 700, "y": 300},
                 "inputs": {
                     "quantum_influence": 0.7,
                     "max_length": 1024
                 }
             },
             {
-                "id": "5",
-                "type": "text",
-                "position": {"x": 700, "y": 300},
-                "inputs": {"text": ""}
-            },
-            {
                 "id": "6",
-                "type": "inference",
+                "type": "memory_creator",
                 "position": {"x": 900, "y": 300},
                 "inputs": {
-                    "quantum_influence": 0.7,
-                    "max_length": 1024
+                    "user_id": "test_user_memory",
+                    "summarize_threshold": 3,
+                    "k": 10
                 }
             },
             {
@@ -162,53 +168,53 @@ def create_memory_chain_workflow() -> dict:
             {
                 "from": "1",
                 "from_output": "text",
-                "to": "3",
+                "to": "4",
                 "to_input": "query"
             },
             {
                 "from": "1",
                 "from_output": "text",
-                "to": "4",
+                "to": "5",
                 "to_input": "query"
             },
             {
                 "from": "2",
                 "from_output": "model",
-                "to": "4",
+                "to": "5",
                 "to_input": "model"
             },
             {
                 "from": "3",
-                "from_output": "context",
+                "from_output": "storage_instance",
                 "to": "4",
-                "to_input": "context"
+                "to_input": "storage_instance"
             },
             {
                 "from": "4",
-                "from_output": "response",
+                "from_output": "context",
                 "to": "5",
-                "to_input": "text"
+                "to_input": "context"
             },
             {
                 "from": "5",
+                "from_output": "response",
+                "to": "6",
+                "to_input": "response"
+            },
+            {
+                "from": "1",
                 "from_output": "text",
                 "to": "6",
                 "to_input": "query"
             },
             {
-                "from": "2",
-                "from_output": "model",
-                "to": "6",
-                "to_input": "model"
-            },
-            {
                 "from": "3",
-                "from_output": "context",
+                "from_output": "storage_instance",
                 "to": "6",
-                "to_input": "context"
+                "to_input": "storage_instance"
             },
             {
-                "from": "6",
+                "from": "5",
                 "from_output": "response",
                 "to": "7",
                 "to_input": "text"

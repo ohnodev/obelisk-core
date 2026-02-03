@@ -89,14 +89,106 @@ def get_container(
             llm = ObeliskLLM(storage=storage)
             logger.debug("LLM initialized")
             
-            # 3. Memory Manager (depends on storage and LLM)
-            from ..memory.memory_manager import ObeliskMemoryManager
-            memory_manager = ObeliskMemoryManager(
-                storage=storage,
-                llm=llm,
-                mode=resolved_mode
-            )
-            logger.debug("Memory manager initialized")
+            # 3. Memory wrappers (for API usage - deprecated, use workflows instead)
+            from ..memory.buffer_manager import RecentBufferManager
+            from ..core.execution.nodes.memory_selector import MemorySelectorNode
+            from ..core.execution.nodes.memory_creator import MemoryCreatorNode
+            from ..core.execution.node_base import ExecutionContext
+            
+            buffer_manager = RecentBufferManager(k=10)
+            
+            # Create wrapper objects that use the node classes directly
+            # NOTE: These are deprecated - API should use workflows instead
+            class MemorySelectorWrapper:
+                def __init__(self, storage, llm, buffer_manager, k):
+                    self.storage = storage
+                    self.llm = llm
+                    self.buffer_manager = buffer_manager
+                    self.k = k
+                
+                def get_conversation_context(self, user_id: str, user_query: str, enable_recent_buffer: bool = True):
+                    # Create dummy container and context
+                    class DummyContainer:
+                        def __init__(self, llm):
+                            self.llm = llm
+                    
+                    context = ExecutionContext(
+                        container=DummyContainer(self.llm),
+                        variables={}
+                    )
+                    
+                    # Create node instance
+                    node = MemorySelectorNode("api_selector", {
+                        "type": "memory_selector",
+                        "inputs": {}
+                    })
+                    node.inputs = {
+                        'query': user_query,
+                        'storage_instance': self.storage,
+                        'user_id': user_id,
+                        'llm': self.llm,
+                        'enable_recent_buffer': enable_recent_buffer,
+                        'k': self.k
+                    }
+                    
+                    result = node.execute(context)
+                    return result.get('context', {})
+            
+            class MemoryCreatorWrapper:
+                def __init__(self, storage, llm, buffer_manager, summarize_threshold, k):
+                    self.storage = storage
+                    self.llm = llm
+                    self.buffer_manager = buffer_manager
+                    self.summarize_threshold = summarize_threshold
+                    self.k = k
+                    self.interaction_counts = {}  # Track counts per user
+                
+                def add_interaction(self, user_id: str, query: str, response: str, cycle_id=None, energy=0.0, quantum_seed=0.7, reward_score=0.0):
+                    # Create dummy container and context
+                    class DummyContainer:
+                        def __init__(self, llm):
+                            self.llm = llm
+                    
+                    context = ExecutionContext(
+                        container=DummyContainer(self.llm),
+                        variables={}
+                    )
+                    
+                    # Create node instance
+                    node = MemoryCreatorNode("api_creator", {
+                        "type": "memory_creator",
+                        "inputs": {}
+                    })
+                    node.inputs = {
+                        'query': query,
+                        'response': response,
+                        'storage_instance': self.storage,
+                        'user_id': user_id,
+                        'llm': self.llm,
+                        'summarize_threshold': self.summarize_threshold,
+                        'k': self.k,
+                        'cycle_id': cycle_id,
+                        'energy': energy,
+                        'quantum_seed': quantum_seed,
+                        'reward_score': reward_score
+                    }
+                    
+                    result = node.execute(context)
+                    saved = result.get('saved', False)
+                    summary = result.get('summary')
+                    
+                    # Update interaction counts cache
+                    if user_id not in self.interaction_counts:
+                        interactions = self.storage.get_user_interactions(user_id, limit=None)
+                        self.interaction_counts[user_id] = len(interactions)
+                    if saved:
+                        self.interaction_counts[user_id] += 1
+                    
+                    return saved, summary
+            
+            memory_selector = MemorySelectorWrapper(storage, llm, buffer_manager, k=10)
+            memory_creator = MemoryCreatorWrapper(storage, llm, buffer_manager, summarize_threshold=3, k=10)
+            logger.debug("Memory modules initialized (deprecated - use workflows instead)")
             
             # 4. Quantum Service (optional, no dependencies)
             quantum_service = None
@@ -121,7 +213,9 @@ def get_container(
             container = ServiceContainer(
                 storage=storage,
                 llm=llm,
-                memory_manager=memory_manager,
+                memory_selector=memory_selector,
+                memory_creator=memory_creator,
+                buffer_manager=buffer_manager,
                 quantum_service=quantum_service,
                 mode=resolved_mode,
                 initialized_at=time.time()

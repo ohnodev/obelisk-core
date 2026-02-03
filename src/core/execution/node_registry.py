@@ -39,13 +39,17 @@ def _register_all_nodes():
     """Register all node types"""
     from .nodes.model_loader import ModelLoaderNode
     from .nodes.inference import InferenceNode
-    from .nodes.memory_adapter import MemoryAdapterNode
+    from .nodes.memory_storage import MemoryStorageNode
+    from .nodes.memory_selector import MemorySelectorNode
+    from .nodes.memory_creator import MemoryCreatorNode
     from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
     
     register_node("model_loader", ModelLoaderNode)
     register_node("inference", InferenceNode)
-    register_node("memory_adapter", MemoryAdapterNode)
+    register_node("memory_storage", MemoryStorageNode)
+    register_node("memory_selector", MemorySelectorNode)
+    register_node("memory_creator", MemoryCreatorNode)
     register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)
 

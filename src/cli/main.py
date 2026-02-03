@@ -104,7 +104,7 @@ def chat(mode):
         
         # Initialize buffer for CLI user on startup (avoids delay on first message)
         user_id = "cli_user"
-        container.memory_manager.get_buffer(user_id)  # Initialize buffer and load recent interactions
+        container.buffer_manager.get_buffer(user_id, container.storage)  # Initialize buffer and load recent interactions
     
     console.print("[bold green]✓[/bold green] [bold]The Overseer is ready[/bold]")
     console.print()
@@ -183,23 +183,20 @@ def chat(mode):
             
             # Add to memory (handles storage internally)
             # Check if summarization will occur (every N interactions)
-            # Use the cached count from memory_manager instead of reading from disk
-            # Get the current count from the manager's cache (initialized in get_buffer())
-            # We need to check what the count will be AFTER we add this interaction
-            # Since get_buffer() was called earlier, the count should be initialized
-            # If not initialized, it will be 0, which is fine for the check
-            current_count = container.memory_manager.interaction_counts.get(user_id, 0)
+            # Use the cached count from memory_creator instead of reading from disk
+            # Get the current count from the creator's cache
+            current_count = container.memory_creator.interaction_counts.get(user_id, 0)
             
             # Check if this interaction will trigger summarization
             # After adding this interaction, the count will be current_count + 1
             # Summarization triggers when (current_count + 1) % summarize_threshold == 0
-            will_summarize = (current_count + 1) > 0 and (current_count + 1) % container.memory_manager.summarize_threshold == 0
+            will_summarize = (current_count + 1) > 0 and (current_count + 1) % container.memory_creator.summarize_threshold == 0
             
             if will_summarize:
                 # Show spinner only when summarization will occur
                 console.print()  # Add blank line for spacing
                 with console.status("[bold cyan]◊[/bold cyan] [bold]Processing memory and summarizing...[/bold]", spinner="dots"):
-                    container.memory_manager.add_interaction(
+                    container.memory_creator.add_interaction(
                         user_id=user_id,
                         query=query,
                         response=response,
@@ -211,7 +208,7 @@ def chat(mode):
                 console.print()  # Add blank line after operation completes
             else:
                 # Normal save - fast, no spinner needed
-                container.memory_manager.add_interaction(
+                container.memory_creator.add_interaction(
                     user_id=user_id,
                     query=query,
                     response=response,

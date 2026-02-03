@@ -12,8 +12,8 @@ class InferenceNode(BaseNode):
     
     Inputs:
         model: ObeliskLLM instance (from ModelLoaderNode or LoRALoaderNode)
-        query: User query string (from InputPromptNode or previous node output)
-        context: ConversationContextDict (from MemoryAdapterNode)
+        query: User query string (from TextNode or previous node output)
+        context: ConversationContextDict (from MemorySelectorNode)
         quantum_influence: Quantum influence value (default: 0.7)
         max_length: Maximum response length (default: 1024)
         enable_thinking: Whether to enable thinking mode (default: True)
@@ -37,8 +37,6 @@ class InferenceNode(BaseNode):
         self._after_input_hooks: List[Callable] = []
         self._before_output_hooks: List[Callable] = []
         self._after_output_hooks: List[Callable] = []
-        # Track query for saving to memory in afterOutput hook
-        self._last_query: Optional[str] = None
     
     def register_before_input_hook(self, hook: Callable[[ExecutionContext], None]) -> None:
         """Register a hook to be called before inputs are resolved"""
@@ -69,22 +67,15 @@ class InferenceNode(BaseNode):
         model = self.get_input_value('model', context)
         query = self.get_input_value('query', context, '')
         conversation_context = self.get_input_value('context', context, None)
-        memory_manager = self.get_input_value('memory_manager', context, None)
-        user_id = self.get_input_value('user_id', context, None)
         quantum_influence = self.get_input_value('quantum_influence', context, 0.7)
         max_length = self.get_input_value('max_length', context, 1024)
         enable_thinking = self.get_input_value('enable_thinking', context, True)
-        
-        # Store query for saving to memory in afterOutput hook
-        self._last_query = str(query) if query else None
         
         # Prepare resolved inputs dict
         resolved_inputs = {
             'model': model,
             'query': query,
             'context': conversation_context,
-            'memory_manager': memory_manager,
-            'user_id': user_id,
             'quantum_influence': quantum_influence,
             'max_length': max_length,
             'enable_thinking': enable_thinking
@@ -98,8 +89,6 @@ class InferenceNode(BaseNode):
         model = resolved_inputs.get('model', model)
         query = resolved_inputs.get('query', query)
         conversation_context = resolved_inputs.get('context', conversation_context)
-        memory_manager = resolved_inputs.get('memory_manager', memory_manager)
-        user_id = resolved_inputs.get('user_id', user_id)
         quantum_influence = resolved_inputs.get('quantum_influence', quantum_influence)
         max_length = resolved_inputs.get('max_length', max_length)
         enable_thinking = resolved_inputs.get('enable_thinking', enable_thinking)
@@ -134,17 +123,8 @@ class InferenceNode(BaseNode):
         for hook in self._before_output_hooks:
             outputs = hook(context, outputs)
         
-        # Hook: afterOutput - called after outputs are returned (for post-processing like saving to memory)
+        # Hook: afterOutput - called after outputs are returned (for post-processing)
         for hook in self._after_output_hooks:
             hook(context, outputs)
-        
-        # Save interaction to memory if memory_manager is connected
-        if memory_manager and self._last_query and outputs.get('response'):
-            if user_id:
-                memory_manager.add_interaction(
-                    user_id=str(user_id),
-                    query=self._last_query,
-                    response=outputs.get('response', '')
-                )
         
         return outputs

@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     # Import concrete types for runtime type checking
     from ..storage.base import StorageInterface
     from ..llm.obelisk_llm import ObeliskLLM
-    from ..memory.memory_manager import ObeliskMemoryManager
+    from ..memory.buffer_manager import RecentBufferManager
     from ..quantum.ibm_quantum_service import IBMQuantumService
 
 
@@ -20,14 +20,12 @@ class ServiceContainer:
     
     This provides a single source of truth for service instances,
     eliminating duplication between API and CLI initialization.
-    
-    Note: Concrete implementations should conform to the Protocols
-    defined in src.core.types (LLMProtocol, MemoryManagerProtocol, etc.)
-    for better type safety and testability.
     """
     storage: 'StorageInterface'
     llm: 'ObeliskLLM'
-    memory_manager: 'ObeliskMemoryManager'
+    memory_selector: Any  # MemorySelectorWrapper (from bootstrap)
+    memory_creator: Any  # MemoryCreatorWrapper (from bootstrap)
+    buffer_manager: 'RecentBufferManager'
     quantum_service: Optional['IBMQuantumService'] = None
     
     # Metadata

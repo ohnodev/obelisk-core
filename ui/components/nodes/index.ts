@@ -2,5 +2,7 @@
 import "./TextNode";
 import "./ModelLoaderNode";
 import "./LoRALoaderNode";
-import "./MemoryAdapterNode";
+import "./MemoryStorageNode";
+import "./MemorySelectorNode";
+import "./MemoryCreatorNode";
 import "./InferenceNode";
