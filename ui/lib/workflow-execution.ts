@@ -3,6 +3,8 @@ import { validateWorkflow, ValidationResult } from "./workflow-validation";
 
 export interface ExecutionOptions {
   client_id?: string;
+  user_id?: string;
+  user_query?: string;
   extra_data?: Record<string, any>;
 }
 
