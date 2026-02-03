@@ -332,10 +332,8 @@
                                 event.stopPropagation();
                             }
                             
-                            // Use the existing HTML textarea that's part of the widget
+                            // Focus the existing HTML textarea
                             if (w._htmlTextarea) {
-                                w._htmlTextarea.style.pointerEvents = "auto";
-                                w._htmlTextarea.style.opacity = "1";
                                 w._htmlTextarea.focus();
                                 w._htmlTextarea.select();
                                 return w;
