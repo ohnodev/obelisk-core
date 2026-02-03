@@ -46,7 +46,7 @@
             // Create HTML textarea element if it doesn't exist (reuse it, don't create new ones)
             if (!w._htmlTextarea) {
                 var htmlTextarea = document.createElement("textarea");
-                htmlTextarea.style.position = "absolute";
+                htmlTextarea.style.position = "fixed"; // Fixed position for proper overlay
                 htmlTextarea.style.pointerEvents = "auto"; // Always clickable
                 htmlTextarea.style.border = "none";
                 htmlTextarea.style.background = "transparent";
@@ -60,13 +60,15 @@
                 htmlTextarea.style.lineHeight = "14px";
                 htmlTextarea.style.boxSizing = "border-box";
                 htmlTextarea.style.opacity = "1"; // Always visible
+                htmlTextarea.style.zIndex = "1000";
                 
                 // Get canvas container
                 var canvas = ctx.canvas;
                 var canvasContainer = canvas.parentElement;
                 if (canvasContainer) {
-                    canvasContainer.appendChild(htmlTextarea);
+                    document.body.appendChild(htmlTextarea); // Append to body for fixed positioning
                     w._htmlTextarea = htmlTextarea;
+                    w._node = node; // Store node reference for position updates
                 }
                 
                 // Sync on input
@@ -191,8 +193,8 @@
                     // Don't draw canvas text - HTML textarea is always visible and handles display
                     // Canvas text would overlap with HTML textarea
                     
-                    // Update HTML textarea position and size
-                    if (w._htmlTextarea) {
+                    // Update HTML textarea position and size on every draw
+                    if (w._htmlTextarea && w._node) {
                         var canvasRect = ctx.canvas.getBoundingClientRect();
                         var canvasInstance = window.__obeliskCanvas;
                         if (canvasInstance && canvasInstance.ds) {
@@ -200,13 +202,18 @@
                             var offsetX = canvasInstance.ds.offset ? canvasInstance.ds.offset[0] : 0;
                             var offsetY = canvasInstance.ds.offset ? canvasInstance.ds.offset[1] : 0;
                             
-                            var screenX = canvasRect.left + (node.pos[0] + textareaX) * scale + offsetX;
-                            var screenY = canvasRect.top + (node.pos[1] + textareaY) * scale + offsetY;
+                            // Calculate screen position accounting for canvas transform
+                            var nodeScreenX = (w._node.pos[0] + textareaX) * scale + offsetX;
+                            var nodeScreenY = (w._node.pos[1] + textareaY) * scale + offsetY;
+                            
+                            var screenX = canvasRect.left + nodeScreenX;
+                            var screenY = canvasRect.top + nodeScreenY;
                             
                             w._htmlTextarea.style.left = screenX + "px";
                             w._htmlTextarea.style.top = screenY + "px";
                             w._htmlTextarea.style.width = (textareaWidth * scale) + "px";
                             w._htmlTextarea.style.height = (textareaHeight * scale) + "px";
+                            w._htmlTextarea.style.fontSize = (12 * scale) + "px"; // Scale font with zoom
                             w._htmlTextarea.value = String(w.value || '');
                         }
                     }
