@@ -33,7 +33,8 @@ def is_server_available() -> bool:
     try:
         response = requests.get(f"{API_BASE_URL}/health", timeout=2)
         return response.status_code == 200
-    except:
+    except requests.exceptions.RequestException:
+        # Only catch network/HTTP-related errors, let other exceptions propagate
         return False
 
 

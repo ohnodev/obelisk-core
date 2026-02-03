@@ -61,12 +61,16 @@ class RecentBufferManager:
         load_limit = limit if limit is not None else self.k * 2
         interactions = storage.get_user_interactions(user_id, limit=load_limit)
         
-        # DEBUG: Log what we're loading
+        # DEBUG: Log what we're loading (safe metadata only, no sensitive content)
         logger.debug(f"[BufferManager] Loading {len(interactions)} interactions for user_id={user_id}, limit={load_limit}")
         if interactions:
-            logger.debug(f"[BufferManager] First interaction: query='{interactions[0].get('query', '')[:50]}...', response='{interactions[0].get('response', '')[:50]}...'")
+            first_query_len = len(interactions[0].get('query', ''))
+            first_response_len = len(interactions[0].get('response', ''))
+            logger.debug(f"[BufferManager] First interaction [index=0]: query_len={first_query_len}, response_len={first_response_len}")
             if len(interactions) > 1:
-                logger.debug(f"[BufferManager] Last interaction: query='{interactions[-1].get('query', '')[:50]}...', response='{interactions[-1].get('response', '')[:50]}...'")
+                last_query_len = len(interactions[-1].get('query', ''))
+                last_response_len = len(interactions[-1].get('response', ''))
+                logger.debug(f"[BufferManager] Last interaction [index={len(interactions)-1}]: query_len={last_query_len}, response_len={last_response_len}")
         else:
             logger.debug(f"[BufferManager] No interactions found for user_id={user_id}")
         

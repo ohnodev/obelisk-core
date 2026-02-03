@@ -37,8 +37,16 @@ class LoRALoaderNode(BaseNode):
         # If LoRA is enabled, try to load weights from storage
         if lora_enabled and storage_instance:
             try:
-                # Initialize LoRA manager if not already done
-                if not hasattr(model, 'lora_manager') or model.lora_manager is None:
+                # Initialize or reinitialize LoRA manager if:
+                # 1. It doesn't exist or is None, OR
+                # 2. It exists but points to a different storage instance
+                needs_reinit = (
+                    not hasattr(model, 'lora_manager') or 
+                    model.lora_manager is None or
+                    getattr(model.lora_manager, 'storage', None) is not storage_instance
+                )
+                
+                if needs_reinit:
                     from src.evolution.training import LoRAManager
                     model.lora_manager = LoRAManager(
                         model=model.model,

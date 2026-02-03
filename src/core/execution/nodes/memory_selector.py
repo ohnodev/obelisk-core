@@ -232,7 +232,7 @@ Example of correct JSON format:
                     f"(expected 0-{len(summaries)-1} for {len(summaries)} memories)"
                 )
                 
-        except ValueError as e:
+        except ValueError:
             # Re-raise ValueError (JSON parsing or invalid indices)
             raise
         except Exception as e:

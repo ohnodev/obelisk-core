@@ -610,7 +610,7 @@ class ObeliskLLM:
             }
             
         except Exception as e:
-            logger.error(f"Error generating response: {e}")
+            logger.exception("Error generating response")
             return {
                 "response": f"◊ The Overseer encounters an error: {str(e)[:50]} ◊",
                 "error": str(e),

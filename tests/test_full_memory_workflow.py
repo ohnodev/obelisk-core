@@ -3,29 +3,45 @@
 Test the full memory workflow with all nodes properly wired up
 Tests the complete flow: Text → MemoryStorage → MemorySelector → Inference → MemoryCreator
 """
+import pytest
 import requests
 import json
 from json import JSONDecodeError
 import sys
 import os
+from pathlib import Path
 
 # Get the directory where this script is located
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Go up one level to repo root, then into ui/workflows
-REPO_ROOT = os.path.dirname(SCRIPT_DIR)
-WORKFLOWS_DIR = os.path.join(REPO_ROOT, "ui", "workflows")
+SCRIPT_DIR = Path(__file__).parent
+REPO_ROOT = SCRIPT_DIR.parent
+WORKFLOWS_DIR = REPO_ROOT / "ui" / "workflows"
 
 API_BASE_URL = os.getenv("OBELISK_API_URL", "http://localhost:7779")
 
 
 def load_default_workflow() -> dict:
     """Load the default workflow from default.json"""
-    filepath = os.path.join(WORKFLOWS_DIR, "default.json")
+    filepath = WORKFLOWS_DIR / "default.json"
     with open(filepath, "r") as f:
         return json.load(f)
 
 
-def test_full_memory_workflow() -> bool:
+def is_server_available() -> bool:
+    """Check if the API server is available"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/health", timeout=2)
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        # Only catch network/HTTP-related errors, let other exceptions propagate
+        return False
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    not is_server_available() and API_BASE_URL == "http://localhost:7779",
+    reason="Integration test requires running API server. Set OBELISK_API_URL or start the server."
+)
+def test_full_memory_workflow():
     """Test the full memory workflow execution"""
     print("=" * 60)
     print("Testing Full Memory Workflow")
@@ -38,11 +54,9 @@ def test_full_memory_workflow() -> bool:
         print(f"📦 Nodes: {len(workflow.get('nodes', []))}")
         print(f"🔗 Connections: {len(workflow.get('connections', []))}")
     except FileNotFoundError:
-        print(f"❌ Could not find default.json in {WORKFLOWS_DIR}")
-        return False
+        pytest.fail(f"Could not find default.json in {WORKFLOWS_DIR}")
     except Exception as e:
-        print(f"❌ Error loading default.json: {e}")
-        return False
+        pytest.fail(f"Error loading default.json: {e}")
     
     # Prepare request with test data
     url = f"{API_BASE_URL}/api/v1/workflow/execute"
@@ -77,13 +91,11 @@ def test_full_memory_workflow() -> bool:
                 print(f"   Message: {result.get('message')}")
             if result.get('traceback'):
                 print(f"   Traceback: {result.get('traceback')}")
-            return False
+            pytest.fail(f"Execution failed: {error_msg}")
         
         # Check results
         results = result.get("results", {})
-        if not results:
-            print("⚠️  No results returned")
-            return False
+        assert results, "No results returned"
         
         execution_order = result.get("execution_order", [])
         if execution_order:
@@ -170,6 +182,8 @@ def test_full_memory_workflow() -> bool:
             if not passed:
                 all_passed = False
         
+        assert all_passed, "Some nodes did not execute correctly"
+        
         if all_passed:
             print()
             print("✅ All memory workflow nodes executed successfully!")
@@ -195,11 +209,11 @@ def test_full_memory_workflow() -> bool:
             
             result2 = response2.json()
             if result2.get("status") == "error":
-                print(f"❌ Second query failed: {result2.get('error', 'Unknown error')}")
-                return False
+                pytest.fail(f"Second query failed: {result2.get('error', 'Unknown error')}")
             
             results2 = result2.get("results", {})
             # Find inference node response
+            inference_found = False
             for node_id, node_result in results2.items():
                 node_type = None
                 for node in workflow.get("nodes", []):
@@ -208,31 +222,23 @@ def test_full_memory_workflow() -> bool:
                         break
                 
                 if node_type == "inference":
+                    inference_found = True
                     response_text = node_result.get("outputs", {}).get("response", "")
                     response_lower = str(response_text).lower()
-                    if "alice" in response_lower:
-                        print("✅ Memory persistence verified!")
-                        print(f"   Response to 'What is my name?': {response_text[:200]}...")
-                        return True
-                    else:
-                        print(f"⚠️  Response did not contain 'Alice': {response_text[:200]}...")
-                        print("   This might indicate memory wasn't saved or retrieved correctly")
-                        return False
+                    print(f"   Response to 'What is my name?': {response_text[:200]}...")
+                    assert "alice" in response_lower, f"Memory persistence test failed: Response should contain 'Alice' based on memory. Response: {response_text[:200]}..."
+                    print("✅ Memory persistence verified!")
+                    break  # Found and verified, no need to continue
             
-            print("⚠️  Could not find inference response in second query")
-            return False
-        else:
-            print()
-            print("❌ Some nodes did not execute correctly")
-            return False
+            assert inference_found, "Could not find inference response in second query"
         
     except requests.exceptions.ConnectionError:
         print(f"❌ Connection error: Could not connect to {API_BASE_URL}")
         print("   Make sure the backend server is running on port 7779")
-        return False
+        pytest.fail(f"Connection error: Could not connect to {API_BASE_URL}")
     except requests.exceptions.Timeout:
         print("❌ Request timed out")
-        return False
+        pytest.fail("Request timed out")
     except requests.exceptions.HTTPError as e:
         print(f"❌ HTTP error: {e}")
         if hasattr(e.response, 'text'):
@@ -243,14 +249,14 @@ def test_full_memory_workflow() -> bool:
                 print(f"   Error details: {json.dumps(error_json, indent=2)}")
             except (ValueError, JSONDecodeError) as exc:
                 print(f"   Failed to parse error response as JSON: {exc}")
-        return False
+        pytest.fail(f"HTTP error: {e}")
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        pytest.fail(f"Unexpected error: {e}")
 
 
 if __name__ == "__main__":
-    success = test_full_memory_workflow()
-    sys.exit(0 if success else 1)
+    # Allow running as a script for convenience
+    pytest.main([__file__, "-v"])
