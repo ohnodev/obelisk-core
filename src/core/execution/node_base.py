@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @dataclass
 class ExecutionContext:
     """Context passed to nodes during execution"""
-    container: Any  # ServiceContainer
+    container: Any = None  # Optional ServiceContainer (for backward compatibility, nodes should be self-contained)
     variables: Dict[str, Any] = field(default_factory=dict)  # Runtime variables (user_id, user_query, etc.)
     node_outputs: Dict[NodeID, Dict[str, Any]] = field(default_factory=dict)  # Cached outputs from previous nodes
 

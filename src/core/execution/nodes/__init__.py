@@ -8,6 +8,7 @@ from .memory_selector import MemorySelectorNode
 from .memory_creator import MemoryCreatorNode
 from .lora_loader import LoRALoaderNode
 from .text import TextNode
+from .save import SaveNode
 
 __all__ = [
     'ModelLoaderNode',
@@ -17,4 +18,5 @@ __all__ = [
     'MemoryCreatorNode',
     'LoRALoaderNode',
     'TextNode',
+    'SaveNode',
 ]

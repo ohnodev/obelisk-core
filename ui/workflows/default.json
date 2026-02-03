@@ -1,0 +1,159 @@
+{
+  "id": "default-agent-workflow",
+  "name": "Default Agent with Memory",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "text",
+      "position": {"x": 50, "y": 100},
+      "metadata": {
+        "text": "{{user_query}}"
+      }
+    },
+    {
+      "id": "2",
+      "type": "memory_storage",
+      "position": {"x": 50, "y": 250},
+      "inputs": {
+        "storage_path": "",
+        "storage_type": "local_json"
+      }
+    },
+    {
+      "id": "3",
+      "type": "memory_selector",
+      "position": {"x": 300, "y": 100},
+      "inputs": {
+        "user_id": "{{user_id}}",
+        "enable_recent_buffer": true,
+        "k": 10
+      }
+    },
+    {
+      "id": "4",
+      "type": "model_loader",
+      "position": {"x": 300, "y": 250},
+      "inputs": {}
+    },
+    {
+      "id": "5",
+      "type": "text",
+      "position": {"x": 50, "y": 400},
+      "metadata": {
+        "text": "You are The Obelisk, an advanced AI assistant."
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {"x": 550, "y": 100},
+      "inputs": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "7",
+      "type": "text",
+      "position": {"x": 800, "y": 100},
+      "inputs": {
+        "text": ""
+      }
+    },
+    {
+      "id": "8",
+      "type": "memory_creator",
+      "position": {"x": 550, "y": 400},
+      "inputs": {
+        "user_id": "{{user_id}}",
+        "summarize_threshold": 3,
+        "k": 10,
+        "quantum_seed": 0.7
+      }
+    },
+    {
+      "id": "9",
+      "type": "save",
+      "position": {"x": 800, "y": 400},
+      "inputs": {
+        "data_type": "interaction",
+        "k": 10
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "3",
+      "to_input": "query"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "2",
+      "from_output": "storage_instance",
+      "to": "3",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "2",
+      "from_output": "storage_instance",
+      "to": "4",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "2",
+      "from_output": "storage_instance",
+      "to": "9",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "3",
+      "from_output": "context",
+      "to": "6",
+      "to_input": "context"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "5",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "system_prompt"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "text"
+    },
+    {
+      "from": "6",
+      "from_output": "query",
+      "to": "8",
+      "to_input": "query"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "8",
+      "to_input": "response"
+    },
+    {
+      "from": "8",
+      "from_output": "interaction_data",
+      "to": "9",
+      "to_input": "interaction_data"
+    }
+  ]
+}

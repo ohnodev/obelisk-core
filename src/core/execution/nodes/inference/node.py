@@ -3,12 +3,10 @@ Inference Node
 Generates LLM response (inference, not sampling)
 Simple interface: system_prompt + query -> response
 """
-from typing import Dict, Any, List, Callable, Optional, TYPE_CHECKING
-from ..node_base import BaseNode, ExecutionContext
-from ....utils.logger import get_logger
-
-if TYPE_CHECKING:
-    from .inference.obelisk_llm import ObeliskLLM
+from typing import Dict, Any, List, Callable, Optional
+from ...node_base import BaseNode, ExecutionContext
+from .obelisk_llm import ObeliskLLM
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -118,6 +116,7 @@ class InferenceNode(BaseNode):
         
         # Prepare outputs
         outputs = {
+            'query': str(query),  # Output original query for use in memory creation, etc.
             'response': response_text,
             'result': result
         }

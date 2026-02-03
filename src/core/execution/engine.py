@@ -30,12 +30,12 @@ class ExecutionEngine:
     - State management across execution
     """
     
-    def __init__(self, container: ServiceContainer):
+    def __init__(self, container: Optional[ServiceContainer] = None):
         """
         Initialize execution engine
         
         Args:
-            container: ServiceContainer with all services
+            container: Optional ServiceContainer (for backward compatibility, nodes should be self-contained)
         """
         self.container = container
     

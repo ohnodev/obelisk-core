@@ -213,7 +213,7 @@ class LocalJSONStorage(StorageInterface):
     
     def get_latest_model_weights(self, base_model: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get latest active model weights"""
-        from src.llm.obelisk_llm import ObeliskLLM
+        from src.core.execution.nodes.inference.obelisk_llm import ObeliskLLM
         if base_model is None:
             base_model = ObeliskLLM.MODEL_NAME
         

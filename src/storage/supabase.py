@@ -111,7 +111,7 @@ class SupabaseStorage(StorageInterface):
             version_result = self.client.table('model_weights').select('version').eq('cycle_number', cycle_number).order('version', desc=True).limit(1).execute()
             next_version = (version_result.data[0]['version'] + 1) if version_result.data else 1
             
-            from src.llm.obelisk_llm import ObeliskLLM
+            from src.core.execution.nodes.inference.obelisk_llm import ObeliskLLM
             base_model = ObeliskLLM.MODEL_NAME
             
             # Deactivate old weights

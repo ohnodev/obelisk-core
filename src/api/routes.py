@@ -38,8 +38,15 @@ class ConversationContext(BaseModel):
 
 
 def get_container(request: Request) -> ServiceContainer:
-    """Get ServiceContainer from app state (injected by FastAPI)"""
+    """Get minimal ServiceContainer from app state (injected by FastAPI)"""
     return request.app.state.container
+
+
+def get_execution_engine(request: Request):
+    """Get ExecutionEngine from app state"""
+    from ..core.execution.engine import ExecutionEngine
+    container = get_container(request)
+    return ExecutionEngine(container)
 
 
 class GenerateRequest(BaseModel):
@@ -82,51 +89,20 @@ class EvolveResponse(BaseModel):
     top_contributors: List[Dict[str, Any]]
 
 
-# LLM Endpoints
+
+
+# Legacy Endpoints (Deprecated - use /execute with workflows instead)
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest, container: ServiceContainer = Depends(get_container)):
-    """Generate response from The Obelisk"""
-    try:
-        llm = container.llm
-        memory_selector = container.memory_selector
-        memory_creator = container.memory_creator
-        
-        # Get conversation context if user_id provided (always runs memory selection)
-        conversation_context = request.conversation_context
-        if request.user_id and not conversation_context:
-            # Get context from memory selector (returns dict format)
-            context_dict = memory_selector.get_conversation_context(request.user_id, user_query=request.prompt)
-            # Convert to ConversationContext model for validation
-            conversation_context = ConversationContext(**context_dict) if context_dict else None
-        
-        # Convert ConversationContext to dict format expected by ObeliskLLM.generate()
-        context_dict = conversation_context.to_dict() if conversation_context else None
-        
-        result = llm.generate(
-            query=request.prompt,
-            quantum_influence=request.quantum_influence,
-            conversation_context=context_dict
-        )
-        
-        # Add to memory if user_id provided (handles storage internally)
-        if request.user_id:
-            memory_creator.add_interaction(
-                user_id=request.user_id,
-                query=request.prompt,
-                response=result.get('response', ''),
-                cycle_id=None,  # Will auto-detect current cycle if available
-                energy=0.0,
-                quantum_seed=request.quantum_influence,
-                reward_score=0.0
-            )
-        
-        return GenerateResponse(
-            response=result.get('response', ''),
-            tokens_used=None,  # Could be calculated from model
-            source=result.get('source', 'obelisk_llm')
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """
+    Generate response from The Obelisk (DEPRECATED)
+    
+    This endpoint is deprecated. Use /execute with a chat workflow instead.
+    """
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is deprecated. Use /execute with a chat workflow instead."
+    )
 
 @router.get("/health")
 async def health(container: ServiceContainer = Depends(get_container)):
@@ -203,30 +179,22 @@ async def get_cycle_status(cycle_id: str, container: ServiceContainer = Depends(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Memory Endpoints
+# Memory Endpoints (Deprecated - use workflows instead)
 @router.get("/memory/{user_id}")
 async def get_memory(user_id: str, container: ServiceContainer = Depends(get_container)):
-    """Get conversation context for user"""
-    try:
-        memory_selector = container.memory_selector
-        # Note: This endpoint doesn't have a query, use empty string (will use most recent memories)
-        context = memory_selector.get_conversation_context(user_id, user_query="")
-        return {
-            "user_id": user_id,
-            "context": context
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Get conversation context for user (DEPRECATED - use workflows instead)"""
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is deprecated. Use /workflow/execute with a memory selector workflow instead."
+    )
 
 @router.post("/memory/{user_id}")
 async def save_interaction(user_id: str, query: str, response: str, container: ServiceContainer = Depends(get_container)):
-    """Save interaction to memory"""
-    try:
-        memory_creator = container.memory_creator
-        memory_creator.add_interaction(user_id, query, response)
-        return {"status": "saved"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """Save interaction to memory (DEPRECATED - use workflows instead)"""
+    raise HTTPException(
+        status_code=410,
+        detail="This endpoint is deprecated. Use /workflow/execute with a memory creator workflow instead."
+    )
 
 
 # Workflow Execution Endpoints
@@ -376,17 +344,18 @@ def _convert_backend_to_frontend_results(execution_result: Dict[str, Any]) -> Di
 @router.post("/workflow/execute", response_model=WorkflowExecuteResponse)
 async def execute_workflow(
     request: WorkflowExecuteRequest,
-    container: ServiceContainer = Depends(get_container)
+    engine = Depends(get_execution_engine)
 ):
     """
-    Execute a workflow graph (ComfyUI-style execution)
+    Execute a workflow graph (Primary endpoint for node-based execution)
     
     Accepts a workflow graph from the frontend, converts it to backend format,
     executes it using the ExecutionEngine, and returns results in frontend format.
+    
+    All functionality (chat, memory, inference) is accessed through workflows.
+    Nodes initialize their own dependencies (model, storage, etc.) as needed.
     """
     try:
-        from ..core.execution.engine import ExecutionEngine
-        
         # Convert frontend format to backend format
         backend_workflow = _convert_frontend_to_backend_format(request.workflow)
         
@@ -397,28 +366,26 @@ async def execute_workflow(
                 context_variables["user_id"] = request.options["client_id"]
             if "extra_data" in request.options:
                 context_variables.update(request.options["extra_data"])
+            if "variables" in request.options:
+                context_variables.update(request.options["variables"])
         
-        # Create execution engine and execute
-        engine = ExecutionEngine(container)
+        # Execute workflow (nodes will initialize their own dependencies)
         execution_result = engine.execute(backend_workflow, context_variables)
         
         # Convert results to frontend format
-        if execution_result.get("success"):
+        if execution_result.success:
             results = _convert_backend_to_frontend_results(execution_result)
             return WorkflowExecuteResponse(
-                execution_id=None,  # Could generate UUID if needed
+                execution_id=request.options.get("execution_id"),
                 status="completed",
                 results=results,
                 message="Workflow executed successfully",
-                execution_order=execution_result.get("execution_order")  # Include execution order for highlighting
+                execution_order=execution_result.execution_order
             )
         else:
-            # Include more detailed error information
-            error_msg = execution_result.get("error", "Workflow execution failed")
-            
             return WorkflowExecuteResponse(
                 status="error",
-                error=error_msg,
+                error=execution_result.error,
                 message="Workflow execution failed"
             )
             

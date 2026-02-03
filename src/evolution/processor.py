@@ -149,7 +149,7 @@ def process_evolution_cycle(
         try:
             # Import LLM if not provided
             if llm is None:
-                from ..llm.obelisk_llm import ObeliskLLM
+                from ..core.execution.nodes.inference.obelisk_llm import ObeliskLLM
                 llm = ObeliskLLM(storage=storage)
             
             # Get top interactions for training

@@ -44,6 +44,7 @@ def _register_all_nodes():
     from .nodes.memory_creator import MemoryCreatorNode
     from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
+    from .nodes.save import SaveNode
     
     register_node("model_loader", ModelLoaderNode)
     register_node("inference", InferenceNode)
@@ -52,6 +53,7 @@ def _register_all_nodes():
     register_node("memory_creator", MemoryCreatorNode)
     register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)
+    register_node("save", SaveNode)
 
 
 # Auto-register on import
