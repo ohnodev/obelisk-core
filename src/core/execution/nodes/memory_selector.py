@@ -201,9 +201,10 @@ Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY 
             # Use LLM to select using config parameters
             result = llm.generate(
                 query=selection_prompt,
+                system_prompt="You are a memory selector. Return only valid JSON.",
                 quantum_influence=0.1,  # Very low influence for consistent selection
-                conversation_context=None,
                 max_length=800,  # Enough for JSON response
+                conversation_history=None,
                 enable_thinking=False  # Disable thinking mode for faster, simpler selection
             )
             
