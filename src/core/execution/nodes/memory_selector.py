@@ -108,16 +108,16 @@ class MemorySelectorNode(BaseNode):
     
     def _select_relevant_memories(
         self,
-        selector_agent,
+        llm,
         user_query: str,
         summaries: List[Dict[str, Any]],
         top_k: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Use Memory Selector agent to select relevant memories from a list of summaries
+        Use LLM to select relevant memories from a list of summaries (agent logic embedded).
         
         Args:
-            selector_agent: MemorySelectorAgent instance
+            llm: LLM instance
             user_query: Current user query (required)
             summaries: List of summary dictionaries
             top_k: Number of relevant memories to select (default: 5)
@@ -128,7 +128,104 @@ class MemorySelectorNode(BaseNode):
         if not summaries:
             return []
         
-        return selector_agent.select(user_query, summaries, top_k)
+        # If we have fewer summaries than top_k, return all
+        if len(summaries) <= top_k:
+            return summaries
+        
+        try:
+            # Format summaries for analysis
+            summaries_text = ""
+            for i, summary in enumerate(summaries):
+                summary_str = f"Memory {i}:\n"
+                summary_str += f"  Summary: {summary.get('summary', 'N/A')}\n"
+                
+                # Handle keyTopics - convert dicts to strings if needed
+                topics = summary.get('keyTopics', [])
+                topics_strs = []
+                for topic in topics:
+                    if isinstance(topic, dict):
+                        topics_strs.append(str(list(topic.values())[0]) if topic.values() else str(topic))
+                    else:
+                        topics_strs.append(str(topic))
+                summary_str += f"  Topics: {', '.join(topics_strs)}\n"
+                
+                # Handle importantFacts - convert dicts to strings if needed
+                facts = summary.get('importantFacts', [])
+                facts_strs = []
+                for fact in facts:
+                    if isinstance(fact, dict):
+                        facts_strs.append(str(list(fact.values())[0]) if fact.values() else str(fact))
+                    else:
+                        facts_strs.append(str(fact))
+                summary_str += f"  Facts: {', '.join(facts_strs)}\n"
+                
+                user_ctx = summary.get('userContext', {})
+                if user_ctx:
+                    summary_str += f"  Context: {', '.join([f'{k}={v}' for k, v in user_ctx.items()])}\n"
+                summaries_text += summary_str + "\n"
+            
+            # Memory Selector prompt (from config)
+            selection_prompt = f"""You are analyzing memories to select the {top_k} most relevant ones for a user query. You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with {{ and end with }}.
+
+User Query: {user_query}
+
+Available Memories:
+{summaries_text}
+
+Analyze which memories are most relevant to the user query and return a JSON object with:
+- selected_indices: Array of 0-based indices of the {top_k} most relevant memories (e.g., [0, 2, 5])
+- reason: Brief explanation of why these memories were selected
+
+Example of correct JSON format:
+{{
+  "selected_indices": [0, 2, 5],
+  "reason": "Memory 0 discusses the main topic, Memory 2 contains relevant context, Memory 5 has related facts"
+}}
+
+Return the indices (0-based) of the {top_k} most relevant memories. Return ONLY the JSON object, nothing else:"""
+            
+            # Use LLM to select using config parameters
+            result = llm.generate(
+                query=selection_prompt,
+                quantum_influence=0.1,  # Very low influence for consistent selection
+                conversation_context=None,
+                max_length=800,  # Enough for JSON response
+                enable_thinking=False  # Disable thinking mode for faster, simpler selection
+            )
+            
+            selection_text = result.get('response', '').strip()
+            
+            # Extract JSON using utility
+            from ....utils.json_parser import extract_json_from_llm_response
+            selection_data = extract_json_from_llm_response(selection_text, context="memory selection")
+            
+            # Extract and validate indices
+            selected_indices = selection_data.get('selected_indices', [])
+            
+            # Validate indices and select memories
+            selected_memories = []
+            for idx in selected_indices:
+                if isinstance(idx, int) and 0 <= idx < len(summaries):
+                    selected_memories.append(summaries[idx])
+            
+            # If we got valid selections, return them
+            if selected_memories:
+                logger.debug(f"Selected {len(selected_memories)} relevant memories from {len(summaries)} total")
+                return selected_memories
+            else:
+                # Critical error: LLM returned invalid indices
+                raise ValueError(
+                    f"Memory selection returned invalid indices: {selected_indices} "
+                    f"(expected 0-{len(summaries)-1} for {len(summaries)} memories)"
+                )
+                
+        except ValueError as e:
+            # Re-raise ValueError (JSON parsing or invalid indices)
+            raise
+        except Exception as e:
+            # Critical error for any other exception
+            logger.error(f"Critical error in memory selection: {e}")
+            raise RuntimeError(f"Memory selection failed critically: {e}") from e
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute memory selector node"""
@@ -168,9 +265,7 @@ class MemorySelectorNode(BaseNode):
         if not query:
             raise ValueError("query is required for MemorySelectorNode")
         
-        # Import agent
-        from ....memory.agents.memory_selector import MemorySelector as MemorySelectorAgent
-        selector_agent = MemorySelectorAgent(llm)
+        # Agent logic is embedded in _select_relevant_memories method
         
         # Get buffer manager (shared per storage instance)
         buffer_manager = self._get_buffer_manager(storage_instance, int(k))
@@ -205,7 +300,7 @@ class MemorySelectorNode(BaseNode):
         if all_summaries:
             # Use LLM to select relevant memories if we have multiple summaries
             if len(all_summaries) > 1:
-                selected_summaries = self._select_relevant_memories(selector_agent, str(query), all_summaries, top_k=5)
+                selected_summaries = self._select_relevant_memories(llm, str(query), all_summaries, top_k=5)
             else:
                 # Only one summary, use it as-is (zero summaries case handled by outer if)
                 selected_summaries = all_summaries

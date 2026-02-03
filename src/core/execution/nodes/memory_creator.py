@@ -85,17 +85,68 @@ class MemoryCreatorNode(BaseNode):
     
     def _summarize_conversations(
         self,
-        creator_agent,
+        llm,
         interactions: list,
         user_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Summarize conversations using the Memory Creator agent.
+        Summarize conversations using LLM directly (agent logic embedded).
         """
         if not interactions:
             return None
         
-        return creator_agent.summarize(interactions, user_id)
+        try:
+            # Format conversations
+            conversation_text = ""
+            for interaction in interactions:
+                query = interaction.get('query', '')
+                response = interaction.get('response', '')
+                if query:
+                    conversation_text += f"User: {query}\n"
+                if response:
+                    conversation_text += f"Overseer: {response}\n"
+            
+            # Memory Creator prompt (from config)
+            summary_prompt = f"""You are extracting key memories from a conversation. You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with {{ and end with }}.
+
+Conversation to analyze:
+{conversation_text}
+
+Extract and structure the following information as JSON with these EXACT keys:
+- summary: A brief 1-2 sentence overview of the conversation
+- keyTopics: Array of main topics discussed (e.g., ["AI", "quantum computing", "memory systems"])
+- userContext: Object containing any user preferences, settings, or context mentioned (e.g., {{"preferred_language": "English", "timezone": "UTC"}})
+- importantFacts: Array of factual statements extracted from the conversation (e.g., ["Current year is 2026", "User prefers concise responses"])
+
+Example of correct JSON format:
+{{
+  "summary": "Discussion about AI memory systems and their implementation",
+  "keyTopics": ["artificial intelligence", "memory architecture", "neural networks"],
+  "userContext": {{"preferred_format": "technical", "current_year": 2026}},
+  "importantFacts": ["Current year is 2026", "Memory systems use JSON for storage", "Neural networks require structured data"]
+}}
+
+Now extract the memories from the conversation above. Return ONLY the JSON object, nothing else:"""
+            
+            # Generate summary using config parameters
+            result = llm.generate(
+                query=summary_prompt,
+                quantum_influence=0.2,  # Lower influence for more consistent summaries
+                conversation_context=None,
+                max_length=800,  # Allow enough tokens for complete JSON generation
+                enable_thinking=False  # Disable thinking mode for faster, more reliable JSON output
+            )
+            
+            summary_text = result.get('response', '').strip()
+            
+            # Extract JSON using utility
+            from ....utils.json_parser import extract_json_from_llm_response
+            summary_data = extract_json_from_llm_response(summary_text, context="summary")
+            return summary_data
+            
+        except Exception as e:
+            logger.error(f"Error summarizing with LLM: {e}")
+            return None
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute memory creator node - creates and saves data to storage"""
@@ -174,12 +225,8 @@ class MemoryCreatorNode(BaseNode):
         
         # Create and save summary if threshold reached
         if should_summarize and previous_interactions:
-            # Import agent
-            from ....memory.agents.memory_creator import MemoryCreator as MemoryCreatorAgent
-            creator_agent = MemoryCreatorAgent(llm)
-            
-            # Summarize the previous interactions
-            summary_data = self._summarize_conversations(creator_agent, previous_interactions, str(user_id))
+            # Summarize the previous interactions (agent logic embedded in node)
+            summary_data = self._summarize_conversations(llm, previous_interactions, str(user_id))
             
             if summary_data:
                 # Add metadata to summary
