@@ -25,17 +25,16 @@ class MemoryCreatorNode(BaseNode):
         query: User query string
         response: AI response string
         user_id: User identifier (optional, defaults to user_{node_id})
-        llm: ObeliskLLM instance (optional, defaults to container's LLM)
-        summarize_threshold: Interactions before summarizing (optional, default: 3)
-        previous_interactions: List of previous interactions for summarization (optional)
+        llm: ObeliskLLM instance (optional, uses container's LLM if not provided)
+        summarize_threshold: Number of interactions before summarizing (optional, default: 3)
+        previous_interactions: List of previous interactions for summarization (optional, required for summarization to work)
         cycle_id: Evolution cycle ID (optional)
         energy: Energy value (optional, default: 0.0)
         quantum_seed: Quantum seed value (optional, default: 0.7)
     
     Outputs:
-        interaction_data: Dict with interaction data ready to save
-        summary_data: Dictionary with summary data if summarization occurred (optional)
-        should_summarize: Boolean indicating if summarization should occur
+        interaction_data: Dict with interaction data ready to save (always present)
+        summary_data: Dictionary with summary data if summarization occurred (only present when summary is created)
     """
     
     # Class-level cache for interaction counts per user_id
@@ -145,10 +144,10 @@ class MemoryCreatorNode(BaseNode):
                 summary_data['user_id'] = str(user_id)
         
         result = {
-            'interaction_data': interaction_data,
-            'should_summarize': should_summarize
+            'interaction_data': interaction_data
         }
         
+        # Only include summary_data if it was actually created
         if summary_data:
             result['summary_data'] = summary_data
         
