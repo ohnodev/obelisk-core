@@ -324,13 +324,21 @@ Example of correct JSON format:
                             "role": "user",
                             "content": msg.content
                         })
-                        logger.debug(f"[MemorySelector] Added user message: {msg.content[:100]}...")
+                        # Debug mode: log metadata instead of raw content to avoid PII leaks
+                        # (Note: Debug mode is intentionally verbose for development/debugging)
+                        content_len = len(msg.content) if msg.content else 0
+                        preview = "REDACTED" if content_len > 0 else "empty"
+                        logger.debug(f"[MemorySelector] Added user message: length={content_len}, preview={preview}")
                     elif isinstance(msg, AIMessage):
                         conversation_messages.append({
                             "role": "assistant",
                             "content": msg.content
                         })
-                        logger.debug(f"[MemorySelector] Added assistant message: {msg.content[:100]}...")
+                        # Debug mode: log metadata instead of raw content to avoid PII leaks
+                        # (Note: Debug mode is intentionally verbose for development/debugging)
+                        content_len = len(msg.content) if msg.content else 0
+                        preview = "REDACTED" if content_len > 0 else "empty"
+                        logger.debug(f"[MemorySelector] Added assistant message: length={content_len}, preview={preview}")
         else:
             logger.debug(f"[MemorySelector] Buffer disabled for user_id={user_id}")
         
@@ -383,7 +391,13 @@ Example of correct JSON format:
         
         logger.debug(f"[MemorySelector] Final context for user_id={user_id}: {len(conversation_messages)} messages, {len(memories_str)} chars of memories")
         if conversation_messages:
-            logger.debug(f"[MemorySelector] First message: {conversation_messages[0].get('role', 'unknown')} - {str(conversation_messages[0].get('content', ''))[:100]}...")
+            # Debug mode: log metadata instead of raw content to avoid PII leaks
+            # (Note: Debug mode is intentionally verbose for development/debugging)
+            first_msg = conversation_messages[0]
+            first_content = first_msg.get('content', '')
+            content_len = len(first_content) if first_content else 0
+            preview = "REDACTED" if content_len > 0 else "empty"
+            logger.debug(f"[MemorySelector] First message: role={first_msg.get('role', 'unknown')}, length={content_len}, preview={preview}")
         
         return {
             'query': str(query),  # Pass through original query for cleaner flow
