@@ -143,6 +143,41 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     // Enable node resizing (drag from bottom-right corner)
     (graphCanvas as any).allow_resize_nodes = true;
     
+    // Reduce scroll/zoom sensitivity
+    // Override processMouseWheel to reduce zoom sensitivity (original uses 0.05, we use 0.01 for 5x less sensitivity)
+    const originalProcessMouseWheel = (graphCanvas as any).processMouseWheel.bind(graphCanvas);
+    (graphCanvas as any).processMouseWheel = function(e: MouseEvent) {
+      if (!this.graph || !this.allow_dragcanvas) {
+        return;
+      }
+
+      // Calculate delta (same as LiteGraph's original calculation)
+      var delta = (e as any).wheelDeltaY != null ? (e as any).wheelDeltaY : (e as any).detail * -60;
+      
+      // Adjust mouse event (LiteGraph's internal method)
+      this.adjustMouseEvent(e);
+
+      var x = (e as any).clientX;
+      var y = (e as any).clientY;
+      
+      // Convert to canvas coordinates for zoom center
+      var canvas_pos = this.convertEventToCanvasOffset(e);
+      
+      // Calculate normalized delta (same as LiteGraph's original)
+      var normalizedDelta = delta ? delta / 40 : (e as any).deltaY ? -(e as any).deltaY / 3 : 0;
+      
+      // Reduce sensitivity: use 0.01 instead of 0.05 (5x less sensitive)
+      // Original: 1.0 + normalizedDelta * 0.05
+      var zoomFactor = 1.0 + normalizedDelta * 0.01;
+      
+      // Apply zoom change using DragAndScale
+      if (this.ds) {
+        this.ds.changeDeltaScale(zoomFactor, canvas_pos);
+      }
+      
+      return false;
+    };
+    
     // Configure LiteGraph to not show node names in slot labels
     // Override the slot label rendering to only show slot name
     const originalDrawSlotLabel = (graphCanvas as any).drawSlotLabel;
