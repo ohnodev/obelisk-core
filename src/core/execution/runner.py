@@ -267,26 +267,66 @@ class WorkflowRunner:
         running.last_tick_time = time.time()
         
         # Find CONTINUOUS nodes and call on_tick
-        triggered_nodes: Set[NodeID] = set()
+        should_execute_workflow = False
         
         for node_id, node in running.nodes.items():
             if node.is_autonomous():
                 # Call on_tick for autonomous nodes
                 result = node.on_tick(running.context)
                 if result is not None:
-                    # Node fired - store outputs and find connected nodes
+                    # Node fired - mark that we should execute the full workflow
+                    should_execute_workflow = True
                     running.context.node_outputs[node_id] = result
-                    
-                    # Find nodes connected to this node's outputs
-                    for conn in running.workflow.get('connections', []):
-                        source_id = conn.get('source_node') or conn.get('from')
-                        if source_id == node_id:
-                            target_id = conn.get('target_node') or conn.get('to')
-                            triggered_nodes.add(target_id)
         
-        # Execute triggered nodes
-        if triggered_nodes:
-            self._execute_triggered_nodes(running, triggered_nodes)
+        # Execute FULL workflow when scheduler fires
+        # This ensures all dependencies (storage, model, etc.) are satisfied
+        if should_execute_workflow:
+            self._execute_full_workflow(running)
+    
+    def _execute_full_workflow(self, running: RunningWorkflow) -> None:
+        """
+        Execute the full workflow when a scheduler fires
+        
+        This ensures all dependencies (storage, model, etc.) are properly
+        initialized before downstream nodes execute.
+        
+        Args:
+            running: Running workflow state
+        """
+        workflow = running.workflow
+        context = running.context
+        
+        logger.info(f"Scheduler triggered - executing full workflow")
+        
+        # Use the engine to execute the full workflow
+        # This handles all dependency resolution properly
+        result = self.engine.execute(workflow, context.variables)
+        
+        # Update context with new outputs
+        for node_result in result.get('node_results', []):
+            node_id = node_result.get('node_id')
+            if node_id and node_result.get('success'):
+                context.node_outputs[node_id] = node_result.get('outputs', {})
+        
+        # Call completion callback
+        if running.on_tick_complete:
+            tick_result = {
+                'tick': running.tick_count,
+                'success': result.get('success', False),
+                'executed_nodes': result.get('execution_order', []),
+                'outputs': {
+                    nr.get('node_id'): nr.get('outputs', {}) 
+                    for nr in result.get('node_results', [])
+                    if nr.get('success')
+                },
+                'error': result.get('error')
+            }
+            running.on_tick_complete(tick_result)
+        
+        if result.get('success'):
+            logger.info(f"Workflow execution completed successfully")
+        else:
+            logger.error(f"Workflow execution failed: {result.get('error')}")
     
     def _execute_triggered_nodes(
         self, 
@@ -294,7 +334,10 @@ class WorkflowRunner:
         triggered_ids: Set[NodeID]
     ) -> None:
         """
-        Execute nodes that were triggered
+        Execute nodes that were triggered (DEPRECATED - use _execute_full_workflow)
+        
+        This method only executes downstream nodes and may fail if dependencies
+        aren't satisfied. Kept for reference but not used.
         
         Args:
             running: Running workflow state

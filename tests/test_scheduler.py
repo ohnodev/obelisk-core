@@ -314,13 +314,13 @@ def test_scheduler_triggers_text_node():
     print(f"\n📊 Tick results: {len(tick_results)} ticks recorded")
     assert len(tick_results) >= 1, "Scheduler should have triggered at least once"
     
-    # Check tick structure
+    # Check tick structure (now uses full workflow execution)
     if tick_results:
         tick = tick_results[0]
         assert 'tick' in tick
-        assert 'triggered_nodes' in tick
+        assert 'success' in tick
         assert 'executed_nodes' in tick
-        print(f"✅ First tick: tick={tick['tick']}, triggered={tick['triggered_nodes']}")
+        print(f"✅ First tick: tick={tick['tick']}, success={tick['success']}, nodes={tick['executed_nodes']}")
 
 
 if __name__ == "__main__":

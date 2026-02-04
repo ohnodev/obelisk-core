@@ -26,12 +26,14 @@ def test_scheduler_basic_agent():
     def on_tick(result):
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         print(f"\n🔔 [{timestamp}] SCHEDULER FIRED!")
-        print(f"   Tick #{result['tick']}")
-        print(f"   Triggered nodes: {result['triggered_nodes']}")
-        print(f"   Executed nodes: {result['executed_nodes']}")
+        print(f"   Tick #{result.get('tick', '?')}")
+        print(f"   Success: {result.get('success', False)}")
+        print(f"   Executed nodes: {result.get('executed_nodes', [])}")
         if result.get('outputs'):
             for node_id, outputs in result['outputs'].items():
                 print(f"   Node {node_id} output: {outputs}")
+        if result.get('error'):
+            print(f"   Error: {result['error']}")
         tick_results.append(result)
     
     def on_error(error):
@@ -111,12 +113,12 @@ def test_scheduler_basic_agent():
     # Verify each tick has the right structure
     for i, tick in enumerate(tick_results):
         print(f"\n   Tick {i+1}:")
-        print(f"      tick_number: {tick['tick']}")
-        print(f"      triggered_nodes: {tick['triggered_nodes']}")
-        print(f"      executed_nodes: {tick['executed_nodes']}")
+        print(f"      tick_number: {tick.get('tick', '?')}")
+        print(f"      success: {tick.get('success', False)}")
+        print(f"      executed_nodes: {tick.get('executed_nodes', [])}")
         
-        assert 'scheduler-1' in tick['triggered_nodes'] or 'text-1' in tick['triggered_nodes']
-        assert 'text-1' in tick['executed_nodes']
+        assert tick.get('success') == True, f"Tick {i+1} failed: {tick.get('error')}"
+        assert 'text-1' in tick.get('executed_nodes', [])
     
     print("\n✅ TEST PASSED!")
 
