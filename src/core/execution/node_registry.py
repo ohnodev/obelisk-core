@@ -45,6 +45,7 @@ def _register_all_nodes():
     from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
     from .nodes.telegram_bot import TelegramBotNode
+    from .nodes.scheduler import SchedulerNode
     
     register_node("model_loader", ModelLoaderNode)
     register_node("inference", InferenceNode)
@@ -54,6 +55,7 @@ def _register_all_nodes():
     register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)
     register_node("telegram_bot", TelegramBotNode)
+    register_node("scheduler", SchedulerNode)
 
 
 # Auto-register on import

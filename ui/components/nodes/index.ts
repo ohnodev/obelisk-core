@@ -7,3 +7,4 @@ import "./MemorySelectorNode";
 import "./MemoryCreatorNode";
 import "./InferenceNode";
 import "./TelegramBotNode";
+import "./SchedulerNode";

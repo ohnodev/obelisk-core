@@ -49,6 +49,11 @@ def get_execution_engine(request: Request):
     return ExecutionEngine(container)
 
 
+def get_workflow_runner(request: Request):
+    """Get WorkflowRunner from app state"""
+    return request.app.state.workflow_runner
+
+
 class GenerateRequest(BaseModel):
     """Request model for LLM generation"""
     prompt: str = Field(..., description="User's query/prompt")
@@ -399,3 +404,185 @@ async def execute_workflow(
         error_msg = str(e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=error_msg)
+
+
+# Autonomous Workflow Endpoints
+class WorkflowRunRequest(BaseModel):
+    """Request model for starting continuous workflow execution"""
+    workflow: Dict[str, Any] = Field(..., description="Workflow graph definition")
+    options: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Execution options (client_id, extra_data, etc.)"
+    )
+
+
+class WorkflowRunResponse(BaseModel):
+    """Response model for workflow run"""
+    workflow_id: str
+    status: Literal["running", "completed", "error"]
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+
+class WorkflowStopRequest(BaseModel):
+    """Request model for stopping a workflow"""
+    workflow_id: str = Field(..., description="ID of workflow to stop")
+
+
+class WorkflowStopResponse(BaseModel):
+    """Response model for workflow stop"""
+    workflow_id: str
+    status: Literal["stopped", "not_found", "error"]
+    message: Optional[str] = None
+
+
+class WorkflowStatusResponse(BaseModel):
+    """Response model for workflow status"""
+    workflow_id: str
+    state: Literal["stopped", "running", "paused", "not_found"]
+    tick_count: Optional[int] = None
+    last_tick_time: Optional[float] = None
+    node_count: Optional[int] = None
+
+
+class RunningWorkflowsResponse(BaseModel):
+    """Response model for listing running workflows"""
+    workflows: List[str]
+    count: int
+
+
+@router.post("/workflow/run", response_model=WorkflowRunResponse)
+async def run_workflow(
+    request: WorkflowRunRequest,
+    runner = Depends(get_workflow_runner)
+):
+    """
+    Start continuous execution of a workflow (for autonomous/scheduled workflows)
+    
+    Unlike /workflow/execute which runs once and returns, this endpoint starts
+    a continuous execution loop that runs until explicitly stopped.
+    
+    Workflows with CONTINUOUS nodes (like SchedulerNode) will keep running,
+    triggering connected nodes at their configured intervals.
+    """
+    try:
+        # Convert frontend format to backend format
+        backend_workflow = _convert_frontend_to_backend_format(request.workflow)
+        
+        # Extract context variables from options
+        context_variables = {}
+        if request.options:
+            if "client_id" in request.options:
+                context_variables["user_id"] = request.options["client_id"]
+            if "user_id" in request.options:
+                context_variables["user_id"] = request.options["user_id"]
+            if "user_query" in request.options:
+                context_variables["user_query"] = request.options["user_query"]
+            if "extra_data" in request.options:
+                context_variables.update(request.options["extra_data"])
+            if "variables" in request.options:
+                context_variables.update(request.options["variables"])
+        
+        # Start workflow
+        workflow_id = runner.start_workflow(backend_workflow, context_variables)
+        
+        return WorkflowRunResponse(
+            workflow_id=workflow_id,
+            status="running",
+            message=f"Workflow {workflow_id} started"
+        )
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@router.post("/workflow/stop", response_model=WorkflowStopResponse)
+async def stop_workflow(
+    request: WorkflowStopRequest,
+    runner = Depends(get_workflow_runner)
+):
+    """
+    Stop a running workflow
+    
+    Stops the continuous execution loop for the specified workflow.
+    """
+    try:
+        stopped = runner.stop_workflow(request.workflow_id)
+        
+        if stopped:
+            return WorkflowStopResponse(
+                workflow_id=request.workflow_id,
+                status="stopped",
+                message=f"Workflow {request.workflow_id} stopped"
+            )
+        else:
+            return WorkflowStopResponse(
+                workflow_id=request.workflow_id,
+                status="not_found",
+                message=f"Workflow {request.workflow_id} not found or not running"
+            )
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@router.get("/workflow/status/{workflow_id}", response_model=WorkflowStatusResponse)
+async def get_workflow_status(
+    workflow_id: str,
+    runner = Depends(get_workflow_runner)
+):
+    """
+    Get status of a workflow
+    
+    Returns the current state and statistics for a workflow.
+    """
+    status = runner.get_status(workflow_id)
+    
+    if status is None:
+        return WorkflowStatusResponse(
+            workflow_id=workflow_id,
+            state="not_found"
+        )
+    
+    return WorkflowStatusResponse(
+        workflow_id=workflow_id,
+        state=status['state'],
+        tick_count=status['tick_count'],
+        last_tick_time=status['last_tick_time'],
+        node_count=status['node_count']
+    )
+
+
+@router.get("/workflow/running", response_model=RunningWorkflowsResponse)
+async def list_running_workflows(
+    runner = Depends(get_workflow_runner)
+):
+    """
+    List all running workflows
+    
+    Returns a list of workflow IDs that are currently running.
+    """
+    workflow_ids = runner.list_running()
+    return RunningWorkflowsResponse(
+        workflows=workflow_ids,
+        count=len(workflow_ids)
+    )
+
+
+@router.post("/workflow/stop-all")
+async def stop_all_workflows(
+    runner = Depends(get_workflow_runner)
+):
+    """
+    Stop all running workflows
+    
+    Emergency stop for all workflows.
+    """
+    runner.stop_all()
+    return {"status": "stopped", "message": "All workflows stopped"}

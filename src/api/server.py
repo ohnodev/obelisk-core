@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes import router
 from ..core.bootstrap import get_container
 from ..core.config import Config
+from ..core.execution.runner import WorkflowRunner
 
 app = FastAPI(title="Obelisk Core API", version="0.1.0-alpha")
 
@@ -28,6 +29,17 @@ async def startup():
     """Initialize services on startup"""
     # Build container and store in app.state for route access
     app.state.container = get_container(mode=Config.MODE)
+    
+    # Initialize WorkflowRunner for autonomous workflow execution
+    app.state.workflow_runner = WorkflowRunner(app.state.container)
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Clean up on shutdown"""
+    # Stop all running workflows
+    if hasattr(app.state, 'workflow_runner'):
+        app.state.workflow_runner.stop_all()
 
 
 @app.get("/")

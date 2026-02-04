@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
+import StopIcon from "./icons/StopIcon";
 
 interface ToolbarProps {
   onExecute?: (getGraph?: () => any) => void | Promise<void>;
   onSave?: (workflow: WorkflowGraph) => void;
   onLoad?: (workflow: WorkflowGraph) => void;
   workflow?: WorkflowGraph;
+  apiBaseUrl?: string;
 }
 
-export default function Toolbar({ onExecute, onSave, onLoad, workflow }: ToolbarProps) {
+export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUrl = "http://localhost:7779" }: ToolbarProps) {
   const [isExecuting, setIsExecuting] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
+  const statusPollRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleExecute = async () => {
     setIsExecuting(true);
@@ -95,6 +100,93 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
         }
       };
       input.click();
+    }
+  };
+
+  // Cleanup status polling on unmount
+  useEffect(() => {
+    return () => {
+      if (statusPollRef.current) {
+        clearInterval(statusPollRef.current);
+      }
+    };
+  }, []);
+
+  const handleRunToggle = async () => {
+    if (isRunning && runningWorkflowId) {
+      // Stop the workflow
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/v1/workflow/stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflow_id: runningWorkflowId }),
+        });
+        
+        if (response.ok) {
+          setIsRunning(false);
+          setRunningWorkflowId(null);
+          if (statusPollRef.current) {
+            clearInterval(statusPollRef.current);
+            statusPollRef.current = null;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to stop workflow:", error);
+      }
+    } else {
+      // Start the workflow
+      const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
+      if (!serializeWorkflow) {
+        console.error("Workflow serializer not available");
+        return;
+      }
+      
+      const currentWorkflow = serializeWorkflow();
+      if (!currentWorkflow) {
+        console.error("No workflow to run");
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/v1/workflow/run`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workflow: currentWorkflow,
+            options: {
+              user_id: "ui_user",
+            },
+          }),
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          setIsRunning(true);
+          setRunningWorkflowId(result.workflow_id);
+          
+          // Start polling for status
+          statusPollRef.current = setInterval(async () => {
+            try {
+              const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${result.workflow_id}`);
+              if (statusRes.ok) {
+                const status = await statusRes.json();
+                if (status.state !== "running") {
+                  setIsRunning(false);
+                  setRunningWorkflowId(null);
+                  if (statusPollRef.current) {
+                    clearInterval(statusPollRef.current);
+                    statusPollRef.current = null;
+                  }
+                }
+              }
+            } catch {
+              // Ignore polling errors
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error("Failed to start workflow:", error);
+      }
     }
   };
 
@@ -179,49 +271,109 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow }: Toolbar
         </button>
       </div>
 
-      <button
-        onClick={handleExecute}
-        disabled={isExecuting}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          padding: "0.5rem 1.25rem",
-          background: isExecuting
-            ? "var(--color-button-secondary-bg)"
-            : "rgba(212, 175, 55, 0.08)",
-          color: isExecuting
-            ? "var(--color-text-muted)"
-            : "var(--color-primary)",
-          border: `1px solid ${isExecuting ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.25)"}`,
-          borderRadius: "4px",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.875rem",
-          fontWeight: 500,
-          cursor: isExecuting ? "not-allowed" : "pointer",
-          transition: "all 0.2s ease",
-          boxShadow: isExecuting
-            ? "none"
-            : "0 2px 6px rgba(212, 175, 55, 0.15)",
-        }}
-        onMouseEnter={(e) => {
-          if (!isExecuting) {
-            e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
-            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
-            e.currentTarget.style.boxShadow = "0 3px 10px rgba(212, 175, 55, 0.2)";
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isExecuting) {
-            e.currentTarget.style.background = "rgba(212, 175, 55, 0.08)";
-            e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.25)";
-            e.currentTarget.style.boxShadow = "0 2px 6px rgba(212, 175, 55, 0.15)";
-          }
-        }}
-      >
-        <PlayIcon />
-        <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        {/* Run/Stop toggle for autonomous workflows */}
+        <button
+          onClick={handleRunToggle}
+          disabled={isExecuting}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 1rem",
+            background: isRunning
+              ? "rgba(231, 76, 60, 0.08)"
+              : "rgba(155, 89, 182, 0.08)",
+            color: isRunning
+              ? "#e74c3c"
+              : "#9b59b6",
+            border: `1px solid ${isRunning ? "rgba(231, 76, 60, 0.25)" : "rgba(155, 89, 182, 0.25)"}`,
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            cursor: isExecuting ? "not-allowed" : "pointer",
+            transition: "all 0.2s ease",
+            boxShadow: isRunning
+              ? "0 2px 6px rgba(231, 76, 60, 0.15)"
+              : "0 2px 6px rgba(155, 89, 182, 0.15)",
+            opacity: isExecuting ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!isExecuting) {
+              if (isRunning) {
+                e.currentTarget.style.background = "rgba(231, 76, 60, 0.15)";
+                e.currentTarget.style.borderColor = "rgba(231, 76, 60, 0.4)";
+              } else {
+                e.currentTarget.style.background = "rgba(155, 89, 182, 0.15)";
+                e.currentTarget.style.borderColor = "rgba(155, 89, 182, 0.4)";
+              }
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isExecuting) {
+              if (isRunning) {
+                e.currentTarget.style.background = "rgba(231, 76, 60, 0.08)";
+                e.currentTarget.style.borderColor = "rgba(231, 76, 60, 0.25)";
+              } else {
+                e.currentTarget.style.background = "rgba(155, 89, 182, 0.08)";
+                e.currentTarget.style.borderColor = "rgba(155, 89, 182, 0.25)";
+              }
+            }
+          }}
+          title={isRunning ? "Stop autonomous execution" : "Start autonomous execution"}
+        >
+          {isRunning ? <StopIcon /> : <PlayIcon />}
+          <span>{isRunning ? "Stop" : "Run"}</span>
+        </button>
+
+        {/* Execute once button */}
+        <button
+          onClick={handleExecute}
+          disabled={isExecuting || isRunning}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 1.25rem",
+            background: isExecuting || isRunning
+              ? "var(--color-button-secondary-bg)"
+              : "rgba(212, 175, 55, 0.08)",
+            color: isExecuting || isRunning
+              ? "var(--color-text-muted)"
+              : "var(--color-primary)",
+            border: `1px solid ${isExecuting || isRunning ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.25)"}`,
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            cursor: isExecuting || isRunning ? "not-allowed" : "pointer",
+            transition: "all 0.2s ease",
+            boxShadow: isExecuting || isRunning
+              ? "none"
+              : "0 2px 6px rgba(212, 175, 55, 0.15)",
+            opacity: isRunning ? 0.5 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!isExecuting && !isRunning) {
+              e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
+              e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
+              e.currentTarget.style.boxShadow = "0 3px 10px rgba(212, 175, 55, 0.2)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isExecuting && !isRunning) {
+              e.currentTarget.style.background = "rgba(212, 175, 55, 0.08)";
+              e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.25)";
+              e.currentTarget.style.boxShadow = "0 2px 6px rgba(212, 175, 55, 0.15)";
+            }
+          }}
+          title="Execute workflow once"
+        >
+          <PlayIcon />
+          <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
+        </button>
+      </div>
     </div>
   );
 }

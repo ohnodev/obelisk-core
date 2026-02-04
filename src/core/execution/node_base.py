@@ -4,11 +4,25 @@ Base node class for execution engine
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from dataclasses import dataclass, field
+from enum import Enum
 import copy
 from ..types import NodeID, NodeData
 
 if TYPE_CHECKING:
     from ..types import NodeGraph
+
+
+class ExecutionMode(Enum):
+    """
+    Node execution modes for autonomous workflows
+    
+    ONCE: Execute once per workflow run (default behavior)
+    CONTINUOUS: Keep executing on each tick (scheduler nodes)
+    TRIGGERED: Execute only when trigger input fires
+    """
+    ONCE = "once"
+    CONTINUOUS = "continuous"
+    TRIGGERED = "triggered"
 
 
 @dataclass
@@ -30,6 +44,9 @@ class BaseNode(ABC):
     - Can access ServiceContainer and execution context
     """
     
+    # Default execution mode for the node class (override in subclasses)
+    execution_mode: ExecutionMode = ExecutionMode.ONCE
+    
     def __init__(self, node_id: NodeID, node_data: NodeData):
         """
         Initialize node
@@ -45,6 +62,9 @@ class BaseNode(ABC):
         self.inputs = copy.deepcopy(node_data.get('inputs', {}))
         self.position = node_data.get('position', {'x': 0, 'y': 0})
         self.metadata = node_data.get('metadata', {})
+        # State for triggered nodes
+        self._triggered = False
+        self._last_trigger_value = None
     
     @abstractmethod
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
@@ -127,3 +147,56 @@ class BaseNode(ABC):
         """
         # Call initialize for backward compatibility
         self.initialize(workflow, all_nodes)
+    
+    def is_autonomous(self) -> bool:
+        """
+        Check if this node runs autonomously (CONTINUOUS mode)
+        
+        Returns:
+            True if node has CONTINUOUS execution mode
+        """
+        return self.execution_mode == ExecutionMode.CONTINUOUS
+    
+    def is_triggered(self) -> bool:
+        """
+        Check if this node is trigger-based (TRIGGERED mode)
+        
+        Returns:
+            True if node has TRIGGERED execution mode
+        """
+        return self.execution_mode == ExecutionMode.TRIGGERED
+    
+    def set_triggered(self, value: bool = True) -> None:
+        """
+        Set the triggered state for this node
+        
+        Args:
+            value: Whether the node has been triggered
+        """
+        self._triggered = value
+    
+    def check_and_clear_trigger(self) -> bool:
+        """
+        Check if node was triggered and clear the trigger state
+        
+        Returns:
+            True if node was triggered (and clears the state)
+        """
+        was_triggered = self._triggered
+        self._triggered = False
+        return was_triggered
+    
+    def on_tick(self, context: ExecutionContext) -> Optional[Dict[str, Any]]:
+        """
+        Called on each tick for CONTINUOUS nodes
+        Override in subclasses to implement tick behavior.
+        
+        Args:
+            context: Execution context
+            
+        Returns:
+            Output dict if node should fire this tick, None otherwise
+        """
+        # Default implementation does nothing
+        # Override in CONTINUOUS nodes (like SchedulerNode)
+        return None
