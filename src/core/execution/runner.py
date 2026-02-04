@@ -19,6 +19,51 @@ from ...utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _make_serializable(value: Any, max_depth: int = 5) -> Any:
+    """
+    Convert a value to be JSON-serializable.
+    Filters out complex objects that can't be serialized.
+    
+    Args:
+        value: Any Python value
+        max_depth: Maximum recursion depth
+        
+    Returns:
+        JSON-serializable version of the value
+    """
+    if max_depth <= 0:
+        return "<max depth reached>"
+    
+    # Basic types are already serializable
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    
+    # Handle lists
+    if isinstance(value, (list, tuple)):
+        return [_make_serializable(item, max_depth - 1) for item in value]
+    
+    # Handle dicts
+    if isinstance(value, dict):
+        return {
+            str(k): _make_serializable(v, max_depth - 1)
+            for k, v in value.items()
+        }
+    
+    # For complex objects, return a placeholder with type info
+    type_name = type(value).__name__
+    module = type(value).__module__
+    
+    # Check if it has a string representation that's useful
+    try:
+        str_repr = str(value)
+        if len(str_repr) < 200 and not str_repr.startswith('<'):
+            return f"<{type_name}: {str_repr}>"
+    except Exception:
+        pass
+    
+    return f"<{module}.{type_name}>"
+
+
 class RunnerState(Enum):
     """State of a workflow runner"""
     STOPPED = "stopped"
@@ -335,14 +380,14 @@ class WorkflowRunner:
             if node_id and node_result.get('success'):
                 context.node_outputs[node_id] = node_result.get('outputs', {})
         
-        # Store latest results for frontend polling
+        # Store latest results for frontend polling (sanitized for JSON serialization)
         running.results_version += 1
         running.latest_results = {
             'tick': running.tick_count,
             'success': result.get('success', False),
             'executed_nodes': result.get('execution_order', []),
             'results': {
-                str(nr.get('node_id')): {'outputs': nr.get('outputs', {})}
+                str(nr.get('node_id')): {'outputs': _make_serializable(nr.get('outputs', {}))}
                 for nr in result.get('node_results', [])
                 if nr.get('success')
             },
