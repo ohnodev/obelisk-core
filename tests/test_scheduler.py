@@ -297,7 +297,7 @@ def test_scheduler_triggers_text_node():
                 'from': '1',
                 'from_output': 'trigger',
                 'to': '2',
-                'to_input': 'text'  # Connect to text input
+                'to_input': 'trigger'  # Connect to trigger input (scheduler signal)
             }
         ]
     }
