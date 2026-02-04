@@ -86,6 +86,16 @@
         "bot_id": "{{process.env.TELEGRAM_DEV_BOT_TOKEN}}",
         "group_id": "{{process.env.TELEGRAM_CHAT_ID}}"
       }
+    },
+    {
+      "id": "11",
+      "type": "scheduler",
+      "position": {"x": -150, "y": 100},
+      "metadata": {
+        "min_seconds": 5,
+        "max_seconds": 5,
+        "enabled": true
+      }
     }
   ],
   "connections": [
@@ -178,6 +188,12 @@
       "from_output": "text",
       "to": "10",
       "to_input": "message"
+    },
+    {
+      "from": "11",
+      "from_output": "trigger",
+      "to": "1",
+      "to_input": "trigger"
     }
   ]
 }
