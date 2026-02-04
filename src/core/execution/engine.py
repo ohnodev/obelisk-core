@@ -39,19 +39,26 @@ class ExecutionEngine:
         """
         self.container = container
     
-    def execute(self, workflow: NodeGraph, context_variables: Optional[Dict[str, Any]] = None) -> GraphExecutionResult:
+    def execute(
+        self, 
+        workflow: NodeGraph, 
+        context_variables: Optional[Dict[str, Any]] = None,
+        initial_node_outputs: Optional[Dict[NodeID, Dict[str, Any]]] = None
+    ) -> GraphExecutionResult:
         """
         Execute a workflow graph
         
         Args:
             workflow: NodeGraph definition (from JSON)
             context_variables: Runtime variables (e.g., {"user_id": "cli_user", "user_query": "Hello"})
+            initial_node_outputs: Pre-seeded node outputs (e.g., from scheduler triggers)
             
         Returns:
             GraphExecutionResult with execution results
         """
         start_time = time.time()
         context_variables = context_variables or {}
+        initial_node_outputs = initial_node_outputs or {}
         
         logger.info(f"Executing workflow: {workflow.get('name', workflow.get('id', 'unknown'))}")
         
@@ -82,11 +89,11 @@ class ExecutionEngine:
                 total_execution_time=time.time() - start_time
             )
         
-        # Create execution context
+        # Create execution context with pre-seeded outputs (if any)
         context = ExecutionContext(
             container=self.container,
             variables=context_variables,
-            node_outputs={}
+            node_outputs=dict(initial_node_outputs)  # Copy to avoid mutation
         )
         
         # Execute nodes in order

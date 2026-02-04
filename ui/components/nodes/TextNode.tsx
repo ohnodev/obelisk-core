@@ -11,8 +11,9 @@ class TextNode extends LGraphNode {
     super();
     this.title = "Text";
     
-    // Add both input and output - flexible usage
+    // Add inputs - text for data, trigger for scheduler connections
     this.addInput("text", "string");
+    this.addInput("trigger", "boolean");  // For scheduler connections (doesn't affect text value)
     this.addOutput("text", "string");
     
     // Add textarea widget for text content
@@ -88,11 +89,15 @@ class TextNode extends LGraphNode {
   }
 
   onExecute() {
-    // Check if input is connected
-    const inputData = this.getInputData(0);
+    // Check if text input is connected (slot 0)
+    // Note: trigger input (slot 1) is ignored - it's only for scheduler connections
+    const inputData = this.getInputData(0);  // text input
     const textareaValue = (this.properties as any)?.text || "";
     
-    if (inputData !== null && inputData !== undefined) {
+    // Ignore boolean values (from trigger connections to wrong slot)
+    const isValidTextInput = inputData !== null && inputData !== undefined && typeof inputData !== "boolean";
+    
+    if (isValidTextInput) {
       // Input is connected - use input value and update textarea
       const inputText = String(inputData);
       this.setProperty("text", inputText);
@@ -107,7 +112,7 @@ class TextNode extends LGraphNode {
       // Output the input value
       this.setOutputData(0, inputText);
     } else {
-      // Input not connected - use textarea value as output
+      // Input not connected or trigger signal - use textarea value as output
       this.setOutputData(0, textareaValue);
     }
   }
