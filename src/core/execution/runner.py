@@ -267,40 +267,62 @@ class WorkflowRunner:
         running.last_tick_time = time.time()
         
         # Find CONTINUOUS nodes and call on_tick
-        should_execute_workflow = False
+        triggered_nodes: Set[NodeID] = set()
         
         for node_id, node in running.nodes.items():
             if node.is_autonomous():
                 # Call on_tick for autonomous nodes
                 result = node.on_tick(running.context)
                 if result is not None:
-                    # Node fired - mark that we should execute the full workflow
-                    should_execute_workflow = True
+                    # Node fired - store outputs and find connected nodes
                     running.context.node_outputs[node_id] = result
+                    
+                    # Find nodes connected to this scheduler's outputs
+                    for conn in running.workflow.get('connections', []):
+                        source_id = conn.get('source_node') or conn.get('from')
+                        if source_id == node_id:
+                            target_id = conn.get('target_node') or conn.get('to')
+                            triggered_nodes.add(target_id)
         
-        # Execute FULL workflow when scheduler fires
-        # This ensures all dependencies (storage, model, etc.) are satisfied
-        if should_execute_workflow:
-            self._execute_full_workflow(running)
+        # Execute the subgraph connected to the scheduler
+        if triggered_nodes:
+            self._execute_subgraph(running, triggered_nodes)
     
-    def _execute_full_workflow(self, running: RunningWorkflow) -> None:
+    def _execute_subgraph(
+        self, 
+        running: RunningWorkflow, 
+        triggered_ids: Set[NodeID]
+    ) -> None:
         """
-        Execute the full workflow when a scheduler fires
+        Execute the subgraph connected to triggered nodes
         
-        This ensures all dependencies (storage, model, etc.) are properly
-        initialized before downstream nodes execute.
+        This finds:
+        1. All downstream nodes from the triggered nodes
+        2. All upstream dependencies those downstream nodes need
+        3. Executes the combined subgraph in proper topological order
         
         Args:
             running: Running workflow state
+            triggered_ids: Set of node IDs directly triggered by scheduler
         """
         workflow = running.workflow
+        nodes = running.nodes
         context = running.context
         
-        logger.info(f"Scheduler triggered - executing full workflow")
+        # Step 1: Find all downstream nodes from triggered nodes
+        downstream = self._get_all_downstream(workflow, triggered_ids, nodes)
         
-        # Use the engine to execute the full workflow
-        # This handles all dependency resolution properly
-        result = self.engine.execute(workflow, context.variables)
+        # Step 2: Find all upstream dependencies of the downstream nodes
+        subgraph_nodes = self._get_subgraph_with_dependencies(workflow, downstream, nodes)
+        
+        logger.info(f"Scheduler triggered - executing subgraph with {len(subgraph_nodes)} nodes")
+        logger.debug(f"Subgraph nodes: {subgraph_nodes}")
+        
+        # Step 3: Build a filtered workflow with only subgraph nodes
+        subgraph_workflow = self._build_subgraph_workflow(workflow, subgraph_nodes)
+        
+        # Step 4: Execute the subgraph using the engine
+        result = self.engine.execute(subgraph_workflow, context.variables)
         
         # Update context with new outputs
         for node_result in result.get('node_results', []):
@@ -324,9 +346,137 @@ class WorkflowRunner:
             running.on_tick_complete(tick_result)
         
         if result.get('success'):
-            logger.info(f"Workflow execution completed successfully")
+            logger.info(f"Subgraph execution completed successfully")
         else:
-            logger.error(f"Workflow execution failed: {result.get('error')}")
+            logger.error(f"Subgraph execution failed: {result.get('error')}")
+    
+    def _get_all_downstream(
+        self,
+        workflow: NodeGraph,
+        start_nodes: Set[NodeID],
+        nodes: Dict[NodeID, BaseNode]
+    ) -> Set[NodeID]:
+        """
+        Get all nodes downstream from start_nodes (BFS)
+        
+        Args:
+            workflow: Workflow definition
+            start_nodes: Starting node IDs
+            nodes: All node instances
+            
+        Returns:
+            Set of all downstream node IDs (including start_nodes)
+        """
+        connections = workflow.get('connections', [])
+        
+        # Build adjacency list (node -> nodes it outputs to)
+        adjacency: Dict[NodeID, Set[NodeID]] = {}
+        for node_id in nodes.keys():
+            adjacency[node_id] = set()
+        
+        for conn in connections:
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            if source_id in adjacency:
+                adjacency[source_id].add(target_id)
+        
+        # BFS to find all downstream nodes
+        downstream: Set[NodeID] = set(start_nodes)
+        queue = list(start_nodes)
+        
+        while queue:
+            node_id = queue.pop(0)
+            for target_id in adjacency.get(node_id, []):
+                if target_id not in downstream:
+                    downstream.add(target_id)
+                    queue.append(target_id)
+        
+        return downstream
+    
+    def _get_subgraph_with_dependencies(
+        self,
+        workflow: NodeGraph,
+        downstream_nodes: Set[NodeID],
+        nodes: Dict[NodeID, BaseNode]
+    ) -> Set[NodeID]:
+        """
+        Get the full subgraph including upstream dependencies
+        
+        For each downstream node, find all nodes that provide inputs to it
+        (recursively), so the subgraph is complete and can execute.
+        
+        Args:
+            workflow: Workflow definition
+            downstream_nodes: Set of downstream node IDs
+            nodes: All node instances
+            
+        Returns:
+            Set of all node IDs needed for the subgraph
+        """
+        connections = workflow.get('connections', [])
+        
+        # Build reverse adjacency (node -> nodes that provide inputs to it)
+        reverse_adjacency: Dict[NodeID, Set[NodeID]] = {}
+        for node_id in nodes.keys():
+            reverse_adjacency[node_id] = set()
+        
+        for conn in connections:
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            if target_id in reverse_adjacency:
+                reverse_adjacency[target_id].add(source_id)
+        
+        # For each downstream node, find all upstream dependencies (BFS backwards)
+        subgraph: Set[NodeID] = set(downstream_nodes)
+        queue = list(downstream_nodes)
+        
+        while queue:
+            node_id = queue.pop(0)
+            for source_id in reverse_adjacency.get(node_id, []):
+                if source_id not in subgraph:
+                    # Don't include scheduler nodes as dependencies
+                    node = nodes.get(source_id)
+                    if node and not node.is_autonomous():
+                        subgraph.add(source_id)
+                        queue.append(source_id)
+        
+        return subgraph
+    
+    def _build_subgraph_workflow(
+        self,
+        workflow: NodeGraph,
+        subgraph_nodes: Set[NodeID]
+    ) -> NodeGraph:
+        """
+        Build a filtered workflow containing only the subgraph nodes
+        
+        Args:
+            workflow: Original workflow
+            subgraph_nodes: Set of node IDs to include
+            
+        Returns:
+            Filtered workflow with only subgraph nodes and their connections
+        """
+        # Filter nodes
+        filtered_nodes = [
+            node for node in workflow.get('nodes', [])
+            if node.get('id') in subgraph_nodes
+        ]
+        
+        # Filter connections (both source and target must be in subgraph)
+        filtered_connections = []
+        for conn in workflow.get('connections', []):
+            source_id = conn.get('source_node') or conn.get('from')
+            target_id = conn.get('target_node') or conn.get('to')
+            if source_id in subgraph_nodes and target_id in subgraph_nodes:
+                filtered_connections.append(conn)
+        
+        return {
+            'id': workflow.get('id', 'subgraph'),
+            'name': workflow.get('name', 'Subgraph'),
+            'nodes': filtered_nodes,
+            'connections': filtered_connections
+        }
     
     def _execute_triggered_nodes(
         self, 
