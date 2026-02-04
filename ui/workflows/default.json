@@ -1,133 +1,180 @@
 {
-  "id": "default-agent-workflow",
-  "name": "Default Agent with Memory",
+  "id": "workflow-1",
+  "name": "Obelisk Workflow",
   "nodes": [
-    {
-      "id": "1",
-      "type": "text",
-      "position": {"x": 50, "y": 100},
-      "metadata": {
-        "text": "{{user_query}}"
-      }
-    },
-    {
-      "id": "9",
-      "type": "text",
-      "position": {"x": 50, "y": 550},
-      "metadata": {
-        "text": "default_user"
-      }
-    },
-    {
-      "id": "2",
-      "type": "memory_storage",
-      "position": {"x": 50, "y": 250},
-      "inputs": {
-        "storage_path": "default",
-        "storage_type": "local_json"
-      }
-    },
-    {
-      "id": "3",
-      "type": "memory_selector",
-      "position": {"x": 300, "y": 100},
-      "inputs": {
-        "enable_recent_buffer": true,
-        "k": 10
-      }
-    },
-    {
-      "id": "4",
-      "type": "model_loader",
-      "position": {"x": 300, "y": 250},
-      "inputs": {}
-    },
-    {
-      "id": "5",
-      "type": "text",
-      "position": {"x": 50, "y": 400},
-      "metadata": {
-        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
-      }
-    },
     {
       "id": "6",
       "type": "inference",
-      "position": {"x": 550, "y": 100},
-      "inputs": {
+      "position": {
+        "x": 803,
+        "y": 84
+      },
+      "inputs": {},
+      "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
         "enable_thinking": true
       }
     },
     {
-      "id": "7",
-      "type": "text",
-      "position": {"x": 800, "y": 100},
+      "id": "8",
+      "type": "memory_creator",
+      "position": {
+        "x": 1166,
+        "y": 510
+      },
       "inputs": {
-        "text": ""
+        "summarize_threshold": 3
+      },
+      "metadata": {
+        "user_id": "",
+        "summarize_threshold": 3,
+        "k": 10,
+        "cycle_id": "",
+        "quantum_seed": 0.7
       }
     },
     {
-      "id": "8",
-      "type": "memory_creator",
-      "position": {"x": 550, "y": 400},
+      "id": "4",
+      "type": "model_loader",
+      "position": {
+        "x": 515,
+        "y": 389
+      },
+      "inputs": {},
+      "metadata": {
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
+    },
+    {
+      "id": "3",
+      "type": "memory_selector",
+      "position": {
+        "x": 486,
+        "y": 22
+      },
       "inputs": {
-        "summarize_threshold": 3,
-        "k": 10,
-        "quantum_seed": 0.7
+        "enable_recent_buffer": true,
+        "k": 10
+      },
+      "metadata": {
+        "user_id": "",
+        "enable_recent_buffer": true,
+        "k": 10
+      }
+    },
+    {
+      "id": "11",
+      "type": "scheduler",
+      "position": {
+        "x": -438,
+        "y": 18
+      },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 5,
+        "max_seconds": 5,
+        "enabled": true
+      }
+    },
+    {
+      "id": "9",
+      "type": "text",
+      "position": {
+        "x": -13,
+        "y": 755
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "default_user"
+      }
+    },
+    {
+      "id": "5",
+      "type": "text",
+      "position": {
+        "x": -4,
+        "y": 446
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
+      }
+    },
+    {
+      "id": "2",
+      "type": "memory_storage",
+      "position": {
+        "x": 169,
+        "y": 240
+      },
+      "inputs": {
+        "storage_path": "default"
+      },
+      "metadata": {
+        "storage_path": "default",
+        "storage_type": "local_json"
+      }
+    },
+    {
+      "id": "1",
+      "type": "text",
+      "position": {
+        "x": 0,
+        "y": -97
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "We are testing the scheduler node, just trying out some things."
       }
     },
     {
       "id": "10",
       "type": "telegram_bot",
-      "position": {"x": 1050, "y": 100},
+      "position": {
+        "x": 1642,
+        "y": 197
+      },
+      "inputs": {},
       "metadata": {
         "bot_id": "{{process.env.TELEGRAM_DEV_BOT_TOKEN}}",
         "group_id": "{{process.env.TELEGRAM_CHAT_ID}}"
       }
     },
     {
-      "id": "11",
-      "type": "scheduler",
-      "position": {"x": -150, "y": 100},
+      "id": "7",
+      "type": "text",
+      "position": {
+        "x": 1254,
+        "y": 87
+      },
+      "inputs": {
+        "text": ""
+      },
       "metadata": {
-        "min_seconds": 5,
-        "max_seconds": 5,
-        "enabled": true
+        "text": ""
       }
     }
   ],
   "connections": [
     {
-      "from": "1",
-      "from_output": "text",
-      "to": "3",
-      "to_input": "query"
-    },
-    {
-      "from": "3",
+      "from": "6",
       "from_output": "query",
-      "to": "6",
+      "to": "8",
       "to_input": "query"
     },
     {
-      "from": "2",
-      "from_output": "storage_instance",
-      "to": "3",
-      "to_input": "storage_instance"
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "text"
     },
     {
-      "from": "2",
-      "from_output": "storage_instance",
+      "from": "6",
+      "from_output": "response",
       "to": "8",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "3",
-      "from_output": "context",
-      "to": "6",
-      "to_input": "context"
+      "to_input": "response"
     },
     {
       "from": "4",
@@ -148,28 +195,22 @@
       "to_input": "llm"
     },
     {
-      "from": "5",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "system_prompt"
-    },
-    {
-      "from": "6",
-      "from_output": "response",
-      "to": "7",
-      "to_input": "text"
-    },
-    {
-      "from": "6",
+      "from": "3",
       "from_output": "query",
-      "to": "8",
+      "to": "6",
       "to_input": "query"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "8",
-      "to_input": "response"
+      "from": "3",
+      "from_output": "context",
+      "to": "6",
+      "to_input": "context"
+    },
+    {
+      "from": "11",
+      "from_output": "trigger",
+      "to": "1",
+      "to_input": "trigger"
     },
     {
       "from": "9",
@@ -184,16 +225,34 @@
       "to_input": "user_id"
     },
     {
+      "from": "5",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "system_prompt"
+    },
+    {
+      "from": "2",
+      "from_output": "storage_instance",
+      "to": "3",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "2",
+      "from_output": "storage_instance",
+      "to": "8",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "3",
+      "to_input": "query"
+    },
+    {
       "from": "7",
       "from_output": "text",
       "to": "10",
       "to_input": "message"
-    },
-    {
-      "from": "11",
-      "from_output": "trigger",
-      "to": "1",
-      "to_input": "trigger"
     }
   ]
 }
