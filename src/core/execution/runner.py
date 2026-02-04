@@ -39,6 +39,9 @@ class RunningWorkflow:
     # Callbacks for result streaming
     on_tick_complete: Optional[Callable[[Dict[str, Any]], None]] = None
     on_error: Optional[Callable[[str], None]] = None
+    # Latest execution results (for frontend polling)
+    latest_results: Optional[Dict[str, Any]] = None
+    results_version: int = 0  # Incremented each execution, frontend can use to detect new results
 
 
 class WorkflowRunner:
@@ -195,7 +198,9 @@ class WorkflowRunner:
                 'state': running.state.value,
                 'tick_count': running.tick_count,
                 'last_tick_time': running.last_tick_time,
-                'node_count': len(running.nodes)
+                'node_count': len(running.nodes),
+                'latest_results': running.latest_results,
+                'results_version': running.results_version
             }
     
     def list_running(self) -> List[str]:
@@ -330,20 +335,24 @@ class WorkflowRunner:
             if node_id and node_result.get('success'):
                 context.node_outputs[node_id] = node_result.get('outputs', {})
         
+        # Store latest results for frontend polling
+        running.results_version += 1
+        running.latest_results = {
+            'tick': running.tick_count,
+            'success': result.get('success', False),
+            'executed_nodes': result.get('execution_order', []),
+            'results': {
+                str(nr.get('node_id')): {'outputs': nr.get('outputs', {})}
+                for nr in result.get('node_results', [])
+                if nr.get('success')
+            },
+            'error': result.get('error'),
+            'version': running.results_version
+        }
+        
         # Call completion callback
         if running.on_tick_complete:
-            tick_result = {
-                'tick': running.tick_count,
-                'success': result.get('success', False),
-                'executed_nodes': result.get('execution_order', []),
-                'outputs': {
-                    nr.get('node_id'): nr.get('outputs', {}) 
-                    for nr in result.get('node_results', [])
-                    if nr.get('success')
-                },
-                'error': result.get('error')
-            }
-            running.on_tick_complete(tick_result)
+            running.on_tick_complete(running.latest_results)
         
         if result.get('success'):
             logger.info(f"Subgraph execution completed successfully")

@@ -443,6 +443,8 @@ class WorkflowStatusResponse(BaseModel):
     tick_count: Optional[int] = None
     last_tick_time: Optional[float] = None
     node_count: Optional[int] = None
+    latest_results: Optional[Dict[str, Any]] = None
+    results_version: Optional[int] = None
 
 
 class RunningWorkflowsResponse(BaseModel):
@@ -555,7 +557,9 @@ async def get_workflow_status(
         state=status['state'],
         tick_count=status['tick_count'],
         last_tick_time=status['last_tick_time'],
-        node_count=status['node_count']
+        node_count=status['node_count'],
+        latest_results=status.get('latest_results'),
+        results_version=status.get('results_version')
     )
 
 

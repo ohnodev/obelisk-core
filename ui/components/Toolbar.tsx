@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
+import { updateNodeOutputs } from "@/lib/workflow-execution";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
@@ -20,6 +21,7 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
   const [isRunning, setIsRunning] = useState(false);
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
+  const lastResultsVersionRef = useRef<number>(0);
 
   const handleExecute = async () => {
     setIsExecuting(true);
@@ -164,12 +166,17 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
           setIsRunning(true);
           setRunningWorkflowId(result.workflow_id);
           
-          // Start polling for status
+          // Reset results version tracking
+          lastResultsVersionRef.current = 0;
+          
+          // Start polling for status and results
           statusPollRef.current = setInterval(async () => {
             try {
               const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${result.workflow_id}`);
               if (statusRes.ok) {
                 const status = await statusRes.json();
+                
+                // Check if workflow stopped
                 if (status.state !== "running") {
                   setIsRunning(false);
                   setRunningWorkflowId(null);
@@ -177,12 +184,27 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
                     clearInterval(statusPollRef.current);
                     statusPollRef.current = null;
                   }
+                  return;
+                }
+                
+                // Check if there are new results to apply
+                if (status.results_version && status.results_version > lastResultsVersionRef.current) {
+                  lastResultsVersionRef.current = status.results_version;
+                  
+                  // Apply results to the graph
+                  if (status.latest_results?.results) {
+                    const graph = (window as any).__obeliskGraph;
+                    if (graph) {
+                      console.log("[Scheduler] Applying new results to graph, version:", status.results_version);
+                      updateNodeOutputs(graph, status.latest_results.results, status.latest_results.executed_nodes);
+                    }
+                  }
                 }
               }
             } catch {
               // Ignore polling errors
             }
-          }, 2000);
+          }, 1000); // Poll more frequently for smoother updates
         }
       } catch (error) {
         console.error("Failed to start workflow:", error);
