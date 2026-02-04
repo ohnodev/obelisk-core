@@ -4,8 +4,11 @@ Verifies that the scheduler fires correctly and triggers downstream nodes
 """
 import os
 import time
+import logging
 import pytest
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 def test_scheduler_basic_agent():
@@ -137,9 +140,14 @@ def test_scheduler_with_inference_chain():
     
     def on_tick(result):
         timestamp = datetime.now().strftime("%H:%M:%S")
+        tick = result.get('tick')
+        if tick is None:
+            # Skip if tick is missing (shouldn't happen in normal operation)
+            logger.warning(f"on_tick received result without 'tick' key: {result}")
+            return
         executions.append({
             'time': timestamp,
-            'tick': result['tick'],
+            'tick': tick,
             'outputs': result.get('outputs', {})
         })
         print(f"🔄 [{timestamp}] Execution #{len(executions)}")

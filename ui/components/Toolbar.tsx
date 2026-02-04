@@ -131,9 +131,38 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
             clearInterval(statusPollRef.current);
             statusPollRef.current = null;
           }
+        } else {
+          // Server returned error - refresh UI state
+          const errorData = await response.json().catch(() => ({}));
+          const errorMsg = errorData.detail || `Server returned ${response.status}`;
+          alert(`Failed to stop workflow: ${errorMsg}`);
+          // Resync UI state by checking actual server status
+          try {
+            const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${runningWorkflowId}`);
+            if (statusRes.ok) {
+              const status = await statusRes.json();
+              setIsRunning(status.state === "running");
+            } else {
+              // Workflow not found, assume it's stopped
+              setIsRunning(false);
+              setRunningWorkflowId(null);
+            }
+          } catch {
+            // Can't reach server, reset UI
+            setIsRunning(false);
+            setRunningWorkflowId(null);
+          }
         }
       } catch (error) {
-        console.error("Failed to stop workflow:", error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        alert(`Failed to stop workflow: ${errorMsg}`);
+        // Resync UI state - assume stopped if we can't reach server
+        setIsRunning(false);
+        setRunningWorkflowId(null);
+        if (statusPollRef.current) {
+          clearInterval(statusPollRef.current);
+          statusPollRef.current = null;
+        }
       }
     } else {
       // Start the workflow

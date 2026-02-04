@@ -64,7 +64,6 @@ class BaseNode(ABC):
         self.metadata = node_data.get('metadata', {})
         # State for triggered nodes
         self._triggered = False
-        self._last_trigger_value = None
     
     @abstractmethod
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:

@@ -58,8 +58,9 @@ def _make_serializable(value: Any, max_depth: int = 5) -> Any:
         str_repr = str(value)
         if len(str_repr) < 200 and not str_repr.startswith('<'):
             return f"<{type_name}: {str_repr}>"
-    except Exception:
-        pass
+    except Exception as e:
+        # broad-except: intentionally catch __str__ exceptions to avoid propagation
+        logger.debug(f"__str__ failed for {type_name} value={value!r}: {e}")
     
     return f"<{module}.{type_name}>"
 
@@ -118,6 +119,7 @@ class WorkflowRunner:
         self._runner_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
+        self._runner_lock = threading.Lock()  # Dedicated lock for thread management
     
     def start_workflow(
         self, 
@@ -167,6 +169,16 @@ class WorkflowRunner:
                 variables=context_variables or {},
                 node_outputs={}
             )
+            
+            # Initialize CONTINUOUS scheduler nodes to seed timing state before ticks run
+            for node_id, node in nodes.items():
+                if node.is_autonomous():
+                    try:
+                        # Call execute to initialize timing state (last_fire_time, next_fire_in)
+                        node.execute(context)
+                        logger.debug(f"Initialized scheduler node {node_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to initialize scheduler node {node_id}: {e}")
             
             # Create running workflow entry
             running = RunningWorkflow(
@@ -255,24 +267,36 @@ class WorkflowRunner:
                     if w.state == RunnerState.RUNNING]
     
     def _ensure_runner_thread(self) -> None:
-        """Ensure the runner thread is running"""
-        if self._runner_thread is None or not self._runner_thread.is_alive():
-            self._stop_event.clear()
-            self._runner_thread = threading.Thread(
-                target=self._run_loop,
-                daemon=True,
-                name="WorkflowRunner"
-            )
-            self._runner_thread.start()
-            logger.debug("Started workflow runner thread")
+        """Ensure the runner thread is running (thread-safe)"""
+        with self._runner_lock:
+            if self._runner_thread is None or not self._runner_thread.is_alive():
+                self._stop_event.clear()
+                self._runner_thread = threading.Thread(
+                    target=self._run_loop,
+                    daemon=True,
+                    name="WorkflowRunner"
+                )
+                self._runner_thread.start()
+                logger.debug("Started workflow runner thread")
     
     def _stop_runner_thread(self) -> None:
-        """Stop the runner thread"""
-        self._stop_event.set()
-        if self._runner_thread and self._runner_thread.is_alive():
-            self._runner_thread.join(timeout=2.0)
-        self._runner_thread = None
-        logger.debug("Stopped workflow runner thread")
+        """Stop the runner thread (thread-safe)"""
+        with self._runner_lock:
+            thread_to_stop = self._runner_thread
+            if thread_to_stop is None:
+                return
+            
+            self._stop_event.set()
+            
+        # Join outside the lock to avoid deadlock
+        if thread_to_stop and thread_to_stop.is_alive():
+            thread_to_stop.join(timeout=2.0)
+        
+        with self._runner_lock:
+            # Only clear if the same thread (not a new one started concurrently)
+            if self._runner_thread is thread_to_stop:
+                self._runner_thread = None
+                logger.debug("Stopped workflow runner thread")
     
     def _run_loop(self) -> None:
         """Main tick loop for workflow execution"""
@@ -371,8 +395,13 @@ class WorkflowRunner:
         # Step 3: Build a filtered workflow with only subgraph nodes
         subgraph_workflow = self._build_subgraph_workflow(workflow, subgraph_nodes)
         
-        # Step 4: Execute the subgraph using the engine
-        result = self.engine.execute(subgraph_workflow, context.variables)
+        # Step 4: Execute the subgraph using the engine with initial outputs from scheduler
+        # Pass scheduler outputs so downstream nodes can see trigger values
+        result = self.engine.execute(
+            subgraph_workflow, 
+            context.variables,
+            initial_node_outputs=context.node_outputs.copy()
+        )
         
         # Update context with new outputs
         for node_result in result.get('node_results', []):
@@ -381,26 +410,28 @@ class WorkflowRunner:
                 context.node_outputs[node_id] = node_result.get('outputs', {})
         
         # Store latest results for frontend polling (sanitized for JSON serialization)
-        running.results_version += 1
-        running.latest_results = {
-            'tick': running.tick_count,
-            'success': result.get('success', False),
-            'executed_nodes': result.get('execution_order', []),
-            'results': {
-                str(nr.get('node_id')): {'outputs': _make_serializable(nr.get('outputs', {}))}
-                for nr in result.get('node_results', [])
-                if nr.get('success')
-            },
-            'error': result.get('error'),
-            'version': running.results_version
-        }
+        # Use lock to ensure atomic update of version + results for polling consistency
+        with self._lock:
+            running.results_version += 1
+            running.latest_results = {
+                'tick': running.tick_count,
+                'success': result.get('success', False),
+                'executed_nodes': result.get('execution_order', []),
+                'results': {
+                    str(nr.get('node_id')): {'outputs': _make_serializable(nr.get('outputs', {}))}
+                    for nr in result.get('node_results', [])
+                    if nr.get('success')
+                },
+                'error': result.get('error'),
+                'version': running.results_version
+            }
         
         # Call completion callback
         if running.on_tick_complete:
             running.on_tick_complete(running.latest_results)
         
         if result.get('success'):
-            logger.info(f"Subgraph execution completed successfully")
+            logger.info("Subgraph execution completed successfully")
         else:
             logger.error(f"Subgraph execution failed: {result.get('error')}")
     

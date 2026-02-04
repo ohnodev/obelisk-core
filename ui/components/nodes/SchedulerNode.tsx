@@ -36,7 +36,17 @@ class SchedulerNode extends LGraphNode {
       "Min Seconds",
       5,
       (value: number) => {
-        this.setProperty("min_seconds", Math.max(0.1, value));
+        const newMin = Math.max(0.1, value);
+        this.setProperty("min_seconds", newMin);
+        // Enforce invariant: max_seconds >= min_seconds
+        const currentMax = (this.properties as any)?.max_seconds || 10;
+        if (currentMax < newMin) {
+          this.setProperty("max_seconds", newMin);
+          // Update the max widget display
+          const widgets = (this as any).widgets as any[];
+          const maxWidget = widgets?.find((w: any) => w.name === "Max Seconds");
+          if (maxWidget) maxWidget.value = newMin;
+        }
       },
       {
         min: 0.1,
@@ -52,7 +62,10 @@ class SchedulerNode extends LGraphNode {
       "Max Seconds",
       10,
       (value: number) => {
-        this.setProperty("max_seconds", Math.max(0.1, value));
+        const currentMin = (this.properties as any)?.min_seconds || 5;
+        // Enforce invariant: max_seconds >= min_seconds
+        const newMax = Math.max(0.1, value, currentMin);
+        this.setProperty("max_seconds", newMax);
       },
       {
         min: 0.1,
