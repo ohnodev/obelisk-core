@@ -1,0 +1,338 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+
+interface Agent {
+  agent_id: string;
+  name: string;
+  status: string;
+  container_id: string;
+  created_at?: string;
+  uptime?: string;
+  user_id?: string;
+}
+
+interface AgentSlots {
+  slots_used: number;
+  slots_total: number;
+  slots_available: number;
+}
+
+const DEPLOYMENT_API = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8000";
+
+export default function DeploymentsPage() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [slots, setSlots] = useState<AgentSlots | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      setError(null);
+      
+      const [agentsRes, slotsRes] = await Promise.all([
+        fetch(`${DEPLOYMENT_API}/agents`),
+        fetch(`${DEPLOYMENT_API}/agents/slots`),
+      ]);
+
+      if (agentsRes.ok) {
+        const agentsData = await agentsRes.json();
+        setAgents(agentsData);
+      } else {
+        throw new Error("Failed to fetch agents");
+      }
+
+      if (slotsRes.ok) {
+        const slotsData = await slotsRes.json();
+        setSlots(slotsData);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to connect to deployment service");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    // Poll every 5 seconds
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  const handleStop = async (agentId: string) => {
+    if (!confirm(`Are you sure you want to stop agent "${agentId}"?`)) {
+      return;
+    }
+
+    setActionLoading(agentId);
+    try {
+      const response = await fetch(`${DEPLOYMENT_API}/agents/${agentId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to stop agent");
+      }
+
+      await fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to stop agent");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRestart = async (agentId: string) => {
+    setActionLoading(agentId);
+    try {
+      const response = await fetch(`${DEPLOYMENT_API}/agents/${agentId}/restart`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to restart agent");
+      }
+
+      await fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to restart agent");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "running":
+        return "#2ecc71";
+      case "exited":
+      case "dead":
+        return "#e74c3c";
+      case "paused":
+        return "#f39c12";
+      default:
+        return "#95a5a6";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--color-bg-primary, #0f1419)",
+        color: "var(--color-text-primary, #fff)",
+        padding: "2rem",
+      }}
+    >
+      {/* Header */}
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+          <div>
+            <Link
+              href="/"
+              style={{
+                color: "var(--color-text-muted, #888)",
+                textDecoration: "none",
+                fontSize: "0.9rem",
+                display: "inline-block",
+                marginBottom: "0.5rem",
+              }}
+            >
+              ← Back to Editor
+            </Link>
+            <h1 style={{ margin: 0, fontSize: "1.75rem" }}>Deployed Agents</h1>
+          </div>
+          
+          {/* Slots indicator */}
+          {slots && (
+            <div
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                padding: "1rem 1.5rem",
+                borderRadius: "8px",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }}
+            >
+              <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted, #888)", marginBottom: "0.25rem" }}>
+                Deployment Slots
+              </div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+                <span style={{ color: slots.slots_available > 0 ? "#2ecc71" : "#e74c3c" }}>
+                  {slots.slots_used}
+                </span>
+                <span style={{ color: "var(--color-text-muted, #666)" }}> / {slots.slots_total}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Error state */}
+        {error && (
+          <div
+            style={{
+              background: "rgba(231, 76, 60, 0.1)",
+              border: "1px solid rgba(231, 76, 60, 0.3)",
+              borderRadius: "8px",
+              padding: "1rem",
+              marginBottom: "1.5rem",
+              color: "#e74c3c",
+            }}
+          >
+            <strong>Connection Error:</strong> {error}
+            <div style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "var(--color-text-muted, #888)" }}>
+              Make sure the deployment service is running at {DEPLOYMENT_API}
+            </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div style={{ textAlign: "center", padding: "3rem", color: "var(--color-text-muted, #888)" }}>
+            Loading agents...
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && agents.length === 0 && (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "4rem 2rem",
+              background: "rgba(255, 255, 255, 0.02)",
+              borderRadius: "8px",
+              border: "1px dashed rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🤖</div>
+            <h2 style={{ margin: "0 0 0.5rem 0", fontWeight: 500 }}>No agents deployed</h2>
+            <p style={{ color: "var(--color-text-muted, #888)", margin: "0 0 1.5rem 0" }}>
+              Deploy your first agent from the workflow editor
+            </p>
+            <Link
+              href="/"
+              style={{
+                display: "inline-block",
+                padding: "0.75rem 1.5rem",
+                background: "rgba(46, 204, 113, 0.15)",
+                border: "1px solid rgba(46, 204, 113, 0.4)",
+                borderRadius: "4px",
+                color: "#2ecc71",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              Open Editor
+            </Link>
+          </div>
+        )}
+
+        {/* Agents list */}
+        {!loading && agents.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {agents.map((agent) => (
+              <div
+                key={agent.agent_id}
+                style={{
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "8px",
+                  padding: "1.25rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                    {/* Status indicator */}
+                    <div
+                      style={{
+                        width: "10px",
+                        height: "10px",
+                        borderRadius: "50%",
+                        background: getStatusColor(agent.status),
+                        boxShadow: agent.status === "running" ? `0 0 8px ${getStatusColor(agent.status)}` : "none",
+                      }}
+                    />
+                    <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 500 }}>{agent.name}</h3>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "0.2rem 0.5rem",
+                        background: `${getStatusColor(agent.status)}20`,
+                        color: getStatusColor(agent.status),
+                        borderRadius: "4px",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {agent.status}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: "flex", gap: "2rem", fontSize: "0.85rem", color: "var(--color-text-muted, #888)" }}>
+                    <div>
+                      <span style={{ opacity: 0.7 }}>ID:</span>{" "}
+                      <code style={{ fontFamily: "monospace" }}>{agent.agent_id}</code>
+                    </div>
+                    {agent.uptime && (
+                      <div>
+                        <span style={{ opacity: 0.7 }}>Uptime:</span> {agent.uptime}
+                      </div>
+                    )}
+                    <div>
+                      <span style={{ opacity: 0.7 }}>Container:</span>{" "}
+                      <code style={{ fontFamily: "monospace" }}>{agent.container_id}</code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  {agent.status === "running" && (
+                    <button
+                      onClick={() => handleRestart(agent.agent_id)}
+                      disabled={actionLoading === agent.agent_id}
+                      style={{
+                        padding: "0.5rem 1rem",
+                        background: "rgba(241, 196, 15, 0.1)",
+                        border: "1px solid rgba(241, 196, 15, 0.3)",
+                        borderRadius: "4px",
+                        color: "#f1c40f",
+                        cursor: actionLoading === agent.agent_id ? "not-allowed" : "pointer",
+                        opacity: actionLoading === agent.agent_id ? 0.5 : 1,
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      Restart
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleStop(agent.agent_id)}
+                    disabled={actionLoading === agent.agent_id}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      background: "rgba(231, 76, 60, 0.1)",
+                      border: "1px solid rgba(231, 76, 60, 0.3)",
+                      borderRadius: "4px",
+                      color: "#e74c3c",
+                      cursor: actionLoading === agent.agent_id ? "not-allowed" : "pointer",
+                      opacity: actionLoading === agent.agent_id ? 0.5 : 1,
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {agent.status === "running" ? "Stop" : "Remove"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
