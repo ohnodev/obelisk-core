@@ -1,0 +1,52 @@
+# Docker ignore file for obelisk-core
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Node modules (UI)
+ui/node_modules/
+ui/.next/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data
+memory/
+cycles/
+default/
+users/
+weights/
+lora_output/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (don't include in context)
+docker/workflows/
