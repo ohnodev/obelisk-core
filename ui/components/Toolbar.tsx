@@ -234,9 +234,22 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
               // Ignore polling errors
             }
           }, 1000); // Poll more frequently for smoother updates
+        } else {
+          // Server returned error - show to user
+          const errorData = await response.json().catch(() => ({}));
+          const errorMsg = errorData.detail || `Server returned ${response.status}`;
+          alert(`Failed to start workflow: ${errorMsg}`);
         }
       } catch (error) {
-        console.error("Failed to start workflow:", error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        alert(`Failed to start workflow: ${errorMsg}`);
+        // Clean up state on error
+        setIsRunning(false);
+        setRunningWorkflowId(null);
+        if (statusPollRef.current) {
+          clearInterval(statusPollRef.current);
+          statusPollRef.current = null;
+        }
       }
     }
   };

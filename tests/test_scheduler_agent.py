@@ -32,9 +32,8 @@ def test_scheduler_basic_agent():
         print(f"   Tick #{result.get('tick', '?')}")
         print(f"   Success: {result.get('success', False)}")
         print(f"   Executed nodes: {result.get('executed_nodes', [])}")
-        if result.get('outputs'):
-            for node_id, outputs in result['outputs'].items():
-                print(f"   Node {node_id} output: {outputs}")
+        for node_id, outputs in result.get('outputs', {}).items():
+            print(f"   Node {node_id} output: {outputs}")
         if result.get('error'):
             print(f"   Error: {result['error']}")
         tick_results.append(result)
