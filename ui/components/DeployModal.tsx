@@ -86,7 +86,8 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
         justifyContent: "center",
         zIndex: 1000,
       }}
-      onClick={() => !isDeploying && onClose()}
+      onMouseDown={() => !isDeploying && onClose()}
+      onTouchStart={() => !isDeploying && onClose()}
     >
       <div
         style={{
@@ -98,10 +99,34 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
           maxHeight: "80vh",
           overflow: "auto",
           border: "1px solid rgba(255, 255, 255, 0.1)",
+          position: "relative",
         }}
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        <h2 style={{ margin: "0 0 1rem 0", color: "var(--color-text-primary, #fff)" }}>
+        {/* Close button */}
+        <button
+          onClick={() => !isDeploying && onClose()}
+          style={{
+            position: "absolute",
+            top: "1rem",
+            right: "1rem",
+            background: "transparent",
+            border: "none",
+            color: "var(--color-text-muted, #888)",
+            fontSize: "1.5rem",
+            cursor: isDeploying ? "not-allowed" : "pointer",
+            padding: "0.25rem",
+            lineHeight: 1,
+            opacity: isDeploying ? 0.5 : 1,
+          }}
+          disabled={isDeploying}
+          aria-label="Close modal"
+        >
+          ×
+        </button>
+
+        <h2 style={{ margin: "0 0 1rem 0", color: "var(--color-text-primary, #fff)", paddingRight: "2rem" }}>
           Deploy Agent
         </h2>
 
