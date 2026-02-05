@@ -32,9 +32,11 @@ class TextNode extends LGraphNode {
       (widget as any).value = (this.properties as any)?.text || "";
     }
     
-    this.size = [300, 200];
+    this.size = [300, 220];
     (this as any).type = "text";
     (this as any).resizable = true;
+    // Add extra space before widgets (below inputs)
+    (this as any).widgets_start_y = 70;
   }
   
   onPropertyChanged(name: string, value: any) {
