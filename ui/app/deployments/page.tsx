@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import RobotMaskIcon from "@/components/icons/RobotMaskIcon";
+import ConfirmModal from "@/components/ConfirmModal";
+import { useNotifications } from "@/components/Notification";
 
 interface Agent {
   agent_id: string;
@@ -28,6 +30,13 @@ export default function DeploymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    agentId: string;
+    agentName: string;
+    action: "stop" | "remove";
+  }>({ isOpen: false, agentId: "", agentName: "", action: "stop" });
+  const { showNotification, NotificationProvider } = useNotifications();
 
   const fetchData = useCallback(async () => {
     try {
@@ -68,10 +77,18 @@ export default function DeploymentsPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const handleStop = async (agentId: string) => {
-    if (!confirm(`Are you sure you want to stop agent "${agentId}"?`)) {
-      return;
-    }
+  const openStopConfirm = (agent: Agent) => {
+    setConfirmModal({
+      isOpen: true,
+      agentId: agent.agent_id,
+      agentName: agent.name,
+      action: agent.status === "running" ? "stop" : "remove",
+    });
+  };
+
+  const handleConfirmStop = async () => {
+    const { agentId } = confirmModal;
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
 
     setActionLoading(prev => ({ ...prev, [agentId]: true }));
     try {
@@ -84,9 +101,10 @@ export default function DeploymentsPage() {
         throw new Error(errorData.detail || "Failed to stop agent");
       }
 
+      showNotification("Agent stopped successfully", "success");
       await fetchData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to stop agent");
+      showNotification(err instanceof Error ? err.message : "Failed to stop agent", "error");
     } finally {
       setActionLoading(prev => ({ ...prev, [agentId]: false }));
     }
@@ -104,9 +122,10 @@ export default function DeploymentsPage() {
         throw new Error(errorData.detail || "Failed to restart agent");
       }
 
+      showNotification("Agent restarted successfully", "success");
       await fetchData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to restart agent");
+      showNotification(err instanceof Error ? err.message : "Failed to restart agent", "error");
     } finally {
       setActionLoading(prev => ({ ...prev, [agentId]: false }));
     }
@@ -320,7 +339,7 @@ export default function DeploymentsPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => handleStop(agent.agent_id)}
+                    onClick={() => openStopConfirm(agent)}
                     disabled={actionLoading[agent.agent_id] || false}
                     style={{
                       padding: "0.5rem 1rem",
@@ -341,6 +360,24 @@ export default function DeploymentsPage() {
           </div>
         )}
       </div>
+
+      {/* Confirm Stop Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.action === "stop" ? "Stop Agent" : "Remove Agent"}
+        message={`Are you sure you want to ${confirmModal.action} "${confirmModal.agentName}"? ${
+          confirmModal.action === "stop" 
+            ? "The agent will stop running and can be removed."
+            : "This will permanently remove the agent."
+        }`}
+        confirmText={confirmModal.action === "stop" ? "Stop Agent" : "Remove"}
+        confirmStyle="danger"
+        onConfirm={handleConfirmStop}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Notifications */}
+      <NotificationProvider />
     </div>
   );
 }
