@@ -1,0 +1,45 @@
+# Docker Compose for local agent development
+# Usage: docker-compose up --build
+
+version: '3.8'
+
+services:
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: obelisk-agent-dev
+    environment:
+      # Pass workflow as JSON (or mount workflow.json file instead)
+      # WORKFLOW_JSON: '{"id": "test", "nodes": [...], "connections": [...]}'
+      
+      # Agent identification
+      AGENT_ID: dev-agent
+      AGENT_NAME: Development Agent
+      
+      # Logging
+      OBELISK_LOG_LEVEL: DEBUG
+      
+      # Custom variables (accessible in workflow as context.variables)
+      # OBELISK_VAR_USER_ID: dev_user
+      
+      # API keys (if needed by workflow nodes)
+      # OPENAI_API_KEY: ${OPENAI_API_KEY}
+      # TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      
+    volumes:
+      # Mount workflow file instead of using WORKFLOW_JSON env var
+      - ./workflows:/app/workflows:ro
+      
+      # Persist memory across restarts
+      - agent_memory:/app/memory
+      
+    # Resource limits
+    mem_limit: 512m
+    cpus: 0.5
+    
+    # Auto-restart on crash
+    restart: unless-stopped
+
+volumes:
+  agent_memory:

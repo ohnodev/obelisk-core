@@ -7,6 +7,9 @@ import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
 import StopIcon from "./icons/StopIcon";
+import DeployIcon from "./icons/DeployIcon";
+import AgentsIcon from "./icons/AgentsIcon";
+import DeployModal from "./DeployModal";
 
 interface ToolbarProps {
   onExecute?: (getGraph?: () => any) => void | Promise<void>;
@@ -14,14 +17,54 @@ interface ToolbarProps {
   onLoad?: (workflow: WorkflowGraph) => void;
   workflow?: WorkflowGraph;
   apiBaseUrl?: string;
+  deploymentApiUrl?: string;
 }
 
-export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUrl = "http://localhost:7779" }: ToolbarProps) {
+export default function Toolbar({ 
+  onExecute, 
+  onSave, 
+  onLoad, 
+  workflow, 
+  apiBaseUrl = "http://localhost:7779",
+  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8000"
+}: ToolbarProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
+  const [showDeployModal, setShowDeployModal] = useState(false);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastResultsVersionRef = useRef<number>(0);
+
+  const handleDeploy = async (name: string, envVars: Record<string, string>) => {
+    const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
+    if (!serializeWorkflow) {
+      throw new Error("Workflow serializer not available");
+    }
+    
+    const currentWorkflow = serializeWorkflow();
+    if (!currentWorkflow) {
+      throw new Error("No workflow to deploy");
+    }
+
+    const response = await fetch(`${deploymentApiUrl}/agents/deploy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        workflow: currentWorkflow,
+        name,
+        user_id: "ui_user",
+        env_vars: envVars,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `Server returned ${response.status}`);
+    }
+
+    const result = await response.json();
+    alert(`Agent deployed successfully!\n\nAgent ID: ${result.agent_id}\nStatus: ${result.status}`);
+  };
 
   const handleExecute = async () => {
     setIsExecuting(true);
@@ -333,9 +376,79 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
           <LoadIcon />
           <span>Load</span>
         </button>
+
+        {/* Deployments Link */}
+        <a
+          href="/deployments"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 0.75rem",
+            background: "var(--color-button-secondary-bg)",
+            color: "var(--color-button-secondary-text)",
+            border: "1px solid var(--color-button-secondary-border)",
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
+            e.currentTarget.style.borderColor = "var(--color-border-hover)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
+            e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
+          }}
+        >
+          <AgentsIcon />
+          <span>Agents</span>
+        </a>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        {/* Deploy button */}
+        <button
+          onClick={() => setShowDeployModal(true)}
+          disabled={!workflow}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 1rem",
+            background: "rgba(46, 204, 113, 0.08)",
+            color: "#2ecc71",
+            border: "1px solid rgba(46, 204, 113, 0.25)",
+            borderRadius: "4px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.875rem",
+            fontWeight: 500,
+            cursor: workflow ? "pointer" : "not-allowed",
+            transition: "all 0.2s ease",
+            boxShadow: "0 2px 6px rgba(46, 204, 113, 0.15)",
+            opacity: workflow ? 1 : 0.5,
+          }}
+          onMouseEnter={(e) => {
+            if (workflow) {
+              e.currentTarget.style.background = "rgba(46, 204, 113, 0.15)";
+              e.currentTarget.style.borderColor = "rgba(46, 204, 113, 0.4)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (workflow) {
+              e.currentTarget.style.background = "rgba(46, 204, 113, 0.08)";
+              e.currentTarget.style.borderColor = "rgba(46, 204, 113, 0.25)";
+            }
+          }}
+          title="Deploy workflow as persistent agent"
+        >
+          <DeployIcon />
+          <span>Deploy</span>
+        </button>
+
         {/* Run/Stop toggle for autonomous workflows */}
         <button
           onClick={handleRunToggle}
@@ -438,6 +551,14 @@ export default function Toolbar({ onExecute, onSave, onLoad, workflow, apiBaseUr
           <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
         </button>
       </div>
+
+      {/* Deploy Modal */}
+      <DeployModal
+        isOpen={showDeployModal}
+        onClose={() => setShowDeployModal(false)}
+        onDeploy={handleDeploy}
+        workflowName={workflow?.name}
+      />
     </div>
   );
 }
