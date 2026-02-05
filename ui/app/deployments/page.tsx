@@ -26,7 +26,7 @@ export default function DeploymentsPage() {
   const [slots, setSlots] = useState<AgentSlots | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
   const fetchData = useCallback(async () => {
     try {
@@ -67,7 +67,7 @@ export default function DeploymentsPage() {
       return;
     }
 
-    setActionLoading(agentId);
+    setActionLoading(prev => ({ ...prev, [agentId]: true }));
     try {
       const response = await fetch(`${DEPLOYMENT_API}/agents/${agentId}`, {
         method: "DELETE",
@@ -82,12 +82,12 @@ export default function DeploymentsPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to stop agent");
     } finally {
-      setActionLoading(null);
+      setActionLoading(prev => ({ ...prev, [agentId]: false }));
     }
   };
 
   const handleRestart = async (agentId: string) => {
-    setActionLoading(agentId);
+    setActionLoading(prev => ({ ...prev, [agentId]: true }));
     try {
       const response = await fetch(`${DEPLOYMENT_API}/agents/${agentId}/restart`, {
         method: "POST",
@@ -102,7 +102,7 @@ export default function DeploymentsPage() {
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to restart agent");
     } finally {
-      setActionLoading(null);
+      setActionLoading(prev => ({ ...prev, [agentId]: false }));
     }
   };
 
@@ -296,15 +296,15 @@ export default function DeploymentsPage() {
                   {agent.status === "running" && (
                     <button
                       onClick={() => handleRestart(agent.agent_id)}
-                      disabled={actionLoading === agent.agent_id}
+                      disabled={actionLoading[agent.agent_id] || false}
                       style={{
                         padding: "0.5rem 1rem",
                         background: "rgba(241, 196, 15, 0.1)",
                         border: "1px solid rgba(241, 196, 15, 0.3)",
                         borderRadius: "4px",
                         color: "#f1c40f",
-                        cursor: actionLoading === agent.agent_id ? "not-allowed" : "pointer",
-                        opacity: actionLoading === agent.agent_id ? 0.5 : 1,
+                        cursor: (actionLoading[agent.agent_id] || false) ? "not-allowed" : "pointer",
+                        opacity: (actionLoading[agent.agent_id] || false) ? 0.5 : 1,
                         fontSize: "0.85rem",
                       }}
                     >
@@ -313,15 +313,15 @@ export default function DeploymentsPage() {
                   )}
                   <button
                     onClick={() => handleStop(agent.agent_id)}
-                    disabled={actionLoading === agent.agent_id}
+                    disabled={actionLoading[agent.agent_id] || false}
                     style={{
                       padding: "0.5rem 1rem",
                       background: "rgba(231, 76, 60, 0.1)",
                       border: "1px solid rgba(231, 76, 60, 0.3)",
                       borderRadius: "4px",
                       color: "#e74c3c",
-                      cursor: actionLoading === agent.agent_id ? "not-allowed" : "pointer",
-                      opacity: actionLoading === agent.agent_id ? 0.5 : 1,
+                      cursor: (actionLoading[agent.agent_id] || false) ? "not-allowed" : "pointer",
+                      opacity: (actionLoading[agent.agent_id] || false) ? 0.5 : 1,
                       fontSize: "0.85rem",
                     }}
                   >
