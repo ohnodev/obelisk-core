@@ -47,9 +47,14 @@ export default function DeploymentsPage() {
       if (slotsRes.ok) {
         const slotsData = await slotsRes.json();
         setSlots(slotsData);
+      } else {
+        // Clear stale slots data on failure
+        setSlots(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect to deployment service");
+      // Clear stale data on error
+      setSlots(null);
     } finally {
       setLoading(false);
     }
