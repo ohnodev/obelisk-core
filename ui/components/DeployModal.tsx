@@ -79,7 +79,7 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
         justifyContent: "center",
         zIndex: 1000,
       }}
-      onClick={onClose}
+      onClick={() => !isDeploying && onClose()}
     >
       <div
         style={{
