@@ -19,7 +19,7 @@ class MemoryCreatorNode extends LGraphNode {
     // user_id input - widget will render inline with this
     this.addInput("user_id", "string");
     // No outputs - saves directly to storage
-    this.size = [280, 260];
+    this.size = [300, 260];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;
     
@@ -47,7 +47,7 @@ class MemoryCreatorNode extends LGraphNode {
     
     this.addWidget(
       "number" as any,
-      "Summarize Threshold",
+      "Sum. Threshold",
       3,
       (value: number) => {
         this.setProperty("summarize_threshold", value);
@@ -142,7 +142,7 @@ class MemoryCreatorNode extends LGraphNode {
     if (widgets) {
       const widget = widgets.find((w: any) => {
         if (name === "user_id") return w.name === "user_id";
-        if (name === "summarize_threshold") return w.name === "Summarize Threshold";
+        if (name === "summarize_threshold") return w.name === "Sum. Threshold";
         if (name === "k") return w.name === "K (Buffer Size)";
         if (name === "cycle_id") return w.name === "Cycle ID";
         if (name === "quantum_seed") return w.name === "Quantum Seed";
