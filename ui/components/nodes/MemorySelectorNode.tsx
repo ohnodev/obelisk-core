@@ -13,13 +13,12 @@ class MemorySelectorNode extends LGraphNode {
     this.addInput("query", "string");
     this.addInput("storage_instance", "object");
     this.addInput("model", "object"); // From ModelLoaderNode
-    this.addInput("enable_recent_buffer", "boolean");
     this.addInput("k", "number");
     // user_id input - widget will render inline with this
     this.addInput("user_id", "string");
     this.addOutput("query", "string");
     this.addOutput("context", "object");
-    this.size = [240, 200];
+    this.size = [240, 180];
     (this as any).type = "memory_selector";
     (this as any).resizable = true;
     
