@@ -14,10 +14,10 @@ class MemoryCreatorNode extends LGraphNode {
     this.addInput("query", "string");
     this.addInput("response", "string");
     this.addInput("model", "object"); // From ModelLoaderNode
-    this.addInput("summarize_threshold", "number");
     this.addInput("previous_interactions", "array");
-    // user_id input - widget will render inline with this
+    // Inputs with linked widgets - at the end so they're closer to widget area
     this.addInput("user_id", "string");
+    this.addInput("summarize_threshold", "number");
     // No outputs - saves directly to storage
     this.size = [300, 260];
     (this as any).type = "memory_creator";
@@ -36,7 +36,6 @@ class MemoryCreatorNode extends LGraphNode {
       "user_id",
       "",
       (value: string) => {
-        // Only update if not connected
         const inputIndex = this.inputs.findIndex((i: any) => i.name === "user_id");
         if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
         this.setProperty("user_id", value);
@@ -45,15 +44,19 @@ class MemoryCreatorNode extends LGraphNode {
     );
     (this as any)._user_id_widget = user_id_widget;
     
-    this.addWidget(
+    // Add summarize_threshold widget linked to the input slot
+    const threshold_widget = this.addWidget(
       "number" as any,
-      "Sum. Threshold",
+      "summarize_threshold",
       3,
       (value: number) => {
+        const inputIndex = this.inputs.findIndex((i: any) => i.name === "summarize_threshold");
+        if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
         this.setProperty("summarize_threshold", value);
       },
-      { serialize: true, min: 1, max: 100, step: 1 } as any
+      { serialize: true, min: 1, max: 100, step: 1, property: "summarize_threshold" } as any
     );
+    (this as any)._threshold_widget = threshold_widget;
     
     this.addWidget(
       "number" as any,
@@ -87,18 +90,22 @@ class MemoryCreatorNode extends LGraphNode {
   }
 
   onConnectionsChange(type: number, slot: number, isConnected: boolean) {
-    // Check if user_id input connection changed
     const userIdIndex = this.inputs.findIndex((i: any) => i.name === "user_id");
+    const thresholdIndex = this.inputs.findIndex((i: any) => i.name === "summarize_threshold");
+    
     if (slot === userIdIndex) {
-      this.updateUserIdWidgetState();
+      this.updateWidgetState("user_id", "_user_id_widget");
+    }
+    if (slot === thresholdIndex) {
+      this.updateWidgetState("summarize_threshold", "_threshold_widget");
     }
   }
 
-  updateUserIdWidgetState() {
-    const inputIndex = this.inputs.findIndex((i: any) => i.name === "user_id");
+  updateWidgetState(inputName: string, widgetRef: string) {
+    const inputIndex = this.inputs.findIndex((i: any) => i.name === inputName);
     const isConnected = inputIndex !== -1 && !!(this.inputs[inputIndex] as any).link;
     
-    const widget = (this as any)._user_id_widget;
+    const widget = (this as any)[widgetRef];
     if (widget) {
       widget.disabled = isConnected;
       (widget as any)._connected = isConnected;
@@ -109,7 +116,8 @@ class MemoryCreatorNode extends LGraphNode {
   }
 
   onAdded() {
-    this.updateUserIdWidgetState();
+    this.updateWidgetState("user_id", "_user_id_widget");
+    this.updateWidgetState("summarize_threshold", "_threshold_widget");
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
@@ -120,17 +128,19 @@ class MemoryCreatorNode extends LGraphNode {
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
 
-    // Draw disabled overlay on user_id widget when connected
-    const widget = (this as any)._user_id_widget;
-    if (widget && widget._connected && widget.last_y !== undefined) {
-      ctx.fillStyle = "rgba(60, 60, 80, 0.7)";
-      ctx.fillRect(60, widget.last_y, this.size[0] - 70, 20);
-      
-      // Draw "connected" indicator
-      ctx.fillStyle = "rgba(187, 154, 247, 0.8)";
-      ctx.font = "10px sans-serif";
-      ctx.fillText("← connected", 65, widget.last_y + 14);
-    }
+    // Draw disabled overlay on widgets when connected
+    const drawConnectedOverlay = (widget: any) => {
+      if (widget && widget._connected && widget.last_y !== undefined) {
+        ctx.fillStyle = "rgba(60, 60, 80, 0.7)";
+        ctx.fillRect(60, widget.last_y, this.size[0] - 70, 20);
+        ctx.fillStyle = "rgba(187, 154, 247, 0.8)";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("← connected", 65, widget.last_y + 14);
+      }
+    };
+
+    drawConnectedOverlay((this as any)._user_id_widget);
+    drawConnectedOverlay((this as any)._threshold_widget);
   }
 
   onExecute() {
@@ -142,7 +152,7 @@ class MemoryCreatorNode extends LGraphNode {
     if (widgets) {
       const widget = widgets.find((w: any) => {
         if (name === "user_id") return w.name === "user_id";
-        if (name === "summarize_threshold") return w.name === "Sum. Threshold";
+        if (name === "summarize_threshold") return w.name === "summarize_threshold";
         if (name === "k") return w.name === "K (Buffer Size)";
         if (name === "cycle_id") return w.name === "Cycle ID";
         if (name === "quantum_seed") return w.name === "Quantum Seed";
