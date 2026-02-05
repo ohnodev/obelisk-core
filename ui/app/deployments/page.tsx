@@ -19,7 +19,7 @@ interface AgentSlots {
   slots_available: number;
 }
 
-const DEPLOYMENT_API = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8000";
+const DEPLOYMENT_API = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090";
 
 export default function DeploymentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);

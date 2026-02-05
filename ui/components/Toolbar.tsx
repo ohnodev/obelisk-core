@@ -26,7 +26,7 @@ export default function Toolbar({
   onLoad, 
   workflow, 
   apiBaseUrl = "http://localhost:7779",
-  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8000"
+  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090"
 }: ToolbarProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
