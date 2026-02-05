@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import RobotMaskIcon from "@/components/icons/RobotMaskIcon";
 
 interface Agent {
   agent_id: string;
@@ -213,7 +214,9 @@ export default function DeploymentsPage() {
               border: "1px dashed rgba(255, 255, 255, 0.1)",
             }}
           >
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🤖</div>
+            <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "center" }}>
+              <RobotMaskIcon size={72} color="#2ecc71" />
+            </div>
             <h2 style={{ margin: "0 0 0.5rem 0", fontWeight: 500 }}>No agents deployed</h2>
             <p style={{ color: "var(--color-text-muted, #888)", margin: "0 0 1.5rem 0" }}>
               Deploy your first agent from the workflow editor
