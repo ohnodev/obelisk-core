@@ -10,6 +10,7 @@ import StopIcon from "./icons/StopIcon";
 import DeployIcon from "./icons/DeployIcon";
 import AgentsIcon from "./icons/AgentsIcon";
 import DeployModal from "./DeployModal";
+import { useNotifications } from "./Notification";
 
 interface ToolbarProps {
   onExecute?: (getGraph?: () => any) => void | Promise<void>;
@@ -26,7 +27,7 @@ export default function Toolbar({
   onLoad, 
   workflow, 
   apiBaseUrl = "http://localhost:7779",
-  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8000"
+  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090"
 }: ToolbarProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -34,6 +35,7 @@ export default function Toolbar({
   const [showDeployModal, setShowDeployModal] = useState(false);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastResultsVersionRef = useRef<number>(0);
+  const { showNotification, NotificationProvider } = useNotifications();
 
   const handleDeploy = async (name: string, envVars: Record<string, string>) => {
     const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
@@ -63,7 +65,7 @@ export default function Toolbar({
     }
 
     const result = await response.json();
-    alert(`Agent deployed successfully!\n\nAgent ID: ${result.agent_id}\nStatus: ${result.status}`);
+    showNotification(`Agent deployed successfully! ID: ${result.agent_id}`, "success", 6000);
   };
 
   const handleExecute = async () => {
@@ -178,7 +180,7 @@ export default function Toolbar({
           // Server returned error - refresh UI state
           const errorData = await response.json().catch(() => ({}));
           const errorMsg = errorData.detail || `Server returned ${response.status}`;
-          alert(`Failed to stop workflow: ${errorMsg}`);
+          showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
           // Resync UI state by checking actual server status
           try {
             const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${runningWorkflowId}`);
@@ -198,7 +200,7 @@ export default function Toolbar({
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        alert(`Failed to stop workflow: ${errorMsg}`);
+        showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
         // Resync UI state - assume stopped if we can't reach server
         setIsRunning(false);
         setRunningWorkflowId(null);
@@ -281,11 +283,11 @@ export default function Toolbar({
           // Server returned error - show to user
           const errorData = await response.json().catch(() => ({}));
           const errorMsg = errorData.detail || `Server returned ${response.status}`;
-          alert(`Failed to start workflow: ${errorMsg}`);
+          showNotification(`Failed to start workflow: ${errorMsg}`, "error");
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        alert(`Failed to start workflow: ${errorMsg}`);
+        showNotification(`Failed to start workflow: ${errorMsg}`, "error");
         // Clean up state on error
         setIsRunning(false);
         setRunningWorkflowId(null);
@@ -559,6 +561,9 @@ export default function Toolbar({
         onDeploy={handleDeploy}
         workflowName={workflow?.name}
       />
+
+      {/* Notifications */}
+      <NotificationProvider />
     </div>
   );
 }
