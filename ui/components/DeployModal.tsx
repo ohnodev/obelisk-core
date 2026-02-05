@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface DeployModalProps {
   isOpen: boolean;
@@ -16,6 +17,12 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
   ]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure we only render portal on client side
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset state when modal is opened to ensure fresh state
   useEffect(() => {
@@ -27,7 +34,7 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
     }
   }, [isOpen, workflowName]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleAddEnvVar = () => {
     setEnvVars([...envVars, { key: "", value: "" }]);
@@ -65,7 +72,7 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
     }
   };
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: "fixed",
@@ -250,4 +257,6 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
