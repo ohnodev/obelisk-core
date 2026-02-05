@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface DeployModalProps {
   isOpen: boolean;
@@ -16,6 +16,16 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
   ]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset state when modal is opened to ensure fresh state
+  useEffect(() => {
+    if (isOpen) {
+      setName(workflowName ?? "My Agent");
+      setEnvVars([{ key: "", value: "" }]);
+      setError(null);
+      setIsDeploying(false);
+    }
+  }, [isOpen, workflowName]);
 
   if (!isOpen) return null;
 
