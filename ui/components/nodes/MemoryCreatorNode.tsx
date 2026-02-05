@@ -15,11 +15,10 @@ class MemoryCreatorNode extends LGraphNode {
     this.addInput("response", "string");
     this.addInput("user_id", "string");
     this.addInput("model", "object"); // From ModelLoaderNode
-    this.addInput("llm", "object"); // Legacy/direct input (optional: LLM for summarization)
     this.addInput("summarize_threshold", "number");
     this.addInput("previous_interactions", "array"); // Optional: Previous interactions for summarization
     // No outputs - saves directly to storage
-    this.size = [280, 250];
+    this.size = [280, 230];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;
     

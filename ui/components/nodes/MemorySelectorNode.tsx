@@ -14,12 +14,11 @@ class MemorySelectorNode extends LGraphNode {
     this.addInput("storage_instance", "object");
     this.addInput("user_id", "string");
     this.addInput("model", "object"); // From ModelLoaderNode
-    this.addInput("llm", "object"); // Legacy/direct input
     this.addInput("enable_recent_buffer", "boolean");
     this.addInput("k", "number");
     this.addOutput("query", "string"); // Pass through original query for cleaner flow
     this.addOutput("context", "object"); // Output to Inference node's context input
-    this.size = [240, 200];
+    this.size = [240, 180];
     (this as any).type = "memory_selector";
     (this as any).resizable = true;
     
