@@ -106,6 +106,16 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
+    name: "Logic",
+    nodes: [
+      {
+        type: "binary_intent",
+        title: "Binary Intent",
+        description: "Classifies text as yes/no based on intent criteria",
+      },
+    ],
+  },
+  {
     name: "Integrations",
     nodes: [
       {
