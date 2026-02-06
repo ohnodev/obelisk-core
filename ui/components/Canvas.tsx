@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
+import MobileControls from "./MobileControls";
 // LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {
@@ -219,6 +220,17 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     // Handle double-click to show node menu (instead of LiteGraph's widget popover)
     const handleCanvasDoubleClick = (e: MouseEvent) => {
+      // Check if touch handler is active (set by touch-handler.js extension)
+      const canvasInstance = canvasInstanceRef.current;
+      if (canvasInstance && canvasInstance._touchState?.isTouchDevice) {
+        const timeSinceTouch = Date.now() - (canvasInstance._touchState.lastTouchTime || 0);
+        if (timeSinceTouch < 500) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+      
       e.preventDefault();
       e.stopPropagation();
       // Use screen coordinates for menu position (NodeMenu uses position: fixed)
@@ -342,6 +354,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
       canvasElement.removeEventListener("dblclick", handleCanvasDoubleClick);
+      // Touch event listeners are now handled by touch-handler.js via litegraph.unbindEvents()
       graph.stop();
       // Clear global references when component unmounts
       (window as any).__obeliskGraph = undefined;
@@ -371,6 +384,43 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
         node.pos = [nodeMenuPosition.x, nodeMenuPosition.y];
       }
       graphRef.current.add(node);
+    }
+  };
+
+  // Mobile controls handlers
+  const handleMobileAddNode = () => {
+    // Open node menu at center of screen
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    // Store canvas coordinates for node placement
+    if (canvasInstanceRef.current) {
+      const canvasPos = canvasInstanceRef.current.convertOffsetToCanvas([centerX, centerY]);
+      (canvasInstanceRef.current as any)._lastRightClickCanvasPos = canvasPos;
+    }
+    
+    setNodeMenuPosition({ x: centerX, y: centerY });
+    setNodeMenuVisible(true);
+  };
+
+  const handleMobileDeleteSelected = () => {
+    if (!graphRef.current || !canvasInstanceRef.current) return;
+    
+    const canvas = canvasInstanceRef.current;
+    const selectedNodes = canvas.selected_nodes;
+    
+    if (selectedNodes && Object.keys(selectedNodes).length > 0) {
+      // Delete all selected nodes
+      for (const nodeId in selectedNodes) {
+        const node = selectedNodes[nodeId];
+        if (node) {
+          graphRef.current.remove(node);
+        }
+      }
+      // Clear selection
+      canvas.deselectAllNodes();
+      canvas.dirty_canvas = true;
+      canvas.dirty_bgcanvas = true;
     }
   };
 
@@ -404,6 +454,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
         y={nodeMenuPosition.y}
         onClose={() => setNodeMenuVisible(false)}
         onNodeSelect={handleNodeSelect}
+      />
+      <MobileControls
+        onAddNode={handleMobileAddNode}
+        onDeleteSelected={handleMobileDeleteSelected}
       />
     </>
   );

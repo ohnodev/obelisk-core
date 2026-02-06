@@ -12,6 +12,9 @@ import {
   Placement,
 } from "@floating-ui/react";
 
+// Mobile breakpoint - single breakpoint across the app
+const MOBILE_BREAKPOINT = 1200;
+
 interface NodeMenuProps {
   visible: boolean;
   x: number;
@@ -87,16 +90,56 @@ const NODE_CATEGORIES: NodeCategory[] = [
       },
     ],
   },
+  {
+    name: "Automation",
+    nodes: [
+      {
+        type: "scheduler",
+        title: "Scheduler",
+        description: "Triggers nodes at random intervals (autonomous execution)",
+      },
+    ],
+  },
+  {
+    name: "Integrations",
+    nodes: [
+      {
+        type: "telegram_bot",
+        title: "Telegram Bot",
+        description: "Sends messages to Telegram groups/channels",
+      },
+    ],
+  },
 ];
 
 export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeMenuProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
-  // Use Floating UI for smart positioning with virtual reference
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+  
+  // Focus input when menu opens
+  useEffect(() => {
+    if (visible && inputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [visible]);
+  
+  // Use Floating UI for smart positioning with virtual reference (desktop only)
   const { refs, floatingStyles } = useFloating({
-    open: visible,
+    open: visible && !isMobile,
     placement: "bottom-start" as Placement,
     middleware: [
       offset(8), // 8px gap from click position
@@ -118,9 +161,9 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
     whileElementsMounted: autoUpdate,
   });
 
-  // Set virtual reference position using setPositionReference
+  // Set virtual reference position using setPositionReference (desktop only)
   useEffect(() => {
-    if (visible) {
+    if (visible && !isMobile) {
       refs.setPositionReference({
         getBoundingClientRect: () => ({
           x,
@@ -134,7 +177,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
         }),
       });
     }
-  }, [visible, x, y, refs]);
+  }, [visible, x, y, refs, isMobile]);
 
   // Filter nodes based on search query
   const filteredCategories = NODE_CATEGORIES.map((category) => ({
@@ -202,6 +245,190 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
     onClose();
   };
 
+  // Mobile: Full screen bottom sheet style
+  if (isMobile) {
+    return (
+      <>
+        {/* Backdrop - prevent scroll propagation */}
+        <div
+          onClick={onClose}
+          onTouchMove={(e) => e.preventDefault()}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.6)",
+            zIndex: 9999,
+            touchAction: "none", // Prevent touch scroll on backdrop
+          }}
+        />
+        {/* Menu */}
+        <div
+          ref={menuRef}
+          onTouchMove={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: "60px", // Below toolbar
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "var(--color-bg-card)",
+            zIndex: 10000,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            fontFamily: "var(--font-body)",
+            borderTopLeftRadius: "16px",
+            borderTopRightRadius: "16px",
+            animation: "slideUp 0.2s ease-out",
+            overscrollBehavior: "contain", // Prevent scroll chaining
+          }}
+        >
+          {/* Header with close - no scroll here */}
+          <div
+            onTouchMove={(e) => e.preventDefault()}
+            style={{
+              padding: "1rem",
+              borderBottom: "1px solid var(--color-border-primary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexShrink: 0, // Don't shrink header
+              touchAction: "none", // No scroll on header
+            }}
+          >
+            <span style={{ fontWeight: 600, fontSize: "1.1rem", color: "var(--color-text-primary)" }}>
+              Add Node
+            </span>
+            <button
+              onClick={onClose}
+              aria-label="Close menu"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "36px",
+                height: "36px",
+                padding: 0,
+                background: "var(--color-button-secondary-bg)",
+                border: "1px solid var(--color-border-primary)",
+                borderRadius: "50%",
+                cursor: "pointer",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Search bar - no scroll */}
+          <div 
+            onTouchMove={(e) => e.preventDefault()}
+            style={{ 
+              padding: "0.75rem 1rem",
+              flexShrink: 0,
+              touchAction: "none",
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search nodes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "0.75rem 1rem",
+                background: "var(--color-input-bg)",
+                border: "1px solid var(--color-input-border)",
+                borderRadius: "8px",
+                color: "var(--color-input-text)",
+                fontFamily: "var(--font-body)",
+                fontSize: "16px", // Must be 16px+ to prevent iOS Safari auto-zoom
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filteredCategories.length > 0 && filteredCategories[0].nodes.length > 0) {
+                  handleNodeClick(filteredCategories[0].nodes[0].type);
+                }
+              }}
+            />
+          </div>
+
+          {/* Node list - ONLY this area scrolls */}
+          <div 
+            style={{ 
+              flex: 1, 
+              overflowY: "auto", 
+              padding: "0 1rem 1rem",
+              overscrollBehavior: "contain", // Prevent scroll chaining to parent
+              WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
+            }}
+          >
+            {filteredCategories.map((category) => (
+              <div key={category.name} style={{ marginBottom: "1rem" }}>
+                <div
+                  style={{
+                    padding: "0.75rem 0",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    color: "var(--color-text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    borderBottom: "1px solid var(--color-border-tertiary)",
+                  }}
+                >
+                  {category.name}
+                </div>
+                {category.nodes.map((node) => (
+                  <button
+                    key={node.type}
+                    onClick={() => handleNodeClick(node.type)}
+                    style={{
+                      padding: "1rem",
+                      margin: "0.5rem 0",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      background: "var(--color-button-secondary-bg)",
+                      border: "1px solid var(--color-border-primary)",
+                      width: "100%",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <div style={{ fontSize: "1rem", fontWeight: 500, color: "var(--color-text-primary)", marginBottom: "0.25rem" }}>
+                      {node.title}
+                    </div>
+                    {node.description && (
+                      <div style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+                        {node.description}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {filteredCategories.length === 0 && (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--color-text-muted)" }}>
+                No nodes found
+              </div>
+            )}
+          </div>
+        </div>
+        <style>{`
+          @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
+        `}</style>
+      </>
+    );
+  }
+
+  // Desktop: Floating UI positioning
   return (
     <div
       ref={(node) => {
@@ -236,11 +463,11 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
         }}
       >
         <input
+          ref={inputRef}
           type="text"
           placeholder="Search nodes..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          autoFocus
           style={{
             flex: 1,
             padding: "0.5rem",

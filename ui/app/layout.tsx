@@ -71,6 +71,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#000000" />
         <script src="/lib/litegraph/litegraph.js"></script>
         <script src="/lib/litegraph-widgets/textarea-widget.js"></script>
+        <script src="/lib/litegraph-widgets/touch-handler.js"></script>
       </head>
       <body>
         {children}
