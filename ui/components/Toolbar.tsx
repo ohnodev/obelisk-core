@@ -3,22 +3,26 @@
 import { useState, useEffect, useRef } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { updateNodeOutputs } from "@/lib/workflow-execution";
+import { getApiUrls } from "@/lib/api-config";
+import { getUserId } from "@/lib/user-id";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
 import StopIcon from "./icons/StopIcon";
 import DeployIcon from "./icons/DeployIcon";
 import AgentsIcon from "./icons/AgentsIcon";
+import HamburgerIcon from "./icons/HamburgerIcon";
 import DeployModal from "./DeployModal";
 import { useNotifications } from "./Notification";
+
+// Single breakpoint for responsive design
+const MOBILE_BREAKPOINT = 1200;
 
 interface ToolbarProps {
   onExecute?: (getGraph?: () => any) => void | Promise<void>;
   onSave?: (workflow: WorkflowGraph) => void;
   onLoad?: (workflow: WorkflowGraph) => void;
   workflow?: WorkflowGraph;
-  apiBaseUrl?: string;
-  deploymentApiUrl?: string;
 }
 
 export default function Toolbar({ 
@@ -26,16 +30,33 @@ export default function Toolbar({
   onSave, 
   onLoad, 
   workflow, 
-  apiBaseUrl = "http://localhost:7779",
-  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090"
 }: ToolbarProps) {
+  // Get API URLs based on dev/prod mode
+  const { coreApi: apiBaseUrl, serviceApi: deploymentApiUrl } = getApiUrls();
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
   const [showDeployModal, setShowDeployModal] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastResultsVersionRef = useRef<number>(0);
   const { showNotification, NotificationProvider } = useNotifications();
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+      // Close menu when switching to desktop
+      if (window.innerWidth >= MOBILE_BREAKPOINT) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleDeploy = async (name: string, envVars: Record<string, string>) => {
     const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
@@ -54,7 +75,7 @@ export default function Toolbar({
       body: JSON.stringify({
         workflow: currentWorkflow,
         name,
-        user_id: "ui_user",
+        user_id: getUserId(),
         env_vars: envVars,
       }),
     });
@@ -230,7 +251,7 @@ export default function Toolbar({
           body: JSON.stringify({
             workflow: currentWorkflow,
             options: {
-              user_id: "ui_user",
+              user_id: getUserId(),
             },
           }),
         });
@@ -299,260 +320,303 @@ export default function Toolbar({
     }
   };
 
+  // Button style helpers
+  const secondaryButtonStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.5rem 0.75rem",
+    background: "var(--color-button-secondary-bg)",
+    color: "var(--color-button-secondary-text)",
+    border: "1px solid var(--color-button-secondary-border)",
+    borderRadius: "4px",
+    fontFamily: "var(--font-body)",
+    fontSize: "0.875rem",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    width: isMobile ? "100%" : "auto",
+    justifyContent: isMobile ? "flex-start" : "center",
+  } as React.CSSProperties;
+
+  const mobileMenuStyle = {
+    position: "absolute" as const,
+    top: "100%",
+    left: 0,
+    right: 0,
+    background: "rgba(15, 20, 25, 0.98)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+    padding: "1rem",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "0.75rem",
+    zIndex: 100,
+    animation: "slideDown 0.2s ease",
+  };
+
+  // Render menu items (reusable for both desktop and mobile)
+  const renderLeftButtons = () => (
+    <>
+      <button
+        onClick={() => { handleSave(); setIsMobileMenuOpen(false); }}
+        disabled={!workflow}
+        style={{
+          ...secondaryButtonStyle,
+          cursor: workflow ? "pointer" : "not-allowed",
+          opacity: workflow ? 1 : 0.5,
+        }}
+      >
+        <SaveIcon />
+        <span>Save</span>
+      </button>
+
+      <button
+        onClick={() => { handleLoad(); setIsMobileMenuOpen(false); }}
+        style={secondaryButtonStyle}
+      >
+        <LoadIcon />
+        <span>Load</span>
+      </button>
+
+      <a
+        href="/deployments"
+        onClick={() => setIsMobileMenuOpen(false)}
+        style={{
+          ...secondaryButtonStyle,
+          textDecoration: "none",
+        }}
+      >
+        <AgentsIcon />
+        <span>Agents</span>
+      </a>
+    </>
+  );
+
+  const renderRightButtons = () => (
+    <>
+      <button
+        onClick={() => { setShowDeployModal(true); setIsMobileMenuOpen(false); }}
+        disabled={!workflow}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.5rem 1rem",
+          background: "rgba(46, 204, 113, 0.08)",
+          color: "#2ecc71",
+          border: "1px solid rgba(46, 204, 113, 0.25)",
+          borderRadius: "4px",
+          fontFamily: "var(--font-body)",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          cursor: workflow ? "pointer" : "not-allowed",
+          transition: "all 0.2s ease",
+          boxShadow: "0 2px 6px rgba(46, 204, 113, 0.15)",
+          opacity: workflow ? 1 : 0.5,
+          width: isMobile ? "100%" : "auto",
+          justifyContent: isMobile ? "flex-start" : "center",
+        }}
+        title="Deploy workflow as persistent agent"
+      >
+        <DeployIcon />
+        <span>Deploy</span>
+      </button>
+
+      <button
+        onClick={() => { handleRunToggle(); setIsMobileMenuOpen(false); }}
+        disabled={isExecuting}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.5rem 1rem",
+          background: isRunning ? "rgba(231, 76, 60, 0.08)" : "rgba(155, 89, 182, 0.08)",
+          color: isRunning ? "#e74c3c" : "#9b59b6",
+          border: `1px solid ${isRunning ? "rgba(231, 76, 60, 0.25)" : "rgba(155, 89, 182, 0.25)"}`,
+          borderRadius: "4px",
+          fontFamily: "var(--font-body)",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          cursor: isExecuting ? "not-allowed" : "pointer",
+          transition: "all 0.2s ease",
+          boxShadow: isRunning ? "0 2px 6px rgba(231, 76, 60, 0.15)" : "0 2px 6px rgba(155, 89, 182, 0.15)",
+          opacity: isExecuting ? 0.5 : 1,
+          width: isMobile ? "100%" : "auto",
+          justifyContent: isMobile ? "flex-start" : "center",
+        }}
+        title={isRunning ? "Stop autonomous execution" : "Start autonomous execution"}
+      >
+        {isRunning ? <StopIcon /> : <PlayIcon />}
+        <span>{isRunning ? "Stop" : "Run"}</span>
+      </button>
+
+      <button
+        onClick={() => { handleExecute(); setIsMobileMenuOpen(false); }}
+        disabled={isExecuting || isRunning}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.5rem 1.25rem",
+          background: isExecuting || isRunning ? "var(--color-button-secondary-bg)" : "rgba(212, 175, 55, 0.08)",
+          color: isExecuting || isRunning ? "var(--color-text-muted)" : "var(--color-primary)",
+          border: `1px solid ${isExecuting || isRunning ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.25)"}`,
+          borderRadius: "4px",
+          fontFamily: "var(--font-body)",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          cursor: isExecuting || isRunning ? "not-allowed" : "pointer",
+          transition: "all 0.2s ease",
+          boxShadow: isExecuting || isRunning ? "none" : "0 2px 6px rgba(212, 175, 55, 0.15)",
+          opacity: isRunning ? 0.5 : 1,
+          width: isMobile ? "100%" : "auto",
+          justifyContent: isMobile ? "flex-start" : "center",
+        }}
+        title="Execute workflow once"
+      >
+        <PlayIcon />
+        <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
+      </button>
+    </>
+  );
+
   return (
-    <div
-      className="toolbar"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0.5rem 1rem",
-        background: "rgba(15, 20, 25, 0.15)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
-        zIndex: 10,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <button
-          onClick={handleSave}
-          disabled={!workflow}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 0.75rem",
-            background: "var(--color-button-secondary-bg)",
-            color: "var(--color-button-secondary-text)",
-            border: "1px solid var(--color-button-secondary-border)",
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            cursor: workflow ? "pointer" : "not-allowed",
-            transition: "all 0.2s ease",
-            opacity: workflow ? 1 : 0.5,
-          }}
-          onMouseEnter={(e) => {
-            if (workflow) {
-              e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
-              e.currentTarget.style.borderColor = "var(--color-border-hover)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (workflow) {
-              e.currentTarget.style.background = "var(--color-button-secondary-bg)";
-              e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
-            }
-          }}
-        >
-          <SaveIcon />
-          <span>Save</span>
-        </button>
+    <>
+      {/* CSS for animation */}
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
-        <button
-          onClick={handleLoad}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 0.75rem",
-            background: "var(--color-button-secondary-bg)",
-            color: "var(--color-button-secondary-text)",
-            border: "1px solid var(--color-button-secondary-border)",
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
-            e.currentTarget.style.borderColor = "var(--color-border-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
-            e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
-          }}
-        >
-          <LoadIcon />
-          <span>Load</span>
-        </button>
+      <div
+        className="toolbar"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0.5rem 1rem",
+          background: "rgba(15, 20, 25, 0.15)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.05)",
+          zIndex: 10,
+          position: "relative",
+        }}
+      >
+        {/* Mobile: Hamburger menu */}
+        {isMobile ? (
+          <>
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0.5rem",
+                background: isMobileMenuOpen ? "rgba(212, 175, 55, 0.15)" : "transparent",
+                color: isMobileMenuOpen ? "var(--color-primary)" : "var(--color-text-primary)",
+                border: "1px solid transparent",
+                borderRadius: "4px",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              aria-label="Toggle menu"
+            >
+              <HamburgerIcon isOpen={isMobileMenuOpen} />
+            </button>
 
-        {/* Deployments Link */}
-        <a
-          href="/deployments"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 0.75rem",
-            background: "var(--color-button-secondary-bg)",
-            color: "var(--color-button-secondary-text)",
-            border: "1px solid var(--color-button-secondary-border)",
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            textDecoration: "none",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg-hover)";
-            e.currentTarget.style.borderColor = "var(--color-border-hover)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "var(--color-button-secondary-bg)";
-            e.currentTarget.style.borderColor = "var(--color-button-secondary-border)";
-          }}
-        >
-          <AgentsIcon />
-          <span>Agents</span>
-        </a>
+            {/* Mobile logo/title */}
+            <span style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "1rem",
+              color: "var(--color-primary)",
+              letterSpacing: "0.05em",
+            }}>
+              OBELISK
+            </span>
+
+            {/* Quick action button on mobile */}
+            <button
+              onClick={() => { handleExecute(); }}
+              disabled={isExecuting || isRunning}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0.5rem 0.75rem",
+                background: isExecuting || isRunning ? "var(--color-button-secondary-bg)" : "rgba(212, 175, 55, 0.15)",
+                color: isExecuting || isRunning ? "var(--color-text-muted)" : "var(--color-primary)",
+                border: `1px solid ${isExecuting || isRunning ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.3)"}`,
+                borderRadius: "4px",
+                cursor: isExecuting || isRunning ? "not-allowed" : "pointer",
+                transition: "all 0.2s ease",
+                opacity: isRunning ? 0.5 : 1,
+              }}
+              title="Execute workflow once"
+            >
+              <PlayIcon />
+            </button>
+          </>
+        ) : (
+          /* Desktop: Full toolbar */
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {renderLeftButtons()}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              {renderRightButtons()}
+            </div>
+          </>
+        )}
+
+        {/* Mobile dropdown menu */}
+        {isMobile && isMobileMenuOpen && (
+          <div style={mobileMenuStyle}>
+            <div style={{ 
+              borderBottom: "1px solid rgba(255, 255, 255, 0.1)", 
+              paddingBottom: "0.75rem",
+              marginBottom: "0.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}>
+              {renderLeftButtons()}
+            </div>
+            <div style={{ 
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+            }}>
+              {renderRightButtons()}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        {/* Deploy button */}
-        <button
-          onClick={() => setShowDeployModal(true)}
-          disabled={!workflow}
+      {/* Click outside to close mobile menu */}
+      {isMobile && isMobileMenuOpen && (
+        <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 1rem",
-            background: "rgba(46, 204, 113, 0.08)",
-            color: "#2ecc71",
-            border: "1px solid rgba(46, 204, 113, 0.25)",
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            cursor: workflow ? "pointer" : "not-allowed",
-            transition: "all 0.2s ease",
-            boxShadow: "0 2px 6px rgba(46, 204, 113, 0.15)",
-            opacity: workflow ? 1 : 0.5,
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 5,
           }}
-          onMouseEnter={(e) => {
-            if (workflow) {
-              e.currentTarget.style.background = "rgba(46, 204, 113, 0.15)";
-              e.currentTarget.style.borderColor = "rgba(46, 204, 113, 0.4)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (workflow) {
-              e.currentTarget.style.background = "rgba(46, 204, 113, 0.08)";
-              e.currentTarget.style.borderColor = "rgba(46, 204, 113, 0.25)";
-            }
-          }}
-          title="Deploy workflow as persistent agent"
-        >
-          <DeployIcon />
-          <span>Deploy</span>
-        </button>
-
-        {/* Run/Stop toggle for autonomous workflows */}
-        <button
-          onClick={handleRunToggle}
-          disabled={isExecuting}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 1rem",
-            background: isRunning
-              ? "rgba(231, 76, 60, 0.08)"
-              : "rgba(155, 89, 182, 0.08)",
-            color: isRunning
-              ? "#e74c3c"
-              : "#9b59b6",
-            border: `1px solid ${isRunning ? "rgba(231, 76, 60, 0.25)" : "rgba(155, 89, 182, 0.25)"}`,
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            cursor: isExecuting ? "not-allowed" : "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: isRunning
-              ? "0 2px 6px rgba(231, 76, 60, 0.15)"
-              : "0 2px 6px rgba(155, 89, 182, 0.15)",
-            opacity: isExecuting ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (!isExecuting) {
-              if (isRunning) {
-                e.currentTarget.style.background = "rgba(231, 76, 60, 0.15)";
-                e.currentTarget.style.borderColor = "rgba(231, 76, 60, 0.4)";
-              } else {
-                e.currentTarget.style.background = "rgba(155, 89, 182, 0.15)";
-                e.currentTarget.style.borderColor = "rgba(155, 89, 182, 0.4)";
-              }
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isExecuting) {
-              if (isRunning) {
-                e.currentTarget.style.background = "rgba(231, 76, 60, 0.08)";
-                e.currentTarget.style.borderColor = "rgba(231, 76, 60, 0.25)";
-              } else {
-                e.currentTarget.style.background = "rgba(155, 89, 182, 0.08)";
-                e.currentTarget.style.borderColor = "rgba(155, 89, 182, 0.25)";
-              }
-            }
-          }}
-          title={isRunning ? "Stop autonomous execution" : "Start autonomous execution"}
-        >
-          {isRunning ? <StopIcon /> : <PlayIcon />}
-          <span>{isRunning ? "Stop" : "Run"}</span>
-        </button>
-
-        {/* Execute once button */}
-        <button
-          onClick={handleExecute}
-          disabled={isExecuting || isRunning}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 1.25rem",
-            background: isExecuting || isRunning
-              ? "var(--color-button-secondary-bg)"
-              : "rgba(212, 175, 55, 0.08)",
-            color: isExecuting || isRunning
-              ? "var(--color-text-muted)"
-              : "var(--color-primary)",
-            border: `1px solid ${isExecuting || isRunning ? "var(--color-border-primary)" : "rgba(212, 175, 55, 0.25)"}`,
-            borderRadius: "4px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-            cursor: isExecuting || isRunning ? "not-allowed" : "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: isExecuting || isRunning
-              ? "none"
-              : "0 2px 6px rgba(212, 175, 55, 0.15)",
-            opacity: isRunning ? 0.5 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (!isExecuting && !isRunning) {
-              e.currentTarget.style.background = "rgba(212, 175, 55, 0.15)";
-              e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.4)";
-              e.currentTarget.style.boxShadow = "0 3px 10px rgba(212, 175, 55, 0.2)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isExecuting && !isRunning) {
-              e.currentTarget.style.background = "rgba(212, 175, 55, 0.08)";
-              e.currentTarget.style.borderColor = "rgba(212, 175, 55, 0.25)";
-              e.currentTarget.style.boxShadow = "0 2px 6px rgba(212, 175, 55, 0.15)";
-            }
-          }}
-          title="Execute workflow once"
-        >
-          <PlayIcon />
-          <span>{isExecuting ? "Executing..." : "Queue Prompt"}</span>
-        </button>
-      </div>
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Deploy Modal */}
       <DeployModal
@@ -564,6 +628,6 @@ export default function Toolbar({
 
       {/* Notifications */}
       <NotificationProvider />
-    </div>
+    </>
   );
 }

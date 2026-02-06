@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import RobotMaskIcon from "@/components/icons/RobotMaskIcon";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useNotifications } from "@/components/Notification";
+import { getApiUrls } from "@/lib/api-config";
 
 interface Agent {
   agent_id: string;
@@ -22,9 +23,10 @@ interface AgentSlots {
   slots_available: number;
 }
 
-const DEPLOYMENT_API = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090";
-
 export default function DeploymentsPage() {
+  // Memoize API URL to ensure stable reference
+  const DEPLOYMENT_API = useMemo(() => getApiUrls().serviceApi, []);
+  
   const [agents, setAgents] = useState<Agent[]>([]);
   const [slots, setSlots] = useState<AgentSlots | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export default function DeploymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [DEPLOYMENT_API]);
 
   useEffect(() => {
     fetchData();

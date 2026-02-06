@@ -10,7 +10,10 @@ export interface ExecutionOptions {
 
 export interface ExecutionResult {
   execution_id?: string;
+  job_id?: string;
   status: "queued" | "running" | "completed" | "error";
+  position?: number;
+  queue_length?: number;
   results?: {
     [nodeId: string]: {
       outputs: Record<string, any>;
@@ -22,25 +25,44 @@ export interface ExecutionResult {
 }
 
 export interface ExecutionStatus {
-  execution_id: string;
-  status: "queued" | "running" | "completed" | "error";
-  progress?: {
-    current_node?: string;
-    completed_nodes?: string[];
-    total_nodes?: number;
-  };
-  results?: ExecutionResult["results"];
-  error?: string;
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  position?: number | null;
+  queue_length: number;
+  created_at: number;
+  started_at?: number | null;
+  completed_at?: number | null;
+  has_result: boolean;
+  error?: string | null;
 }
 
+export interface QueueInfo {
+  queue_length: number;
+  current_job: string | null;
+  is_processing: boolean;
+  total_jobs: number;
+}
+
+// Callback for progress updates during execution
+export type ProgressCallback = (status: ExecutionStatus) => void;
+
 /**
- * Executes a workflow by serializing it and sending to backend
- * Follows ComfyUI-style execution pattern
+ * Executes a workflow using the queue-based execution system
+ * Jobs are queued and processed sequentially
+ * 
+ * @param workflow - The workflow to execute
+ * @param options - Execution options
+ * @param apiBaseUrl - Base URL for the API
+ * @param onProgress - Optional callback for progress updates
+ * @param pollInterval - How often to poll for status (ms)
+ * @returns ExecutionResult with results when completed
  */
 export async function executeWorkflow(
   workflow: WorkflowGraph,
   options: ExecutionOptions = {},
-  apiBaseUrl: string = "http://localhost:7779"
+  apiBaseUrl: string = "http://localhost:7779",
+  onProgress?: ProgressCallback,
+  pollInterval: number = 500
 ): Promise<ExecutionResult> {
   // Validate workflow before execution
   const validation = validateWorkflow(workflow);
@@ -53,8 +75,8 @@ export async function executeWorkflow(
   }
 
   try {
-    // Send workflow to backend execution endpoint
-    const response = await fetch(`${apiBaseUrl}/api/v1/workflow/execute`, {
+    // Queue the workflow for execution
+    const queueResponse = await fetch(`${apiBaseUrl}/api/v1/queue/execute`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -65,13 +87,13 @@ export async function executeWorkflow(
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `HTTP ${response.status}: ${errorText}`;
+    if (!queueResponse.ok) {
+      const errorText = await queueResponse.text();
+      let errorMessage = `HTTP ${queueResponse.status}: ${errorText}`;
       
       try {
         const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error || errorJson.message || errorMessage;
+        errorMessage = errorJson.detail || errorJson.error || errorJson.message || errorMessage;
       } catch {
         // If not JSON, use text as-is
       }
@@ -82,8 +104,24 @@ export async function executeWorkflow(
       };
     }
 
-    const result: ExecutionResult = await response.json();
-    return result;
+    const queueResult = await queueResponse.json();
+    const jobId = queueResult.job_id;
+
+    // Notify initial queued status
+    if (onProgress) {
+      onProgress({
+        job_id: jobId,
+        status: "queued",
+        position: queueResult.position,
+        queue_length: queueResult.queue_length,
+        created_at: Date.now() / 1000,
+        has_result: false,
+      });
+    }
+
+    // Poll for completion
+    return await pollForResult(jobId, apiBaseUrl, onProgress, pollInterval);
+    
   } catch (error) {
     return {
       status: "error",
@@ -93,26 +131,156 @@ export async function executeWorkflow(
 }
 
 /**
- * Checks execution status (for long-running workflows)
- * 
- * TODO: This function is currently stubbed. The backend endpoint
- * GET /api/v1/workflow/execute/{executionId} is not yet implemented.
- * 
- * To implement:
- * 1. Add GET handler in src/api/routes.py: @router.get("/workflow/execute/{execution_id}")
- * 2. Return ExecutionStatus matching POST /workflow/execute response shape
- * 3. Store execution state in backend (e.g., in-memory cache or database)
- * 
- * Future: Use this for polling execution progress on long-running workflows
+ * Polls for job completion and returns the result
+ */
+async function pollForResult(
+  jobId: string,
+  apiBaseUrl: string,
+  onProgress?: ProgressCallback,
+  pollInterval: number = 500
+): Promise<ExecutionResult> {
+  const maxAttempts = 600; // 5 minutes max at 500ms intervals
+  let attempts = 0;
+
+  while (attempts < maxAttempts) {
+    try {
+      const statusResponse = await fetch(`${apiBaseUrl}/api/v1/queue/status/${jobId}`);
+      
+      if (!statusResponse.ok) {
+        if (statusResponse.status === 404) {
+          return {
+            status: "error",
+            error: `Job ${jobId} not found`,
+          };
+        }
+        throw new Error(`Status check failed: ${statusResponse.status}`);
+      }
+
+      const status: ExecutionStatus = await statusResponse.json();
+
+      // Notify progress
+      if (onProgress) {
+        onProgress(status);
+      }
+
+      // Check if completed or failed
+      if (status.status === "completed") {
+        // Fetch the actual results
+        const resultResponse = await fetch(`${apiBaseUrl}/api/v1/queue/result/${jobId}`);
+        
+        if (!resultResponse.ok) {
+          return {
+            status: "error",
+            error: "Failed to fetch job results",
+          };
+        }
+
+        const resultData = await resultResponse.json();
+        
+        return {
+          job_id: jobId,
+          status: "completed",
+          results: resultData.results,
+          execution_order: resultData.execution_order,
+          message: "Workflow executed successfully",
+        };
+      }
+
+      if (status.status === "failed") {
+        return {
+          job_id: jobId,
+          status: "error",
+          error: status.error || "Job execution failed",
+        };
+      }
+
+      if (status.status === "cancelled") {
+        return {
+          job_id: jobId,
+          status: "error",
+          error: "Job was cancelled",
+        };
+      }
+
+      // Still running or queued, wait and poll again
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      attempts++;
+      
+    } catch (error) {
+      // On network error, wait and retry
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      attempts++;
+    }
+  }
+
+  return {
+    job_id: jobId,
+    status: "error",
+    error: "Execution timed out waiting for results",
+  };
+}
+
+/**
+ * Gets the current execution status for a job
  */
 export async function getExecutionStatus(
-  executionId: string,
+  jobId: string,
   apiBaseUrl: string = "http://localhost:7779"
-): Promise<ExecutionStatus> {
-  // TODO: Implement backend endpoint GET /api/v1/workflow/execute/{executionId}
-  throw new Error(
-    `getExecutionStatus is not yet implemented. Backend endpoint GET /api/v1/workflow/execute/${executionId} needs to be added.`
-  );
+): Promise<ExecutionStatus | null> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/queue/status/${jobId}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error(`Status check failed: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to get execution status:", error);
+    return null;
+  }
+}
+
+/**
+ * Gets overall queue information
+ */
+export async function getQueueInfo(
+  apiBaseUrl: string = "http://localhost:7779"
+): Promise<QueueInfo | null> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/queue/info`);
+    
+    if (!response.ok) {
+      throw new Error(`Queue info failed: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to get queue info:", error);
+    return null;
+  }
+}
+
+/**
+ * Cancels a queued job (cannot cancel running jobs)
+ */
+export async function cancelJob(
+  jobId: string,
+  apiBaseUrl: string = "http://localhost:7779"
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/queue/cancel/${jobId}`, {
+      method: "POST",
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error("Failed to cancel job:", error);
+    return false;
+  }
 }
 
 /**
