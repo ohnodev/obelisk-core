@@ -3,47 +3,16 @@ export default function RobotMaskIcon({ size = 64, color = "#2ecc71" }: { size?:
     <svg
       width={size}
       height={size}
-      viewBox="0 0 64 64"
-      fill="none"
+      viewBox="0 0 386 512.66"
+      fill={color}
       xmlns="http://www.w3.org/2000/svg"
+      shapeRendering="geometricPrecision"
+      textRendering="geometricPrecision"
+      imageRendering="optimizeQuality"
+      fillRule="evenodd"
+      clipRule="evenodd"
     >
-      {/* Minimal mask outline */}
-      <path
-        d="M12 20C12 12 20 6 32 6C44 6 52 12 52 20V40C52 50 44 58 32 58C20 58 12 50 12 40V20Z"
-        stroke={color}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      
-      {/* Left eye - sharp angular */}
-      <path
-        d="M17 28L26 26L28 32L26 38L17 36Z"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <circle cx="23" cy="32" r="2.5" fill={color} />
-      
-      {/* Right eye - sharp angular */}
-      <path
-        d="M47 28L38 26L36 32L38 38L47 36Z"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <circle cx="41" cy="32" r="2.5" fill={color} />
-      
-      {/* Mouth vent */}
-      <path
-        d="M24 48H40"
-        stroke={color}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      
-      {/* Antenna dot */}
-      <circle cx="32" cy="6" r="2.5" fill={color} />
+      <path d="M56.37 52.99c9.36-9.1 19.4-16.98 29.91-23.66C124.72 4.91 170.01-3.91 213.62 1.56c43.59 5.47 85.57 25.24 117.4 57.98a192.01 192.01 0 0 1 24.4 30.87c21.83 34.35 30.54 65.56 30.58 97.33.04 31.4-8.43 62.92-21.04 98.43-9.39 26.48-30.05 71.48-51.66 111.99-18.05 33.83-36.91 64.72-50.7 79.47-18.29 19.56-40.34 33.04-64.83 34.82-21.25 1.55-44.01-5.68-67.28-25.32-16.73-14.12-35.25-41.77-52.46-72.86-23.98-43.28-45.65-93.57-56.24-122.67C6.52 249.61-2.71 207.63.71 167.41 4.17 126.64 20.5 87.87 56.37 52.99zm232.7 202.44c-50.06 19.37-89.62 77.33-78.53 120.12 18.45-1.18 33.77-6.84 48.77-15.2 14.34-7.99 43.17-35.5 60.5-61.18 27.82-41.24 11.84-60.21-30.74-43.74zm-195.92 0c50.05 19.37 89.61 77.33 78.52 120.12-18.45-1.18-33.77-6.84-48.77-15.2-14.34-7.99-43.17-35.5-60.5-61.18-27.82-41.24-11.83-60.21 30.75-43.74z"/>
     </svg>
   );
 }
