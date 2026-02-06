@@ -54,6 +54,11 @@ def get_workflow_runner(request: Request):
     return request.app.state.workflow_runner
 
 
+def get_execution_queue(request: Request):
+    """Get ExecutionQueue from app state"""
+    return request.app.state.execution_queue
+
+
 class GenerateRequest(BaseModel):
     """Request model for LLM generation"""
     prompt: str = Field(..., description="User's query/prompt")
@@ -590,3 +595,181 @@ async def stop_all_workflows(
     """
     runner.stop_all()
     return {"status": "stopped", "message": "All workflows stopped"}
+
+
+# ============================================================================
+# Execution Queue Endpoints
+# ============================================================================
+
+class QueueExecuteRequest(BaseModel):
+    """Request model for queued workflow execution"""
+    workflow: Dict[str, Any] = Field(..., description="Workflow graph definition")
+    options: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Execution options (client_id, extra_data, etc.)"
+    )
+
+
+class QueueExecuteResponse(BaseModel):
+    """Response for queued execution"""
+    job_id: str
+    status: str
+    position: int
+    queue_length: int
+    message: str
+
+
+class JobStatusResponse(BaseModel):
+    """Response for job status check"""
+    job_id: str
+    status: str
+    position: Optional[int] = None
+    queue_length: int
+    created_at: float
+    started_at: Optional[float] = None
+    completed_at: Optional[float] = None
+    has_result: bool = False
+    error: Optional[str] = None
+
+
+class JobResultResponse(BaseModel):
+    """Response for job result"""
+    job_id: str
+    status: str
+    results: Optional[Dict[str, Dict[str, Any]]] = None
+    execution_order: Optional[List[str]] = None
+    error: Optional[str] = None
+
+
+class QueueInfoResponse(BaseModel):
+    """Response for queue info"""
+    queue_length: int
+    current_job: Optional[str] = None
+    is_processing: bool
+    total_jobs: int
+
+
+@router.post("/queue/execute", response_model=QueueExecuteResponse)
+async def queue_execute(
+    request: QueueExecuteRequest,
+    queue = Depends(get_execution_queue)
+):
+    """
+    Queue a workflow for execution.
+    
+    Jobs are processed sequentially. Returns immediately with job_id.
+    Poll /queue/status/{job_id} for progress, /queue/result/{job_id} for results.
+    """
+    try:
+        job = queue.enqueue(request.workflow, request.options)
+        
+        return QueueExecuteResponse(
+            job_id=job.id,
+            status=job.status.value,
+            position=job.position,
+            queue_length=len(queue._queue),
+            message=f"Job queued at position {job.position}"
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/queue/status/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(
+    job_id: str,
+    queue = Depends(get_execution_queue)
+):
+    """
+    Get status of a queued job.
+    
+    Returns current status, queue position (if queued), and timing info.
+    """
+    status = queue.get_status(job_id)
+    
+    if not status:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    return JobStatusResponse(**status)
+
+
+@router.get("/queue/result/{job_id}", response_model=JobResultResponse)
+async def get_job_result(
+    job_id: str,
+    queue = Depends(get_execution_queue)
+):
+    """
+    Get result of a completed job.
+    
+    Only returns results if job is completed or failed.
+    """
+    job = queue.get_job(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    if job.status.value == "queued" or job.status.value == "running":
+        return JobResultResponse(
+            job_id=job_id,
+            status=job.status.value,
+            error="Job not yet completed"
+        )
+    
+    result = queue.get_result(job_id)
+    
+    if job.status.value == "completed" and result:
+        return JobResultResponse(
+            job_id=job_id,
+            status="completed",
+            results=result.get('results'),
+            execution_order=result.get('execution_order')
+        )
+    elif job.status.value == "failed":
+        return JobResultResponse(
+            job_id=job_id,
+            status="failed",
+            error=job.error
+        )
+    else:
+        return JobResultResponse(
+            job_id=job_id,
+            status=job.status.value,
+            error="Job was cancelled"
+        )
+
+
+@router.post("/queue/cancel/{job_id}")
+async def cancel_job(
+    job_id: str,
+    queue = Depends(get_execution_queue)
+):
+    """
+    Cancel a queued job (cannot cancel running jobs).
+    """
+    cancelled = queue.cancel(job_id)
+    
+    if cancelled:
+        return {"status": "cancelled", "job_id": job_id}
+    else:
+        job = queue.get_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot cancel job in status: {job.status.value}"
+            )
+
+
+@router.get("/queue/info", response_model=QueueInfoResponse)
+async def get_queue_info(
+    queue = Depends(get_execution_queue)
+):
+    """
+    Get overall queue status.
+    
+    Returns queue length, current job, and processing state.
+    """
+    info = queue.get_queue_info()
+    return QueueInfoResponse(**info)
