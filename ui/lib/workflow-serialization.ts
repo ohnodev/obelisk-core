@@ -203,7 +203,15 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
       
       // Call onConfigure if the node has it (for custom property syncing)
       if (typeof (node as any).onConfigure === 'function') {
-        (node as any).onConfigure(nodeData);
+        try {
+          (node as any).onConfigure(nodeData);
+        } catch (error) {
+          console.error(
+            `[deserializeGraph] onConfigure failed for node ${nodeData.id} (${nodeData.type}):`,
+            error
+          );
+          // Continue loading other nodes even if one fails
+        }
       }
     }
   });
