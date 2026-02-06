@@ -82,6 +82,21 @@ class TelegramListenerNode extends LGraphNode {
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
   
+  onConfigure(data: any) {
+    // Sync widget values from loaded properties
+    const widgets = (this as any).widgets as any[];
+    if (widgets && this.properties) {
+      const props = this.properties as any;
+      widgets.forEach((widget: any) => {
+        if (widget.name === "bot_token" && props.bot_token !== undefined) {
+          widget.value = props.bot_token;
+        } else if (widget.name === "poll_interval" && props.poll_interval !== undefined) {
+          widget.value = props.poll_interval;
+        }
+      });
+    }
+  }
+
   onPropertyChanged(name: string, value: any) {
     // Sync widget values when properties change
     const widgets = (this as any).widgets as any[];

@@ -11,7 +11,7 @@
       },
       "inputs": {},
       "metadata": {
-        "bot_token": "",
+        "bot_token": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
         "poll_interval": 2
       }
     },
@@ -76,7 +76,7 @@
       },
       "inputs": {},
       "metadata": {
-        "bot_id": "",
+        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
         "chat_id": ""
       }
     },

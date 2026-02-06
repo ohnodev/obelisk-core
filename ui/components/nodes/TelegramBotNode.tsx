@@ -90,6 +90,21 @@ class TelegramBotNode extends LGraphNode {
     this.updateWidgetState("chat_id", "_chat_id_widget");
   }
 
+  onConfigure(data: any) {
+    // Sync widget values from loaded properties
+    const widgets = (this as any).widgets as any[];
+    if (widgets && this.properties) {
+      const props = this.properties as any;
+      widgets.forEach((widget: any) => {
+        if (widget.name === "bot_id" && props.bot_id !== undefined) {
+          widget.value = props.bot_id;
+        } else if (widget.name === "chat_id" && props.chat_id !== undefined) {
+          widget.value = props.chat_id;
+        }
+      });
+    }
+  }
+
   onDrawForeground(ctx: CanvasRenderingContext2D) {
     const isSelected = (this as any).is_selected || (this as any).isSelected;
     if (isSelected) {

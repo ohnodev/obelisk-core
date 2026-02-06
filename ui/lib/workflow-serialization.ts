@@ -185,6 +185,11 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
 
       graph.add(node);
       nodeMap.set(nodeData.id, node);
+      
+      // Call onConfigure if the node has it (for custom property syncing)
+      if (typeof (node as any).onConfigure === 'function') {
+        (node as any).onConfigure(nodeData);
+      }
     }
   });
 

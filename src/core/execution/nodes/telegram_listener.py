@@ -72,9 +72,7 @@ class TelegramListenerNode(BaseNode):
             if var_name.startswith('process.env.'):
                 env_var = var_name.replace('process.env.', '')
                 resolved = os.getenv(env_var, '')
-                if resolved:
-                    logger.debug(f"[TelegramListener] Resolved env var {env_var}")
-                else:
+                if not resolved:
                     logger.warning(f"[TelegramListener] Env var {env_var} not found")
                 return resolved
         return value
