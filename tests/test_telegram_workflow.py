@@ -96,7 +96,7 @@ def test_bot_token_valid():
     assert result.get('ok'), f"Invalid bot token response: {result}"
     
     bot = result['result']
-    print(f"✅ Bot token valid!")
+    print("✅ Bot token valid!")
     print(f"   Bot username: @{bot.get('username')}")
     print(f"   Bot name: {bot.get('first_name')}")
     print(f"   Bot ID: {bot.get('id')}")
