@@ -69,18 +69,6 @@ class TelegramListenerNode extends LGraphNode {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
-    
-    // Draw a small indicator showing this is a listener node
-    ctx.fillStyle = "#0088cc";
-    ctx.beginPath();
-    ctx.arc(this.size[0] - 15, 15, 5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Draw "LIVE" label when in autonomous mode
-    ctx.font = "bold 9px Arial";
-    ctx.fillStyle = "#0088cc";
-    ctx.textAlign = "right";
-    ctx.fillText("LISTENER", this.size[0] - 25, 18);
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
