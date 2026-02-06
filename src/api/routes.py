@@ -264,7 +264,7 @@ def _convert_frontend_to_backend_format(frontend_workflow: Dict[str, Any]) -> Di
         "connections": []
     }
     
-    # Convert nodes (merge inputs and metadata)
+    # Convert nodes (keep inputs and metadata separate)
     for node in frontend_workflow.get("nodes", []):
         backend_node = {
             "id": str(node["id"]),
@@ -272,14 +272,14 @@ def _convert_frontend_to_backend_format(frontend_workflow: Dict[str, Any]) -> Di
             "position": node.get("position", {"x": 0, "y": 0}),
         }
         
-        # Merge inputs and metadata into inputs (backend expects inputs to contain both)
-        inputs = node.get("inputs", {}).copy()
+        # Keep inputs and metadata separate (backend expects both)
+        inputs = node.get("inputs", {})
         metadata = node.get("metadata", {})
-        if metadata:
-            inputs.update(metadata)
         
         if inputs:
             backend_node["inputs"] = inputs
+        if metadata:
+            backend_node["metadata"] = metadata
         
         backend_workflow["nodes"].append(backend_node)
     

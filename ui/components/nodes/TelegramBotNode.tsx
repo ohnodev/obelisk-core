@@ -3,74 +3,106 @@
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class TelegramBotNode extends LGraphNode {
-  static title = "Telegram Bot";
-  static desc = "Sends messages to Telegram groups/channels via bot API";
+  static title = "TG Send Message";
+  static desc = "Sends messages to Telegram chats via bot API";
   static title_color = "#0088cc";
 
   constructor() {
     super();
-    this.title = "Telegram Bot";
+    this.title = "TG Send Message";
     
-    // Inputs: message (required), bot_id and group_id (optional - can be widget or input)
+    // Inputs: message (required), bot_id and chat_id (optional - can be widget or input)
     this.addInput("message", "string");
     this.addInput("bot_id", "string");
-    this.addInput("group_id", "string");
+    this.addInput("chat_id", "string");
     
     // Outputs
     this.addOutput("success", "boolean");
     this.addOutput("response", "object");
     
-    this.size = [300, 200];
+    this.size = [280, 180];
     (this as any).type = "telegram_bot";
     (this as any).resizable = true;
     
     // Add properties for default values
     this.addProperty("bot_id", "", "string");
-    this.addProperty("group_id", "", "string");
+    this.addProperty("chat_id", "", "string");
     
-    // Add inline text input widgets for bot_id and group_id
-    // User can either connect inputs OR use the widgets
+    // Bot ID widget
     const initialBotId = (this.properties as any)?.bot_id || "";
-    this.addWidget(
+    const botIdWidget = this.addWidget(
       "text" as any,
-      "Bot ID",
+      "bot_id",
       initialBotId,
       (value: string) => {
-        const bot_id_input_index = this.inputs.findIndex((input: any) => input.name === "bot_id");
-        if (bot_id_input_index !== -1) {
-          const input = this.inputs[bot_id_input_index];
-          const isConnected = !!(input as any).link;
-          if (isConnected) {
-            return; // Don't update property if input is connected
-          }
-        }
+        const inputIndex = this.inputs.findIndex((i: any) => i.name === "bot_id");
+        if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
         this.setProperty("bot_id", value);
       },
-      {
-        serialize: true,
-      } as any
+      { serialize: true, property: "bot_id" } as any
     );
+    (this as any)._bot_id_widget = botIdWidget;
     
-    const initialGroupId = (this.properties as any)?.group_id || "";
-    this.addWidget(
+    // Chat ID widget
+    const initialChatId = (this.properties as any)?.chat_id || "";
+    const chatIdWidget = this.addWidget(
       "text" as any,
-      "Group ID",
-      initialGroupId,
+      "chat_id",
+      initialChatId,
       (value: string) => {
-        const group_id_input_index = this.inputs.findIndex((input: any) => input.name === "group_id");
-        if (group_id_input_index !== -1) {
-          const input = this.inputs[group_id_input_index];
-          const isConnected = !!(input as any).link;
-          if (isConnected) {
-            return; // Don't update property if input is connected
-          }
-        }
-        this.setProperty("group_id", value);
+        const inputIndex = this.inputs.findIndex((i: any) => i.name === "chat_id");
+        if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
+        this.setProperty("chat_id", value);
       },
-      {
-        serialize: true,
-      } as any
+      { serialize: true, property: "chat_id" } as any
     );
+    (this as any)._chat_id_widget = chatIdWidget;
+  }
+
+  onConnectionsChange(type: number, slot: number, isConnected: boolean) {
+    const botIdIndex = this.inputs.findIndex((i: any) => i.name === "bot_id");
+    const chatIdIndex = this.inputs.findIndex((i: any) => i.name === "chat_id");
+    
+    if (slot === botIdIndex) {
+      this.updateWidgetState("bot_id", "_bot_id_widget");
+    }
+    if (slot === chatIdIndex) {
+      this.updateWidgetState("chat_id", "_chat_id_widget");
+    }
+  }
+
+  updateWidgetState(inputName: string, widgetRef: string) {
+    const inputIndex = this.inputs.findIndex((i: any) => i.name === inputName);
+    const isConnected = inputIndex !== -1 && !!(this.inputs[inputIndex] as any).link;
+    
+    const widget = (this as any)[widgetRef];
+    if (widget) {
+      widget.disabled = isConnected;
+      (widget as any)._connected = isConnected;
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onAdded() {
+    this.updateWidgetState("bot_id", "_bot_id_widget");
+    this.updateWidgetState("chat_id", "_chat_id_widget");
+  }
+
+  onConfigure(data: any) {
+    // Sync widget values from loaded properties
+    const widgets = (this as any).widgets as any[];
+    if (widgets && this.properties) {
+      const props = this.properties as any;
+      widgets.forEach((widget: any) => {
+        if (widget.name === "bot_id" && props.bot_id !== undefined) {
+          widget.value = props.bot_id;
+        } else if (widget.name === "chat_id" && props.chat_id !== undefined) {
+          widget.value = props.chat_id;
+        }
+      });
+    }
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
@@ -80,64 +112,35 @@ class TelegramBotNode extends LGraphNode {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
+
+    // Draw "← connected" overlay on widgets when connected
+    const drawConnectedOverlay = (widget: any) => {
+      if (widget && widget._connected && widget.last_y !== undefined) {
+        ctx.fillStyle = "rgba(0, 136, 204, 0.7)";
+        ctx.fillRect(60, widget.last_y, this.size[0] - 70, 20);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("← connected", 65, widget.last_y + 14);
+      }
+    };
+
+    drawConnectedOverlay((this as any)._bot_id_widget);
+    drawConnectedOverlay((this as any)._chat_id_widget);
   }
 
   onExecute() {
-    // Message is required and should come from input
-    // Bot ID and Group ID can come from either input or widget
-    const messageInput = this.getInputData(0); // message input
-    
-    // Bot ID: check input first, then widget
-    const botIdInput = this.getInputData(1); // bot_id input
-    const botIdWidget = (this.properties as any)?.bot_id || "";
-    const botId = botIdInput !== null && botIdInput !== undefined ? String(botIdInput) : botIdWidget;
-    
-    // Group ID: check input first, then widget
-    const groupIdInput = this.getInputData(2); // group_id input
-    const groupIdWidget = (this.properties as any)?.group_id || "";
-    const groupId = groupIdInput !== null && groupIdInput !== undefined ? String(groupIdInput) : groupIdWidget;
-    
-    // Update widget values if inputs are connected
-    if (botIdInput !== null && botIdInput !== undefined) {
-      this.setProperty("bot_id", String(botIdInput));
-      const widgets = (this as any).widgets as any[];
-      if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Bot ID");
-        if (widget) {
-          widget.value = String(botIdInput);
-        }
-      }
-    }
-    
-    if (groupIdInput !== null && groupIdInput !== undefined) {
-      this.setProperty("group_id", String(groupIdInput));
-      const widgets = (this as any).widgets as any[];
-      if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Group ID");
-        if (widget) {
-          widget.value = String(groupIdInput);
-        }
-      }
-    }
-    
     // Backend handles the actual Telegram API call
-    // Frontend just passes through the values
   }
   
   onPropertyChanged(name: string, value: any) {
-    // Sync widget values when properties change
     const widgets = (this as any).widgets as any[];
     if (widgets) {
       if (name === "bot_id") {
-        const widget = widgets.find((w: any) => w.name === "Bot ID");
-        if (widget) {
-          widget.value = value || "";
-        }
-      } else if (name === "group_id") {
-        const widget = widgets.find((w: any) => w.name === "Group ID");
-        if (widget) {
-          widget.value = value || "";
-        }
+        const widget = widgets.find((w: any) => w.name === "bot_id");
+        if (widget) widget.value = value || "";
+      } else if (name === "chat_id") {
+        const widget = widgets.find((w: any) => w.name === "chat_id");
+        if (widget) widget.value = value || "";
       }
     }
   }

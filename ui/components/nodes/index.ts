@@ -7,4 +7,8 @@ import "./MemorySelectorNode";
 import "./MemoryCreatorNode";
 import "./InferenceNode";
 import "./TelegramBotNode";
+import "./TelegramListenerNode";
 import "./SchedulerNode";
+import "./TelegramMemoryCreatorNode";
+import "./TelegramMemorySelectorNode";
+import "./BinaryIntentNode";

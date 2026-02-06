@@ -464,6 +464,47 @@ class LocalJSONStorage(StorageInterface):
         
         return activity
     
+    def get_activity_logs(
+        self,
+        activity_type: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Get activity logs, optionally filtered by type
+        
+        Args:
+            activity_type: Filter by activity type (e.g., 'telegram_message', 'telegram_summary')
+            limit: Maximum number of logs to return
+            
+        Returns:
+            List of activity logs, most recent first
+        """
+        activities_file = self.memory_path / "activities.json"
+        
+        if not activities_file.exists():
+            logger.debug(f"[LocalJSONStorage] Activities file does not exist: {activities_file}")
+            return []
+        
+        try:
+            with open(activities_file, 'r') as f:
+                activities = json.load(f)
+            
+            # Filter by type if specified
+            if activity_type:
+                activities = [a for a in activities if a.get('type') == activity_type]
+            
+            # Sort by created_at descending (most recent first)
+            activities.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+            
+            # Apply limit
+            result = activities[:limit]
+            logger.debug(f"[LocalJSONStorage] Returning {len(result)} activity logs (type={activity_type}, limit={limit})")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error loading activity logs: {e}")
+            return []
+    
     def update_cycle_status(self, cycle_id: str, status: str, top_contributors: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """Update evolution cycle status"""
         cycle_data = self.get_evolution_cycle(cycle_id) or {'id': cycle_id}

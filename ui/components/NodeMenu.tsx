@@ -61,13 +61,18 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
-    name: "Memory",
+    name: "Storage",
     nodes: [
       {
         type: "memory_storage",
-        title: "Memory Storage",
-        description: "Creates/accesses storage instances based on storage path",
+        title: "Storage",
+        description: "Creates/accesses storage instances (for memory, messages, etc.)",
       },
+    ],
+  },
+  {
+    name: "Memory",
+    nodes: [
       {
         type: "memory_selector",
         title: "Memory Selector",
@@ -101,12 +106,42 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
+    name: "Logic",
+    nodes: [
+      {
+        type: "binary_intent",
+        title: "Binary Intent",
+        description: "Classifies text as yes/no based on intent criteria",
+      },
+    ],
+  },
+  {
     name: "Integrations",
     nodes: [
       {
+        type: "telegram_listener",
+        title: "Telegram Listener",
+        description: "Polls for new Telegram messages (autonomous)",
+      },
+      {
         type: "telegram_bot",
-        title: "Telegram Bot",
-        description: "Sends messages to Telegram groups/channels",
+        title: "TG Send Message",
+        description: "Sends messages to Telegram chats via bot API",
+      },
+    ],
+  },
+  {
+    name: "Telegram Memory",
+    nodes: [
+      {
+        type: "telegram_memory_creator",
+        title: "TG Memory Creator",
+        description: "Stores messages and creates summaries per chat",
+      },
+      {
+        type: "telegram_memory_selector",
+        title: "TG Memory Selector",
+        description: "Retrieves relevant context for a Telegram chat",
       },
     ],
   },

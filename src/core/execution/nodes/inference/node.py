@@ -47,30 +47,46 @@ class InferenceNode(BaseNode):
         enable_thinking = self.get_input_value('enable_thinking', context, True)
         conversation_history = self.get_input_value('conversation_history', context, None)
         
-        # Extract messages and memories from context if provided
-        if context_dict and isinstance(context_dict, dict):
-            # Context from MemorySelectorNode has 'messages' and 'memories'
-            context_messages = context_dict.get('messages', [])
-            context_memories = context_dict.get('memories', '')
-            
-            # Merge memories into system prompt
-            if context_memories:
-                system_prompt = f"{system_prompt}\n\n{context_memories}" if system_prompt else context_memories
-            
-            # Use context messages as conversation_history if not provided separately
-            if conversation_history is None:
-                conversation_history = context_messages
+        # Capture original system_prompt before context merging for validation
+        # Only an explicit TextNode-provided system_prompt satisfies the requirement
+        original_system_prompt = system_prompt
         
-        # Validate query - must be a non-empty string
+        # Extract messages and memories from context if provided
+        if context_dict:
+            if isinstance(context_dict, dict):
+                # Context from MemorySelectorNode has 'messages' and 'memories'
+                context_messages = context_dict.get('messages', [])
+                context_memories = context_dict.get('memories', '')
+                
+                # Merge memories into system prompt
+                if context_memories:
+                    system_prompt = f"{system_prompt}\n\n{context_memories}" if system_prompt else context_memories
+                
+                # Use context messages as conversation_history if not provided separately
+                if conversation_history is None:
+                    conversation_history = context_messages
+            elif isinstance(context_dict, str) and context_dict.strip():
+                # Context from TelegramMemorySelector is a formatted string
+                # Append it to the system prompt so the model sees the chat history
+                logger.debug(f"InferenceNode {self.node_id}: Appending string context ({len(context_dict)} chars) to system prompt")
+                system_prompt = f"{system_prompt}\n\n--- Chat History ---\n{context_dict}" if system_prompt else context_dict
+        
+        # Handle missing/empty query gracefully (e.g., when gated by BinaryIntent)
         if not isinstance(query, str) or not query.strip():
-            raise ValueError("query is required and must be a non-empty string for InferenceNode")
+            logger.debug(f"InferenceNode {self.node_id}: No query provided (likely gated), returning empty response")
+            return {
+                "query": query if isinstance(query, str) else "",
+                "response": "",
+                "result": None,
+                "tokens_used": 0
+            }
         
         # Model is required - must be provided by ModelLoaderNode
         if model is None:
             raise ValueError("model is required for InferenceNode. Connect a ModelLoaderNode first.")
         
-        # System prompt is required - must be provided by TextNode
-        if not system_prompt:
+        # System prompt is required - must be provided by TextNode (not just from context)
+        if not original_system_prompt:
             raise ValueError("system_prompt is required for InferenceNode. Connect a TextNode to system_prompt input.")
         
         # Debug logging (query is now validated as non-empty string)
@@ -95,5 +111,6 @@ class InferenceNode(BaseNode):
         return {
             'query': str(query),  # Output original query for use in memory creation, etc.
             'response': response_text,
-            'result': result
+            'result': result,
+            'tokens_used': result.get('tokens_used', 0) if result else 0
         }

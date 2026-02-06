@@ -13,7 +13,7 @@ class InferenceNode extends LGraphNode {
     this.addInput("query", "string");
     this.addInput("model", "object");
     this.addInput("system_prompt", "string");
-    this.addInput("context", "object"); // Input from Memory Adapter
+    this.addInput("context", "string"); // Context from Memory Selector (text)
     this.addOutput("query", "string"); // Output original query
     this.addOutput("response", "string");
     this.addProperty("quantum_influence", 0.7, "number");

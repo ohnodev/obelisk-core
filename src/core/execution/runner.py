@@ -420,6 +420,12 @@ class WorkflowRunner:
         nodes = running.nodes
         context = running.context
         
+        # Find autonomous source nodes (their outputs are in context.node_outputs)
+        autonomous_sources = {
+            node_id for node_id, node in nodes.items()
+            if node.is_autonomous() and node_id in context.node_outputs
+        }
+        
         # Step 1: Find all downstream nodes from triggered nodes
         downstream = self._get_all_downstream(workflow, triggered_ids, nodes)
         
@@ -430,7 +436,8 @@ class WorkflowRunner:
         logger.debug(f"Subgraph nodes: {subgraph_nodes}")
         
         # Step 3: Build a filtered workflow with only subgraph nodes
-        subgraph_workflow = self._build_subgraph_workflow(workflow, subgraph_nodes)
+        # Include connections from autonomous sources so their outputs flow to downstream nodes
+        subgraph_workflow = self._build_subgraph_workflow(workflow, subgraph_nodes, autonomous_sources)
         
         # Step 4: Execute the subgraph using the engine with initial outputs from scheduler
         # Pass scheduler outputs so downstream nodes can see trigger values
@@ -567,7 +574,8 @@ class WorkflowRunner:
     def _build_subgraph_workflow(
         self,
         workflow: NodeGraph,
-        subgraph_nodes: Set[NodeID]
+        subgraph_nodes: Set[NodeID],
+        autonomous_source_nodes: Optional[Set[NodeID]] = None
     ) -> NodeGraph:
         """
         Build a filtered workflow containing only the subgraph nodes
@@ -575,23 +583,33 @@ class WorkflowRunner:
         Args:
             workflow: Original workflow
             subgraph_nodes: Set of node IDs to include
+            autonomous_source_nodes: Set of autonomous node IDs whose outputs are available
             
         Returns:
             Filtered workflow with only subgraph nodes and their connections
         """
+        autonomous_source_nodes = autonomous_source_nodes or set()
+        
         # Filter nodes
         filtered_nodes = [
             node for node in workflow.get('nodes', [])
             if node.get('id') in subgraph_nodes
         ]
         
-        # Filter connections (both source and target must be in subgraph)
+        # Filter connections:
+        # - Include if both source and target are in subgraph
+        # - OR if source is an autonomous node (scheduler/listener) and target is in subgraph
+        #   (because autonomous outputs are passed via initial_node_outputs)
         filtered_connections = []
         for conn in workflow.get('connections', []):
             source_id = conn.get('source_node') or conn.get('from')
             target_id = conn.get('target_node') or conn.get('to')
-            if source_id in subgraph_nodes and target_id in subgraph_nodes:
-                filtered_connections.append(conn)
+            
+            # Include connection if target is in subgraph AND
+            # (source is in subgraph OR source is autonomous with available outputs)
+            if target_id in subgraph_nodes:
+                if source_id in subgraph_nodes or source_id in autonomous_source_nodes:
+                    filtered_connections.append(conn)
         
         return {
             'id': workflow.get('id', 'subgraph'),

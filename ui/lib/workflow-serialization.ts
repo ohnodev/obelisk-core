@@ -32,12 +32,32 @@ export function serializeGraph(graph: InstanceType<typeof LGraph>): WorkflowGrap
   // Serialize nodes - access nodes array directly
   const graphNodes: InstanceType<typeof LGraphNode>[] = (graph as any)._nodes || [];
   for (const node of graphNodes) {
+    // Start with properties as base
+    const metadata: Record<string, any> = { ...(node.properties || {}) };
+    
+    // Widget values are source of truth - always overwrite properties with widget values
+    const widgets = (node as any).widgets as any[];
+    if (widgets) {
+      for (const widget of widgets) {
+        if (widget && widget.name !== undefined && widget.value !== undefined) {
+          // Use widget.name as the key (this should match the property key)
+          // Widget values always take precedence over stale properties
+          metadata[widget.name] = widget.value;
+          
+          // If widget has an explicit property mapping, also write that
+          if (widget.options?.property && widget.options.property !== widget.name) {
+            metadata[widget.options.property] = widget.value;
+          }
+        }
+      }
+    }
+    
     const nodeData: WorkflowNode = {
       id: node.id.toString(),
       type: node.type || node.constructor.name,
       position: { x: node.pos[0], y: node.pos[1] },
       inputs: {},
-      metadata: node.properties || {},
+      metadata,
     };
 
     // Serialize input values
@@ -151,7 +171,24 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
         const widgets = (node as any).widgets as any[];
         if (widgets) {
           Object.entries(nodeData.metadata).forEach(([key, value]) => {
-            const widget = widgets.find((w: any) => w.name === key);
+            // Try exact match first
+            let widget = widgets.find((w: any) => w.name === key);
+            
+            // If not found, try widget.options.property match
+            if (!widget) {
+              widget = widgets.find((w: any) => w.options?.property === key);
+            }
+            
+            // If still not found, try reverse normalization (e.g., "summarize_threshold" could match widget named differently)
+            // This handles legacy cases where widget names had spaces/special chars
+            if (!widget) {
+              const normalizedKey = key.toLowerCase();
+              widget = widgets.find((w: any) => {
+                const normalizedWidgetName = (w.name || '').toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+                return normalizedWidgetName === normalizedKey;
+              });
+            }
+            
             if (widget) {
               widget.value = value;
             }
@@ -163,6 +200,19 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
 
       graph.add(node);
       nodeMap.set(nodeData.id, node);
+      
+      // Call onConfigure if the node has it (for custom property syncing)
+      if (typeof (node as any).onConfigure === 'function') {
+        try {
+          (node as any).onConfigure(nodeData);
+        } catch (error) {
+          console.error(
+            `[deserializeGraph] onConfigure failed for node ${nodeData.id} (${nodeData.type}):`,
+            error
+          );
+          // Continue loading other nodes even if one fails
+        }
+      }
     }
   });
 

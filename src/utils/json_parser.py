@@ -60,6 +60,10 @@ def extract_json_from_llm_response(response: str, context: str = "response") -> 
         
         if json_end > json_start:
             json_str = text[json_start:json_end]
+            
+            # Fix common LLM JSON mistakes before parsing
+            json_str = _sanitize_json_string(json_str)
+            
             try:
                 return json.loads(json_str)
             except json.JSONDecodeError as e:
@@ -68,7 +72,23 @@ def extract_json_from_llm_response(response: str, context: str = "response") -> 
     
     # Strategy 2: Try parsing the whole cleaned response
     try:
-        return json.loads(text)
+        sanitized = _sanitize_json_string(text)
+        return json.loads(sanitized)
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse JSON from {context} (full text): {text[:200]}")
         raise ValueError(f"Invalid JSON in {context} response: {e}") from e
+
+
+def _sanitize_json_string(json_str: str) -> str:
+    """
+    Fix common LLM JSON mistakes before parsing.
+    
+    Currently fixes:
+    - Escaped single quotes \' (invalid in JSON, should be just ')
+      LLMs often output "what\\'s" but JSON doesn't escape single quotes.
+    """
+    # Fix escaped single quotes - LLMs often write \' but JSON doesn't need this
+    # Only fix \' that's not preceded by another backslash (i.e., not \\')
+    result = re.sub(r"(?<!\\)\\'", "'", json_str)
+    
+    return result
