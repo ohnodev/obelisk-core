@@ -35,10 +35,11 @@ class BinaryIntentNode extends LGraphNode {
     this.addProperty("intent_criteria", "", "string");
     
     // Textarea widget for intent criteria - fills the node body
+    // Widget name must match property/metadata key for auto-sync on load
     const initialCriteria = (this.properties as any)?.intent_criteria || "";
     this.addWidget(
       "textarea" as any,
-      "Intent Criteria",
+      "intent_criteria",  // Must match metadata key for auto-loading
       initialCriteria,
       (value: string) => {
         this.setProperty("intent_criteria", value);
@@ -65,18 +66,16 @@ class BinaryIntentNode extends LGraphNode {
     if (super.onConfigure) {
       super.onConfigure(data);
     }
-    // Sync widget value from loaded properties/metadata
-    const criteria = data.properties?.intent_criteria;
+    // Sync widget value from loaded properties (workflow-serialization already merges metadata)
+    const criteria = data.properties?.intent_criteria || (this.properties as any)?.intent_criteria;
     if (criteria) {
       const widgets = (this as any).widgets as any[];
       if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Intent Criteria");
+        const widget = widgets.find((w: any) => w.name === "intent_criteria");
         if (widget) {
           widget.value = criteria;
         }
       }
-      // Also set the property directly
-      this.setProperty("intent_criteria", criteria);
     }
     // Force size after configure
     this.size = [NODE_WIDTH, NODE_HEIGHT];
@@ -103,7 +102,7 @@ class BinaryIntentNode extends LGraphNode {
     if (name === "intent_criteria") {
       const widgets = (this as any).widgets as any[];
       if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Intent Criteria");
+        const widget = widgets.find((w: any) => w.name === "intent_criteria");
         if (widget) {
           widget.value = value || "";
         }
