@@ -31,11 +31,11 @@ class TelegramMemoryCreatorNode extends LGraphNode {
     // Properties
     this.addProperty("summarize_threshold", 50, "number");
     
-    // Widget for summarize threshold
+    // Widget for summarize threshold - name must match property key for serialization
     const initialThreshold = (this.properties as any)?.summarize_threshold || 50;
     this.addWidget(
       "number" as any,
-      "Sum. Threshold",
+      "summarize_threshold",  // Must match property key exactly
       initialThreshold,
       (value: number) => {
         this.setProperty("summarize_threshold", Math.max(5, Math.round(value)));
@@ -47,6 +47,19 @@ class TelegramMemoryCreatorNode extends LGraphNode {
         serialize: true,
       } as any
     );
+  }
+
+  // Sync widget values from properties when loaded from JSON
+  onConfigure(data: any) {
+    if (data.properties?.summarize_threshold !== undefined) {
+      const widgets = (this as any).widgets as any[];
+      if (widgets) {
+        const widget = widgets.find((w: any) => w.name === "summarize_threshold");
+        if (widget) {
+          widget.value = data.properties.summarize_threshold;
+        }
+      }
+    }
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
@@ -70,7 +83,7 @@ class TelegramMemoryCreatorNode extends LGraphNode {
     if (name === "summarize_threshold") {
       const widgets = (this as any).widgets as any[];
       if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Sum. Threshold");
+        const widget = widgets.find((w: any) => w.name === "summarize_threshold");
         if (widget) {
           widget.value = value || 50;
         }
