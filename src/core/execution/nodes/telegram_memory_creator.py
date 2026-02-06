@@ -92,8 +92,7 @@ class TelegramMemoryCreatorNode(BaseNode):
     def _summarize_messages(
         self,
         llm,
-        messages: List[Dict],
-        chat_id: str
+        messages: List[Dict]
     ) -> Optional[Dict[str, Any]]:
         """
         Summarize chat messages using LLM.
@@ -107,7 +106,6 @@ class TelegramMemoryCreatorNode(BaseNode):
             for msg in messages:
                 username = msg.get('username') or msg.get('user_id', 'Unknown')
                 text = msg.get('message', '')
-                timestamp = msg.get('timestamp', '')
                 conversation_text += f"[{username}]: {text}\n"
             
             # System prompt for Telegram message summarization
@@ -219,7 +217,7 @@ Example of correct JSON format:
             messages_to_summarize = buffer[-summarize_threshold:]
             
             # Create summary
-            summary_data = self._summarize_messages(llm, messages_to_summarize, str(chat_id))
+            summary_data = self._summarize_messages(llm, messages_to_summarize)
             
             if summary_data:
                 # Add metadata
