@@ -118,6 +118,13 @@ class MemoryCreatorNode extends LGraphNode {
   onAdded() {
     this.updateWidgetState("user_id", "_user_id_widget");
     this.updateWidgetState("summarize_threshold", "_threshold_widget");
+    // Force size after being added to graph (LiteGraph may auto-compute)
+    this.size = [340, 300];
+  }
+
+  computeSize(): [number, number] {
+    // Override LiteGraph's auto size computation
+    return [340, 300];
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
