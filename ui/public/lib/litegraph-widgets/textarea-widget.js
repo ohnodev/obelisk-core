@@ -30,12 +30,13 @@
         /**
          * Draw textarea widget - fills the node body
          */
-        function drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color) {
+        function drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color, startY) {
             var textareaX = margin;
-            var textareaY = titleHeight + padding;
+            // Use startY (accounts for inputs) + small padding
+            var textareaY = startY + 8;
             var textareaWidth = widget_width - (margin * 2);
             // Clamp textareaHeight to non-negative to prevent negative values when node.size[1] is too small
-            var textareaHeight = Math.max(0, node.size[1] - titleHeight - (padding * 2));
+            var textareaHeight = Math.max(0, node.size[1] - textareaY - padding);
             
             // Store widget position for click handling
             w._textareaX = textareaX;
@@ -197,7 +198,8 @@
                         ctx.globalAlpha *= 0.5;
                     }
                     
-                    drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color);
+                    // Pass posY so textarea starts below inputs
+                    drawTextareaWidget(w, node, ctx, widget_width, show_text, margin, titleHeight, padding, background_color, outline_color, text_color, posY);
                     
                     ctx.globalAlpha = this.editor_alpha;
                 }
@@ -242,12 +244,12 @@
 
                 // Handle textarea widget clicks - inline editing
                 if (w.type === "textarea") {
-                    var titleHeight = LG.NODE_TITLE_HEIGHT;
                     var padding = 10;
                     var textareaX = 15; // margin
-                    var textareaY = titleHeight + padding;
-                    var textareaWidth = widget_width - 30;
-                    var textareaHeight = node.size[1] - titleHeight - (padding * 2);
+                    // Use stored positions from draw
+                    var textareaY = w._textareaY || (LG.NODE_TITLE_HEIGHT + padding);
+                    var textareaWidth = w._textareaWidth || (widget_width - 30);
+                    var textareaHeight = w._textareaHeight || (node.size[1] - textareaY - padding);
 
                     // Check if click is within textarea bounds
                     if (x >= textareaX && x <= textareaX + textareaWidth &&

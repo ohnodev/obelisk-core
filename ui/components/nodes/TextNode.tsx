@@ -31,11 +31,9 @@ class TextNode extends LGraphNode {
     // Ensure widget value is set from property
     if (widget) {
       (widget as any).value = (this.properties as any)?.text || "";
-      // Add vertical offset to push widget down below inputs
-      (widget as any).y = 15;
     }
     
-    this.size = [300, 250];
+    this.size = [300, 200];
     (this as any).type = "text";
     (this as any).resizable = true;
   }
