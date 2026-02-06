@@ -90,6 +90,26 @@ const NODE_CATEGORIES: NodeCategory[] = [
       },
     ],
   },
+  {
+    name: "Automation",
+    nodes: [
+      {
+        type: "scheduler",
+        title: "Scheduler",
+        description: "Triggers nodes at random intervals (autonomous execution)",
+      },
+    ],
+  },
+  {
+    name: "Integrations",
+    nodes: [
+      {
+        type: "telegram_bot",
+        title: "Telegram Bot",
+        description: "Sends messages to Telegram groups/channels",
+      },
+    ],
+  },
 ];
 
 export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeMenuProps) {
@@ -229,9 +249,10 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
   if (isMobile) {
     return (
       <>
-        {/* Backdrop */}
+        {/* Backdrop - prevent scroll propagation */}
         <div
           onClick={onClose}
+          onTouchMove={(e) => e.preventDefault()}
           style={{
             position: "fixed",
             top: 0,
@@ -240,11 +261,13 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             bottom: 0,
             background: "rgba(0, 0, 0, 0.6)",
             zIndex: 9999,
+            touchAction: "none", // Prevent touch scroll on backdrop
           }}
         />
         {/* Menu */}
         <div
           ref={menuRef}
+          onTouchMove={(e) => e.stopPropagation()}
           style={{
             position: "fixed",
             top: "60px", // Below toolbar
@@ -260,16 +283,20 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             borderTopLeftRadius: "16px",
             borderTopRightRadius: "16px",
             animation: "slideUp 0.2s ease-out",
+            overscrollBehavior: "contain", // Prevent scroll chaining
           }}
         >
-          {/* Header with close */}
+          {/* Header with close - no scroll here */}
           <div
+            onTouchMove={(e) => e.preventDefault()}
             style={{
               padding: "1rem",
               borderBottom: "1px solid var(--color-border-primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              flexShrink: 0, // Don't shrink header
+              touchAction: "none", // No scroll on header
             }}
           >
             <span style={{ fontWeight: 600, fontSize: "1.1rem", color: "var(--color-text-primary)" }}>
@@ -298,8 +325,15 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             </button>
           </div>
 
-          {/* Search bar */}
-          <div style={{ padding: "0.75rem 1rem" }}>
+          {/* Search bar - no scroll */}
+          <div 
+            onTouchMove={(e) => e.preventDefault()}
+            style={{ 
+              padding: "0.75rem 1rem",
+              flexShrink: 0,
+              touchAction: "none",
+            }}
+          >
             <input
               ref={inputRef}
               type="text"
@@ -324,8 +358,16 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
             />
           </div>
 
-          {/* Node list */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "0 1rem 1rem" }}>
+          {/* Node list - ONLY this area scrolls */}
+          <div 
+            style={{ 
+              flex: 1, 
+              overflowY: "auto", 
+              padding: "0 1rem 1rem",
+              overscrollBehavior: "contain", // Prevent scroll chaining to parent
+              WebkitOverflowScrolling: "touch", // Smooth scrolling on iOS
+            }}
+          >
             {filteredCategories.map((category) => (
               <div key={category.name} style={{ marginBottom: "1rem" }}>
                 <div
