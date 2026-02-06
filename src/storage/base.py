@@ -123,6 +123,24 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
+    def get_activity_logs(
+        self,
+        activity_type: Optional[str] = None,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """
+        Get activity logs, optionally filtered by type
+        
+        Args:
+            activity_type: Filter by activity type (e.g., 'telegram_message', 'telegram_summary')
+            limit: Maximum number of logs to return
+            
+        Returns:
+            List of activity logs, most recent first
+        """
+        pass
+    
+    @abstractmethod
     def update_cycle_status(self, cycle_id: str, status: str, top_contributors: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
         """Update evolution cycle status"""
         pass

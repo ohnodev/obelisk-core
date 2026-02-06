@@ -202,7 +202,7 @@ Example of correct JSON format:
                 message=f'[{username or user_id}] {message[:100]}...' if len(message) > 100 else f'[{username or user_id}] {message}',
                 metadata=message_data
             )
-            logger.debug(f"[TelegramMemoryCreator] Saved message from {username or user_id} in chat {chat_id}")
+            logger.info(f"[TelegramMemoryCreator] Saved message from {username or user_id} in chat {chat_id}: {message[:50]}...")
         except Exception as e:
             logger.error(f"[TelegramMemoryCreator] Failed to save message: {e}")
             return {'success': False, 'message_count': 0, 'summary_created': False}

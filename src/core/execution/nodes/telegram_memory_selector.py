@@ -185,7 +185,10 @@ class TelegramMemorySelectorNode(BaseNode):
         
         combined_context = "\n\n".join(context_parts) if context_parts else "No chat history available."
         
-        logger.debug(f"[TelegramMemorySelector] Retrieved {len(messages)} messages and {len(summaries) if include_summaries else 0} summaries for chat {chat_id}")
+        logger.info(f"[TelegramMemorySelector] Retrieved {len(messages)} messages and {len(summaries) if include_summaries else 0} summaries for chat {chat_id}")
+        if messages:
+            logger.debug(f"[TelegramMemorySelector] Sample message: {messages[-1]}")
+        logger.debug(f"[TelegramMemorySelector] Context length: {len(combined_context)} chars")
         
         return {
             'context': combined_context,
