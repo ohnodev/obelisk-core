@@ -86,37 +86,6 @@ def send_message(chat_id, text):
         return None
 
 
-def get_webhook_info():
-    """Check if a webhook is set (prevents polling)"""
-    if not BOT_TOKEN:
-        return None
-    
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"Error getting webhook info: {e}")
-        return None
-
-
-def delete_webhook():
-    """Delete any existing webhook to enable polling"""
-    if not BOT_TOKEN:
-        return False
-    
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
-    try:
-        response = requests.post(url, timeout=10)
-        response.raise_for_status()
-        result = response.json()
-        return result.get('ok', False)
-    except Exception as e:
-        print(f"Error deleting webhook: {e}")
-        return False
-
-
 def test_bot_token_valid():
     """Test 1: Verify bot token is valid"""
     print("\n=== Test 1: Bot Token Validation ===")
@@ -132,26 +101,6 @@ def test_bot_token_valid():
         print(f"   Bot username: @{bot.get('username')}")
         print(f"   Bot name: {bot.get('first_name')}")
         print(f"   Bot ID: {bot.get('id')}")
-        
-        # Check webhook status
-        webhook_info = get_webhook_info()
-        if webhook_info and webhook_info.get('ok'):
-            webhook = webhook_info.get('result', {})
-            webhook_url = webhook.get('url', '')
-            if webhook_url:
-                print(f"\n   ⚠️  WARNING: Webhook is set to: {webhook_url}")
-                print(f"   This PREVENTS polling from working!")
-                print(f"   Run: delete_webhook() to clear it")
-                
-                # Auto-delete webhook
-                print(f"\n   Automatically deleting webhook...")
-                if delete_webhook():
-                    print(f"   ✅ Webhook deleted - polling should work now!")
-                else:
-                    print(f"   ❌ Failed to delete webhook")
-            else:
-                print(f"   ✅ No webhook set - polling will work")
-        
         return True
     else:
         print(f"❌ Invalid bot token")
