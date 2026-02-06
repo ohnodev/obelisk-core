@@ -69,7 +69,7 @@ Respond with JSON only. Start with { and end with }."""
             logger.warning("[BinaryIntent] No message provided")
             return {
                 'result': False,
-                'message': '',
+                'message': None,  # Don't fire downstream
                 'confidence': 'low',
                 'reasoning': 'No message provided to analyze'
             }
@@ -78,7 +78,7 @@ Respond with JSON only. Start with { and end with }."""
             logger.warning("[BinaryIntent] No intent criteria provided")
             return {
                 'result': False,
-                'message': '',
+                'message': None,  # Don't fire downstream
                 'confidence': 'low',
                 'reasoning': 'No intent criteria specified'
             }
@@ -130,7 +130,7 @@ Respond with JSON only. Start with { and end with }."""
                 
                 return {
                     'result': intent_result,
-                    'message': message if intent_result else '',
+                    'message': message if intent_result else None,  # Only output message if intent passes
                     'confidence': confidence,
                     'reasoning': reasoning
                 }
@@ -138,7 +138,7 @@ Respond with JSON only. Start with { and end with }."""
                 logger.warning(f"[BinaryIntent] Failed to parse JSON response: {response_text[:100]}")
                 return {
                     'result': False,
-                    'message': '',
+                    'message': None,  # Don't fire downstream
                     'confidence': 'low',
                     'reasoning': 'Failed to parse classification response'
                 }
@@ -147,7 +147,7 @@ Respond with JSON only. Start with { and end with }."""
             logger.error(f"[BinaryIntent] Error during classification: {e}")
             return {
                 'result': False,
-                'message': '',
+                'message': None,  # Don't fire downstream
                 'confidence': 'low',
                 'reasoning': f'Error during classification: {str(e)}'
             }
