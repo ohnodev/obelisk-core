@@ -30,25 +30,26 @@ class TelegramListenerNode extends LGraphNode {
     this.addProperty("bot_token", "", "string");
     this.addProperty("poll_interval", 2, "number");
     
-    // Add widget for bot_token
+    // Add widget for bot_token (name matches property key for serialization)
     const initialToken = (this.properties as any)?.bot_token || "";
     this.addWidget(
       "text" as any,
-      "Bot Token",
+      "bot_token",  // Match property key exactly
       initialToken,
       (value: string) => {
         this.setProperty("bot_token", value);
       },
       {
         serialize: true,
+        property: "bot_token",
       } as any
     );
     
-    // Add widget for poll interval
+    // Add widget for poll interval (name matches property key for serialization)
     const initialInterval = (this.properties as any)?.poll_interval || 2;
     this.addWidget(
       "number" as any,
-      "Poll Interval (s)",
+      "poll_interval",  // Match property key exactly
       initialInterval,
       (value: number) => {
         this.setProperty("poll_interval", Math.max(1, value));
@@ -58,6 +59,7 @@ class TelegramListenerNode extends LGraphNode {
         max: 60,
         step: 1,
         serialize: true,
+        property: "poll_interval",
       } as any
     );
   }
@@ -84,16 +86,10 @@ class TelegramListenerNode extends LGraphNode {
     // Sync widget values when properties change
     const widgets = (this as any).widgets as any[];
     if (widgets) {
-      if (name === "bot_token") {
-        const widget = widgets.find((w: any) => w.name === "Bot Token");
-        if (widget) {
-          widget.value = value || "";
-        }
-      } else if (name === "poll_interval") {
-        const widget = widgets.find((w: any) => w.name === "Poll Interval (s)");
-        if (widget) {
-          widget.value = value || 2;
-        }
+      // Widget names now match property keys exactly
+      const widget = widgets.find((w: any) => w.name === name);
+      if (widget) {
+        widget.value = value ?? (name === "poll_interval" ? 2 : "");
       }
     }
   }

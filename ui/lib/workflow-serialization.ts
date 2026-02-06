@@ -32,12 +32,34 @@ export function serializeGraph(graph: InstanceType<typeof LGraph>): WorkflowGrap
   // Serialize nodes - access nodes array directly
   const graphNodes: InstanceType<typeof LGraphNode>[] = (graph as any)._nodes || [];
   for (const node of graphNodes) {
+    // Start with properties
+    const metadata: Record<string, any> = { ...(node.properties || {}) };
+    
+    // Also include widget values (they may have different names than properties)
+    const widgets = (node as any).widgets as any[];
+    if (widgets) {
+      for (const widget of widgets) {
+        if (widget && widget.name !== undefined && widget.value !== undefined) {
+          // Map widget names to property keys (handle spaces -> underscores)
+          const propKey = widget.name.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, '');
+          // Only add if not already set or if widget value is newer/different
+          if (metadata[propKey] === undefined || metadata[propKey] === '') {
+            metadata[propKey] = widget.value;
+          }
+          // Also try exact widget name as key
+          if (widget.options?.property) {
+            metadata[widget.options.property] = widget.value;
+          }
+        }
+      }
+    }
+    
     const nodeData: WorkflowNode = {
       id: node.id.toString(),
       type: node.type || node.constructor.name,
       position: { x: node.pos[0], y: node.pos[1] },
       inputs: {},
-      metadata: node.properties || {},
+      metadata,
     };
 
     // Serialize input values
