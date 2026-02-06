@@ -2,6 +2,10 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
+// Default node dimensions
+const NODE_WIDTH = 340;
+const NODE_HEIGHT = 300;
+
 class MemoryCreatorNode extends LGraphNode {
   static title = "Memory Creator";
   static desc = "Creates and persists memory data (interactions, summaries) to storage. Automatically saves interactions and generates summaries when threshold is reached.";
@@ -19,7 +23,7 @@ class MemoryCreatorNode extends LGraphNode {
     this.addInput("user_id", "string");
     this.addInput("summarize_threshold", "number");
     // No outputs - saves directly to storage
-    this.size = [340, 300];
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;
     
@@ -119,12 +123,12 @@ class MemoryCreatorNode extends LGraphNode {
     this.updateWidgetState("user_id", "_user_id_widget");
     this.updateWidgetState("summarize_threshold", "_threshold_widget");
     // Force size after being added to graph (LiteGraph may auto-compute)
-    this.size = [340, 300];
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
   }
 
   computeSize(): [number, number] {
     // Override LiteGraph's auto size computation
-    return [340, 300];
+    return [NODE_WIDTH, NODE_HEIGHT];
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
