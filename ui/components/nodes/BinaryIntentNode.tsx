@@ -2,6 +2,10 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
+// Default node dimensions - taller to fit textarea below 4 inputs/outputs
+const NODE_WIDTH = 300;
+const NODE_HEIGHT = 280;
+
 class BinaryIntentNode extends LGraphNode {
   static title = "Binary Intent";
   static desc = "Classifies text as yes/no based on intent criteria";
@@ -23,7 +27,7 @@ class BinaryIntentNode extends LGraphNode {
     this.addOutput("confidence", "string"); // "high", "medium", "low"
     this.addOutput("reasoning", "string"); // Brief explanation
     
-    this.size = [300, 280]; // Taller to fit textarea below 4 inputs
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "binary_intent";
     (this as any).resizable = true;
     
@@ -46,6 +50,38 @@ class BinaryIntentNode extends LGraphNode {
     );
   }
 
+  onAdded() {
+    // Force size after being added to graph (LiteGraph may auto-compute)
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
+  }
+
+  computeSize(): [number, number] {
+    // Override LiteGraph's auto size computation
+    return [NODE_WIDTH, NODE_HEIGHT];
+  }
+
+  onConfigure(data: any) {
+    // Call parent if exists
+    if (super.onConfigure) {
+      super.onConfigure(data);
+    }
+    // Sync widget value from loaded properties/metadata
+    const criteria = data.properties?.intent_criteria;
+    if (criteria) {
+      const widgets = (this as any).widgets as any[];
+      if (widgets) {
+        const widget = widgets.find((w: any) => w.name === "Intent Criteria");
+        if (widget) {
+          widget.value = criteria;
+        }
+      }
+      // Also set the property directly
+      this.setProperty("intent_criteria", criteria);
+    }
+    // Force size after configure
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
+  }
+
   onDrawForeground(ctx: CanvasRenderingContext2D) {
     const isSelected = (this as any).is_selected || (this as any).isSelected;
     if (isSelected) {
@@ -61,19 +97,6 @@ class BinaryIntentNode extends LGraphNode {
     }
     ctx.fillStyle = "rgba(230, 162, 60, 0.08)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
-  }
-  
-  onConfigure(data: any) {
-    // Sync widget value from loaded properties/metadata
-    if (data.properties?.intent_criteria) {
-      const widgets = (this as any).widgets as any[];
-      if (widgets) {
-        const widget = widgets.find((w: any) => w.name === "Intent Criteria");
-        if (widget) {
-          widget.value = data.properties.intent_criteria;
-        }
-      }
-    }
   }
   
   onPropertyChanged(name: string, value: any) {
