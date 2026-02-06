@@ -204,6 +204,10 @@
                         // Still allow basic drag but don't trigger anything else
                         touchState.isPinching = false;
                         touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
+                        
+                        // Fire mousedown so drag can start (same as normal path)
+                        var mouseDown = createMouseEvent("mousedown", e.touches[0], e, canvas);
+                        canvas.dispatchEvent(mouseDown);
                         return;
                     }
                     
@@ -300,38 +304,42 @@
                     // Guard against division by zero - skip zoom if lastPinchDistance is near zero
                     var EPSILON = 0.001;
                     var distanceRatio = 1; // Default to no change
-                    if (touchState.lastPinchDistance > EPSILON) {
-                        distanceRatio = currentDistance / touchState.lastPinchDistance;
-                    }
                     
-                    // Only process zoom if distanceRatio is finite and represents meaningful change
-                    if (Number.isFinite(distanceRatio) && Math.abs(distanceRatio - 1) > 0.01) {
-                        var rect = canvas.getBoundingClientRect();
-                        var canvasX = center.x - rect.left;
-                        var canvasY = center.y - rect.top;
-                        
-                        // Calculate new scale
-                        var newScale = self.ds.scale * distanceRatio;
-                        
-                        // Clamp scale
-                        newScale = Math.max(0.1, Math.min(10, newScale));
-                        
-                        if (newScale !== self.ds.scale) {
-                            // Calculate zoom centered on pinch point
-                            var graphX = (canvasX - self.ds.offset[0]) / self.ds.scale;
-                            var graphY = (canvasY - self.ds.offset[1]) / self.ds.scale;
-                            
-                            self.ds.scale = newScale;
-                            
-                            // Adjust offset to keep zoom centered
-                            self.ds.offset[0] = canvasX - graphX * newScale;
-                            self.ds.offset[1] = canvasY - graphY * newScale;
-                            
-                            self.dirty_canvas = true;
-                            self.dirty_bgcanvas = true;
-                        }
-                        
+                    if (touchState.lastPinchDistance <= EPSILON) {
+                        // Initialize baseline for future pinch events, but skip zoom this time
                         touchState.lastPinchDistance = currentDistance;
+                    } else {
+                        distanceRatio = currentDistance / touchState.lastPinchDistance;
+                        
+                        // Only process zoom if distanceRatio is finite and represents meaningful change
+                        if (Number.isFinite(distanceRatio) && Math.abs(distanceRatio - 1) > 0.01) {
+                            var rect = canvas.getBoundingClientRect();
+                            var canvasX = center.x - rect.left;
+                            var canvasY = center.y - rect.top;
+                            
+                            // Calculate new scale
+                            var newScale = self.ds.scale * distanceRatio;
+                            
+                            // Clamp scale
+                            newScale = Math.max(0.1, Math.min(10, newScale));
+                            
+                            if (newScale !== self.ds.scale) {
+                                // Calculate zoom centered on pinch point
+                                var graphX = (canvasX - self.ds.offset[0]) / self.ds.scale;
+                                var graphY = (canvasY - self.ds.offset[1]) / self.ds.scale;
+                                
+                                self.ds.scale = newScale;
+                                
+                                // Adjust offset to keep zoom centered
+                                self.ds.offset[0] = canvasX - graphX * newScale;
+                                self.ds.offset[1] = canvasY - graphY * newScale;
+                                
+                                self.dirty_canvas = true;
+                                self.dirty_bgcanvas = true;
+                            }
+                            
+                            touchState.lastPinchDistance = currentDistance;
+                        }
                     }
                     
                     // Also handle two-finger pan
