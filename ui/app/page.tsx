@@ -5,7 +5,7 @@ import Canvas from "@/components/Canvas";
 import Toolbar from "@/components/Toolbar";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { serializeGraph } from "@/lib/litegraph";
-import { executeWorkflow, updateNodeOutputs } from "@/lib/workflow-execution";
+import { executeWorkflow, updateNodeOutputs, ExecutionStatus } from "@/lib/workflow-execution";
 import { useNotifications } from "@/components/Notification";
 import "@/components/nodes"; // Register all node types
 
@@ -111,12 +111,34 @@ export default function Home() {
         }
       }
 
-      // Execute workflow using ComfyUI-style execution engine
-      const result = await executeWorkflow(currentWorkflow, {
-        client_id: "default_user",
-        user_id: "default_user",
-        user_query: userQuery || "Hello", // Default query if not found
-      });
+      // Track last shown status to avoid duplicate notifications
+      let lastStatus: string | null = null;
+
+      // Progress callback to show queue status
+      const onProgress = (status: ExecutionStatus) => {
+        if (status.status === "queued" && lastStatus !== "queued") {
+          const positionMsg = status.position !== null && status.position !== undefined && status.position > 0
+            ? ` (position ${status.position + 1} in queue)`
+            : "";
+          showNotification(`Job queued${positionMsg}...`, "info", 2000);
+          lastStatus = "queued";
+        } else if (status.status === "running" && lastStatus !== "running") {
+          showNotification("Executing workflow...", "info", 2000);
+          lastStatus = "running";
+        }
+      };
+
+      // Execute workflow using queue-based execution
+      const result = await executeWorkflow(
+        currentWorkflow,
+        {
+          client_id: "default_user",
+          user_id: "default_user",
+          user_query: userQuery || "Hello", // Default query if not found
+        },
+        "http://localhost:7779",
+        onProgress
+      );
 
       if (result.status === "error") {
         console.error("Workflow execution failed:", result.error);
