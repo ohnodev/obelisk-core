@@ -3,33 +3,6 @@
   "name": "Obelisk Workflow",
   "nodes": [
     {
-      "id": "10",
-      "type": "telegram_bot",
-      "position": {
-        "x": 1642,
-        "y": 197
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "",
-        "group_id": ""
-      }
-    },
-    {
-      "id": "7",
-      "type": "text",
-      "position": {
-        "x": 1254,
-        "y": 87
-      },
-      "inputs": {
-        "text": ""
-      },
-      "metadata": {
-        "text": ""
-      }
-    },
-    {
       "id": "12",
       "type": "telegram_listener",
       "position": {
@@ -55,20 +28,6 @@
       }
     },
     {
-      "id": "6",
-      "type": "inference",
-      "position": {
-        "x": 811,
-        "y": 38
-      },
-      "inputs": {},
-      "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "enable_thinking": true
-      }
-    },
-    {
       "id": "15",
       "type": "telegram_memory_creator",
       "position": {
@@ -78,19 +37,6 @@
       "inputs": {},
       "metadata": {
         "summarize_threshold": 20
-      }
-    },
-    {
-      "id": "14",
-      "type": "telegram_memory_selector",
-      "position": {
-        "x": 1033,
-        "y": 464
-      },
-      "inputs": {},
-      "metadata": {
-        "recent_count": 20,
-        "include_summaries": true
       }
     },
     {
@@ -120,25 +66,73 @@
       }
     },
     {
+      "id": "7",
+      "type": "text",
+      "position": {
+        "x": 2182,
+        "y": 171
+      },
+      "inputs": {
+        "text": ""
+      },
+      "metadata": {
+        "text": ""
+      }
+    },
+    {
+      "id": "10",
+      "type": "telegram_bot",
+      "position": {
+        "x": 2581,
+        "y": 196
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "",
+        "group_id": ""
+      }
+    },
+    {
       "id": "17",
       "type": "binary_intent",
       "position": {
-        "x": 163,
-        "y": 658
+        "x": 1525,
+        "y": 334
       },
       "inputs": {},
       "metadata": {
         "intent_criteria": "Does this message reference, mention, or address the bot?\n\nLook for:\n- Direct mentions: @TheObeliskTestBot\n- References to: The Obelisk, The Overseer, Obelisk\n- Talking about AI agents, autonomous agents\n- Questions or statements directed at the bot\n- Replies to previous bot messages"
       }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 1917,
+        "y": 100
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "14",
+      "type": "telegram_memory_selector",
+      "position": {
+        "x": 936,
+        "y": 477
+      },
+      "inputs": {},
+      "metadata": {
+        "recent_count": 20,
+        "include_summaries": true
+      }
     }
   ],
   "connections": [
-    {
-      "from": "7",
-      "from_output": "text",
-      "to": "10",
-      "to_input": "message"
-    },
     {
       "from": "12",
       "from_output": "message",
@@ -149,7 +143,7 @@
       "from": "12",
       "from_output": "message",
       "to": "14",
-      "to_input": "query"
+      "to_input": "message"
     },
     {
       "from": "12",
@@ -182,12 +176,6 @@
       "to_input": "system_prompt"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "7",
-      "to_input": "text"
-    },
-    {
       "from": "16",
       "from_output": "storage_instance",
       "to": "15",
@@ -216,6 +204,48 @@
       "from_output": "model",
       "to": "14",
       "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "17",
+      "to_input": "model"
+    },
+    {
+      "from": "7",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "message"
+    },
+    {
+      "from": "17",
+      "from_output": "message",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "text"
+    },
+    {
+      "from": "14",
+      "from_output": "context",
+      "to": "17",
+      "to_input": "context"
+    },
+    {
+      "from": "14",
+      "from_output": "context",
+      "to": "6",
+      "to_input": "context"
+    },
+    {
+      "from": "14",
+      "from_output": "message",
+      "to": "17",
+      "to_input": "message"
     }
   ]
 }
