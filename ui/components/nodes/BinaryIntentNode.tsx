@@ -63,6 +63,19 @@ class BinaryIntentNode extends LGraphNode {
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
   }
   
+  onConfigure(data: any) {
+    // Sync widget value from loaded properties/metadata
+    if (data.properties?.intent_criteria) {
+      const widgets = (this as any).widgets as any[];
+      if (widgets) {
+        const widget = widgets.find((w: any) => w.name === "Intent Criteria");
+        if (widget) {
+          widget.value = data.properties.intent_criteria;
+        }
+      }
+    }
+  }
+  
   onPropertyChanged(name: string, value: any) {
     if (name === "intent_criteria") {
       const widgets = (this as any).widgets as any[];
