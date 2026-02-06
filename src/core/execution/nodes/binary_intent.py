@@ -14,7 +14,7 @@ class BinaryIntentNode(BaseNode):
     Classifies input text based on intent criteria and outputs a boolean decision.
     
     If result is True, passes through the original text for further processing.
-    If result is False, pass_through is empty (workflow can stop here).
+    If result is False, message is None (downstream nodes won't execute).
     
     Inputs:
         message: The message to evaluate (required)
@@ -27,7 +27,7 @@ class BinaryIntentNode(BaseNode):
     
     Outputs:
         result: Boolean true/false
-        message: Original message if result is true, empty string if false
+        message: Original message if result is true, None if false (Optional[str])
         confidence: "high", "medium", or "low"
         reasoning: Brief explanation of the decision
     """
