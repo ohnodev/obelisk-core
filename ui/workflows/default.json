@@ -77,7 +77,7 @@
       "inputs": {},
       "metadata": {
         "bot_id": "",
-        "group_id": ""
+        "chat_id": ""
       }
     },
     {
@@ -173,7 +173,7 @@
       "from": "12",
       "from_output": "chat_id",
       "to": "10",
-      "to_input": "group_id"
+      "to_input": "chat_id"
     },
     {
       "from": "16",

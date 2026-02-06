@@ -11,12 +11,13 @@ logger = get_logger(__name__)
 
 class TelegramBotNode(BaseNode):
     """
-    Sends messages to Telegram groups/channels via bot API
+    Sends messages to Telegram chats via bot API
     
     Inputs:
         message: Message text to send (required)
         bot_id: Telegram bot token (optional, can be provided as widget or input)
-        group_id: Telegram group/channel ID (optional, can be provided as widget or input)
+        chat_id: Telegram chat ID (optional, can be provided as widget or input)
+                 Also accepts group_id for backwards compatibility
     
     Outputs:
         success: Boolean indicating if message was sent successfully
@@ -37,10 +38,12 @@ class TelegramBotNode(BaseNode):
         if not bot_id:
             bot_id = self.metadata.get('bot_id', '') or self.inputs.get('bot_id', '')
         
-        # Get group_id: try input first, then metadata (widget value)
-        group_id = self.get_input_value('group_id', context, None)
-        if not group_id:
-            group_id = self.metadata.get('group_id', '') or self.inputs.get('group_id', '')
+        # Get chat_id: try chat_id first, then group_id for backwards compatibility
+        chat_id = self.get_input_value('chat_id', context, None)
+        if not chat_id:
+            chat_id = self.get_input_value('group_id', context, None)  # backwards compat
+        if not chat_id:
+            chat_id = self.metadata.get('chat_id', '') or self.metadata.get('group_id', '') or self.inputs.get('chat_id', '') or self.inputs.get('group_id', '')
         
         # Resolve template variables (including environment variables)
         import os
@@ -59,7 +62,7 @@ class TelegramBotNode(BaseNode):
         
         message = resolve_template_var(message) if message else None
         bot_id = resolve_template_var(bot_id) if bot_id else None
-        group_id = resolve_template_var(group_id) if group_id else None
+        chat_id = resolve_template_var(chat_id) if chat_id else None
         
         # Validate inputs
         if not message:
@@ -68,8 +71,8 @@ class TelegramBotNode(BaseNode):
         if not bot_id:
             raise ValueError("bot_id is required for TelegramBotNode")
         
-        if not group_id:
-            raise ValueError("group_id is required for TelegramBotNode")
+        if not chat_id:
+            raise ValueError("chat_id is required for TelegramBotNode")
         
         try:
             # Import requests for API calls
@@ -80,20 +83,20 @@ class TelegramBotNode(BaseNode):
             
             # Prepare payload
             payload = {
-                "chat_id": group_id,
+                "chat_id": chat_id,
                 "text": str(message),
                 "parse_mode": "HTML"  # Optional: supports HTML formatting
             }
             
             # Send message
-            logger.debug(f"[TelegramBot] Sending message to chat_id={group_id}, message_length={len(str(message))}")
+            logger.debug(f"[TelegramBot] Sending message to chat_id={chat_id}, message_length={len(str(message))}")
             response = requests.post(url, json=payload, timeout=10)
             response.raise_for_status()
             
             result = response.json()
             
             if result.get('ok'):
-                logger.info(f"[TelegramBot] Message sent successfully to chat_id={group_id}")
+                logger.info(f"[TelegramBot] Message sent successfully to chat_id={chat_id}")
                 return {
                     'success': True,
                     'response': result

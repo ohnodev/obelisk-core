@@ -125,8 +125,8 @@ const NODE_CATEGORIES: NodeCategory[] = [
       },
       {
         type: "telegram_bot",
-        title: "Telegram Bot",
-        description: "Sends messages to Telegram groups/channels",
+        title: "TG Send Message",
+        description: "Sends messages to Telegram chats via bot API",
       },
     ],
   },
