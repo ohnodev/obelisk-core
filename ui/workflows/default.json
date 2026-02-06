@@ -23,6 +23,7 @@
         "x": 1166,
         "y": 510
       },
+      "size": [300, 300],
       "inputs": {
         "summarize_threshold": 3
       },

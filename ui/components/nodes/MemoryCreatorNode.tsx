@@ -19,7 +19,7 @@ class MemoryCreatorNode extends LGraphNode {
     this.addInput("user_id", "string");
     this.addInput("summarize_threshold", "number");
     // No outputs - saves directly to storage
-    this.size = [300, 260];
+    this.size = [300, 300];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;
     

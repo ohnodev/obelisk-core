@@ -19,6 +19,7 @@ class TextNode extends LGraphNode {
     // Add textarea widget for text content
     this.addProperty("text", "", "string");
     const initialValue = (this.properties as any)?.text || "";
+    
     const widget = this.addWidget("textarea" as any, "text", initialValue, (value: string) => {
       this.setProperty("text", value);
     }, {
@@ -30,13 +31,13 @@ class TextNode extends LGraphNode {
     // Ensure widget value is set from property
     if (widget) {
       (widget as any).value = (this.properties as any)?.text || "";
+      // Add vertical offset to push widget down below inputs
+      (widget as any).y = 15;
     }
     
-    this.size = [300, 220];
+    this.size = [300, 250];
     (this as any).type = "text";
     (this as any).resizable = true;
-    // Add extra space before widgets (below inputs)
-    (this as any).widgets_start_y = 70;
   }
   
   onPropertyChanged(name: string, value: any) {
