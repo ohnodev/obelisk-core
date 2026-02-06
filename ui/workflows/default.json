@@ -128,7 +128,7 @@
       },
       "inputs": {},
       "metadata": {
-        "intent_criteria": ""
+        "intent_criteria": "Does this message reference, mention, or address the bot?\n\nLook for:\n- Direct mentions: @TheObeliskTestBot\n- References to: The Obelisk, The Overseer, Obelisk\n- Talking about AI agents, autonomous agents\n- Questions or statements directed at the bot\n- Replies to previous bot messages"
       }
     }
   ],
