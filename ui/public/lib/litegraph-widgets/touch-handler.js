@@ -297,10 +297,15 @@
                     var currentDistance = getTouchDistance(e.touches);
                     var center = getTouchCenter(e.touches);
                     
-                    // Calculate zoom
-                    var distanceRatio = currentDistance / touchState.lastPinchDistance;
+                    // Guard against division by zero - skip zoom if lastPinchDistance is near zero
+                    var EPSILON = 0.001;
+                    var distanceRatio = 1; // Default to no change
+                    if (touchState.lastPinchDistance > EPSILON) {
+                        distanceRatio = currentDistance / touchState.lastPinchDistance;
+                    }
                     
-                    if (Math.abs(distanceRatio - 1) > 0.01) {
+                    // Only process zoom if distanceRatio is finite and represents meaningful change
+                    if (Number.isFinite(distanceRatio) && Math.abs(distanceRatio - 1) > 0.01) {
                         var rect = canvas.getBoundingClientRect();
                         var canvasX = center.x - rect.left;
                         var canvasY = center.y - rect.top;
