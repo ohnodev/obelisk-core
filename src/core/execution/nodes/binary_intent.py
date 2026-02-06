@@ -117,8 +117,17 @@ Respond with JSON only. Start with { and end with }."""
             parsed = extract_json_from_llm_response(response_text, context="binary_intent")
             
             if parsed:
-                # Extract values with defaults
-                intent_result = bool(parsed.get('result', False))
+                # Extract and normalize result to boolean
+                raw = parsed.get('result', False)
+                if isinstance(raw, bool):
+                    intent_result = raw
+                elif isinstance(raw, str):
+                    intent_result = raw.strip().lower() in ('true', '1', 'yes', 'y')
+                elif isinstance(raw, (int, float)):
+                    intent_result = raw != 0
+                else:
+                    intent_result = False
+                
                 confidence = parsed.get('confidence', 'low')
                 reasoning = parsed.get('reasoning', 'No reasoning provided')
                 

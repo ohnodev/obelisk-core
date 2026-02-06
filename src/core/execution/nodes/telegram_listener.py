@@ -57,6 +57,7 @@ class TelegramListenerNode(BaseNode):
         self._last_poll_time: float = 0.0
         self._message_count: int = 0
         self._bot_info: Optional[Dict] = None
+        self._pending_messages: List[Dict] = []  # Queue for messages from multi-message polls
         
         logger.debug(
             f"[TelegramListener {node_id}] Initialized: "
@@ -243,6 +244,11 @@ class TelegramListenerNode(BaseNode):
         if not self._bot_token:
             return None
         
+        # First, check if we have pending messages from a previous poll
+        if self._pending_messages:
+            return self._emit_next_message()
+        
+        # No pending messages - check if we should poll
         current_time = time.time()
         elapsed = current_time - self._last_poll_time
         
@@ -258,33 +264,53 @@ class TelegramListenerNode(BaseNode):
         if not updates:
             return None
         
-        # Process updates - for now, just return the latest one
-        # In the future, we could batch process or emit multiple
+        # Parse ALL updates and queue them
         for update in updates:
             parsed = self._parse_update(update)
             if parsed and parsed.get('message'):
-                self._message_count += 1
-                
-                logger.info(
-                    f"[TelegramListener {self.node_id}] Message #{self._message_count} "
-                    f"from @{parsed.get('username') or parsed.get('user_id')} "
-                    f"in {parsed.get('chat_type')} {parsed.get('chat_id')}: "
-                    f"{parsed.get('message')[:50]}..."
-                )
-                
-                return {
-                    'trigger': True,
-                    'message': parsed.get('message', ''),
-                    'user_id': parsed.get('user_id', ''),
-                    'username': parsed.get('username', ''),
-                    'chat_id': parsed.get('chat_id', ''),
-                    'message_id': parsed.get('message_id', 0),
-                    'is_reply_to_bot': parsed.get('is_reply_to_bot', False),
-                    'is_mention': parsed.get('is_mention', False),
-                    'raw_update': parsed.get('raw_update')
-                }
+                self._pending_messages.append(parsed)
+        
+        # Log how many messages were queued
+        if self._pending_messages:
+            logger.debug(f"[TelegramListener {self.node_id}] Queued {len(self._pending_messages)} messages for processing")
+        
+        # Emit the first message if any
+        if self._pending_messages:
+            return self._emit_next_message()
         
         return None
+    
+    def _emit_next_message(self) -> Optional[Dict[str, Any]]:
+        """
+        Pop and emit the next message from the pending queue.
+        
+        Returns:
+            Output dict with message data, or None if queue is empty
+        """
+        if not self._pending_messages:
+            return None
+        
+        parsed = self._pending_messages.pop(0)
+        self._message_count += 1
+        
+        logger.info(
+            f"[TelegramListener {self.node_id}] Message #{self._message_count} "
+            f"from @{parsed.get('username') or parsed.get('user_id')} "
+            f"in {parsed.get('chat_type')} {parsed.get('chat_id')}: "
+            f"{parsed.get('message')[:50]}..."
+        )
+        
+        return {
+            'trigger': True,
+            'message': parsed.get('message', ''),
+            'user_id': parsed.get('user_id', ''),
+            'username': parsed.get('username', ''),
+            'chat_id': parsed.get('chat_id', ''),
+            'message_id': parsed.get('message_id', 0),
+            'is_reply_to_bot': parsed.get('is_reply_to_bot', False),
+            'is_mention': parsed.get('is_mention', False),
+            'raw_update': parsed.get('raw_update')
+        }
     
     def get_status(self) -> Dict[str, Any]:
         """Get current listener status"""

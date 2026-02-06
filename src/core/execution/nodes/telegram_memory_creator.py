@@ -3,6 +3,7 @@ Telegram Memory Creator Node
 Stores Telegram messages and creates summaries per chat
 """
 import time
+import weakref
 from typing import Dict, Any, Optional, List
 from ..node_base import BaseNode, ExecutionContext
 from ....utils.logger import get_logger
@@ -37,11 +38,12 @@ class TelegramMemoryCreatorNode(BaseNode):
         summary_created: True if a summary was just created
     """
     
-    # Class-level cache for message counts per chat_id
-    _message_counts: Dict[str, Dict[str, int]] = {}  # storage_id -> chat_id -> count
+    # Class-level cache using WeakKeyDictionary to auto-cleanup when storage is GC'd
+    # storage_instance -> chat_id -> count
+    _message_counts: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
     
-    # Class-level cache for recent messages per chat_id (for summarization)
-    _message_buffers: Dict[str, Dict[str, List[Dict]]] = {}  # storage_id -> chat_id -> [messages]
+    # storage_instance -> chat_id -> [messages]
+    _message_buffers: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
     
     def __init__(self, node_id: str, node_data: Dict[str, Any]):
         """Initialize telegram memory creator node"""
@@ -50,31 +52,28 @@ class TelegramMemoryCreatorNode(BaseNode):
     
     def _get_message_count(self, storage_instance, chat_id: str) -> int:
         """Get message count for a chat"""
-        storage_id = id(storage_instance)
-        if storage_id not in self._message_counts:
-            self._message_counts[storage_id] = {}
-        if chat_id not in self._message_counts[storage_id]:
-            self._message_counts[storage_id][chat_id] = 0
-        return self._message_counts[storage_id][chat_id]
+        if storage_instance not in self._message_counts:
+            self._message_counts[storage_instance] = {}
+        if chat_id not in self._message_counts[storage_instance]:
+            self._message_counts[storage_instance][chat_id] = 0
+        return self._message_counts[storage_instance][chat_id]
     
     def _increment_message_count(self, storage_instance, chat_id: str) -> int:
         """Increment and return message count for a chat"""
-        storage_id = id(storage_instance)
-        if storage_id not in self._message_counts:
-            self._message_counts[storage_id] = {}
-        if chat_id not in self._message_counts[storage_id]:
-            self._message_counts[storage_id][chat_id] = 0
-        self._message_counts[storage_id][chat_id] += 1
-        return self._message_counts[storage_id][chat_id]
+        if storage_instance not in self._message_counts:
+            self._message_counts[storage_instance] = {}
+        if chat_id not in self._message_counts[storage_instance]:
+            self._message_counts[storage_instance][chat_id] = 0
+        self._message_counts[storage_instance][chat_id] += 1
+        return self._message_counts[storage_instance][chat_id]
     
     def _get_message_buffer(self, storage_instance, chat_id: str) -> List[Dict]:
         """Get message buffer for a chat"""
-        storage_id = id(storage_instance)
-        if storage_id not in self._message_buffers:
-            self._message_buffers[storage_id] = {}
-        if chat_id not in self._message_buffers[storage_id]:
-            self._message_buffers[storage_id][chat_id] = []
-        return self._message_buffers[storage_id][chat_id]
+        if storage_instance not in self._message_buffers:
+            self._message_buffers[storage_instance] = {}
+        if chat_id not in self._message_buffers[storage_instance]:
+            self._message_buffers[storage_instance][chat_id] = []
+        return self._message_buffers[storage_instance][chat_id]
     
     def _add_to_buffer(self, storage_instance, chat_id: str, message_data: Dict):
         """Add message to buffer"""
@@ -83,13 +82,12 @@ class TelegramMemoryCreatorNode(BaseNode):
         # Keep buffer size reasonable (2x threshold)
         max_size = self._summarize_threshold * 2
         if len(buffer) > max_size:
-            self._message_buffers[id(storage_instance)][chat_id] = buffer[-max_size:]
+            self._message_buffers[storage_instance][chat_id] = buffer[-max_size:]
     
     def _clear_buffer(self, storage_instance, chat_id: str):
         """Clear message buffer after summarization"""
-        storage_id = id(storage_instance)
-        if storage_id in self._message_buffers and chat_id in self._message_buffers[storage_id]:
-            self._message_buffers[storage_id][chat_id] = []
+        if storage_instance in self._message_buffers and chat_id in self._message_buffers[storage_instance]:
+            self._message_buffers[storage_instance][chat_id] = []
     
     def _summarize_messages(
         self,

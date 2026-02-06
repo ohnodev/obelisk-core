@@ -71,7 +71,9 @@ class InferenceNode(BaseNode):
         if not isinstance(query, str) or not query.strip():
             logger.debug(f"InferenceNode {self.node_id}: No query provided (likely gated), returning empty response")
             return {
+                "query": query if isinstance(query, str) else "",
                 "response": "",
+                "result": None,
                 "tokens_used": 0
             }
         
