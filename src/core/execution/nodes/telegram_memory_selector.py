@@ -33,6 +33,7 @@ class TelegramMemorySelectorNode(BaseNode):
         context: Combined context (summaries + recent messages)
         recent_messages: Just the recent raw messages
         summaries: Just the summaries
+        pass_through: Original query passed through (for chaining to next node)
     """
     
     def __init__(self, node_id: str, node_data: Dict[str, Any]):
@@ -160,7 +161,7 @@ class TelegramMemorySelectorNode(BaseNode):
         # Validate required inputs
         if not chat_id:
             logger.warning("[TelegramMemorySelector] No chat_id provided")
-            return {'context': '', 'recent_messages': '', 'summaries': ''}
+            return {'context': '', 'recent_messages': '', 'summaries': '', 'pass_through': str(query) if query else ''}
         
         if storage_instance is None:
             raise ValueError("storage_instance is required for TelegramMemorySelectorNode")
@@ -189,5 +190,6 @@ class TelegramMemorySelectorNode(BaseNode):
         return {
             'context': combined_context,
             'recent_messages': recent_messages_text,
-            'summaries': summaries_text
+            'summaries': summaries_text,
+            'pass_through': str(query) if query else ''
         }

@@ -21,6 +21,7 @@ class TelegramMemorySelectorNode extends LGraphNode {
     this.addOutput("context", "string"); // Combined context (summaries + recent)
     this.addOutput("recent_messages", "string"); // Just recent raw messages
     this.addOutput("summaries", "string"); // Just the summaries
+    this.addOutput("pass_through", "string"); // Original query passed through
     
     this.size = [280, 200];
     (this as any).type = "telegram_memory_selector";
