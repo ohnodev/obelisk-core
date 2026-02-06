@@ -2,9 +2,20 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./styles/fonts.css";
 
+const siteUrl = "https://build.theobelisk.ai";
+const ogImageUrl = `${siteUrl}/build-og-image.jpg`;
+
 export const metadata: Metadata = {
-  title: "Obelisk Core | Visual Workflow Editor",
-  description: "Visual node-based workflow editor for Obelisk Core AI agents",
+  title: "Obelisk Build | Visual Builder for Autonomous AI Agents",
+  description: "Visual node-based builder for creating and deploying autonomous AI agents. Design complex workflows with drag-and-drop simplicity.",
+  keywords: ["AI agents", "autonomous agents", "workflow builder", "visual programming", "LLM", "AI automation", "no-code AI"],
+  authors: [{ name: "The Obelisk", url: "https://theobelisk.ai" }],
+  creator: "The Obelisk",
+  publisher: "The Obelisk",
+  metadataBase: new URL(siteUrl),
+  alternates: {
+    canonical: siteUrl,
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -16,6 +27,36 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/site.webmanifest",
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    title: "Obelisk Build | Visual Builder for Autonomous AI Agents",
+    description: "Visual node-based builder for creating and deploying autonomous AI agents. Design complex workflows with drag-and-drop simplicity.",
+    siteName: "The Obelisk",
+    images: [
+      {
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: "Obelisk Build - Visual Builder for Autonomous AI Agents",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@theobeliskai",
+    creator: "@theobeliskai",
+    title: "Obelisk Build | Visual Builder for Autonomous AI Agents",
+    description: "Visual node-based builder for creating and deploying autonomous AI agents. Design complex workflows with drag-and-drop simplicity.",
+    images: [ogImageUrl],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  other: {
+    "telegram:channel": "https://t.me/theobeliskportal",
+  },
 };
 
 export default function RootLayout({
