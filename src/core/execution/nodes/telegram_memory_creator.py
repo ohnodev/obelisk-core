@@ -162,10 +162,11 @@ Example of correct JSON format:
         storage_instance = self.get_input_value('storage_instance', context, None)
         llm = self.get_input_value('model', context, None)
         
-        # Get threshold from metadata
+        # Get threshold from metadata and normalize (update instance so buffer cap stays consistent)
         summarize_threshold = int(self.metadata.get('summarize_threshold', 50))
         if summarize_threshold < 5:
             summarize_threshold = 5
+        self._summarize_threshold = summarize_threshold  # Keep instance in sync for _add_to_buffer
         
         # Validate required inputs
         if not message:
