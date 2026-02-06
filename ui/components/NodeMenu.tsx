@@ -12,8 +12,8 @@ import {
   Placement,
 } from "@floating-ui/react";
 
-// Mobile breakpoint
-const MOBILE_BREAKPOINT = 768;
+// Mobile breakpoint - single breakpoint across the app
+const MOBILE_BREAKPOINT = 1200;
 
 interface NodeMenuProps {
   visible: boolean;

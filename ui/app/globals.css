@@ -85,7 +85,7 @@ p {
 
 /* Prevent iOS Safari auto-zoom on input focus */
 /* iOS zooms in when font-size < 16px */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1200px) {
   input,
   textarea,
   select {
