@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { updateNodeOutputs } from "@/lib/workflow-execution";
+import { getApiUrls } from "@/lib/api-config";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
@@ -17,8 +18,6 @@ interface ToolbarProps {
   onSave?: (workflow: WorkflowGraph) => void;
   onLoad?: (workflow: WorkflowGraph) => void;
   workflow?: WorkflowGraph;
-  apiBaseUrl?: string;
-  deploymentApiUrl?: string;
 }
 
 export default function Toolbar({ 
@@ -26,9 +25,9 @@ export default function Toolbar({
   onSave, 
   onLoad, 
   workflow, 
-  apiBaseUrl = "http://localhost:7779",
-  deploymentApiUrl = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090"
 }: ToolbarProps) {
+  // Get API URLs based on dev/prod mode
+  const { coreApi: apiBaseUrl, serviceApi: deploymentApiUrl } = getApiUrls();
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);

@@ -7,6 +7,7 @@ import { WorkflowGraph } from "@/lib/litegraph";
 import { serializeGraph } from "@/lib/litegraph";
 import { executeWorkflow, updateNodeOutputs, ExecutionStatus } from "@/lib/workflow-execution";
 import { useNotifications } from "@/components/Notification";
+import { getApiUrls } from "@/lib/api-config";
 import "@/components/nodes"; // Register all node types
 
 // Load default workflow from JSON file - default agent with memory
@@ -129,6 +130,7 @@ export default function Home() {
       };
 
       // Execute workflow using queue-based execution
+      const { coreApi } = getApiUrls();
       const result = await executeWorkflow(
         currentWorkflow,
         {
@@ -136,7 +138,7 @@ export default function Home() {
           user_id: "default_user",
           user_query: userQuery || "Hello", // Default query if not found
         },
-        "http://localhost:7779",
+        coreApi,
         onProgress
       );
 

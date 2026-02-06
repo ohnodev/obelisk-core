@@ -5,6 +5,7 @@ import Link from "next/link";
 import RobotMaskIcon from "@/components/icons/RobotMaskIcon";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useNotifications } from "@/components/Notification";
+import { getApiUrls } from "@/lib/api-config";
 
 interface Agent {
   agent_id: string;
@@ -22,9 +23,10 @@ interface AgentSlots {
   slots_available: number;
 }
 
-const DEPLOYMENT_API = process.env.NEXT_PUBLIC_DEPLOYMENT_API || "http://localhost:8090";
-
 export default function DeploymentsPage() {
+  // Get API URL based on dev/prod mode
+  const { serviceApi: DEPLOYMENT_API } = getApiUrls();
+  
   const [agents, setAgents] = useState<Agent[]>([]);
   const [slots, setSlots] = useState<AgentSlots | null>(null);
   const [loading, setLoading] = useState(true);
