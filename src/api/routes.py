@@ -507,7 +507,7 @@ async def run_workflow(
     
     except WorkflowLimitError as e:
         # Rate limit exceeded - return 429 Too Many Requests
-        raise HTTPException(status_code=429, detail=str(e))
+        raise HTTPException(status_code=429, detail=str(e)) from e
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -734,6 +734,7 @@ async def get_job_result(
     
     result = queue.get_result(job_id)
     
+    # Case 1: Completed with results
     if job.status.value == "completed" and result:
         return JobResultResponse(
             job_id=job_id,
@@ -741,12 +742,21 @@ async def get_job_result(
             results=result.get('results'),
             execution_order=result.get('execution_order')
         )
+    # Case 2: Completed but no results available
+    elif job.status.value == "completed" and not result:
+        return JobResultResponse(
+            job_id=job_id,
+            status="completed",
+            error="No results available"
+        )
+    # Case 3: Failed
     elif job.status.value == "failed":
         return JobResultResponse(
             job_id=job_id,
             status="failed",
             error=job.error
         )
+    # Case 4: Cancelled or other status
     else:
         return JobResultResponse(
             job_id=job_id,
