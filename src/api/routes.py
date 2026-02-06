@@ -663,15 +663,15 @@ async def queue_execute(
     request: QueueExecuteRequest,
     queue = Depends(get_execution_queue)
 ):
-    f"""
+    """
     Queue a workflow for execution.
     
     Jobs are processed sequentially. Returns immediately with job_id.
-    Poll /queue/status/{job_id} for progress, /queue/result/{job_id} for results.
+    Poll /queue/status/{{job_id}} for progress, /queue/result/{{job_id}} for results.
     
     Rate limits:
-    - Max {ExecutionQueue.MAX_QUEUE_SIZE} jobs in queue
-    - Max {ExecutionQueue.MAX_JOBS_PER_USER} pending jobs per user
+    - Max 20 jobs in queue (ExecutionQueue.MAX_QUEUE_SIZE)
+    - Max 3 pending jobs per user (ExecutionQueue.MAX_JOBS_PER_USER)
     """
     try:
         job = queue.enqueue(request.workflow, request.options)
