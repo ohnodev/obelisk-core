@@ -47,6 +47,10 @@ class InferenceNode(BaseNode):
         enable_thinking = self.get_input_value('enable_thinking', context, True)
         conversation_history = self.get_input_value('conversation_history', context, None)
         
+        # Capture original system_prompt before context merging for validation
+        # Only an explicit TextNode-provided system_prompt satisfies the requirement
+        original_system_prompt = system_prompt
+        
         # Extract messages and memories from context if provided
         if context_dict:
             if isinstance(context_dict, dict):
@@ -81,8 +85,8 @@ class InferenceNode(BaseNode):
         if model is None:
             raise ValueError("model is required for InferenceNode. Connect a ModelLoaderNode first.")
         
-        # System prompt is required - must be provided by TextNode
-        if not system_prompt:
+        # System prompt is required - must be provided by TextNode (not just from context)
+        if not original_system_prompt:
             raise ValueError("system_prompt is required for InferenceNode. Connect a TextNode to system_prompt input.")
         
         # Debug logging (query is now validated as non-empty string)
