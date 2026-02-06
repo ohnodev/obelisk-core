@@ -83,4 +83,24 @@ p {
   font-family: var(--font-body);
 }
 
+/* Prevent iOS Safari auto-zoom on input focus */
+/* iOS zooms in when font-size < 16px */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+  
+  /* LiteGraph prompt dialog inputs */
+  .litegraph input,
+  .litegraph textarea,
+  .graphdialog input,
+  .graphdialog textarea,
+  .litegraph-dialog input,
+  .litegraph-dialog textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* ComfyUI Litegraph styles - copied from ComfyUI_frontend */

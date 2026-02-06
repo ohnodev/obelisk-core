@@ -314,7 +314,7 @@ export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeM
                 borderRadius: "8px",
                 color: "var(--color-input-text)",
                 fontFamily: "var(--font-body)",
-                fontSize: "1rem",
+                fontSize: "16px", // Must be 16px+ to prevent iOS Safari auto-zoom
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && filteredCategories.length > 0 && filteredCategories[0].nodes.length > 0) {
