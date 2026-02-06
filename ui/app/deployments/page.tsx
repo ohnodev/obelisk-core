@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import RobotMaskIcon from "@/components/icons/RobotMaskIcon";
 import ConfirmModal from "@/components/ConfirmModal";
@@ -24,8 +24,8 @@ interface AgentSlots {
 }
 
 export default function DeploymentsPage() {
-  // Get API URL based on dev/prod mode
-  const { serviceApi: DEPLOYMENT_API } = getApiUrls();
+  // Memoize API URL to ensure stable reference
+  const DEPLOYMENT_API = useMemo(() => getApiUrls().serviceApi, []);
   
   const [agents, setAgents] = useState<Agent[]>([]);
   const [slots, setSlots] = useState<AgentSlots | null>(null);
@@ -70,7 +70,7 @@ export default function DeploymentsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [DEPLOYMENT_API]);
 
   useEffect(() => {
     fetchData();

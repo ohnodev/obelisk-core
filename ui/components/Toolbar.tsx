@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { updateNodeOutputs } from "@/lib/workflow-execution";
 import { getApiUrls } from "@/lib/api-config";
+import { getUserId } from "@/lib/user-id";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
@@ -74,7 +75,7 @@ export default function Toolbar({
       body: JSON.stringify({
         workflow: currentWorkflow,
         name,
-        user_id: "ui_user",
+        user_id: getUserId(),
         env_vars: envVars,
       }),
     });
@@ -250,7 +251,7 @@ export default function Toolbar({
           body: JSON.stringify({
             workflow: currentWorkflow,
             options: {
-              user_id: "ui_user",
+              user_id: getUserId(),
             },
           }),
         });

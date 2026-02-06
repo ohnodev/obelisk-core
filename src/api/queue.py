@@ -133,18 +133,26 @@ class ExecutionQueue:
         """Save queue state to JSON file"""
         try:
             # Only persist recent jobs (cleanup old completed ones)
+            # Sort all jobs by created_at descending (newest first) before selection
+            # to ensure we keep the most recent completed jobs
+            all_jobs_sorted = sorted(
+                self._jobs.values(),
+                key=lambda j: j.created_at,
+                reverse=True
+            )
+            
             jobs_to_save = []
             completed_count = 0
             
-            for job in self._jobs.values():
+            for job in all_jobs_sorted:
                 if job.status in (JobStatus.QUEUED, JobStatus.RUNNING):
+                    # Always keep queued and running jobs
                     jobs_to_save.append(job)
-                elif completed_count < self.MAX_COMPLETED_JOBS:
-                    jobs_to_save.append(job)
-                    completed_count += 1
-            
-            # Sort by created_at for consistent ordering
-            jobs_to_save.sort(key=lambda j: j.created_at, reverse=True)
+                elif job.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
+                    # Keep only the most recent completed jobs
+                    if completed_count < self.MAX_COMPLETED_JOBS:
+                        jobs_to_save.append(job)
+                        completed_count += 1
             
             data = {
                 'jobs': [job.to_dict() for job in jobs_to_save],
@@ -161,6 +169,16 @@ class ExecutionQueue:
         """Update position field for all queued jobs"""
         for i, job in enumerate(self._queue):
             job.position = i
+    
+    def get_queue_length(self) -> int:
+        """Get the current number of jobs in the queue (public accessor)"""
+        with self._lock:
+            return len(self._queue)
+    
+    def get_total_jobs(self) -> int:
+        """Get the total number of tracked jobs (public accessor)"""
+        with self._lock:
+            return len(self._jobs)
     
     def enqueue(self, workflow: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> ExecutionJob:
         """

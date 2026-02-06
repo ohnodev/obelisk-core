@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any, List, Literal
 
 from ..core.container import ServiceContainer
 from ..core.config import Config
-from .queue import QueueFullError
+from .queue import QueueFullError, ExecutionQueue
 from ..core.execution.runner import WorkflowLimitError
 
 router = APIRouter()
@@ -663,15 +663,15 @@ async def queue_execute(
     request: QueueExecuteRequest,
     queue = Depends(get_execution_queue)
 ):
-    """
+    f"""
     Queue a workflow for execution.
     
     Jobs are processed sequentially. Returns immediately with job_id.
     Poll /queue/status/{job_id} for progress, /queue/result/{job_id} for results.
     
     Rate limits:
-    - Max {MAX_QUEUE_SIZE} jobs in queue
-    - Max {MAX_JOBS_PER_USER} pending jobs per user
+    - Max {ExecutionQueue.MAX_QUEUE_SIZE} jobs in queue
+    - Max {ExecutionQueue.MAX_JOBS_PER_USER} pending jobs per user
     """
     try:
         job = queue.enqueue(request.workflow, request.options)
@@ -680,16 +680,16 @@ async def queue_execute(
             job_id=job.id,
             status=job.status.value,
             position=job.position,
-            queue_length=len(queue._queue),
+            queue_length=queue.get_queue_length(),
             message=f"Job queued at position {job.position}"
         )
     except QueueFullError as e:
         # Rate limit exceeded - return 429 Too Many Requests
-        raise HTTPException(status_code=429, detail=str(e))
+        raise HTTPException(status_code=429, detail=str(e)) from e
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/queue/status/{job_id}", response_model=JobStatusResponse)
