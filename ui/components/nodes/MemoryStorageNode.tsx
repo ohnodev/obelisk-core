@@ -3,13 +3,13 @@
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class MemoryStorageNode extends LGraphNode {
-  static title = "Memory Storage";
-  static desc = "Creates/accesses storage instances based on storage path";
+  static title = "Storage";
+  static desc = "Creates/accesses storage instances (for memory, messages, etc.)";
   static title_color = "#9d79d6";
 
   constructor() {
     super();
-    this.title = "Memory Storage";
+    this.title = "Storage";
     
     // Optional input endpoint for storage_path (can be connected or use inline widget)
     this.addInput("storage_path", "string");

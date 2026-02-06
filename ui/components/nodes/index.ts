@@ -9,3 +9,5 @@ import "./InferenceNode";
 import "./TelegramBotNode";
 import "./TelegramListenerNode";
 import "./SchedulerNode";
+import "./TelegramMemoryCreatorNode";
+import "./TelegramMemorySelectorNode";

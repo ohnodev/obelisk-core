@@ -11,6 +11,8 @@ from .text import TextNode
 from .scheduler import SchedulerNode
 from .telegram_bot import TelegramBotNode
 from .telegram_listener import TelegramListenerNode
+from .telegram_memory_creator import TelegramMemoryCreatorNode
+from .telegram_memory_selector import TelegramMemorySelectorNode
 
 __all__ = [
     'ModelLoaderNode',
@@ -23,4 +25,6 @@ __all__ = [
     'SchedulerNode',
     'TelegramBotNode',
     'TelegramListenerNode',
+    'TelegramMemoryCreatorNode',
+    'TelegramMemorySelectorNode',
 ]

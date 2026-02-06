@@ -47,6 +47,8 @@ def _register_all_nodes():
     from .nodes.telegram_bot import TelegramBotNode
     from .nodes.scheduler import SchedulerNode
     from .nodes.telegram_listener import TelegramListenerNode
+    from .nodes.telegram_memory_creator import TelegramMemoryCreatorNode
+    from .nodes.telegram_memory_selector import TelegramMemorySelectorNode
     
     register_node("model_loader", ModelLoaderNode)
     register_node("inference", InferenceNode)
@@ -58,6 +60,8 @@ def _register_all_nodes():
     register_node("telegram_bot", TelegramBotNode)
     register_node("scheduler", SchedulerNode)
     register_node("telegram_listener", TelegramListenerNode)
+    register_node("telegram_memory_creator", TelegramMemoryCreatorNode)
+    register_node("telegram_memory_selector", TelegramMemorySelectorNode)
 
 
 # Auto-register on import
