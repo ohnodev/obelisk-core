@@ -217,27 +217,17 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       setNodeMenuVisible(true);
     };
 
-    // ========== MOBILE TOUCH SUPPORT ==========
-    // Track touch state for gesture handling - defined BEFORE double-click handler
-    let touchState = {
-      active: false,
-      lastTouches: [] as { x: number; y: number }[],
-      initialPinchDistance: 0,
-      lastPinchDistance: 0,
-      isPinching: false,
-      lastTouchEnd: 0, // Track last touch end time to prevent double-tap triggering dblclick
-      isTouchDevice: false, // Track if user is using touch
-    };
-
     // Handle double-click to show node menu (instead of LiteGraph's widget popover)
-    // But NOT if we're in touch mode (to prevent pinch from triggering menu)
     const handleCanvasDoubleClick = (e: MouseEvent) => {
-      // Ignore double-click if it was triggered by touch (within 500ms of last touch)
-      const timeSinceTouch = Date.now() - touchState.lastTouchEnd;
-      if (touchState.isTouchDevice && timeSinceTouch < 500) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
+      // Check if touch handler is active (set by touch-handler.js extension)
+      const canvasInstance = canvasInstanceRef.current;
+      if (canvasInstance && canvasInstance._touchState?.isTouchDevice) {
+        const timeSinceTouch = Date.now() - (canvasInstance._touchState.lastTouchTime || 0);
+        if (timeSinceTouch < 500) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
       }
       
       e.preventDefault();
@@ -258,252 +248,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
 
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
     canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
-
-    // Calculate distance between two touch points
-    const getTouchDistance = (touches: TouchList): number => {
-      if (touches.length < 2) return 0;
-      const dx = touches[1].clientX - touches[0].clientX;
-      const dy = touches[1].clientY - touches[0].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-
-    // Get center point between two touches
-    const getTouchCenter = (touches: TouchList): { x: number; y: number } => {
-      if (touches.length < 2) {
-        return { x: touches[0].clientX, y: touches[0].clientY };
-      }
-      return {
-        x: (touches[0].clientX + touches[1].clientX) / 2,
-        y: (touches[0].clientY + touches[1].clientY) / 2,
-      };
-    };
-
-    // Create synthetic mouse event from touch
-    const createMouseEvent = (type: string, touch: Touch, originalEvent: TouchEvent): MouseEvent => {
-      return new MouseEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-        screenX: touch.screenX,
-        screenY: touch.screenY,
-        button: 0,
-        buttons: type === "mouseup" ? 0 : 1,
-        ctrlKey: originalEvent.ctrlKey,
-        altKey: originalEvent.altKey,
-        shiftKey: originalEvent.shiftKey,
-        metaKey: originalEvent.metaKey,
-      });
-    };
-
-    // Handle touch start
-    const handleTouchStart = (e: TouchEvent) => {
-      // Mark as touch device
-      touchState.isTouchDevice = true;
-      
-      // Prevent default to avoid scrolling and LiteGraph's default touch handling
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Close any open menus when touching
-      setNodeMenuVisible(false);
-      
-      // Disable LiteGraph's search box if it exists
-      if (canvasInstanceRef.current) {
-        canvasInstanceRef.current.allow_searchbox = false;
-      }
-      
-      touchState.active = true;
-      touchState.lastTouches = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
-      
-      if (e.touches.length === 2) {
-        // Two finger touch - start pinch tracking
-        // Cancel any ongoing single-touch drag first
-        if (!touchState.isPinching) {
-          const mouseUpEvent = new MouseEvent("mouseup", {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            clientX: touchState.lastTouches[0]?.x || 0,
-            clientY: touchState.lastTouches[0]?.y || 0,
-            button: 0,
-            buttons: 0,
-          });
-          canvasElement.dispatchEvent(mouseUpEvent);
-        }
-        
-        touchState.isPinching = true;
-        touchState.initialPinchDistance = getTouchDistance(e.touches);
-        touchState.lastPinchDistance = touchState.initialPinchDistance;
-      } else if (e.touches.length === 1) {
-        // Single touch - simulate mousedown for dragging
-        touchState.isPinching = false;
-        const mouseEvent = createMouseEvent("mousedown", e.touches[0], e);
-        canvasElement.dispatchEvent(mouseEvent);
-      }
-    };
-
-    // Handle touch move
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!touchState.active) return;
-      e.preventDefault();
-      e.stopPropagation();
-      
-      if (e.touches.length === 2 && touchState.isPinching) {
-        // Two finger move - handle pinch zoom directly
-        const currentDistance = getTouchDistance(e.touches);
-        const center = getTouchCenter(e.touches);
-        
-        // Calculate zoom based on pinch distance change
-        const distanceDelta = currentDistance - touchState.lastPinchDistance;
-        
-        if (Math.abs(distanceDelta) > 1 && canvasInstanceRef.current) { // Lower threshold for smoother zoom
-          const canvas = canvasInstanceRef.current;
-          
-          // Calculate zoom factor (pinch out = zoom in, pinch in = zoom out)
-          const zoomFactor = currentDistance / touchState.lastPinchDistance;
-          
-          // Get canvas-relative coordinates for zoom center
-          const rect = canvasElement.getBoundingClientRect();
-          const canvasX = center.x - rect.left;
-          const canvasY = center.y - rect.top;
-          
-          // Apply zoom directly to canvas scale
-          const newScale = canvas.ds.scale * zoomFactor;
-          
-          // Clamp scale to reasonable bounds
-          const clampedScale = Math.max(0.1, Math.min(10, newScale));
-          
-          if (clampedScale !== canvas.ds.scale) {
-            // Calculate the point in graph space before zoom
-            const graphX = (canvasX - canvas.ds.offset[0]) / canvas.ds.scale;
-            const graphY = (canvasY - canvas.ds.offset[1]) / canvas.ds.scale;
-            
-            // Apply new scale
-            canvas.ds.scale = clampedScale;
-            
-            // Adjust offset to keep zoom centered on pinch point
-            canvas.ds.offset[0] = canvasX - graphX * clampedScale;
-            canvas.ds.offset[1] = canvasY - graphY * clampedScale;
-            
-            canvas.dirty_canvas = true;
-            canvas.dirty_bgcanvas = true;
-          }
-          
-          touchState.lastPinchDistance = currentDistance;
-        }
-        
-        // Also handle two-finger pan
-        if (touchState.lastTouches.length >= 2) {
-          const lastCenter = {
-            x: (touchState.lastTouches[0].x + touchState.lastTouches[1].x) / 2,
-            y: (touchState.lastTouches[0].y + touchState.lastTouches[1].y) / 2,
-          };
-          
-          const panDeltaX = center.x - lastCenter.x;
-          const panDeltaY = center.y - lastCenter.y;
-          
-          if ((Math.abs(panDeltaX) > 1 || Math.abs(panDeltaY) > 1) && canvasInstanceRef.current) {
-            // Apply pan offset directly to canvas (in screen space, not graph space)
-            canvasInstanceRef.current.ds.offset[0] += panDeltaX;
-            canvasInstanceRef.current.ds.offset[1] += panDeltaY;
-            canvasInstanceRef.current.dirty_canvas = true;
-            canvasInstanceRef.current.dirty_bgcanvas = true;
-          }
-        }
-        
-        // Update last touches
-        touchState.lastTouches = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
-        
-        // Force redraw
-        if (canvasInstanceRef.current) {
-          canvasInstanceRef.current.draw(true, true);
-        }
-        
-      } else if (e.touches.length === 1 && !touchState.isPinching) {
-        // Single touch move - simulate mousemove for dragging
-        const mouseEvent = createMouseEvent("mousemove", e.touches[0], e);
-        canvasElement.dispatchEvent(mouseEvent);
-        touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
-      }
-    };
-
-    // Handle touch end
-    const handleTouchEnd = (e: TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // Track last touch end time to prevent double-tap from triggering dblclick
-      touchState.lastTouchEnd = Date.now();
-      
-      if (e.touches.length === 0) {
-        // All fingers lifted
-        if (!touchState.isPinching && touchState.lastTouches.length > 0) {
-          // Was single touch - simulate mouseup
-          const lastTouch = touchState.lastTouches[0];
-          const mouseEvent = new MouseEvent("mouseup", {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            clientX: lastTouch.x,
-            clientY: lastTouch.y,
-            button: 0,
-            buttons: 0,
-          });
-          canvasElement.dispatchEvent(mouseEvent);
-        }
-        
-        // Reset state
-        touchState.active = false;
-        touchState.isPinching = false;
-        touchState.lastTouches = [];
-        touchState.initialPinchDistance = 0;
-        touchState.lastPinchDistance = 0;
-        
-        // Re-enable search box after touch ends (for desktop users)
-        setTimeout(() => {
-          if (canvasInstanceRef.current && !touchState.isTouchDevice) {
-            canvasInstanceRef.current.allow_searchbox = true;
-          }
-        }, 100);
-      } else if (e.touches.length === 1 && touchState.isPinching) {
-        // Went from 2 fingers to 1 - transition to drag mode
-        touchState.isPinching = false;
-        touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
-        
-        // Simulate mousedown to start fresh drag
-        const mouseEvent = createMouseEvent("mousedown", e.touches[0], e);
-        canvasElement.dispatchEvent(mouseEvent);
-      }
-    };
-
-    // Handle touch cancel (e.g., system gesture interruption)
-    const handleTouchCancel = (e: TouchEvent) => {
-      e.preventDefault();
-      touchState.active = false;
-      touchState.isPinching = false;
-      touchState.lastTouches = [];
-      
-      // Simulate mouseup to clean up any drag state
-      const mouseEvent = new MouseEvent("mouseup", {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX: 0,
-        clientY: 0,
-        button: 0,
-        buttons: 0,
-      });
-      canvasElement.dispatchEvent(mouseEvent);
-    };
-
-    // Add touch event listeners with passive: false to allow preventDefault
-    canvasElement.addEventListener("touchstart", handleTouchStart, { passive: false });
-    canvasElement.addEventListener("touchmove", handleTouchMove, { passive: false });
-    canvasElement.addEventListener("touchend", handleTouchEnd, { passive: false });
-    canvasElement.addEventListener("touchcancel", handleTouchCancel, { passive: false });
-    // ========== END MOBILE TOUCH SUPPORT ==========
 
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
@@ -609,11 +353,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
       canvasElement.removeEventListener("dblclick", handleCanvasDoubleClick);
-      // Remove touch event listeners
-      canvasElement.removeEventListener("touchstart", handleTouchStart);
-      canvasElement.removeEventListener("touchmove", handleTouchMove);
-      canvasElement.removeEventListener("touchend", handleTouchEnd);
-      canvasElement.removeEventListener("touchcancel", handleTouchCancel);
+      // Touch event listeners are now handled by touch-handler.js via litegraph.unbindEvents()
       graph.stop();
       // Clear global references when component unmounts
       (window as any).__obeliskGraph = undefined;
