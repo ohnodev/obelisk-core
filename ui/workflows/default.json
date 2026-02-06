@@ -16,18 +16,6 @@
       }
     },
     {
-      "id": "5",
-      "type": "text",
-      "position": {
-        "x": 383,
-        "y": -81
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
-      }
-    },
-    {
       "id": "15",
       "type": "telegram_memory_creator",
       "position": {
@@ -130,6 +118,18 @@
         "recent_count": 20,
         "include_summaries": true
       }
+    },
+    {
+      "id": "5",
+      "type": "text",
+      "position": {
+        "x": 1543,
+        "y": -81
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
+      }
     }
   ],
   "connections": [
@@ -170,10 +170,10 @@
       "to_input": "chat_id"
     },
     {
-      "from": "5",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "system_prompt"
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "10",
+      "to_input": "group_id"
     },
     {
       "from": "16",
@@ -246,6 +246,12 @@
       "from_output": "message",
       "to": "17",
       "to_input": "message"
+    },
+    {
+      "from": "5",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "system_prompt"
     }
   ]
 }
