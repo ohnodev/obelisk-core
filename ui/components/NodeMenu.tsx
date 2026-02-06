@@ -104,6 +104,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Integrations",
     nodes: [
       {
+        type: "telegram_listener",
+        title: "Telegram Listener",
+        description: "Polls for new Telegram messages (autonomous)",
+      },
+      {
         type: "telegram_bot",
         title: "Telegram Bot",
         description: "Sends messages to Telegram groups/channels",
