@@ -86,6 +86,37 @@ def send_message(chat_id, text):
         return None
 
 
+def get_webhook_info():
+    """Check if a webhook is set (prevents polling)"""
+    if not BOT_TOKEN:
+        return None
+    
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Error getting webhook info: {e}")
+        return None
+
+
+def delete_webhook():
+    """Delete any existing webhook to enable polling"""
+    if not BOT_TOKEN:
+        return False
+    
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
+    try:
+        response = requests.post(url, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        return result.get('ok', False)
+    except Exception as e:
+        print(f"Error deleting webhook: {e}")
+        return False
+
+
 def test_bot_token_valid():
     """Test 1: Verify bot token is valid"""
     print("\n=== Test 1: Bot Token Validation ===")
@@ -101,6 +132,26 @@ def test_bot_token_valid():
         print(f"   Bot username: @{bot.get('username')}")
         print(f"   Bot name: {bot.get('first_name')}")
         print(f"   Bot ID: {bot.get('id')}")
+        
+        # Check webhook status
+        webhook_info = get_webhook_info()
+        if webhook_info and webhook_info.get('ok'):
+            webhook = webhook_info.get('result', {})
+            webhook_url = webhook.get('url', '')
+            if webhook_url:
+                print(f"\n   ⚠️  WARNING: Webhook is set to: {webhook_url}")
+                print(f"   This PREVENTS polling from working!")
+                print(f"   Run: delete_webhook() to clear it")
+                
+                # Auto-delete webhook
+                print(f"\n   Automatically deleting webhook...")
+                if delete_webhook():
+                    print(f"   ✅ Webhook deleted - polling should work now!")
+                else:
+                    print(f"   ❌ Failed to delete webhook")
+            else:
+                print(f"   ✅ No webhook set - polling will work")
+        
         return True
     else:
         print(f"❌ Invalid bot token")
@@ -122,16 +173,25 @@ def test_can_poll_updates():
         print(f"   Found {len(updates)} pending updates")
         
         if updates:
-            # Show latest update
-            latest = updates[-1]
-            if 'message' in latest:
-                msg = latest['message']
-                print(f"   Latest message: '{msg.get('text', '[no text]')[:50]}...'")
-                print(f"   From: {msg.get('from', {}).get('username', 'unknown')}")
-                print(f"   Chat ID: {msg.get('chat', {}).get('id')}")
+            # Show all updates for debugging
+            for i, update in enumerate(updates):
+                print(f"\n   Update #{i+1} (update_id: {update.get('update_id')}):")
+                if 'message' in update:
+                    msg = update['message']
+                    chat = msg.get('chat', {})
+                    from_user = msg.get('from', {})
+                    print(f"      Chat type: {chat.get('type')} (id: {chat.get('id')})")
+                    print(f"      From: @{from_user.get('username', '[no username]')} (id: {from_user.get('id')})")
+                    print(f"      Text: '{msg.get('text', '[no text]')[:50]}'")
+                else:
+                    print(f"      Update type: {list(update.keys())}")
+        else:
+            print("\n   ℹ️  No pending messages.")
+            print("   To test: Send a DM to your bot or mention it in a group.")
+            print("   Note: For groups, make sure Privacy Mode is DISABLED via @BotFather")
         return True
     else:
-        print(f"❌ Failed to poll updates")
+        print(f"❌ Failed to poll updates: {result}")
         return False
 
 
