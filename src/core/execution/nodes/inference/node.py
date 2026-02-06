@@ -48,18 +48,24 @@ class InferenceNode(BaseNode):
         conversation_history = self.get_input_value('conversation_history', context, None)
         
         # Extract messages and memories from context if provided
-        if context_dict and isinstance(context_dict, dict):
-            # Context from MemorySelectorNode has 'messages' and 'memories'
-            context_messages = context_dict.get('messages', [])
-            context_memories = context_dict.get('memories', '')
-            
-            # Merge memories into system prompt
-            if context_memories:
-                system_prompt = f"{system_prompt}\n\n{context_memories}" if system_prompt else context_memories
-            
-            # Use context messages as conversation_history if not provided separately
-            if conversation_history is None:
-                conversation_history = context_messages
+        if context_dict:
+            if isinstance(context_dict, dict):
+                # Context from MemorySelectorNode has 'messages' and 'memories'
+                context_messages = context_dict.get('messages', [])
+                context_memories = context_dict.get('memories', '')
+                
+                # Merge memories into system prompt
+                if context_memories:
+                    system_prompt = f"{system_prompt}\n\n{context_memories}" if system_prompt else context_memories
+                
+                # Use context messages as conversation_history if not provided separately
+                if conversation_history is None:
+                    conversation_history = context_messages
+            elif isinstance(context_dict, str) and context_dict.strip():
+                # Context from TelegramMemorySelector is a formatted string
+                # Append it to the system prompt so the model sees the chat history
+                logger.debug(f"InferenceNode {self.node_id}: Appending string context ({len(context_dict)} chars) to system prompt")
+                system_prompt = f"{system_prompt}\n\n--- Chat History ---\n{context_dict}" if system_prompt else context_dict
         
         # Handle missing/empty query gracefully (e.g., when gated by BinaryIntent)
         if not isinstance(query, str) or not query.strip():
