@@ -20,7 +20,7 @@ class TelegramMemorySelectorNode(BaseNode):
     - Combines them into usable context for the agent
     
     Inputs:
-        query: The incoming message to find context for (optional, for semantic search)
+        message: The incoming message to find context for (optional, for semantic search)
         chat_id: Telegram chat/group ID to filter by (required)
         storage_instance: StorageInterface instance (required)
         model: ObeliskLLM instance (optional, for semantic search)
@@ -33,7 +33,7 @@ class TelegramMemorySelectorNode(BaseNode):
         context: Combined context (summaries + recent messages)
         recent_messages: Just the recent raw messages
         summaries: Just the summaries
-        pass_through: Original query passed through (for chaining to next node)
+        message: Original message passed through (for chaining to next node)
     """
     
     def __init__(self, node_id: str, node_data: Dict[str, Any]):
@@ -149,7 +149,7 @@ class TelegramMemorySelectorNode(BaseNode):
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute telegram memory selector - retrieves context for a chat"""
-        query = self.get_input_value('query', context, '')  # Optional
+        message = self.get_input_value('message', context, '')  # Optional
         chat_id = self.get_input_value('chat_id', context, '')
         storage_instance = self.get_input_value('storage_instance', context, None)
         llm = self.get_input_value('model', context, None)  # Optional for semantic search
@@ -161,7 +161,7 @@ class TelegramMemorySelectorNode(BaseNode):
         # Validate required inputs
         if not chat_id:
             logger.warning("[TelegramMemorySelector] No chat_id provided")
-            return {'context': '', 'recent_messages': '', 'summaries': '', 'pass_through': str(query) if query else ''}
+            return {'context': '', 'recent_messages': '', 'summaries': '', 'message': str(message) if message else ''}
         
         if storage_instance is None:
             raise ValueError("storage_instance is required for TelegramMemorySelectorNode")
@@ -191,5 +191,5 @@ class TelegramMemorySelectorNode(BaseNode):
             'context': combined_context,
             'recent_messages': recent_messages_text,
             'summaries': summaries_text,
-            'pass_through': str(query) if query else ''
+            'message': str(message) if message else ''
         }

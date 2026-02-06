@@ -17,7 +17,7 @@ class BinaryIntentNode(BaseNode):
     If result is False, pass_through is empty (workflow can stop here).
     
     Inputs:
-        text: The text to evaluate (required)
+        message: The message to evaluate (required)
         intent_criteria: What to detect/check for (required, can be from widget or input)
         context: Additional context for the decision (optional)
         model: ObeliskLLM instance (required)
@@ -27,7 +27,7 @@ class BinaryIntentNode(BaseNode):
     
     Outputs:
         result: Boolean true/false
-        pass_through: Original text if result is true, empty string if false
+        message: Original message if result is true, empty string if false
         confidence: "high", "medium", or "low"
         reasoning: Brief explanation of the decision
     """
@@ -56,7 +56,7 @@ Respond with JSON only. Start with { and end with }."""
     
     def execute(self, context: ExecutionContext) -> Dict[str, Any]:
         """Execute binary intent classification"""
-        text = self.get_input_value('text', context, '')
+        message = self.get_input_value('message', context, '')
         intent_criteria_input = self.get_input_value('intent_criteria', context, '')
         additional_context = self.get_input_value('context', context, '')
         llm = self.get_input_value('model', context, None)
@@ -65,20 +65,20 @@ Respond with JSON only. Start with { and end with }."""
         intent_criteria = intent_criteria_input or self.metadata.get('intent_criteria', '')
         
         # Validate required inputs
-        if not text:
-            logger.warning("[BinaryIntent] No text provided")
+        if not message:
+            logger.warning("[BinaryIntent] No message provided")
             return {
                 'result': False,
-                'pass_through': '',
+                'message': '',
                 'confidence': 'low',
-                'reasoning': 'No text provided to analyze'
+                'reasoning': 'No message provided to analyze'
             }
         
         if not intent_criteria:
             logger.warning("[BinaryIntent] No intent criteria provided")
             return {
                 'result': False,
-                'pass_through': '',
+                'message': '',
                 'confidence': 'low',
                 'reasoning': 'No intent criteria specified'
             }
@@ -94,7 +94,7 @@ Respond with JSON only. Start with { and end with }."""
         if additional_context:
             query_parts.append(f"\nADDITIONAL CONTEXT:\n{additional_context}")
         
-        query_parts.append(f"\nTEXT TO ANALYZE:\n{text}")
+        query_parts.append(f"\nMESSAGE TO ANALYZE:\n{message}")
         query_parts.append("\nRespond with JSON only:")
         
         query = "\n".join(query_parts)
@@ -130,7 +130,7 @@ Respond with JSON only. Start with { and end with }."""
                 
                 return {
                     'result': intent_result,
-                    'pass_through': text if intent_result else '',
+                    'message': message if intent_result else '',
                     'confidence': confidence,
                     'reasoning': reasoning
                 }
@@ -138,7 +138,7 @@ Respond with JSON only. Start with { and end with }."""
                 logger.warning(f"[BinaryIntent] Failed to parse JSON response: {response_text[:100]}")
                 return {
                     'result': False,
-                    'pass_through': '',
+                    'message': '',
                     'confidence': 'low',
                     'reasoning': 'Failed to parse classification response'
                 }
@@ -147,7 +147,7 @@ Respond with JSON only. Start with { and end with }."""
             logger.error(f"[BinaryIntent] Error during classification: {e}")
             return {
                 'result': False,
-                'pass_through': '',
+                'message': '',
                 'confidence': 'low',
                 'reasoning': f'Error during classification: {str(e)}'
             }

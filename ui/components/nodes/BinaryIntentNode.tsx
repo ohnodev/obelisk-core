@@ -16,14 +16,14 @@ class BinaryIntentNode extends LGraphNode {
     this.title = "Binary Intent";
     
     // Inputs
-    this.addInput("text", "string"); // The text to evaluate
+    this.addInput("message", "string"); // The message to evaluate
     this.addInput("intent_criteria", "string"); // What to detect (optional, can use widget)
     this.addInput("context", "string"); // Optional context
     this.addInput("model", "object"); // LLM for inference
     
     // Outputs
     this.addOutput("result", "boolean"); // true/false
-    this.addOutput("pass_through", "string"); // Original text if result is true, empty if false
+    this.addOutput("message", "string"); // Original message if result is true, empty if false
     this.addOutput("confidence", "string"); // "high", "medium", "low"
     this.addOutput("reasoning", "string"); // Brief explanation
     

@@ -12,7 +12,7 @@ class TelegramMemorySelectorNode extends LGraphNode {
     this.title = "TG Memory Selector";
     
     // Inputs
-    this.addInput("query", "string"); // The incoming message to find context for
+    this.addInput("message", "string"); // The incoming message to find context for
     this.addInput("chat_id", "string"); // Filter by chat
     this.addInput("storage_instance", "object");
     this.addInput("model", "object"); // For embeddings/semantic search
@@ -21,7 +21,7 @@ class TelegramMemorySelectorNode extends LGraphNode {
     this.addOutput("context", "string"); // Combined context (summaries + recent)
     this.addOutput("recent_messages", "string"); // Just recent raw messages
     this.addOutput("summaries", "string"); // Just the summaries
-    this.addOutput("pass_through", "string"); // Original query passed through
+    this.addOutput("message", "string"); // Original message passed through
     
     this.size = [280, 200];
     (this as any).type = "telegram_memory_selector";
