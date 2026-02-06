@@ -15,6 +15,7 @@ import os
 import sys
 import time
 import requests
+import pytest
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -31,22 +32,21 @@ TEST_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')  # Chat to send test messages to
 def get_bot_info():
     """Get bot information to verify token is valid"""
     if not BOT_TOKEN:
-        return None
+        pytest.skip("TELEGRAM_DEV_AGENT_BOT_TOKEN not set")
     
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getMe"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
-        print(f"Error getting bot info: {e}")
-        return None
+    except requests.RequestException as e:
+        pytest.fail(f"Error getting bot info: {e}")
 
 
 def get_updates(offset=None, timeout=5):
     """Poll for new messages"""
     if not BOT_TOKEN:
-        return None
+        pytest.skip("TELEGRAM_DEV_AGENT_BOT_TOKEN not set")
     
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
     params = {
@@ -60,15 +60,14 @@ def get_updates(offset=None, timeout=5):
         response = requests.get(url, params=params, timeout=timeout + 5)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
-        print(f"Error getting updates: {e}")
-        return None
+    except requests.RequestException as e:
+        pytest.fail(f"Error getting updates: {e}")
 
 
 def send_message(chat_id, text):
     """Send a message to a chat"""
     if not BOT_TOKEN:
-        return None
+        pytest.skip("TELEGRAM_DEV_AGENT_BOT_TOKEN not set")
     
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
@@ -81,9 +80,8 @@ def send_message(chat_id, text):
         response = requests.post(url, json=payload, timeout=10)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
-        print(f"Error sending message: {e}")
-        return None
+    except requests.RequestException as e:
+        pytest.fail(f"Error sending message: {e}")
 
 
 def test_bot_token_valid():
@@ -91,20 +89,17 @@ def test_bot_token_valid():
     print("\n=== Test 1: Bot Token Validation ===")
     
     if not BOT_TOKEN:
-        print("❌ TELEGRAM_DEV_AGENT_BOT_TOKEN not set in .env")
-        return False
+        pytest.skip("TELEGRAM_DEV_AGENT_BOT_TOKEN not set in .env")
     
     result = get_bot_info()
-    if result and result.get('ok'):
-        bot = result['result']
-        print(f"✅ Bot token valid!")
-        print(f"   Bot username: @{bot.get('username')}")
-        print(f"   Bot name: {bot.get('first_name')}")
-        print(f"   Bot ID: {bot.get('id')}")
-        return True
-    else:
-        print(f"❌ Invalid bot token")
-        return False
+    assert result is not None, "get_bot_info returned None"
+    assert result.get('ok'), f"Invalid bot token response: {result}"
+    
+    bot = result['result']
+    print(f"✅ Bot token valid!")
+    print(f"   Bot username: @{bot.get('username')}")
+    print(f"   Bot name: {bot.get('first_name')}")
+    print(f"   Bot ID: {bot.get('id')}")
 
 
 def test_can_poll_updates():
@@ -112,36 +107,33 @@ def test_can_poll_updates():
     print("\n=== Test 2: Poll Updates ===")
     
     if not BOT_TOKEN:
-        print("❌ Bot token not set")
-        return False
+        pytest.skip("Bot token not set")
     
     result = get_updates(timeout=2)
-    if result and result.get('ok'):
-        updates = result.get('result', [])
-        print(f"✅ Successfully polled for updates")
-        print(f"   Found {len(updates)} pending updates")
-        
-        if updates:
-            # Show all updates for debugging
-            for i, update in enumerate(updates):
-                print(f"\n   Update #{i+1} (update_id: {update.get('update_id')}):")
-                if 'message' in update:
-                    msg = update['message']
-                    chat = msg.get('chat', {})
-                    from_user = msg.get('from', {})
-                    print(f"      Chat type: {chat.get('type')} (id: {chat.get('id')})")
-                    print(f"      From: @{from_user.get('username', '[no username]')} (id: {from_user.get('id')})")
-                    print(f"      Text: '{msg.get('text', '[no text]')[:50]}'")
-                else:
-                    print(f"      Update type: {list(update.keys())}")
-        else:
-            print("\n   ℹ️  No pending messages.")
-            print("   To test: Send a DM to your bot or mention it in a group.")
-            print("   Note: For groups, make sure Privacy Mode is DISABLED via @BotFather")
-        return True
+    assert result is not None, "get_updates returned None"
+    assert result.get('ok'), f"Failed to poll updates: {result}"
+    
+    updates = result.get('result', [])
+    print("✅ Successfully polled for updates")
+    print(f"   Found {len(updates)} pending updates")
+    
+    if updates:
+        # Show all updates for debugging
+        for i, update in enumerate(updates):
+            print(f"\n   Update #{i+1} (update_id: {update.get('update_id')}):")
+            if 'message' in update:
+                msg = update['message']
+                chat = msg.get('chat', {})
+                from_user = msg.get('from', {})
+                print(f"      Chat type: {chat.get('type')} (id: {chat.get('id')})")
+                print(f"      From: @{from_user.get('username', '[no username]')} (id: {from_user.get('id')})")
+                print(f"      Text: '{msg.get('text', '[no text]')[:50]}'")
+            else:
+                print(f"      Update type: {list(update.keys())}")
     else:
-        print(f"❌ Failed to poll updates: {result}")
-        return False
+        print("\n   ℹ️  No pending messages.")
+        print("   To test: Send a DM to your bot or mention it in a group.")
+        print("   Note: For groups, make sure Privacy Mode is DISABLED via @BotFather")
 
 
 def test_can_send_message():
@@ -149,46 +141,44 @@ def test_can_send_message():
     print("\n=== Test 3: Send Message ===")
     
     if not BOT_TOKEN:
-        print("❌ Bot token not set")
-        return False
+        pytest.skip("Bot token not set")
     
     if not TEST_CHAT_ID:
-        print("⚠️  TELEGRAM_CHAT_ID not set - skipping send test")
-        return True
+        pytest.skip("TELEGRAM_CHAT_ID not set - skipping send test")
     
     test_message = f"🤖 Test message from Obelisk Agent workflow test\nTimestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}"
     
     result = send_message(TEST_CHAT_ID, test_message)
-    if result and result.get('ok'):
-        print(f"✅ Successfully sent test message to chat {TEST_CHAT_ID}")
-        return True
-    else:
-        print(f"❌ Failed to send message: {result}")
-        return False
+    assert result is not None, "send_message returned None"
+    assert result.get('ok'), f"Failed to send message: {result}"
+    
+    print(f"✅ Successfully sent test message to chat {TEST_CHAT_ID}")
 
 
 def test_workflow_node_import():
     """Test 4: Verify workflow nodes can be imported"""
     print("\n=== Test 4: Node Import ===")
     
-    try:
-        from src.core.execution.nodes import (
-            TelegramListenerNode,
-            TelegramBotNode,
-            TelegramMemoryCreatorNode,
-            TelegramMemorySelectorNode,
-            BinaryIntentNode,
-        )
-        print("✅ All Telegram workflow nodes imported successfully")
-        print(f"   - TelegramListenerNode")
-        print(f"   - TelegramBotNode")
-        print(f"   - TelegramMemoryCreatorNode")
-        print(f"   - TelegramMemorySelectorNode")
-        print(f"   - BinaryIntentNode")
-        return True
-    except ImportError as e:
-        print(f"❌ Failed to import nodes: {e}")
-        return False
+    from src.core.execution.nodes import (
+        TelegramListenerNode,
+        TelegramBotNode,
+        TelegramMemoryCreatorNode,
+        TelegramMemorySelectorNode,
+        BinaryIntentNode,
+    )
+    print("✅ All Telegram workflow nodes imported successfully")
+    print("   - TelegramListenerNode")
+    print("   - TelegramBotNode")
+    print("   - TelegramMemoryCreatorNode")
+    print("   - TelegramMemorySelectorNode")
+    print("   - BinaryIntentNode")
+    
+    # Assert classes exist
+    assert TelegramListenerNode is not None
+    assert TelegramBotNode is not None
+    assert TelegramMemoryCreatorNode is not None
+    assert TelegramMemorySelectorNode is not None
+    assert BinaryIntentNode is not None
 
 
 def test_listener_node_execution():
@@ -196,50 +186,44 @@ def test_listener_node_execution():
     print("\n=== Test 5: TelegramListenerNode Execution ===")
     
     if not BOT_TOKEN:
-        print("❌ Bot token not set")
-        return False
+        pytest.skip("Bot token not set")
     
-    try:
-        from src.core.execution.nodes import TelegramListenerNode
-        from src.core.execution.node_base import ExecutionContext
-        
-        # Create node
-        node_data = {
-            'id': 'test_listener',
-            'type': 'telegram_listener',
-            'metadata': {
-                'bot_token': BOT_TOKEN,
-                'poll_interval': 2
-            }
+    from src.core.execution.nodes import TelegramListenerNode
+    from src.core.execution.node_base import ExecutionContext
+    
+    # Create node
+    node_data = {
+        'id': 'test_listener',
+        'type': 'telegram_listener',
+        'metadata': {
+            'bot_token': BOT_TOKEN,
+            'poll_interval': 2
         }
-        
-        node = TelegramListenerNode('test_listener', node_data)
-        
-        # Create context
-        context = ExecutionContext(
-            variables={},
-            node_outputs={}
-        )
-        
-        # Execute (poll once)
-        print("   Polling for messages (5 second timeout)...")
-        result = node.execute(context)
-        
-        print(f"✅ TelegramListenerNode executed successfully")
-        print(f"   Trigger: {result.get('trigger', False)}")
-        if result.get('message'):
-            print(f"   Message: {result.get('message')[:50]}...")
-            print(f"   User ID: {result.get('user_id')}")
-            print(f"   Chat ID: {result.get('chat_id')}")
-        else:
-            print(f"   No new messages")
-        return True
-        
-    except Exception as e:
-        print(f"❌ TelegramListenerNode execution failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    }
+    
+    node = TelegramListenerNode('test_listener', node_data)
+    
+    # Create context
+    context = ExecutionContext(
+        variables={},
+        node_outputs={}
+    )
+    
+    # Execute (poll once)
+    print("   Polling for messages (5 second timeout)...")
+    result = node.execute(context)
+    
+    assert result is not None, "TelegramListenerNode returned None"
+    assert 'trigger' in result, "Result missing 'trigger' key"
+    
+    print("✅ TelegramListenerNode executed successfully")
+    print(f"   Trigger: {result.get('trigger', False)}")
+    if result.get('message'):
+        print(f"   Message: {result.get('message')[:50]}...")
+        print(f"   User ID: {result.get('user_id')}")
+        print(f"   Chat ID: {result.get('chat_id')}")
+    else:
+        print("   No new messages")
 
 
 def test_send_node_execution():
@@ -247,49 +231,39 @@ def test_send_node_execution():
     print("\n=== Test 6: TelegramBotNode Execution ===")
     
     if not BOT_TOKEN or not TEST_CHAT_ID:
-        print("⚠️  Bot token or chat ID not set - skipping")
-        return True
+        pytest.skip("Bot token or chat ID not set")
     
-    try:
-        from src.core.execution.nodes import TelegramBotNode
-        from src.core.execution.node_base import ExecutionContext
-        
-        # Create node
-        node_data = {
-            'id': 'test_sender',
-            'type': 'telegram_bot',
-            'metadata': {
-                'bot_id': BOT_TOKEN,
-                'chat_id': TEST_CHAT_ID
-            }
+    from src.core.execution.nodes import TelegramBotNode
+    from src.core.execution.node_base import ExecutionContext
+    
+    # Create node
+    node_data = {
+        'id': 'test_sender',
+        'type': 'telegram_bot',
+        'metadata': {
+            'bot_id': BOT_TOKEN,
+            'chat_id': TEST_CHAT_ID
         }
-        
-        node = TelegramBotNode('test_sender', node_data)
-        
-        # Create context with message input
-        context = ExecutionContext(
-            variables={},
-            node_outputs={}
-        )
-        
-        # Set input directly
-        node.inputs['message'] = f"🧪 Node execution test - {time.strftime('%H:%M:%S')}"
-        
-        # Execute
-        result = node.execute(context)
-        
-        if result.get('success'):
-            print(f"✅ TelegramBotNode executed successfully")
-            return True
-        else:
-            print(f"❌ TelegramBotNode failed: {result}")
-            return False
-        
-    except Exception as e:
-        print(f"❌ TelegramBotNode execution failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    }
+    
+    node = TelegramBotNode('test_sender', node_data)
+    
+    # Create context with message input
+    context = ExecutionContext(
+        variables={},
+        node_outputs={}
+    )
+    
+    # Set input directly
+    node.inputs['message'] = f"🧪 Node execution test - {time.strftime('%H:%M:%S')}"
+    
+    # Execute
+    result = node.execute(context)
+    
+    assert result is not None, "TelegramBotNode returned None"
+    assert result.get('success'), f"TelegramBotNode failed: {result}"
+    
+    print("✅ TelegramBotNode executed successfully")
 
 
 def run_interactive_test():
@@ -363,6 +337,22 @@ def run_interactive_test():
         print("\n\nStopped by user.")
 
 
+def _run_test(name, test_func):
+    """Run a test and return (name, passed, skipped)"""
+    try:
+        test_func()
+        return (name, True, False)
+    except pytest.skip.Exception as e:
+        print(f"⚠️  {name}: SKIPPED - {e}")
+        return (name, True, True)  # Skipped counts as passed
+    except AssertionError as e:
+        print(f"❌ {name}: FAILED - {e}")
+        return (name, False, False)
+    except Exception as e:
+        print(f"❌ {name}: ERROR - {e}")
+        return (name, False, False)
+
+
 def main():
     """Run all tests"""
     print("=" * 60)
@@ -372,12 +362,12 @@ def main():
     results = []
     
     # Run tests
-    results.append(("Bot Token Valid", test_bot_token_valid()))
-    results.append(("Poll Updates", test_can_poll_updates()))
-    results.append(("Send Message", test_can_send_message()))
-    results.append(("Node Import", test_workflow_node_import()))
-    results.append(("Listener Node", test_listener_node_execution()))
-    results.append(("Send Node", test_send_node_execution()))
+    results.append(_run_test("Bot Token Valid", test_bot_token_valid))
+    results.append(_run_test("Poll Updates", test_can_poll_updates))
+    results.append(_run_test("Send Message", test_can_send_message))
+    results.append(_run_test("Node Import", test_workflow_node_import))
+    results.append(_run_test("Listener Node", test_listener_node_execution))
+    results.append(_run_test("Send Node", test_send_node_execution))
     
     # Summary
     print("\n" + "=" * 60)
@@ -386,16 +376,21 @@ def main():
     
     passed = 0
     failed = 0
-    for name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
-        print(f"  {status}  {name}")
-        if result:
+    skipped = 0
+    for name, result, was_skipped in results:
+        if was_skipped:
+            status = "⚠️  SKIP"
+            skipped += 1
+        elif result:
+            status = "✅ PASS"
             passed += 1
         else:
+            status = "❌ FAIL"
             failed += 1
+        print(f"  {status}  {name}")
     
     print("=" * 60)
-    print(f"  Total: {passed} passed, {failed} failed")
+    print(f"  Total: {passed} passed, {failed} failed, {skipped} skipped")
     print("=" * 60)
     
     # Ask about interactive mode
@@ -405,7 +400,7 @@ def main():
             choice = input().strip().lower()
             if choice == 'y':
                 run_interactive_test()
-        except:
+        except (KeyboardInterrupt, EOFError):
             pass
     
     return failed == 0
