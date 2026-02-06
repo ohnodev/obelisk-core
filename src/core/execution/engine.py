@@ -245,7 +245,9 @@ class ExecutionEngine:
             source_id = conn.get('source_node') or conn.get('from')
             target_id = conn.get('target_node') or conn.get('to')
             
-            if source_id not in dependencies[target_id]:
+            # Only add dependency if source is in the graph
+            # External sources (like autonomous nodes) provide outputs via initial_node_outputs
+            if source_id in nodes and source_id not in dependencies[target_id]:
                 dependencies[target_id].add(source_id)
                 in_degree[target_id] += 1
         
