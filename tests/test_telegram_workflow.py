@@ -323,15 +323,15 @@ def run_interactive_test():
                 )
                 
                 if is_mentioned:
-                    print(f"   ✅ Bot mentioned! Sending response...")
+                    print("   ✅ Bot mentioned! Sending response...")
                     response = f"👋 Hello @{username}! I received your message. This is a test response from Obelisk Agent #001."
                     send_result = send_message(chat_id, response)
                     if send_result and send_result.get('ok'):
-                        print(f"   ✅ Response sent!")
+                        print("   ✅ Response sent!")
                     else:
-                        print(f"   ❌ Failed to send response")
+                        print("   ❌ Failed to send response")
                 else:
-                    print(f"   ℹ️  Bot not mentioned, ignoring")
+                    print("   ℹ️  Bot not mentioned, ignoring")
                     
     except KeyboardInterrupt:
         print("\n\nStopped by user.")
