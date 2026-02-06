@@ -89,7 +89,7 @@
       },
       "inputs": {},
       "metadata": {
-        "intent_criteria": "Does this message reference, mention, or address the bot?\n\nLook for:\n- Direct mentions: @ObeliskAgentBot\n- References to: Overseer, Agent #001, Obelisk Agent #001, Obelisk Agent, The Obelisk, The Overseer\n- Talking about AI agents, autonomous agents\n- Questions or statements directed at the bot\n- Replies to previous bot messages"
+        "intent_criteria": "Is this message DIRECTLY addressing or calling the bot?\n\nRespond TRUE only if the message:\n- Contains @ObeliskAgentBot mention\n- Explicitly calls out: Overseer, Agent #001, Obelisk Agent, The Obelisk\n- Is clearly a question or request directed AT the bot (not just mentioning AI/agents in general)\n\nRespond FALSE if:\n- The message is general chat not directed at the bot\n- Just mentions AI/agents in passing without addressing the bot\n- Is talking ABOUT the bot to others, not TO the bot\n- Is a reaction, emoji, or short acknowledgment"
       }
     },
     {

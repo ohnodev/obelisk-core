@@ -126,7 +126,7 @@ Respond with JSON only. Start with { and end with }."""
                 if confidence not in ['high', 'medium', 'low']:
                     confidence = 'medium'
                 
-                logger.info(f"[BinaryIntent] Result: {intent_result}, Confidence: {confidence}, Reasoning: {reasoning[:50]}...")
+                logger.info(f"[BinaryIntent] Result: {intent_result}, Confidence: {confidence}, Reasoning: {reasoning}")
                 
                 return {
                     'result': intent_result,
