@@ -138,8 +138,8 @@
       },
       "inputs": {},
       "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_DEV_BOT_TOKEN}}",
-        "group_id": "{{process.env.TELEGRAM_CHAT_ID}}"
+        "bot_id": "",
+        "group_id": ""
       }
     },
     {
