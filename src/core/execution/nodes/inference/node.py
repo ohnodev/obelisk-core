@@ -61,9 +61,13 @@ class InferenceNode(BaseNode):
             if conversation_history is None:
                 conversation_history = context_messages
         
-        # Validate query - must be a non-empty string
+        # Handle missing/empty query gracefully (e.g., when gated by BinaryIntent)
         if not isinstance(query, str) or not query.strip():
-            raise ValueError("query is required and must be a non-empty string for InferenceNode")
+            logger.debug(f"InferenceNode {self.node_id}: No query provided (likely gated), returning empty response")
+            return {
+                "response": "",
+                "tokens_used": 0
+            }
         
         # Model is required - must be provided by ModelLoaderNode
         if model is None:
