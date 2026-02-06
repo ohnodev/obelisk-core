@@ -39,11 +39,15 @@
                 lastTouchTime: 0,
                 isTouchDevice: false,
                 wasPinching: false, // Track if we were just pinching to prevent click after pinch
+                pinchEndTime: 0, // Track when pinch ended for cooldown
                 longPressTimer: null,
                 longPressTriggered: false,
                 longPressDuration: 500 // ms to trigger long press
             };
         }
+        
+        // Cooldown period after pinch where we block context menus
+        var PINCH_COOLDOWN_MS = 400;
 
         /**
          * Calculate distance between two touch points
@@ -89,6 +93,36 @@
                 metaKey: originalEvent.metaKey || false
             });
         }
+
+        // Store original getCanvasMenuOptions to patch it
+        var originalGetCanvasMenuOptions = LGC.prototype.getCanvasMenuOptions;
+        var originalGetNodeMenuOptions = LGC.prototype.getNodeMenuOptions;
+        
+        // Patch getCanvasMenuOptions to block during pinch cooldown
+        LGC.prototype.getCanvasMenuOptions = function() {
+            var touchState = this._touchState;
+            if (touchState && touchState.isTouchDevice) {
+                var timeSincePinch = Date.now() - touchState.pinchEndTime;
+                if (timeSincePinch < PINCH_COOLDOWN_MS) {
+                    // Block menu during cooldown
+                    return null;
+                }
+            }
+            return originalGetCanvasMenuOptions ? originalGetCanvasMenuOptions.call(this) : null;
+        };
+        
+        // Patch getNodeMenuOptions to block during pinch cooldown
+        LGC.prototype.getNodeMenuOptions = function(node) {
+            var touchState = this._touchState;
+            if (touchState && touchState.isTouchDevice) {
+                var timeSincePinch = Date.now() - touchState.pinchEndTime;
+                if (timeSincePinch < PINCH_COOLDOWN_MS) {
+                    // Block menu during cooldown
+                    return null;
+                }
+            }
+            return originalGetNodeMenuOptions ? originalGetNodeMenuOptions.call(this, node) : null;
+        };
 
         /**
          * Patched bindEvents with touch support
@@ -148,60 +182,75 @@
                     touchState.lastPinchDistance = touchState.initialPinchDistance;
                     
                 } else if (e.touches.length === 1) {
-                    // Single touch - check for double tap prevention
+                    // Single touch
                     var now = Date.now();
                     var timeSinceLastTouch = now - touchState.lastTouchTime;
+                    var timeSincePinch = now - touchState.pinchEndTime;
+                    
+                    // If recently pinched, allow panning but skip long press and menu triggers
+                    var isInPinchCooldown = timeSincePinch < PINCH_COOLDOWN_MS;
                     
                     // If less than 300ms since last touch end and was pinching, ignore (prevent double-tap menu)
                     if (timeSinceLastTouch < 300 && touchState.wasPinching) {
+                        // Still allow basic drag but don't trigger anything else
+                        touchState.isPinching = false;
+                        touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
                         return;
                     }
                     
                     touchState.isPinching = false;
                     
-                    // Start long press timer for context menu (right-click equivalent)
-                    var touch = e.touches[0];
-                    var startX = touch.clientX;
-                    var startY = touch.clientY;
-                    
-                    touchState.longPressTimer = setTimeout(function() {
-                        // Only trigger if finger hasn't moved much
-                        if (touchState.lastTouches.length === 1) {
-                            var currentX = touchState.lastTouches[0].x;
-                            var currentY = touchState.lastTouches[0].y;
-                            var moved = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
-                            
-                            if (moved < 10) { // Less than 10px movement
-                                touchState.longPressTriggered = true;
+                    // Only start long press timer if NOT in pinch cooldown
+                    if (!isInPinchCooldown) {
+                        var touch = e.touches[0];
+                        var startX = touch.clientX;
+                        var startY = touch.clientY;
+                        
+                        touchState.longPressTimer = setTimeout(function() {
+                            // Only trigger if finger hasn't moved much
+                            if (touchState.lastTouches.length === 1) {
+                                var currentX = touchState.lastTouches[0].x;
+                                var currentY = touchState.lastTouches[0].y;
+                                var moved = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
                                 
-                                // Dispatch context menu event (right-click)
-                                var contextMenuEvent = new MouseEvent("contextmenu", {
-                                    bubbles: true,
-                                    cancelable: true,
-                                    view: window,
-                                    clientX: startX,
-                                    clientY: startY,
-                                    button: 2,
-                                    buttons: 2
-                                });
-                                canvas.dispatchEvent(contextMenuEvent);
-                                
-                                // Also cancel the mousedown drag
-                                var mouseUp = new MouseEvent("mouseup", {
-                                    bubbles: true,
-                                    cancelable: true,
-                                    view: window,
-                                    clientX: startX,
-                                    clientY: startY,
-                                    button: 0,
-                                    buttons: 0
-                                });
-                                canvas.dispatchEvent(mouseUp);
+                                if (moved < 10) { // Less than 10px movement
+                                    touchState.longPressTriggered = true;
+                                    
+                                    // Dispatch context menu event (right-click)
+                                    var contextMenuEvent = new MouseEvent("contextmenu", {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        view: window,
+                                        clientX: startX,
+                                        clientY: startY,
+                                        button: 2,
+                                        buttons: 2
+                                    });
+                                    canvas.dispatchEvent(contextMenuEvent);
+                                    
+                                    // Also cancel the mousedown drag
+                                    var mouseUp = new MouseEvent("mouseup", {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        view: window,
+                                        clientX: startX,
+                                        clientY: startY,
+                                        button: 0,
+                                        buttons: 0
+                                    });
+                                    canvas.dispatchEvent(mouseUp);
+                                }
                             }
-                        }
-                    }, touchState.longPressDuration);
+                        }, touchState.longPressDuration);
+                    }
                     
-                    // Simulate mousedown for panning/dragging
+                    // Simulate mousedown for panning/dragging (but during cooldown, clear node state first)
+                    if (isInPinchCooldown) {
+                        // Clear any node selection that could trigger menus
+                        self.node_over = null;
+                        self.node_capturing_input = null;
+                    }
+                    
                     var mouseDown = createMouseEvent("mousedown", e.touches[0], e, canvas);
                     canvas.dispatchEvent(mouseDown);
                 }
@@ -321,12 +370,26 @@
                 
                 // Track touch end time
                 touchState.lastTouchTime = Date.now();
+                
+                // Track if we were pinching BEFORE we reset state
+                var wasPinchingNow = touchState.isPinching;
 
                 if (e.touches.length === 0) {
                     // All fingers lifted
-                    // Only send mouseup if long press wasn't triggered (it already sent mouseup)
-                    if (!touchState.isPinching && !touchState.longPressTriggered && touchState.lastTouches.length > 0) {
-                        // Was single touch - simulate mouseup
+                    
+                    if (wasPinchingNow) {
+                        // Was pinching - DON'T send any mouse events, just clean up
+                        // This prevents context menus from appearing
+                        touchState.pinchEndTime = Date.now();
+                        
+                        // Clear any node selection state that might trigger context menu
+                        self.node_over = null;
+                        self.node_capturing_input = null;
+                        self.node_dragged = null;
+                        self.dragging_canvas = false;
+                        
+                    } else if (!touchState.longPressTriggered && touchState.lastTouches.length > 0) {
+                        // Was single touch (not pinch, not long press) - simulate mouseup
                         var lastTouch = touchState.lastTouches[0];
                         var mouseUp = new MouseEvent("mouseup", {
                             bubbles: true,
@@ -341,7 +404,7 @@
                     }
                     
                     // Track if we were pinching (to prevent double-tap menu)
-                    touchState.wasPinching = touchState.isPinching;
+                    touchState.wasPinching = wasPinchingNow;
                     
                     // Reset state
                     touchState.active = false;
@@ -351,15 +414,18 @@
                     touchState.lastPinchDistance = 0;
                     touchState.longPressTriggered = false;
                     
-                } else if (e.touches.length === 1 && touchState.isPinching) {
-                    // Went from 2 fingers to 1 - transition to drag mode
+                } else if (e.touches.length === 1 && wasPinchingNow) {
+                    // Went from 2 fingers to 1 after pinching
+                    // DON'T simulate mousedown - this prevents node context menu
                     touchState.wasPinching = true;
                     touchState.isPinching = false;
+                    touchState.pinchEndTime = Date.now();
                     touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
                     
-                    // Simulate mousedown to start fresh drag
-                    var mouseDown = createMouseEvent("mousedown", e.touches[0], e, canvas);
-                    canvas.dispatchEvent(mouseDown);
+                    // Clear any selection/drag state
+                    self.node_over = null;
+                    self.node_capturing_input = null;
+                    self.dragging_canvas = false;
                 }
             };
 
