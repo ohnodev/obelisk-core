@@ -83,10 +83,9 @@ def _sanitize_json_string(json_str: str) -> str:
     """
     Fix common LLM JSON mistakes before parsing.
     
-    Common issues:
+    Currently fixes:
     - Escaped single quotes \' (invalid in JSON, should be just ')
-    - Unescaped newlines inside strings
-    - Trailing commas
+      LLMs often output "what\\'s" but JSON doesn't escape single quotes.
     """
     # Fix escaped single quotes - LLMs often write \' but JSON doesn't need this
     # Only fix \' that's not preceded by another backslash (i.e., not \\')
