@@ -107,5 +107,6 @@ class InferenceNode(BaseNode):
         return {
             'query': str(query),  # Output original query for use in memory creation, etc.
             'response': response_text,
-            'result': result
+            'result': result,
+            'tokens_used': result.get('tokens_used', 0) if result else 0
         }
