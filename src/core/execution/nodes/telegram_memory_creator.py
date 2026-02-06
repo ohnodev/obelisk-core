@@ -160,6 +160,9 @@ Example of correct JSON format:
         storage_instance = self.get_input_value('storage_instance', context, None)
         llm = self.get_input_value('model', context, None)
         
+        # Normalize message to string immediately to avoid slicing errors on non-strings
+        message_str = str(message) if message else ''
+        
         # Get threshold from metadata and normalize (update instance so buffer cap stays consistent)
         summarize_threshold = int(self.metadata.get('summarize_threshold', 50))
         if summarize_threshold < 5:
@@ -167,7 +170,7 @@ Example of correct JSON format:
         self._summarize_threshold = summarize_threshold  # Keep instance in sync for _add_to_buffer
         
         # Validate required inputs
-        if not message:
+        if not message_str:
             logger.warning("[TelegramMemoryCreator] No message provided")
             return {'success': False, 'message_count': 0, 'summary_created': False}
         
@@ -180,7 +183,7 @@ Example of correct JSON format:
         
         # Create message data
         message_data = {
-            'message': str(message),
+            'message': message_str,
             'user_id': str(user_id) if user_id else '',
             'username': str(username) if username else '',
             'chat_id': str(chat_id),
@@ -196,10 +199,10 @@ Example of correct JSON format:
             # Use activity log to store message
             storage_instance.create_activity_log(
                 activity_type='telegram_message',
-                message=f'[{username or user_id}] {message[:100]}...' if len(message) > 100 else f'[{username or user_id}] {message}',
+                message=f'[{username or user_id}] {message_str[:100]}...' if len(message_str) > 100 else f'[{username or user_id}] {message_str}',
                 metadata=message_data
             )
-            logger.info(f"[TelegramMemoryCreator] Saved message from {username or user_id} in chat {chat_id}: {message[:50]}...")
+            logger.info(f"[TelegramMemoryCreator] Saved message from {username or user_id} in chat {chat_id}: {message_str[:50]}...")
         except Exception as e:
             logger.error(f"[TelegramMemoryCreator] Failed to save message: {e}")
             return {'success': False, 'message_count': 0, 'summary_created': False}
