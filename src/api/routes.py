@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any, List, Literal
 
 from ..core.container import ServiceContainer
 from ..core.config import Config
+from .queue import QueueFullError
+from ..core.execution.runner import WorkflowLimitError
 
 router = APIRouter()
 
@@ -471,6 +473,10 @@ async def run_workflow(
     
     Workflows with CONTINUOUS nodes (like SchedulerNode) will keep running,
     triggering connected nodes at their configured intervals.
+    
+    Rate limits:
+    - Max 5 total running workflows
+    - Max 2 running workflows per user
     """
     try:
         # Convert frontend format to backend format
@@ -498,7 +504,10 @@ async def run_workflow(
             status="running",
             message=f"Workflow {workflow_id} started"
         )
-        
+    
+    except WorkflowLimitError as e:
+        # Rate limit exceeded - return 429 Too Many Requests
+        raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
         import traceback
         error_msg = str(e)
@@ -659,6 +668,10 @@ async def queue_execute(
     
     Jobs are processed sequentially. Returns immediately with job_id.
     Poll /queue/status/{job_id} for progress, /queue/result/{job_id} for results.
+    
+    Rate limits:
+    - Max {MAX_QUEUE_SIZE} jobs in queue
+    - Max {MAX_JOBS_PER_USER} pending jobs per user
     """
     try:
         job = queue.enqueue(request.workflow, request.options)
@@ -670,6 +683,9 @@ async def queue_execute(
             queue_length=len(queue._queue),
             message=f"Job queued at position {job.position}"
         )
+    except QueueFullError as e:
+        # Rate limit exceeded - return 429 Too Many Requests
+        raise HTTPException(status_code=429, detail=str(e))
     except Exception as e:
         import traceback
         traceback.print_exc()

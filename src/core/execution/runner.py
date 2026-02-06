@@ -90,6 +90,11 @@ class RunningWorkflow:
     results_version: int = 0  # Incremented each execution, frontend can use to detect new results
 
 
+class WorkflowLimitError(Exception):
+    """Raised when workflow limits are exceeded"""
+    pass
+
+
 class WorkflowRunner:
     """
     Manages continuous workflow execution with tick-based scheduling
@@ -100,7 +105,12 @@ class WorkflowRunner:
     - Support for TRIGGERED nodes
     - Multiple concurrent workflows
     - Start/stop/pause control
+    - Throttling limits to prevent resource exhaustion
     """
+    
+    # Throttling limits
+    MAX_RUNNING_WORKFLOWS = 5     # Maximum total running workflows
+    MAX_WORKFLOWS_PER_USER = 2    # Maximum workflows per user
     
     # Default tick interval in seconds
     DEFAULT_TICK_INTERVAL = 0.1  # 100ms
@@ -139,8 +149,12 @@ class WorkflowRunner:
             
         Returns:
             Workflow ID for tracking
+            
+        Raises:
+            WorkflowLimitError: If limits are exceeded
         """
         workflow_id = workflow.get('id', f'workflow-{time.time()}')
+        user_id = (context_variables or {}).get('user_id', 'anonymous')
         
         with self._lock:
             # Check if already running
@@ -149,6 +163,29 @@ class WorkflowRunner:
                 if existing.state == RunnerState.RUNNING:
                     logger.warning(f"Workflow {workflow_id} is already running")
                     return workflow_id
+            
+            # Check total running workflows limit
+            running_count = sum(
+                1 for w in self._running_workflows.values()
+                if w.state == RunnerState.RUNNING
+            )
+            if running_count >= self.MAX_RUNNING_WORKFLOWS:
+                raise WorkflowLimitError(
+                    f"Maximum running workflows reached ({self.MAX_RUNNING_WORKFLOWS}). "
+                    f"Please stop a workflow first."
+                )
+            
+            # Check per-user limit
+            user_running_count = sum(
+                1 for w in self._running_workflows.values()
+                if w.state == RunnerState.RUNNING
+                and w.context and w.context.variables.get('user_id', 'anonymous') == user_id
+            )
+            if user_running_count >= self.MAX_WORKFLOWS_PER_USER:
+                raise WorkflowLimitError(
+                    f"You have {user_running_count} running workflows (max {self.MAX_WORKFLOWS_PER_USER}). "
+                    f"Please stop one first."
+                )
             
             # Build nodes
             nodes = self.engine._build_nodes(workflow)

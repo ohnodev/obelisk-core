@@ -51,6 +51,11 @@ class ExecutionJob:
         return cls(**data)
 
 
+class QueueFullError(Exception):
+    """Raised when the queue is at capacity"""
+    pass
+
+
 class ExecutionQueue:
     """
     In-memory execution queue with JSON persistence.
@@ -58,12 +63,18 @@ class ExecutionQueue:
     Features:
     - Sequential job processing (one at a time)
     - JSON file persistence for restart survival
+    - Throttling limits to prevent resource exhaustion
     - Position tracking for queue status
     - Automatic cleanup of old completed jobs
+    - Throttling limits to prevent resource exhaustion
     """
     
     PERSISTENCE_FILE = "execution_queue.json"
     MAX_COMPLETED_JOBS = 100  # Keep last N completed jobs
+    
+    # Throttling limits
+    MAX_QUEUE_SIZE = 20       # Maximum jobs waiting in queue
+    MAX_JOBS_PER_USER = 3     # Maximum pending/running jobs per user
     
     def __init__(self, data_dir: str = "data", engine_factory=None):
         """
@@ -161,8 +172,31 @@ class ExecutionQueue:
             
         Returns:
             ExecutionJob with job_id and initial status
+            
+        Raises:
+            QueueFullError: If queue is at capacity or user has too many jobs
         """
         with self._lock:
+            # Check queue size limit
+            if len(self._queue) >= self.MAX_QUEUE_SIZE:
+                raise QueueFullError(
+                    f"Queue is full ({self.MAX_QUEUE_SIZE} jobs). Please wait and try again."
+                )
+            
+            # Check per-user limit
+            user_id = (options or {}).get("user_id") or (options or {}).get("client_id") or "anonymous"
+            user_pending_jobs = sum(
+                1 for job in self._jobs.values()
+                if job.status in (JobStatus.QUEUED, JobStatus.RUNNING)
+                and ((job.options.get("user_id") or job.options.get("client_id") or "anonymous") == user_id)
+            )
+            
+            if user_pending_jobs >= self.MAX_JOBS_PER_USER:
+                raise QueueFullError(
+                    f"You have {user_pending_jobs} pending jobs (max {self.MAX_JOBS_PER_USER}). "
+                    f"Please wait for them to complete."
+                )
+            
             job = ExecutionJob(
                 id=str(uuid4()),
                 workflow=workflow,
@@ -176,7 +210,7 @@ class ExecutionQueue:
             self._jobs[job.id] = job
             self._save_state()
             
-            print(f"[ExecutionQueue] Enqueued job {job.id}, position {job.position}")
+            print(f"[ExecutionQueue] Enqueued job {job.id}, position {job.position}, user={user_id}")
             return job
     
     def get_job(self, job_id: str) -> Optional[ExecutionJob]:
