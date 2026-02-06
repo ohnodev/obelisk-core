@@ -164,18 +164,27 @@
                 self.allow_searchbox = false;
                 
                 touchState.active = true;
-                touchState.lastTouches = Array.from(e.touches).map(function(t) {
-                    return { x: t.clientX, y: t.clientY };
-                });
+                
+                // Save previous touch count BEFORE updating lastTouches
+                var prevTouchCount = touchState.lastTouches ? touchState.lastTouches.length : 0;
+                var wasSingleTouch = prevTouchCount === 1 && !touchState.isPinching;
+                
                 touchState.wasPinching = false;
 
                 if (e.touches.length === 2) {
                     // Two finger touch - start pinch tracking
                     // If we had a single touch drag, end it first
-                    if (!touchState.isPinching && touchState.lastTouches.length === 1) {
-                        var mouseUp = createMouseEvent("mouseup", e.touches[0], e, canvas);
+                    if (wasSingleTouch) {
+                        var lastTouch = touchState.lastTouches[0];
+                        var syntheticTouch = { clientX: lastTouch.x, clientY: lastTouch.y, screenX: lastTouch.x, screenY: lastTouch.y };
+                        var mouseUp = createMouseEvent("mouseup", syntheticTouch, e, canvas);
                         canvas.dispatchEvent(mouseUp);
                     }
+                    
+                    // Now update lastTouches after handling the transition
+                    touchState.lastTouches = Array.from(e.touches).map(function(t) {
+                        return { x: t.clientX, y: t.clientY };
+                    });
                     
                     touchState.isPinching = true;
                     touchState.initialPinchDistance = getTouchDistance(e.touches);
@@ -253,6 +262,9 @@
                     
                     var mouseDown = createMouseEvent("mousedown", e.touches[0], e, canvas);
                     canvas.dispatchEvent(mouseDown);
+                    
+                    // Update lastTouches AFTER processing single touch
+                    touchState.lastTouches = [{ x: e.touches[0].clientX, y: e.touches[0].clientY }];
                 }
             };
 

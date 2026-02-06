@@ -57,6 +57,7 @@ export default function MobileControls({ onAddNode, onDeleteSelected }: MobileCo
       {/* Delete Selected Button - only show when something is selected */}
       {hasSelection && (
         <button
+          type="button"
           onClick={onDeleteSelected}
           style={{
             width: "56px",
@@ -95,6 +96,7 @@ export default function MobileControls({ onAddNode, onDeleteSelected }: MobileCo
 
       {/* Add Node Button */}
       <button
+        type="button"
         onClick={onAddNode}
         style={{
           width: "56px",
