@@ -199,7 +199,7 @@ export default function Home() {
         style={{
           display: "flex",
           flexDirection: "column",
-          height: "100vh",
+          height: "100dvh", // Use dvh for mobile browser UI awareness
           width: "100vw",
           overflow: "hidden",
           position: "relative",
