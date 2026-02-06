@@ -38,7 +38,10 @@
                 lastPinchDistance: 0,
                 lastTouchTime: 0,
                 isTouchDevice: false,
-                wasPinching: false // Track if we were just pinching to prevent click after pinch
+                wasPinching: false, // Track if we were just pinching to prevent click after pinch
+                longPressTimer: null,
+                longPressTriggered: false,
+                longPressDuration: 500 // ms to trigger long press
             };
         }
 
@@ -113,6 +116,13 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
+                // Clear any existing long press timer
+                if (touchState.longPressTimer) {
+                    clearTimeout(touchState.longPressTimer);
+                    touchState.longPressTimer = null;
+                }
+                touchState.longPressTriggered = false;
+                
                 // Close any open search box or menus
                 if (self.search_box) {
                     self.search_box.style.display = 'none';
@@ -149,6 +159,48 @@
                     
                     touchState.isPinching = false;
                     
+                    // Start long press timer for context menu (right-click equivalent)
+                    var touch = e.touches[0];
+                    var startX = touch.clientX;
+                    var startY = touch.clientY;
+                    
+                    touchState.longPressTimer = setTimeout(function() {
+                        // Only trigger if finger hasn't moved much
+                        if (touchState.lastTouches.length === 1) {
+                            var currentX = touchState.lastTouches[0].x;
+                            var currentY = touchState.lastTouches[0].y;
+                            var moved = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+                            
+                            if (moved < 10) { // Less than 10px movement
+                                touchState.longPressTriggered = true;
+                                
+                                // Dispatch context menu event (right-click)
+                                var contextMenuEvent = new MouseEvent("contextmenu", {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window,
+                                    clientX: startX,
+                                    clientY: startY,
+                                    button: 2,
+                                    buttons: 2
+                                });
+                                canvas.dispatchEvent(contextMenuEvent);
+                                
+                                // Also cancel the mousedown drag
+                                var mouseUp = new MouseEvent("mouseup", {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    view: window,
+                                    clientX: startX,
+                                    clientY: startY,
+                                    button: 0,
+                                    buttons: 0
+                                });
+                                canvas.dispatchEvent(mouseUp);
+                            }
+                        }
+                    }, touchState.longPressDuration);
+                    
                     // Simulate mousedown for panning/dragging
                     var mouseDown = createMouseEvent("mousedown", e.touches[0], e, canvas);
                     canvas.dispatchEvent(mouseDown);
@@ -165,6 +217,19 @@
                 
                 e.preventDefault();
                 e.stopPropagation();
+                
+                // Cancel long press if moving
+                if (touchState.longPressTimer && e.touches.length === 1) {
+                    var touch = e.touches[0];
+                    var startTouch = touchState.lastTouches[0];
+                    if (startTouch) {
+                        var moved = Math.sqrt(Math.pow(touch.clientX - startTouch.x, 2) + Math.pow(touch.clientY - startTouch.y, 2));
+                        if (moved > 10) {
+                            clearTimeout(touchState.longPressTimer);
+                            touchState.longPressTimer = null;
+                        }
+                    }
+                }
 
                 if (e.touches.length === 2 && touchState.isPinching) {
                     // Two finger move - handle pinch zoom directly
@@ -248,12 +313,19 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
+                // Clear long press timer
+                if (touchState.longPressTimer) {
+                    clearTimeout(touchState.longPressTimer);
+                    touchState.longPressTimer = null;
+                }
+                
                 // Track touch end time
                 touchState.lastTouchTime = Date.now();
 
                 if (e.touches.length === 0) {
                     // All fingers lifted
-                    if (!touchState.isPinching && touchState.lastTouches.length > 0) {
+                    // Only send mouseup if long press wasn't triggered (it already sent mouseup)
+                    if (!touchState.isPinching && !touchState.longPressTriggered && touchState.lastTouches.length > 0) {
                         // Was single touch - simulate mouseup
                         var lastTouch = touchState.lastTouches[0];
                         var mouseUp = new MouseEvent("mouseup", {
@@ -277,6 +349,7 @@
                     touchState.lastTouches = [];
                     touchState.initialPinchDistance = 0;
                     touchState.lastPinchDistance = 0;
+                    touchState.longPressTriggered = false;
                     
                 } else if (e.touches.length === 1 && touchState.isPinching) {
                     // Went from 2 fingers to 1 - transition to drag mode

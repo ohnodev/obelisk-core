@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
+import MobileControls from "./MobileControls";
 // LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {
@@ -386,6 +387,43 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     }
   };
 
+  // Mobile controls handlers
+  const handleMobileAddNode = () => {
+    // Open node menu at center of screen
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    // Store canvas coordinates for node placement
+    if (canvasInstanceRef.current) {
+      const canvasPos = canvasInstanceRef.current.convertOffsetToCanvas([centerX, centerY]);
+      (canvasInstanceRef.current as any)._lastRightClickCanvasPos = canvasPos;
+    }
+    
+    setNodeMenuPosition({ x: centerX, y: centerY });
+    setNodeMenuVisible(true);
+  };
+
+  const handleMobileDeleteSelected = () => {
+    if (!graphRef.current || !canvasInstanceRef.current) return;
+    
+    const canvas = canvasInstanceRef.current;
+    const selectedNodes = canvas.selected_nodes;
+    
+    if (selectedNodes && Object.keys(selectedNodes).length > 0) {
+      // Delete all selected nodes
+      for (const nodeId in selectedNodes) {
+        const node = selectedNodes[nodeId];
+        if (node) {
+          graphRef.current.remove(node);
+        }
+      }
+      // Clear selection
+      canvas.deselectAllNodes();
+      canvas.dirty_canvas = true;
+      canvas.dirty_bgcanvas = true;
+    }
+  };
+
 
   return (
     <>
@@ -416,6 +454,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
         y={nodeMenuPosition.y}
         onClose={() => setNodeMenuVisible(false)}
         onNodeSelect={handleNodeSelect}
+      />
+      <MobileControls
+        onAddNode={handleMobileAddNode}
+        onDeleteSelected={handleMobileDeleteSelected}
       />
     </>
   );
