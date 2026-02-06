@@ -19,6 +19,7 @@ class TextNode extends LGraphNode {
     // Add textarea widget for text content
     this.addProperty("text", "", "string");
     const initialValue = (this.properties as any)?.text || "";
+    
     const widget = this.addWidget("textarea" as any, "text", initialValue, (value: string) => {
       this.setProperty("text", value);
     }, {

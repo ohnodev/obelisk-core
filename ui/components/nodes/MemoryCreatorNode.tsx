@@ -2,6 +2,10 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
+// Default node dimensions
+const NODE_WIDTH = 340;
+const NODE_HEIGHT = 300;
+
 class MemoryCreatorNode extends LGraphNode {
   static title = "Memory Creator";
   static desc = "Creates and persists memory data (interactions, summaries) to storage. Automatically saves interactions and generates summaries when threshold is reached.";
@@ -10,16 +14,16 @@ class MemoryCreatorNode extends LGraphNode {
   constructor() {
     super();
     this.title = "Memory Creator";
-    this.addInput("storage_instance", "object"); // Required: Storage instance from MemoryStorageNode
+    this.addInput("storage_instance", "object");
     this.addInput("query", "string");
     this.addInput("response", "string");
-    this.addInput("user_id", "string");
     this.addInput("model", "object"); // From ModelLoaderNode
-    this.addInput("llm", "object"); // Legacy/direct input (optional: LLM for summarization)
+    this.addInput("previous_interactions", "array");
+    // Inputs with linked widgets - at the end so they're closer to widget area
+    this.addInput("user_id", "string");
     this.addInput("summarize_threshold", "number");
-    this.addInput("previous_interactions", "array"); // Optional: Previous interactions for summarization
     // No outputs - saves directly to storage
-    this.size = [280, 250];
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "memory_creator";
     (this as any).resizable = true;
     
@@ -30,45 +34,33 @@ class MemoryCreatorNode extends LGraphNode {
     this.addProperty("cycle_id", "", "string");
     this.addProperty("quantum_seed", 0.7, "number");
     
-    // Add inline widgets
+    // Add user_id widget linked to the input slot
     const user_id_widget = this.addWidget(
       "text" as any,
-      "User ID",
+      "user_id",
       "",
       (value: string) => {
-        // Only allow editing if input is not connected
-        const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
-        if (user_id_input_index !== -1) {
-          const input = this.inputs[user_id_input_index];
-          const isConnected = !!(input as any).link;
-          if (isConnected) {
-            // Don't update property if input is connected
-            return;
-          }
-        }
+        const inputIndex = this.inputs.findIndex((i: any) => i.name === "user_id");
+        if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
         this.setProperty("user_id", value);
       },
-      {
-        serialize: true,
-      } as any
+      { serialize: true, property: "user_id" } as any
     );
-    // Store reference to user_id widget for enabling/disabling
     (this as any)._user_id_widget = user_id_widget;
     
-    this.addWidget(
+    // Add summarize_threshold widget linked to the input slot
+    const threshold_widget = this.addWidget(
       "number" as any,
-      "Summarize Threshold",
+      "summarize_threshold",
       3,
       (value: number) => {
+        const inputIndex = this.inputs.findIndex((i: any) => i.name === "summarize_threshold");
+        if (inputIndex !== -1 && (this.inputs[inputIndex] as any).link) return;
         this.setProperty("summarize_threshold", value);
       },
-      {
-        serialize: true,
-        min: 1,
-        max: 100,
-        step: 1,
-      } as any
+      { serialize: true, min: 1, max: 100, step: 1, property: "summarize_threshold" } as any
     );
+    (this as any)._threshold_widget = threshold_widget;
     
     this.addWidget(
       "number" as any,
@@ -77,12 +69,7 @@ class MemoryCreatorNode extends LGraphNode {
       (value: number) => {
         this.setProperty("k", value);
       },
-      {
-        serialize: true,
-        min: 1,
-        max: 100,
-        step: 1,
-      } as any
+      { serialize: true, min: 1, max: 100, step: 1 } as any
     );
     
     this.addWidget(
@@ -92,9 +79,7 @@ class MemoryCreatorNode extends LGraphNode {
       (value: string) => {
         this.setProperty("cycle_id", value);
       },
-      {
-        serialize: true,
-      } as any
+      { serialize: true } as any
     );
     
     this.addWidget(
@@ -104,13 +89,46 @@ class MemoryCreatorNode extends LGraphNode {
       (value: number) => {
         this.setProperty("quantum_seed", value);
       },
-      {
-        serialize: true,
-        min: 0.0,
-        max: 1.0,
-        step: 0.1,
-      } as any
+      { serialize: true, min: 0.0, max: 1.0, step: 0.1 } as any
     );
+  }
+
+  onConnectionsChange(type: number, slot: number, isConnected: boolean) {
+    const userIdIndex = this.inputs.findIndex((i: any) => i.name === "user_id");
+    const thresholdIndex = this.inputs.findIndex((i: any) => i.name === "summarize_threshold");
+    
+    if (slot === userIdIndex) {
+      this.updateWidgetState("user_id", "_user_id_widget");
+    }
+    if (slot === thresholdIndex) {
+      this.updateWidgetState("summarize_threshold", "_threshold_widget");
+    }
+  }
+
+  updateWidgetState(inputName: string, widgetRef: string) {
+    const inputIndex = this.inputs.findIndex((i: any) => i.name === inputName);
+    const isConnected = inputIndex !== -1 && !!(this.inputs[inputIndex] as any).link;
+    
+    const widget = (this as any)[widgetRef];
+    if (widget) {
+      widget.disabled = isConnected;
+      (widget as any)._connected = isConnected;
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onAdded() {
+    this.updateWidgetState("user_id", "_user_id_widget");
+    this.updateWidgetState("summarize_threshold", "_threshold_widget");
+    // Force size after being added to graph (LiteGraph may auto-compute)
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
+  }
+
+  computeSize(): [number, number] {
+    // Override LiteGraph's auto size computation
+    return [NODE_WIDTH, NODE_HEIGHT];
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
@@ -120,83 +138,46 @@ class MemoryCreatorNode extends LGraphNode {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
+
+    // Draw disabled overlay on widgets when connected
+    const drawConnectedOverlay = (widget: any) => {
+      if (widget && widget._connected && widget.last_y !== undefined) {
+        ctx.fillStyle = "rgba(60, 60, 80, 0.7)";
+        ctx.fillRect(60, widget.last_y, this.size[0] - 70, 20);
+        ctx.fillStyle = "rgba(187, 154, 247, 0.8)";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("← connected", 65, widget.last_y + 14);
+      }
+    };
+
+    drawConnectedOverlay((this as any)._user_id_widget);
+    drawConnectedOverlay((this as any)._threshold_widget);
   }
 
   onExecute() {
     // Memory creation is handled by backend
-    // Frontend just passes through the connection
   }
   
   onPropertyChanged(name: string, value: any) {
-    // Sync widget values when property changes
     const widgets = (this as any).widgets as any[];
     if (widgets) {
       const widget = widgets.find((w: any) => {
-        if (name === "user_id") return w.name === "User ID";
-        if (name === "summarize_threshold") return w.name === "Summarize Threshold";
+        if (name === "user_id") return w.name === "user_id";
+        if (name === "summarize_threshold") return w.name === "summarize_threshold";
         if (name === "k") return w.name === "K (Buffer Size)";
         if (name === "cycle_id") return w.name === "Cycle ID";
         if (name === "quantum_seed") return w.name === "Quantum Seed";
         return false;
       });
-      if (widget) {
-        widget.value = value;
-      }
-    }
-  }
-
-  onConnectionsChange(type: number, slot: number, isConnected: boolean, link: any, ioSlot: any) {
-    // Check if user_id input connection changed
-    const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
-    if (user_id_input_index !== -1 && slot === user_id_input_index) {
-      this.updateUserIDWidgetState();
-    }
-    // Call parent method if it exists
-    if (super.onConnectionsChange) {
-      super.onConnectionsChange(type, slot, isConnected, link, ioSlot);
-    }
-  }
-
-  updateUserIDWidgetState() {
-    // Check if user_id input is connected
-    const user_id_input_index = this.inputs.findIndex((input: any) => input.name === "user_id");
-    let isConnected = false;
-    if (user_id_input_index !== -1) {
-      const input = this.inputs[user_id_input_index];
-      // Check if input has a link (connection)
-      isConnected = !!(input as any).link || (this as any).graph?.getInputLinks?.(this, user_id_input_index)?.length > 0;
-    }
-    
-    // Update widget disabled state and visual appearance
-    const user_id_widget = (this as any)._user_id_widget;
-    if (user_id_widget) {
-      (user_id_widget as any).options = (user_id_widget as any).options || {};
-      (user_id_widget as any).options.disabled = isConnected;
-      // Store connection state for rendering
-      (user_id_widget as any)._connected = isConnected;
-      // Force redraw
-      if ((this as any).graph) {
-        (this as any).graph.setDirtyCanvas(true, true);
-      }
-    }
-  }
-
-  onAdded() {
-    // Check initial connection state when node is added
-    this.updateUserIDWidgetState();
-    if (super.onAdded) {
-      super.onAdded();
+      if (widget) widget.value = value;
     }
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {
-    if (this.flags.collapsed) {
-      return;
-    }
+    if (this.flags.collapsed) return;
     ctx.fillStyle = "rgba(187, 154, 247, 0.1)";
     ctx.fillRect(0, 0, this.size[0], this.size[1]);
     
-    // Execution highlighting
     if ((this as any).executing) {
       ctx.fillStyle = "rgba(255, 255, 0, 0.3)";
       ctx.fillRect(0, 0, this.size[0], this.size[1]);
