@@ -234,6 +234,9 @@ Example of correct JSON format:
                     metadata=summary_data
                 )
                 
+                # Clear buffer after successful summarization to prevent re-summarizing same messages
+                self._clear_buffer(storage_instance, str(chat_id))
+                
                 summary_created = True
                 logger.info(f"[TelegramMemoryCreator] Created summary for chat {chat_id}")
             else:
