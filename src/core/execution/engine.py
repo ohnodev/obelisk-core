@@ -62,8 +62,9 @@ class ExecutionEngine:
         
         logger.info(f"Executing workflow: {workflow.get('name', workflow.get('id', 'unknown'))}")
         
-        # Validate graph
-        if not self.validate_graph(workflow):
+        # Validate graph (allow external sources if their outputs are provided)
+        external_sources = set(initial_node_outputs.keys()) if initial_node_outputs else set()
+        if not self.validate_graph(workflow, external_sources):
             return GraphExecutionResult(
                 graph_id=workflow.get('id', 'unknown'),
                 success=False,
@@ -167,16 +168,20 @@ class ExecutionEngine:
             execution_order=execution_order  # Include execution order for frontend highlighting
         )
     
-    def validate_graph(self, workflow: NodeGraph) -> bool:
+    def validate_graph(self, workflow: NodeGraph, external_sources: Optional[Set[NodeID]] = None) -> bool:
         """
         Validate workflow graph structure
         
         Args:
             workflow: NodeGraph to validate
+            external_sources: Optional set of node IDs that are valid sources even if not in the workflow
+                             (used for autonomous nodes whose outputs are passed via initial_node_outputs)
             
         Returns:
             True if valid, False otherwise
         """
+        external_sources = external_sources or set()
+        
         if 'nodes' not in workflow or not workflow['nodes']:
             logger.error("Workflow has no nodes")
             return False
@@ -192,7 +197,8 @@ class ExecutionEngine:
             source_id = conn.get('source_node') or conn.get('from')
             target_id = conn.get('target_node') or conn.get('to')
             
-            if source_id not in node_ids:
+            # Source can be in node_ids OR in external_sources (for autonomous nodes)
+            if source_id not in node_ids and source_id not in external_sources:
                 logger.error(f"Connection references invalid source node: {source_id}")
                 return False
             if target_id not in node_ids:
