@@ -3,133 +3,6 @@
   "name": "Obelisk Workflow",
   "nodes": [
     {
-      "id": "6",
-      "type": "inference",
-      "position": {
-        "x": 803,
-        "y": 84
-      },
-      "inputs": {},
-      "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "enable_thinking": true
-      }
-    },
-    {
-      "id": "8",
-      "type": "memory_creator",
-      "position": {
-        "x": 1166,
-        "y": 510
-      },
-      "inputs": {
-        "summarize_threshold": 3
-      },
-      "metadata": {
-        "user_id": "",
-        "summarize_threshold": 3,
-        "k": 10,
-        "cycle_id": "",
-        "quantum_seed": 0.7
-      }
-    },
-    {
-      "id": "4",
-      "type": "model_loader",
-      "position": {
-        "x": 515,
-        "y": 389
-      },
-      "inputs": {},
-      "metadata": {
-        "model_path": "models/default_model",
-        "auto_load": true
-      }
-    },
-    {
-      "id": "3",
-      "type": "memory_selector",
-      "position": {
-        "x": 486,
-        "y": 22
-      },
-      "inputs": {
-        "enable_recent_buffer": true,
-        "k": 10
-      },
-      "metadata": {
-        "user_id": "",
-        "enable_recent_buffer": true,
-        "k": 10
-      }
-    },
-    {
-      "id": "11",
-      "type": "scheduler",
-      "position": {
-        "x": -438,
-        "y": 18
-      },
-      "inputs": {},
-      "metadata": {
-        "min_seconds": 5,
-        "max_seconds": 5,
-        "enabled": true
-      }
-    },
-    {
-      "id": "9",
-      "type": "text",
-      "position": {
-        "x": -13,
-        "y": 755
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "default_user"
-      }
-    },
-    {
-      "id": "5",
-      "type": "text",
-      "position": {
-        "x": -4,
-        "y": 446
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
-      }
-    },
-    {
-      "id": "2",
-      "type": "memory_storage",
-      "position": {
-        "x": 169,
-        "y": 240
-      },
-      "inputs": {
-        "storage_path": "default"
-      },
-      "metadata": {
-        "storage_path": "default",
-        "storage_type": "local_json"
-      }
-    },
-    {
-      "id": "1",
-      "type": "text",
-      "position": {
-        "x": 0,
-        "y": -97
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "We are testing the scheduler node, just trying out some things."
-      }
-    },
-    {
       "id": "10",
       "type": "telegram_bot",
       "position": {
@@ -155,74 +28,152 @@
       "metadata": {
         "text": ""
       }
+    },
+    {
+      "id": "12",
+      "type": "telegram_listener",
+      "position": {
+        "x": 11,
+        "y": 170
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_token": "",
+        "poll_interval": 2
+      }
+    },
+    {
+      "id": "5",
+      "type": "text",
+      "position": {
+        "x": 383,
+        "y": -81
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "You are The Overseer. Respond naturally to the user.\n\nIMPORTANT: When conversation history or memories are provided, you MUST use them to answer questions. Pay attention to facts, preferences, and information mentioned in the conversation history or listed in the memories. If the user asks about something mentioned earlier in the conversation or in the memories, recall it from there.\n\nDo not use emojis in your responses."
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 811,
+        "y": 38
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "15",
+      "type": "telegram_memory_creator",
+      "position": {
+        "x": 916,
+        "y": 236
+      },
+      "inputs": {},
+      "metadata": {
+        "summarize_threshold": 20
+      }
+    },
+    {
+      "id": "14",
+      "type": "telegram_memory_selector",
+      "position": {
+        "x": 1033,
+        "y": 464
+      },
+      "inputs": {},
+      "metadata": {
+        "recent_count": 20,
+        "include_summaries": true
+      }
+    },
+    {
+      "id": "16",
+      "type": "memory_storage",
+      "position": {
+        "x": 585,
+        "y": 641
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "default",
+        "storage_type": "local_json"
+      }
+    },
+    {
+      "id": "4",
+      "type": "model_loader",
+      "position": {
+        "x": 327,
+        "y": 432
+      },
+      "inputs": {},
+      "metadata": {
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
+    },
+    {
+      "id": "17",
+      "type": "binary_intent",
+      "position": {
+        "x": 163,
+        "y": 658
+      },
+      "inputs": {},
+      "metadata": {
+        "intent_criteria": ""
+      }
     }
   ],
   "connections": [
     {
-      "from": "6",
-      "from_output": "query",
-      "to": "8",
+      "from": "7",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "message"
+    },
+    {
+      "from": "12",
+      "from_output": "message",
+      "to": "15",
+      "to_input": "message"
+    },
+    {
+      "from": "12",
+      "from_output": "message",
+      "to": "14",
       "to_input": "query"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "7",
-      "to_input": "text"
-    },
-    {
-      "from": "6",
-      "from_output": "response",
-      "to": "8",
-      "to_input": "response"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "6",
-      "to_input": "model"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "3",
-      "to_input": "model"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "8",
-      "to_input": "model"
-    },
-    {
-      "from": "3",
-      "from_output": "query",
-      "to": "6",
-      "to_input": "query"
-    },
-    {
-      "from": "3",
-      "from_output": "context",
-      "to": "6",
-      "to_input": "context"
-    },
-    {
-      "from": "11",
-      "from_output": "trigger",
-      "to": "1",
-      "to_input": "trigger"
-    },
-    {
-      "from": "9",
-      "from_output": "text",
-      "to": "3",
+      "from": "12",
+      "from_output": "user_id",
+      "to": "15",
       "to_input": "user_id"
     },
     {
-      "from": "9",
-      "from_output": "text",
-      "to": "8",
-      "to_input": "user_id"
+      "from": "12",
+      "from_output": "username",
+      "to": "15",
+      "to_input": "username"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "15",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "14",
+      "to_input": "chat_id"
     },
     {
       "from": "5",
@@ -231,28 +182,40 @@
       "to_input": "system_prompt"
     },
     {
-      "from": "2",
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "text"
+    },
+    {
+      "from": "16",
       "from_output": "storage_instance",
-      "to": "3",
+      "to": "15",
       "to_input": "storage_instance"
     },
     {
-      "from": "2",
+      "from": "16",
       "from_output": "storage_instance",
-      "to": "8",
+      "to": "14",
       "to_input": "storage_instance"
     },
     {
-      "from": "1",
-      "from_output": "text",
-      "to": "3",
-      "to_input": "query"
+      "from": "4",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
     },
     {
-      "from": "7",
-      "from_output": "text",
-      "to": "10",
-      "to_input": "message"
+      "from": "4",
+      "from_output": "model",
+      "to": "15",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "14",
+      "to_input": "model"
     }
   ]
 }

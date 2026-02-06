@@ -23,17 +23,17 @@ class BinaryIntentNode extends LGraphNode {
     this.addOutput("confidence", "string"); // "high", "medium", "low"
     this.addOutput("reasoning", "string"); // Brief explanation
     
-    this.size = [300, 200];
+    this.size = [300, 220];
     (this as any).type = "binary_intent";
     (this as any).resizable = true;
     
     // Properties
     this.addProperty("intent_criteria", "", "string");
     
-    // Widget for intent criteria (multiline would be ideal but using text for now)
+    // Textarea widget for intent criteria - fills the node body
     const initialCriteria = (this.properties as any)?.intent_criteria || "";
     this.addWidget(
-      "text" as any,
+      "textarea" as any,
       "Intent Criteria",
       initialCriteria,
       (value: string) => {
@@ -41,6 +41,7 @@ class BinaryIntentNode extends LGraphNode {
       },
       {
         serialize: true,
+        property: "intent_criteria",
       } as any
     );
   }
