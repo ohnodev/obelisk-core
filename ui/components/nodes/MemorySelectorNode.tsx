@@ -2,6 +2,10 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
+// Default node dimensions
+const NODE_WIDTH = 280;
+const NODE_HEIGHT = 180;
+
 class MemorySelectorNode extends LGraphNode {
   static title = "Memory Selector";
   static desc = "Selects relevant conversation context from storage";
@@ -18,7 +22,7 @@ class MemorySelectorNode extends LGraphNode {
     this.addInput("user_id", "string");
     this.addOutput("query", "string");
     this.addOutput("context", "object");
-    this.size = [240, 180];
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "memory_selector";
     (this as any).resizable = true;
     
@@ -87,6 +91,13 @@ class MemorySelectorNode extends LGraphNode {
 
   onAdded() {
     this.updateUserIdWidgetState();
+    // Force size after being added to graph (LiteGraph may auto-compute)
+    this.size = [NODE_WIDTH, NODE_HEIGHT];
+  }
+
+  computeSize(): [number, number] {
+    // Override LiteGraph's auto size computation
+    return [NODE_WIDTH, NODE_HEIGHT];
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {
