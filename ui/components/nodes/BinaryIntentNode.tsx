@@ -23,7 +23,7 @@ class BinaryIntentNode extends LGraphNode {
     this.addOutput("confidence", "string"); // "high", "medium", "low"
     this.addOutput("reasoning", "string"); // Brief explanation
     
-    this.size = [300, 200];
+    this.size = [300, 280]; // Taller to fit textarea below 4 inputs
     (this as any).type = "binary_intent";
     (this as any).resizable = true;
     
