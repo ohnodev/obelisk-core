@@ -21,7 +21,7 @@ class MemorySelectorNode extends LGraphNode {
     // user_id input - widget will render inline with this
     this.addInput("user_id", "string");
     this.addOutput("query", "string");
-    this.addOutput("context", "object");
+    this.addOutput("context", "string");
     this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "memory_selector";
     (this as any).resizable = true;
