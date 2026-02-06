@@ -268,7 +268,6 @@ def test_listener_node_execution():
         
         # Create context
         context = ExecutionContext(
-            workflow_id='test_workflow',
             variables={},
             node_outputs={}
         )
@@ -320,15 +319,8 @@ def test_send_node_execution():
         
         # Create context with message input
         context = ExecutionContext(
-            workflow_id='test_workflow',
             variables={},
-            node_outputs={
-                'test_sender': {
-                    'inputs': {
-                        'message': f"🧪 Node execution test - {time.strftime('%H:%M:%S')}"
-                    }
-                }
-            }
+            node_outputs={}
         )
         
         # Set input directly
