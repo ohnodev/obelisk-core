@@ -13,9 +13,11 @@ export class TelegramBotNode extends BaseNode {
       | string
       | undefined;
     const botToken =
+      (this.getInputValue("bot_id", context, undefined) as string) ||
       (this.getInputValue("bot_token", context, undefined) as string) ||
+      (this.resolveEnvVar(this.metadata.bot_id) as string) ||
       (this.resolveEnvVar(this.metadata.bot_token) as string) ||
-      process.env.TELEGRAM_BOT_TOKEN ||
+      process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
       "";
     const chatId =
       (this.getInputValue("chat_id", context, undefined) as string) ||

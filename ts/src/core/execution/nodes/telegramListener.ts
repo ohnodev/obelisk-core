@@ -14,7 +14,7 @@ export class TelegramListenerNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const botToken =
       (this.resolveEnvVar(this.metadata.bot_token) as string) ||
-      process.env.TELEGRAM_BOT_TOKEN ||
+      process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
       "";
     const chatId =
       (this.resolveEnvVar(this.metadata.chat_id) as string) ||
