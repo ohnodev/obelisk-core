@@ -223,16 +223,15 @@ delete_logs() {
 }
 
 check_venv() {
-    # TypeScript core only needs node; still need Python venv for inference
+    # TypeScript core: always rebuild on restart to pick up code changes
     if [ "$CORE_RUNTIME" = "typescript" ]; then
-        if [ ! -f "$SCRIPT_DIR/ts/dist/index.js" ]; then
-            echo -e "${YELLOW}⚠️  TypeScript build not found. Running build...${NC}"
-            (cd "$SCRIPT_DIR/ts" && npm run build) || {
-                echo -e "${RED}❌ TypeScript build failed.${NC}"
-                echo -e "${YELLOW}   Run: cd ts && npm install && npm run build${NC}"
-                return 1
-            }
-        fi
+        echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
+        (cd "$SCRIPT_DIR/ts" && npm run build) || {
+            echo -e "${RED}❌ TypeScript build failed.${NC}"
+            echo -e "${YELLOW}   Run: cd ts && npm install && npm run build${NC}"
+            return 1
+        }
+        echo -e "${GREEN}✅ TypeScript build complete${NC}"
     fi
     # Python venv is always needed for the inference service
     if [ ! -d "$SCRIPT_DIR/venv" ]; then
@@ -345,6 +344,16 @@ cmd_restart() {
         # Restart specific service
         echo -e "${BLUE}🔄 Restarting ${target}...${NC}"
         delete_logs "$target"
+
+        # Rebuild TypeScript core before restarting
+        if [ "$target" = "$CORE_NAME" ] && [ "$CORE_RUNTIME" = "typescript" ]; then
+            echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
+            (cd "$SCRIPT_DIR/ts" && npm run build) || {
+                echo -e "${RED}❌ TypeScript build failed. Aborting restart.${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ TypeScript build complete${NC}"
+        fi
 
         if service_exists "$target"; then
             if ! is_running "$target"; then

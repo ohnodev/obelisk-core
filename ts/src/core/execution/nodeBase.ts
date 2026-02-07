@@ -90,7 +90,35 @@ export abstract class BaseNode {
     return defaultValue;
   }
 
-  /** Resolve {{varName}} templates against context.variables */
+  /**
+   * Resolve {{process.env.VAR}} templates against real environment variables.
+   * Works without an ExecutionContext — safe to call for metadata values.
+   */
+  protected resolveEnvVar(value: unknown): unknown {
+    if (typeof value !== "string") return value;
+
+    // Single template: {{process.env.VAR}}
+    const fullMatch = value.match(/^\{\{(.+?)\}\}$/);
+    if (fullMatch) {
+      const varName = fullMatch[1].trim();
+      if (varName.startsWith("process.env.")) {
+        const envKey = varName.slice("process.env.".length);
+        return process.env[envKey] ?? value;
+      }
+    }
+
+    // Inline replacement for multiple templates
+    return value.replace(/\{\{(.+?)\}\}/g, (_match, varName: string) => {
+      const trimmed = varName.trim();
+      if (trimmed.startsWith("process.env.")) {
+        const envKey = trimmed.slice("process.env.".length);
+        return process.env[envKey] ?? _match;
+      }
+      return _match;
+    });
+  }
+
+  /** Resolve {{varName}} templates against context.variables and process.env */
   protected resolveTemplateVariable(
     value: unknown,
     context: ExecutionContext
@@ -102,12 +130,22 @@ export abstract class BaseNode {
     const fullMatch = value.match(/^\{\{(.+?)\}\}$/);
     if (fullMatch) {
       const varName = fullMatch[1].trim();
+      // Check process.env first
+      if (varName.startsWith("process.env.")) {
+        const envKey = varName.slice("process.env.".length);
+        return process.env[envKey] ?? value;
+      }
       return context.variables[varName] ?? value;
     }
 
     // Otherwise replace all {{var}} occurrences inline (always returns string).
     return value.replace(/\{\{(.+?)\}\}/g, (_match, varName: string) => {
-      const resolved = context.variables[varName.trim()];
+      const trimmed = varName.trim();
+      if (trimmed.startsWith("process.env.")) {
+        const envKey = trimmed.slice("process.env.".length);
+        return process.env[envKey] ?? _match;
+      }
+      const resolved = context.variables[trimmed];
       return resolved !== undefined ? String(resolved) : _match;
     });
   }

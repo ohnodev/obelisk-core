@@ -13,11 +13,11 @@ const lastOffsets: Record<string, number> = {};
 export class TelegramListenerNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const botToken =
-      (this.metadata.bot_token as string) ||
+      (this.resolveEnvVar(this.metadata.bot_token) as string) ||
       process.env.TELEGRAM_BOT_TOKEN ||
       "";
     const chatId =
-      (this.metadata.chat_id as string) ||
+      (this.resolveEnvVar(this.metadata.chat_id) as string) ||
       process.env.TELEGRAM_CHAT_ID ||
       "";
 
