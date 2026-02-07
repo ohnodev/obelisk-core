@@ -33,14 +33,40 @@ export function extractJsonFromLlmResponse(
   text = text.replace(/\n?```\s*$/gim, "");
   text = text.trim();
 
-  // Strategy 1: Find complete JSON object by matching braces
+  // Strategy 1: Find complete JSON object by matching braces.
+  // Track whether we're inside a JSON string to avoid miscounting
+  // braces that appear as string values (e.g. {"key": "a { b }"}).
   const jsonStart = text.indexOf("{");
   if (jsonStart >= 0) {
     let braceCount = 0;
     let jsonEnd = jsonStart;
+    let inString = false;
+    let escaped = false;
+
     for (let i = jsonStart; i < text.length; i++) {
-      if (text[i] === "{") braceCount++;
-      else if (text[i] === "}") {
+      const ch = text[i];
+
+      if (escaped) {
+        // Previous char was a backslash inside a string — skip this char
+        escaped = false;
+        continue;
+      }
+
+      if (inString) {
+        if (ch === "\\") {
+          escaped = true;
+        } else if (ch === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      // Outside a string
+      if (ch === '"') {
+        inString = true;
+      } else if (ch === "{") {
+        braceCount++;
+      } else if (ch === "}") {
         braceCount--;
         if (braceCount === 0) {
           jsonEnd = i + 1;
