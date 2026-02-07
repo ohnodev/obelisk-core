@@ -22,9 +22,9 @@ ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 # ─── Service definitions ──────────────────────────────────────────────
 # Each service: PM2_NAME  PORT  HOST  MODULE
 #
-# OBELISK_CORE_RUNTIME: "python" (default) or "typescript"
-# When set to "typescript", the core service runs the TS build under ts/.
-CORE_RUNTIME="${OBELISK_CORE_RUNTIME:-python}"
+# OBELISK_CORE_RUNTIME: "typescript" (default) or "python"
+# When set to "python", the core service runs the Python build under src/.
+CORE_RUNTIME="${OBELISK_CORE_RUNTIME:-typescript}"
 
 CORE_NAME="obelisk-core"
 CORE_PORT="${OBELISK_CORE_PORT:-7779}"
@@ -110,6 +110,7 @@ generate_ecosystem() {
         core_args="''"
         core_interpreter="'node'"
         core_env_extra="
+        NODE_ENV: 'production',
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',"
         core_max_mem="'512M'"
@@ -452,7 +453,7 @@ cmd_help() {
     echo -e "${CYAN}Environment:${NC}"
     echo "  OBELISK_CORE_PORT    Core API port (default: 7779)"
     echo "  OBELISK_CORE_HOST    Core API host (default: 0.0.0.0)"
-    echo "  OBELISK_CORE_RUNTIME Core runtime: 'python' (default) or 'typescript'"
+    echo "  OBELISK_CORE_RUNTIME Core runtime: 'typescript' (default) or 'python'"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
     echo ""
