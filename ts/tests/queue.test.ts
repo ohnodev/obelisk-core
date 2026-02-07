@@ -1,10 +1,11 @@
 /**
  * Tests for the ExecutionQueue – serial workflow processing.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import { ExecutionQueue } from "../src/api/queue";
+import { ExecutionEngine } from "../src/core/execution/engine";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
-import { WorkflowData } from "../src/core/types";
+import { WorkflowData, GraphExecutionResult } from "../src/core/types";
 
 beforeAll(() => {
   registerAllNodes();
@@ -58,24 +59,45 @@ describe("ExecutionQueue", () => {
   });
 
   it("should reject when queue is full", async () => {
-    const queue = new ExecutionQueue(2);
+    // Use a controlled promise so we can keep the first workflow "in flight"
+    let resolveFirst!: (v: GraphExecutionResult) => void;
+    const blockedPromise = new Promise<GraphExecutionResult>((r) => {
+      resolveFirst = r;
+    });
 
-    // Fill it up
+    const mock = vi
+      .spyOn(ExecutionEngine.prototype, "execute")
+      .mockImplementation(() => blockedPromise);
+
+    const queue = new ExecutionQueue(1); // buffer holds at most 1 pending item
+
+    // Submit #1: pushed to queue (length=1), processNext shifts it off
+    // (length=0) and starts awaiting the blocked promise → processing=true
     const p1 = queue.submit(textWorkflow("a"));
+
+    // Submit #2: queue.length is 0 (< 1) so accepted, pushed (length=1),
+    // processNext returns early because processing=true
     const p2 = queue.submit(textWorkflow("b"));
 
-    // The third should still be accepted since the first starts processing right away,
-    // freeing a slot. But let's fill the queue by submitting several.
-    // Actually, with maxSize=2 and async processing, the queue buffer is only
-    // items not yet started. Let's test the boundary more explicitly:
-    const smallQueue = new ExecutionQueue(1);
-    const first = smallQueue.submit(textWorkflow("x"));
+    // Submit #3: queue.length is 1 (>= maxSize) → should reject
+    await expect(queue.submit(textWorkflow("c"))).rejects.toThrow(
+      "Queue full (max 1)"
+    );
 
-    // The first is being processed, not in the queue anymore.
-    // So submitting a second should work.
-    const second = smallQueue.submit(textWorkflow("y"));
+    // Clean up: resolve the blocked promise so p1 and p2 can finish
+    const fakeResult: GraphExecutionResult = {
+      success: true,
+      nodeResults: [],
+      finalOutputs: {},
+      executionOrder: [],
+      totalExecutionTime: 0,
+    };
+    resolveFirst(fakeResult);
 
-    await Promise.all([first, second, p1, p2]);
+    await p1;
+    await p2;
+
+    mock.mockRestore();
   });
 
   it("should handle empty workflow", async () => {
