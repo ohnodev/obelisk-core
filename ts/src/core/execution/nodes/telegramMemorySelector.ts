@@ -106,18 +106,24 @@ export class TelegramMemorySelectorNode extends BaseNode {
       if (allSummaries.length > 0) {
         let selectedSummaries: ChatSummary[];
 
-        // Use LLM to select relevant summaries when we have >1 and a model
-        if (allSummaries.length > 1 && model && message) {
+        // Use LLM to select relevant summaries when we have more than topK and a model
+        const topK = 5;
+        if (allSummaries.length > topK && model && message) {
           logger.info(
-            `[TelegramMemorySelector] Using LLM to select relevant summaries from ${allSummaries.length} candidates`
+            `[TelegramMemorySelector] Using LLM to select ${topK} relevant summaries from ${allSummaries.length} candidates`
           );
           selectedSummaries = await this._selectRelevantSummaries(
             model,
             String(message),
             allSummaries,
-            5 // Select top 5 most relevant
+            topK
           );
         } else {
+          if (allSummaries.length > 1) {
+            logger.info(
+              `[TelegramMemorySelector] ${allSummaries.length} summaries (≤${topK}) — using all without LLM selection`
+            );
+          }
           selectedSummaries = allSummaries;
         }
 

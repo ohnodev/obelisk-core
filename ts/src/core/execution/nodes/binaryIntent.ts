@@ -127,13 +127,15 @@ export class BinaryIntentNode extends BaseNode {
     );
 
     // Generate classification (matches Python signature)
+    // Use thinking mode so the small model can reason through the criteria
+    // instead of hallucinating matches that don't exist
     const genResult = await model.generate(
       query,
       SYSTEM_PROMPT,
       0.1, // Low quantum_influence for consistent classification
-      200, // Short response needed
+      512, // More tokens to allow thinking + JSON response
       null, // No conversation history
-      false // Fast, direct response (no thinking)
+      true  // Enable thinking so the model reasons before answering
     );
 
     if (genResult.error || !genResult.response) {
