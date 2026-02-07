@@ -53,7 +53,8 @@ data/
 
 # Local data directories (created in repo root during development/testing)
 # Memory-related files (new structure)
-memory/
+# Only ignore root-level memory/ (runtime data), not ts/src/.../memory/ (source code)
+/memory/
 # Old structure (kept for backward compatibility during migration)
 interactions/
 activities.json
