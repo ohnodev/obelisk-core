@@ -278,36 +278,32 @@ export class SupabaseStorage implements StorageInterface {
     userId: string,
     amount: number
   ): Promise<Record<string, unknown>> {
-    // Step 1: fetch current balance
-    const { data: current, error: fetchError } = await this.client
-      .from("users")
-      .select("token_balance")
-      .eq("id", userId)
-      .single();
+    // Atomic server-side increment via Postgres RPC to avoid lost updates.
+    // Expects a Postgres function:
+    //   CREATE OR REPLACE FUNCTION increment_user_token_balance(p_user_id uuid, p_delta int)
+    //   RETURNS SETOF users AS $$
+    //     UPDATE users
+    //     SET token_balance = token_balance + p_delta
+    //     WHERE id = p_user_id
+    //     RETURNING *;
+    //   $$ LANGUAGE sql;
+    const { data, error } = await this.client.rpc(
+      "increment_user_token_balance",
+      { p_user_id: userId, p_delta: amount }
+    );
 
-    if (fetchError) {
+    if (error) {
       logger.error(
-        `updateUserTokenBalance: fetch balance for user=${userId} failed: ${fetchError.message} [code=${fetchError.code}]`
+        `updateUserTokenBalance(user=${userId}, amount=${amount}): ${error.message} [code=${error.code}]`
       );
       return {};
     }
 
-    const currentBalance = (current?.token_balance as number) ?? 0;
-
-    // Step 2: update
-    const { data, error: updateError } = await this.client
-      .from("users")
-      .update({ token_balance: currentBalance + amount })
-      .eq("id", userId)
-      .select();
-
-    if (updateError) {
-      logger.error(
-        `updateUserTokenBalance: update for user=${userId} failed: ${updateError.message} [code=${updateError.code}]`
-      );
-      return {};
+    // RPC with RETURNS SETOF returns an array; take the first row.
+    if (Array.isArray(data)) {
+      return (data[0] as Record<string, unknown>) ?? {};
     }
-    return (data?.[0] as Record<string, unknown>) ?? {};
+    return (data as Record<string, unknown>) ?? {};
   }
 
   async checkNftUpgrades(userId: string): Promise<NftUpgrade[]> {
