@@ -416,7 +416,7 @@ export class WorkflowRunner {
 
     // If any autonomous node fired, execute the downstream subgraph
     if (triggeredNodes.size) {
-      // Log which autonomous nodes triggered
+      // Log which autonomous nodes triggered and which targets were found
       for (const [nodeId, node] of state.nodes) {
         if (node.isAutonomous() && state.context.nodeOutputs[nodeId]) {
           const outputs = state.context.nodeOutputs[nodeId];
@@ -430,6 +430,9 @@ export class WorkflowRunner {
           }
         }
       }
+      logger.info(
+        `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
+      );
       await this.executeSubgraph(state, triggeredNodes);
     }
   }
@@ -507,19 +510,38 @@ export class WorkflowRunner {
     const subgraphExecuted = result.executionOrder ?? [];
     const allExecuted = [...autonomousExecuted, ...subgraphExecuted];
 
+    // Log what we're about to send so we can debug flashing issues
+    const successfulNodeIds = result.nodeResults
+      .filter((nr) => nr.success)
+      .map((nr) => String(nr.nodeId));
+    const failedNodeIds = result.nodeResults
+      .filter((nr) => !nr.success)
+      .map((nr) => `${nr.nodeId}(${nr.error ?? "?"})`);
+
+    logger.info(
+      `[Subgraph] executed_nodes=[${allExecuted.join(", ")}] ` +
+        `successful=[${successfulNodeIds.join(", ")}] ` +
+        (failedNodeIds.length
+          ? `failed=[${failedNodeIds.join(", ")}] `
+          : "") +
+        `engine_success=${result.success} version=${state.resultsVersion}`
+    );
+
+    const resultsMap = Object.fromEntries([
+      ...autonomousResults,
+      ...result.nodeResults
+        .filter((nr) => nr.success)
+        .map((nr) => [
+          String(nr.nodeId),
+          { outputs: makeSerializable(nr.outputs) },
+        ]),
+    ]);
+
     state.latestResults = {
       tick: state.tickCount,
       success: result.success,
       executed_nodes: allExecuted,
-      results: Object.fromEntries([
-        ...autonomousResults,
-        ...result.nodeResults
-          .filter((nr) => nr.success)
-          .map((nr) => [
-            String(nr.nodeId),
-            { outputs: makeSerializable(nr.outputs) },
-          ]),
-      ]),
+      results: resultsMap,
       error: result.error ?? null,
       version: state.resultsVersion,
     };
@@ -534,7 +556,9 @@ export class WorkflowRunner {
     });
 
     if (result.success) {
-      logger.info("Subgraph execution completed successfully");
+      logger.info(
+        `Subgraph execution completed successfully in ${result.totalExecutionTime}ms`
+      );
     } else {
       logger.error(`Subgraph execution failed: ${result.error}`);
     }
