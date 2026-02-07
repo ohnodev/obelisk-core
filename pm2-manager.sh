@@ -143,6 +143,8 @@ module.exports = {
       env: {${core_env_extra}
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-core.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
       time: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
@@ -167,6 +169,8 @@ module.exports = {
         INFERENCE_HOST: '${INFERENCE_HOST}',
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-inference.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
       time: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
