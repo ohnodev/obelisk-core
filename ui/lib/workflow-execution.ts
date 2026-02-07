@@ -290,7 +290,7 @@ export async function cancelJob(
 export function highlightExecutingNodes(
   graph: any,
   executionOrder: string[] | undefined,
-  delay: number = 100
+  delay: number = 150
 ): void {
   if (!executionOrder || !graph) return;
 
@@ -300,6 +300,12 @@ export function highlightExecutingNodes(
     if (node) {
       node.executing = false;
       node.executed = false;
+      // Clear boxcolor (LiteGraph's built-in title box indicator)
+      // so nodes that don't have custom onDrawForeground still show the flash
+      if (node._savedBoxcolor === undefined) {
+        node._savedBoxcolor = node.boxcolor ?? null;
+      }
+      node.boxcolor = node._savedBoxcolor;
     }
   });
 
@@ -310,9 +316,15 @@ export function highlightExecutingNodes(
                   (/^\d+$/.test(nodeId) ? graph.getNodeById(parseInt(nodeId, 10) as any) : null);
       
       if (node) {
-        // Mark as executing
+        // Mark as executing (custom property for nodes with onDrawForeground)
         node.executing = true;
         node.executed = false;
+        // Also set boxcolor — this works for ALL nodes via LiteGraph's
+        // built-in title box rendering, even nodes without custom rendering
+        if (node._savedBoxcolor === undefined) {
+          node._savedBoxcolor = node.boxcolor ?? null;
+        }
+        node.boxcolor = "#ffc800"; // yellow — executing
         
         // Force redraw
         const canvas = (window as any).__obeliskCanvas;
@@ -326,12 +338,25 @@ export function highlightExecutingNodes(
           if (node) {
             node.executing = false;
             node.executed = true;
+            node.boxcolor = "#00e000"; // green — done
             
             // Force redraw again
             if (canvas) {
               canvas.dirty_canvas = true;
               canvas.draw(true);
             }
+            
+            // Clear the executed highlight after a bit
+            setTimeout(() => {
+              if (node) {
+                node.executed = false;
+                node.boxcolor = node._savedBoxcolor;
+                if (canvas) {
+                  canvas.dirty_canvas = true;
+                  canvas.draw(true);
+                }
+              }
+            }, 2000);
           }
         }, delay);
       }
