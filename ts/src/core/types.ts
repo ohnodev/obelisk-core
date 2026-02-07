@@ -14,16 +14,16 @@ export type MessageRole = "user" | "assistant" | "system";
 
 // ─── Core Interfaces ───────────────────────────────────────────────────
 
-/** LLM generation interface – satisfied by both ObeliskLLM and InferenceClient */
+/** LLM generation interface – satisfied by both ObeliskLLM and InferenceClient.
+ *  Mirrors Python's generate() signature exactly. */
 export interface LLMInterface {
   generate(
     query: string,
-    options?: {
-      quantumInfluence?: number;
-      maxLength?: number;
-      conversationContext?: ConversationContext;
-      enableThinking?: boolean;
-    }
+    systemPrompt?: string,
+    quantumInfluence?: number,
+    maxLength?: number,
+    conversationHistory?: Array<Record<string, string>> | null,
+    enableThinking?: boolean
   ): Promise<LLMGenerationResult>;
 }
 
@@ -94,6 +94,8 @@ export interface LLMGenerationResult {
   source: string;
   tokensUsed?: number;
   quantumInfluence?: number;
+  temperature?: number;
+  topP?: number;
   error?: string;
 }
 

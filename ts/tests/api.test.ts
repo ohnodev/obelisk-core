@@ -160,7 +160,12 @@ describe("POST /api/v1/workflow/execute", () => {
               metadata: { use_default: true },
             },
             {
-              id: "prompt",
+              id: "system",
+              type: "text",
+              inputs: { text: "You are a helpful assistant." },
+            },
+            {
+              id: "query_node",
               type: "text",
               inputs: { text: "Tell me a joke" },
             },
@@ -178,10 +183,16 @@ describe("POST /api/v1/workflow/execute", () => {
               target_input: "model",
             },
             {
-              source_node: "prompt",
+              source_node: "system",
               source_output: "text",
               target_node: "llm",
-              target_input: "prompt",
+              target_input: "system_prompt",
+            },
+            {
+              source_node: "query_node",
+              source_output: "text",
+              target_node: "llm",
+              target_input: "query",
             },
           ],
         },
@@ -189,7 +200,7 @@ describe("POST /api/v1/workflow/execute", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("completed");
-    expect(res.body.results["llm"].outputs.text).toBe("Mocked LLM response");
+    expect(res.body.results["llm"].outputs.response).toBe("Mocked LLM response");
 
     mock.mockRestore();
   });

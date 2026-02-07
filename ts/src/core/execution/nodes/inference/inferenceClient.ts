@@ -22,37 +22,62 @@ export class InferenceClient {
   readonly endpointUrl: string;
   private readonly timeout: number;
 
+  // Quantum influence → sampling parameter mapping (mirrors Python)
+  private static readonly TEMPERATURE_BASE = 0.6;
+  private static readonly TOP_P_BASE = 0.95;
+  private static readonly TOP_K = 20;
+  private static readonly REPETITION_PENALTY = 1.2;
+  private static readonly QUANTUM_TEMP_RANGE = 0.1;
+  private static readonly QUANTUM_TOP_P_RANGE = 0.05;
+
   constructor(opts?: InferenceClientOptions) {
     this.endpointUrl =
       opts?.endpointUrl || InferenceClient.DEFAULT_ENDPOINT;
     this.timeout = opts?.timeout || 120_000;
   }
 
+  /** Convert quantum_influence to sampling parameters (mirrors Python) */
+  private quantumToSamplingParams(quantumInfluence: number): {
+    quantumInfluence: number;
+    temperature: number;
+    topP: number;
+  } {
+    const qi = Math.max(0.0, Math.min(0.1, quantumInfluence));
+    let temperature = InferenceClient.TEMPERATURE_BASE + qi * InferenceClient.QUANTUM_TEMP_RANGE;
+    let topP = InferenceClient.TOP_P_BASE + qi * InferenceClient.QUANTUM_TOP_P_RANGE;
+    temperature = Math.max(0.1, Math.min(0.9, temperature));
+    topP = Math.max(0.01, Math.min(1.0, topP));
+    return { quantumInfluence: qi, temperature, topP };
+  }
+
   /**
    * Generate a response from the inference service.
-   * Duck-typed to match ObeliskLLM.generate().
+   * Same signature as Python InferenceClient.generate() so nodes work unchanged.
    */
   async generate(
     query: string,
-    options?: {
-      quantumInfluence?: number;
-      maxLength?: number;
-      conversationContext?: ConversationContext;
-      enableThinking?: boolean;
-    }
+    systemPrompt: string = "",
+    quantumInfluence: number = 0.7,
+    maxLength: number = 1024,
+    conversationHistory?: Array<Record<string, string>> | null,
+    enableThinking: boolean = true
   ): Promise<LLMGenerationResult> {
-    const url = `${this.endpointUrl}/inference`;
+    const url = `${this.endpointUrl}/v1/inference`;
+    const sampling = this.quantumToSamplingParams(quantumInfluence);
 
     const body: Record<string, unknown> = {
-      prompt: query,
-      enable_thinking: options?.enableThinking ?? true,
+      query,
+      system_prompt: systemPrompt,
+      enable_thinking: enableThinking,
+      max_tokens: maxLength,
+      temperature: sampling.temperature,
+      top_p: sampling.topP,
+      top_k: InferenceClient.TOP_K,
+      repetition_penalty: InferenceClient.REPETITION_PENALTY,
     };
 
-    if (options?.maxLength) body.max_tokens = options.maxLength;
-    if (options?.quantumInfluence !== undefined)
-      body.temperature = options.quantumInfluence;
-    if (options?.conversationContext) {
-      body.conversation_context = options.conversationContext;
+    if (conversationHistory) {
+      body.conversation_history = conversationHistory;
     }
 
     let controller: AbortController | undefined;
@@ -75,12 +100,19 @@ export class InferenceClient {
       }
 
       const data = (await res.json()) as Record<string, unknown>;
+      const genParams = (data.generation_params as Record<string, unknown>) ?? {};
 
       return {
         response: (data.response as string) ?? "",
         thinkingContent: (data.thinking_content as string) ?? undefined,
-        source: "inference_service",
-        tokensUsed: (data.tokens_used as number) ?? undefined,
+        source: (data.source as string) ?? "inference_service",
+        tokensUsed:
+          ((data.input_tokens as number) ?? 0) +
+          ((data.output_tokens as number) ?? 0),
+        temperature: (genParams.temperature as number) ?? sampling.temperature,
+        topP: (genParams.top_p as number) ?? sampling.topP,
+        quantumInfluence: sampling.quantumInfluence,
+        error: (data.error as string) ?? undefined,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

@@ -476,18 +476,37 @@ export class WorkflowRunner {
     // Store latest results for frontend polling (sanitized for JSON serialization)
     // Mirrors Python runner._execute_subgraph result format
     state.resultsVersion++;
+
+    // Include autonomous trigger nodes in executed_nodes so the frontend can
+    // highlight them (telegram_listener, scheduler, etc.)
+    const autonomousExecuted: string[] = [];
+    const autonomousResults: Array<[string, { outputs: unknown }]> = [];
+    for (const [nid, node] of state.nodes) {
+      if (node.isAutonomous() && context.nodeOutputs[nid]) {
+        autonomousExecuted.push(nid);
+        autonomousResults.push([
+          nid,
+          { outputs: makeSerializable(context.nodeOutputs[nid]) },
+        ]);
+      }
+    }
+
+    const subgraphExecuted = result.executionOrder ?? [];
+    const allExecuted = [...autonomousExecuted, ...subgraphExecuted];
+
     state.latestResults = {
       tick: state.tickCount,
       success: result.success,
-      executed_nodes: result.executionOrder ?? [],
-      results: Object.fromEntries(
-        result.nodeResults
+      executed_nodes: allExecuted,
+      results: Object.fromEntries([
+        ...autonomousResults,
+        ...result.nodeResults
           .filter((nr) => nr.success)
           .map((nr) => [
             String(nr.nodeId),
             { outputs: makeSerializable(nr.outputs) },
-          ])
-      ),
+          ]),
+      ]),
       error: result.error ?? null,
       version: state.resultsVersion,
     };

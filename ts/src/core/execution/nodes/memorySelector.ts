@@ -129,10 +129,14 @@ export class MemorySelectorNode extends BaseNode {
       "JSON:",
     ].join("\n");
 
-    const result = await model.generate(prompt, {
-      enableThinking: false,
-      maxLength: 200,
-    });
+    const result = await model.generate(
+      prompt,
+      "You are a memory relevance scorer. Respond with JSON only.",
+      0.1,  // low quantum_influence for consistency
+      200,  // short response
+      null, // no conversation history
+      false // no thinking
+    );
 
     if (!result.response) return "";
 

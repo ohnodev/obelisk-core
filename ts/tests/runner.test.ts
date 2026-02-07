@@ -168,7 +168,12 @@ describe("WorkflowRunner", () => {
           metadata: { use_default: true },
         },
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are a helpful assistant." },
+        },
+        {
+          id: "query_node",
           type: "text",
           inputs: { text: "Say hello" },
         },
@@ -186,10 +191,16 @@ describe("WorkflowRunner", () => {
           target_input: "model",
         },
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query_node",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -199,7 +210,7 @@ describe("WorkflowRunner", () => {
     expect(result.success).toBe(true);
     // LLM is terminal node — check nodeResults
     const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
-    expect(llmResult?.outputs.text).toBe("Runner says hello!");
+    expect(llmResult?.outputs.response).toBe("Runner says hello!");
 
     mock.mockRestore();
   });
