@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy slim requirements (no torch/transformers/peft — inference runs as a
+# separate service, this container only needs HTTP client + langchain + API)
+COPY requirements-docker.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (slim: ~300-400MB vs ~2.5GB with full ML stack)
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
 # Copy source code
 COPY src/ ./src/
