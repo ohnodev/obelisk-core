@@ -65,6 +65,7 @@ export class MemoryCreatorNode extends BaseNode {
           await storage.createActivityLog("conversation_summary", summary, {
             user_id: userId,
             interaction_id: interactionId,
+            summary_data: { user_id: userId },
           });
         }
       } catch (err) {
