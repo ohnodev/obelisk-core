@@ -25,13 +25,23 @@ mkdir -p "$LOG_DIR"
 
 # Check if PM2 is installed
 if ! command -v pm2 &> /dev/null; then
+    if ! command -v npm &> /dev/null; then
+        echo -e "${RED}❌ PM2 is not installed and npm was not found.${NC}"
+        echo -e "${YELLOW}   Please install Node.js and npm first: https://nodejs.org/${NC}"
+        exit 1
+    fi
     echo -e "${RED}❌ PM2 is not installed. Installing...${NC}"
-    npm install -g pm2
+    if ! npm install -g pm2 2>/dev/null; then
+        echo -e "${RED}❌ Failed to install PM2 globally (likely a permissions issue).${NC}"
+        echo -e "${YELLOW}   Try: sudo npm install -g pm2${NC}"
+        echo -e "${YELLOW}   Or fix npm global permissions: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally${NC}"
+        exit 1
+    fi
 fi
 
 # Check if PM2 logrotate is installed and configured
 setup_logrotate() {
-    if ! pm2 list 2>/dev/null | grep -q "pm2-logrotate"; then
+    if ! pm2 describe pm2-logrotate &> /dev/null; then
         echo -e "${YELLOW}⚠️  PM2 logrotate not found. Installing...${NC}"
         pm2 install pm2-logrotate
     fi
