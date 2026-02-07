@@ -13,6 +13,7 @@ import {
   GraphExecutionResult,
 } from "../types";
 import { ExecutionEngine } from "./engine";
+import { SchedulerNode } from "./nodes/scheduler";
 import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("runner");
@@ -64,10 +65,16 @@ export class WorkflowRunner {
   ): string {
     const workflowId = crypto.randomUUID();
 
+    // Reset any stale scheduler state for this workflow
+    SchedulerNode.resetWorkflow(workflowId);
+
+    // Inject _workflowId so SchedulerNode can scope its fire-times
+    const vars = { ...contextVariables, _workflowId: workflowId };
+
     const state: WorkflowState = {
       workflowId,
       workflow,
-      contextVariables,
+      contextVariables: vars,
       state: "running",
       tickCount: 0,
       tickInterval: tickIntervalMs,
@@ -97,6 +104,10 @@ export class WorkflowRunner {
 
     if (state.timer) clearInterval(state.timer);
     state.state = "stopped";
+
+    // Clear scheduler fire-times so a future restart begins fresh
+    SchedulerNode.resetWorkflow(workflowId);
+
     logger.info(`Workflow ${workflowId} stopped after ${state.tickCount} ticks`);
     return true;
   }

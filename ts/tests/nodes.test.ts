@@ -1,7 +1,7 @@
 /**
  * Tests for individual node implementations.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
 import { ExecutionContext } from "../src/core/execution/nodeBase";
 import { TextNode } from "../src/core/execution/nodes/text";
@@ -80,6 +80,10 @@ describe("TextNode", () => {
 });
 
 describe("SchedulerNode", () => {
+  beforeEach(() => {
+    SchedulerNode.resetAll();
+  });
+
   it("should fire on first execution", () => {
     const node = new SchedulerNode("s1", {
       id: "s1",
