@@ -40,15 +40,25 @@ export class TelegramMemorySelectorNode extends BaseNode {
       content: m.content,
     }));
 
-    // Get recent summaries from activity logs
+    // Get recent summaries from activity logs, scoped to the current user
     let memories = "";
     try {
       const summaryLogs = await storage.getActivityLogs(
         "telegram_summary",
-        5
+        20
       );
       if (summaryLogs.length) {
-        memories = summaryLogs.map((l) => l.message).join("\n\n");
+        const userLogs = summaryLogs.filter((l) => {
+          const meta = l.metadata as Record<string, unknown> | undefined;
+          const summaryUserId =
+            (meta as Record<string, any>)?.summary_data?.user_id ??
+            (meta as Record<string, any>)?.user_id;
+          return summaryUserId === userId;
+        });
+        memories = userLogs
+          .slice(0, 5)
+          .map((l) => l.message)
+          .join("\n\n");
       }
     } catch (err) {
       logger.warn(
