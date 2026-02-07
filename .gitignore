@@ -80,6 +80,10 @@ transformers_cache/
 *.bin
 *.safetensors
 
+# PM2 (auto-generated)
+ecosystem.config.js
+logs/
+
 # Test artifacts
 .pytest_cache/
 .coverage
