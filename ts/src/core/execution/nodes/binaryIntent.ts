@@ -72,7 +72,17 @@ export class BinaryIntentNode extends BaseNode {
         genResult.response,
         "binary_intent"
       );
-      const intentResult = Boolean(parsed.result);
+      let intentResult: boolean;
+      const raw = parsed.result;
+      if (typeof raw === "boolean") {
+        intentResult = raw;
+      } else if (typeof raw === "string") {
+        intentResult = ["true", "1"].includes(raw.trim().toLowerCase());
+      } else if (typeof raw === "number") {
+        intentResult = raw !== 0;
+      } else {
+        intentResult = false;
+      }
       const reasoning = (parsed.reasoning as string) ?? "";
 
       logger.debug(
