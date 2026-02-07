@@ -64,9 +64,14 @@ class TelegramBotNode(BaseNode):
         bot_id = resolve_template_var(bot_id) if bot_id else None
         chat_id = resolve_template_var(chat_id) if chat_id else None
         
-        # Validate inputs
+        # Validate inputs — if message is None/empty, skip gracefully.
+        # This happens when BinaryIntentNode gates the message (result=False → message=None).
         if not message:
-            raise ValueError("message is required for TelegramBotNode")
+            logger.debug(f"[TelegramBot] No message provided (likely gated by BinaryIntent), skipping send")
+            return {
+                'success': False,
+                'response': {'skipped': True, 'reason': 'No message provided'}
+            }
         
         if not bot_id:
             raise ValueError("bot_id is required for TelegramBotNode")
