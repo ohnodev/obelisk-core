@@ -55,9 +55,12 @@ export class InferenceClient {
       body.conversation_context = options.conversationContext;
     }
 
+    let controller: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), this.timeout);
+      controller = new AbortController();
+      timer = setTimeout(() => controller!.abort(), this.timeout);
 
       const res = await fetch(url, {
         method: "POST",
@@ -65,8 +68,6 @@ export class InferenceClient {
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-
-      clearTimeout(timer);
 
       if (!res.ok) {
         const errText = await res.text();
@@ -89,6 +90,8 @@ export class InferenceClient {
         source: "inference_service",
         error: msg,
       };
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   }
 }
