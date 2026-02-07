@@ -170,8 +170,8 @@ describe("ExecutionEngine", () => {
       connections: [],
     };
     const result = await engine.execute(workflow);
-    expect(result.success).toBe(true); // Engine doesn't fail
-    expect(result.nodeResults[0].success).toBe(false); // But the node fails
+    expect(result.success).toBe(false); // Node failure propagates to overall result
+    expect(result.nodeResults[0].success).toBe(false);
     expect(result.nodeResults[0].error).toContain("not supported");
   });
 

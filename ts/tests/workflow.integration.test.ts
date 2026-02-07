@@ -420,8 +420,8 @@ describe("Missing model error handling", () => {
 
     const result = await engine.execute(workflow);
 
-    expect(result.success).toBe(true); // Engine still succeeds
-    // But the inference node should have failed
+    expect(result.success).toBe(false); // Node failure propagates to overall result
+    // The inference node should have failed
     const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
     expect(llmResult?.success).toBe(false);
     expect(llmResult?.error).toContain("model");

@@ -113,9 +113,11 @@ export class ExecutionEngine {
         context
       );
 
+      const overallSuccess = nodeResults.every((r) => r.success);
+
       return {
         graphId: workflow.id,
-        success: true,
+        success: overallSuccess,
         nodeResults,
         finalOutputs,
         executionOrder: order,
