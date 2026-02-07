@@ -245,7 +245,7 @@ Example of correct JSON format:
         query = self.get_input_value('query', context, '')
         storage_instance = self.get_input_value('storage_instance', context, None)
         user_id = self.get_input_value('user_id', context, None)
-        # Accept both 'model' (from ModelLoaderNode) and 'llm' (legacy/direct)
+        # Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy/direct)
         llm = self.get_input_value('model', context, None) or self.get_input_value('llm', context, None)
         enable_recent_buffer = self.get_input_value('enable_recent_buffer', context, True)
         k = self.get_input_value('k', context, 10)
@@ -280,7 +280,7 @@ Example of correct JSON format:
             if context.container and context.container.llm:
                 llm = context.container.llm
             else:
-                raise ValueError("llm is required for MemorySelectorNode. Connect a ModelLoaderNode or provide llm input.")
+                raise ValueError("llm is required for MemorySelectorNode. Connect an InferenceConfigNode or provide llm input.")
         
         # Validate and convert k parameter
         try:

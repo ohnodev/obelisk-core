@@ -156,7 +156,7 @@ Example of correct JSON format:
         query = self.get_input_value('query', context, '')
         response = self.get_input_value('response', context, '')
         user_id = self.get_input_value('user_id', context, None)
-        # Accept both 'model' (from ModelLoaderNode) and 'llm' (legacy/direct)
+        # Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy/direct)
         llm = self.get_input_value('model', context, None) or self.get_input_value('llm', context, None)
         summarize_threshold_raw = self.get_input_value('summarize_threshold', context, 3)
         previous_interactions = self.get_input_value('previous_interactions', context, None)
@@ -205,7 +205,7 @@ Example of correct JSON format:
             if context.container and context.container.llm:
                 llm = context.container.llm
             else:
-                raise ValueError("llm is required for MemoryCreatorNode. Connect a ModelLoaderNode or provide llm input.")
+                raise ValueError("llm is required for MemoryCreatorNode. Connect an InferenceConfigNode or provide llm input.")
         
         # Get current cycle if not provided
         if cycle_id is None:

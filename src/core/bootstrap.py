@@ -56,7 +56,7 @@ def get_container(
         # Create minimal container - nodes will initialize services as needed
         container = ServiceContainer(
             storage=None,  # Nodes will initialize if needed
-            llm=None,  # ModelLoaderNode will initialize
+            llm=None,  # InferenceConfigNode will initialize
             quantum_service=None,  # Quantum nodes will initialize if needed
             mode=resolved_mode,
             initialized_at=time.time()

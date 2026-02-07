@@ -11,19 +11,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy slim requirements (no torch/transformers/peft — inference runs as a
+# separate service, this container only needs HTTP client + langchain + API)
+COPY requirements-docker.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (slim: ~300-400MB vs ~2.5GB with full ML stack)
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
 # Copy source code
 COPY src/ ./src/
 COPY setup.py .
 COPY README.md .
 
-# Install obelisk-core
-RUN pip install -e .
+# Install obelisk-core package (--no-deps: deps already satisfied by
+# requirements-docker.txt; avoids pulling heavy ML extras from setup.py)
+RUN pip install --no-deps -e .
 
 # Copy entrypoint
 COPY docker/entrypoint.py .

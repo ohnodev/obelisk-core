@@ -49,15 +49,12 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Model",
     nodes: [
       {
-        type: "model_loader",
-        title: "Model Loader",
-        description: "Loads the LLM model",
+        type: "inference_config",
+        title: "Inference Config",
+        description: "Configures inference service endpoint (default: localhost:7780)",
       },
-      {
-        type: "lora_loader",
-        title: "LoRA Loader",
-        description: "Applies LoRA weights to model",
-      },
+      // NOTE: LoRA is not supported via the inference service yet.
+      // LoRA Loader will be re-added when remote LoRA support is implemented.
     ],
   },
   {

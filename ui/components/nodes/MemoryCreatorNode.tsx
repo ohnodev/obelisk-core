@@ -17,7 +17,7 @@ class MemoryCreatorNode extends LGraphNode {
     this.addInput("storage_instance", "object");
     this.addInput("query", "string");
     this.addInput("response", "string");
-    this.addInput("model", "object"); // From ModelLoaderNode
+    this.addInput("model", "object"); // From InferenceConfigNode
     this.addInput("previous_interactions", "array");
     // Inputs with linked widgets - at the end so they're closer to widget area
     this.addInput("user_id", "string");
