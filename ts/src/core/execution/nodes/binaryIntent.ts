@@ -92,10 +92,14 @@ export class BinaryIntentNode extends BaseNode {
     const queryParts = [`CRITERIA TO CHECK:\n${intentCriteria}`];
 
     if (additionalContext) {
-      queryParts.push(`\nADDITIONAL CONTEXT:\n${additionalContext}`);
+      queryParts.push(
+        `\nADDITIONAL CONTEXT (for reference ONLY — do NOT use this to judge the message below):\n${additionalContext}`
+      );
     }
 
-    queryParts.push(`\nMESSAGE TO ANALYZE:\n${message}`);
+    queryParts.push(
+      `\nMESSAGE TO ANALYZE (apply the criteria ONLY to this message, ignore everything above):\n${message}`
+    );
     queryParts.push("\nRespond with JSON only:");
 
     const query = queryParts.join("\n");

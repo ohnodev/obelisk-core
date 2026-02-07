@@ -232,12 +232,6 @@
     {
       "from": "14",
       "from_output": "context",
-      "to": "17",
-      "to_input": "context"
-    },
-    {
-      "from": "14",
-      "from_output": "context",
       "to": "6",
       "to_input": "context"
     },
