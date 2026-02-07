@@ -22,6 +22,9 @@ import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("runner");
 
+/** How long (ms) to retain a stopped workflow in the map so getStatus() still works. */
+const STOPPED_RETENTION_MS = 60_000;
+
 interface WorkflowState {
   workflowId: string;
   workflow: WorkflowData;
@@ -31,6 +34,8 @@ interface WorkflowState {
   tickInterval: number; // ms
   /** Handle for the next scheduled setTimeout (undefined when a tick is in flight). */
   timer?: ReturnType<typeof setTimeout>;
+  /** Timer that removes the entry from the map after it has been stopped. */
+  cleanupTimer?: ReturnType<typeof setTimeout>;
   /** True while executeTick is running – prevents overlapping ticks. */
   inFlight: boolean;
   onTickComplete?: (result: TickResult) => void;
@@ -100,7 +105,7 @@ export class WorkflowRunner {
     return workflowId;
   }
 
-  /** Stop a running workflow */
+  /** Stop a running workflow. The entry is retained briefly for getStatus() then purged. */
   stopWorkflow(workflowId: string): boolean {
     const state = this.workflows.get(workflowId);
     if (!state) return false;
@@ -113,6 +118,11 @@ export class WorkflowRunner {
 
     // Clear scheduler fire-times so a future restart begins fresh
     SchedulerNode.resetWorkflow(workflowId);
+
+    // Schedule removal from the map so it doesn't grow unbounded
+    state.cleanupTimer = setTimeout(() => {
+      this.workflows.delete(workflowId);
+    }, STOPPED_RETENTION_MS);
 
     logger.info(`Workflow ${workflowId} stopped after ${state.tickCount} ticks`);
     return true;
@@ -127,9 +137,11 @@ export class WorkflowRunner {
     return { state: s.state, tickCount: s.tickCount };
   }
 
-  /** List all active workflow IDs */
+  /** List IDs of currently running workflows (excludes stopped/errored). */
   listWorkflows(): string[] {
-    return Array.from(this.workflows.keys());
+    return Array.from(this.workflows.values())
+      .filter((s) => s.state === "running")
+      .map((s) => s.workflowId);
   }
 
   /** Execute a single workflow synchronously (no scheduling) */
