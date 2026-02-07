@@ -341,7 +341,7 @@ export class SupabaseStorage implements StorageInterface {
       if (newStage) {
         const { error: upgradeError } = await this.client
           .from("nfts")
-          .update({ stage: newStage, last_upgraded_at: "now()" })
+          .update({ stage: newStage, last_upgraded_at: new Date().toISOString() })
           .eq("id", nft.id);
 
         if (upgradeError) {
