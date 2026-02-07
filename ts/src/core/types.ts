@@ -185,6 +185,8 @@ export interface ConnectionData {
   target_node: NodeID;
   target_input: string;
   data_type?: string;
+  /** Allow indexing by string for backward-compat with frontend format (from/to) */
+  [key: string]: unknown;
 }
 
 export interface WorkflowData {

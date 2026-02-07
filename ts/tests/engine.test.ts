@@ -1,5 +1,6 @@
 /**
  * Tests for the ExecutionEngine – topology, DAG execution, and cycle detection.
+ * Mirrors the behaviour of Python src/core/execution/engine.py
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { ExecutionEngine, CycleError } from "../src/core/execution/engine";
@@ -13,12 +14,12 @@ beforeAll(() => {
 describe("ExecutionEngine", () => {
   const engine = new ExecutionEngine();
 
-  it("should execute an empty workflow", async () => {
+  it("should reject an empty workflow (matches Python validate_graph)", async () => {
     const workflow: WorkflowData = { nodes: [], connections: [] };
     const result = await engine.execute(workflow);
-    expect(result.success).toBe(true);
-    expect(result.nodeResults).toEqual([]);
-    expect(result.executionOrder).toEqual([]);
+    // Python: "Workflow has no nodes" → validation failure
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("validation");
   });
 
   it("should execute a single TextNode", async () => {
@@ -36,7 +37,6 @@ describe("ExecutionEngine", () => {
     expect(result.success).toBe(true);
     expect(result.nodeResults).toHaveLength(1);
     expect(result.nodeResults[0].outputs.text).toBe("hello world");
-    expect(result.finalOutputs.text).toBe("hello world");
   });
 
   it("should chain two TextNodes via a connection", async () => {
@@ -59,8 +59,6 @@ describe("ExecutionEngine", () => {
     expect(result.executionOrder).toEqual(["1", "2"]);
     // Node 2 receives "upstream" from node 1
     expect(result.nodeResults[1].outputs.text).toBe("upstream");
-    // Only node 2 is terminal
-    expect(result.finalOutputs.text).toBe("upstream");
   });
 
   it("should resolve {{template}} variables from context", async () => {
@@ -74,10 +72,12 @@ describe("ExecutionEngine", () => {
       user_query: "What is the meaning of life?",
     });
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("What is the meaning of life?");
+    expect(result.nodeResults[0].outputs.text).toBe(
+      "What is the meaning of life?"
+    );
   });
 
-  it("should detect cycles and throw CycleError", async () => {
+  it("should detect cycles and return error (matches Python)", async () => {
     const workflow: WorkflowData = {
       nodes: [
         { id: "1", type: "text", inputs: {} },
@@ -100,10 +100,10 @@ describe("ExecutionEngine", () => {
     };
     const result = await engine.execute(workflow);
     expect(result.success).toBe(false);
-    expect(result.error).toContain("cycle");
+    expect(result.error).toContain("ycle"); // "Cycle" or "cycle"
   });
 
-  it("should skip unknown node types gracefully", async () => {
+  it("should reject workflows with unknown node types (matches Python validate_graph)", async () => {
     const workflow: WorkflowData = {
       nodes: [
         { id: "1", type: "nonexistent_node_type", inputs: {} },
@@ -112,10 +112,9 @@ describe("ExecutionEngine", () => {
       connections: [],
     };
     const result = await engine.execute(workflow);
-    expect(result.success).toBe(true);
-    // Only the valid text node should execute
-    expect(result.nodeResults).toHaveLength(1);
-    expect(result.finalOutputs.text).toBe("ok");
+    // Python: "Unknown node type: nonexistent_node_type" → validation failure
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("validation");
   });
 
   it("should execute a three-node linear chain in order", async () => {
@@ -144,7 +143,7 @@ describe("ExecutionEngine", () => {
     expect(result.success).toBe(true);
     expect(result.executionOrder).toEqual(["a", "b", "c"]);
     // The value propagates through the chain
-    expect(result.finalOutputs.text).toBe("first");
+    expect(result.nodeResults[2].outputs.text).toBe("first");
   });
 
   it("should handle InferenceConfigNode creating a client", async () => {
@@ -161,16 +160,16 @@ describe("ExecutionEngine", () => {
     };
     const result = await engine.execute(workflow);
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.model).toBeDefined();
+    expect(result.nodeResults[0].outputs.model).toBeDefined();
   });
 
-  it("should handle LoRA stub throwing an error", async () => {
+  it("should stop execution on first error (matches Python break behaviour)", async () => {
     const workflow: WorkflowData = {
       nodes: [{ id: "1", type: "lora_loader", inputs: {} }],
       connections: [],
     };
     const result = await engine.execute(workflow);
-    expect(result.success).toBe(false); // Node failure propagates to overall result
+    expect(result.success).toBe(false);
     expect(result.nodeResults[0].success).toBe(false);
     expect(result.nodeResults[0].error).toContain("not supported");
   });
@@ -183,5 +182,26 @@ describe("ExecutionEngine", () => {
     const result = await engine.execute(workflow);
     expect(result.totalExecutionTime).toBeGreaterThanOrEqual(0);
     expect(result.nodeResults[0].executionTime).toBeGreaterThanOrEqual(0);
+  });
+
+  it("should support initialNodeOutputs for subgraph execution", async () => {
+    const workflow: WorkflowData = {
+      nodes: [{ id: "downstream", type: "text", inputs: {} }],
+      connections: [
+        {
+          source_node: "upstream", // not in nodes — simulates autonomous source
+          source_output: "text",
+          target_node: "downstream",
+          target_input: "text",
+        },
+      ],
+    };
+
+    // upstream's output is pre-seeded
+    const initialOutputs = { upstream: { text: "from autonomous" } };
+
+    const result = await engine.execute(workflow, {}, initialOutputs);
+    expect(result.success).toBe(true);
+    expect(result.nodeResults[0].outputs.text).toBe("from autonomous");
   });
 });

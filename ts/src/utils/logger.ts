@@ -25,6 +25,8 @@ export interface Logger {
   debug(msg: string): void;
   info(msg: string): void;
   warn(msg: string): void;
+  /** Alias for warn (matches Python's logger.warning) */
+  warning(msg: string): void;
   error(msg: string): void;
 }
 
@@ -44,10 +46,13 @@ export function getLogger(name: string): Logger {
     }
   }
 
+  const warnFn = (msg: string) => log("WARN", msg);
+
   return {
     debug: (msg: string) => log("DEBUG", msg),
     info: (msg: string) => log("INFO", msg),
-    warn: (msg: string) => log("WARN", msg),
+    warn: warnFn,
+    warning: warnFn, // alias (matches Python's logger.warning)
     error: (msg: string) => log("ERROR", msg),
   };
 }

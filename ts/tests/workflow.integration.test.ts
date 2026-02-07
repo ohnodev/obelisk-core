@@ -91,9 +91,10 @@ describe("Simple chat workflow", () => {
 
     expect(result.success).toBe(true);
     expect(result.executionOrder).toHaveLength(3);
-    // The inference node should be the terminal node
-    expect(result.finalOutputs.text).toBe("Hello! I'm Obelisk.");
-    expect(result.finalOutputs.thinking).toBe("Let me think...");
+    // Check inference node output via nodeResults (no output_text nodes in this workflow)
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.text).toBe("Hello! I'm Obelisk.");
+    expect(llmResult?.outputs.thinking).toBe("Let me think...");
 
     // Verify the inference client was called with the prompt
     expect(inferenceGenerate).toHaveBeenCalled();
@@ -157,7 +158,9 @@ describe("Template-variable workflow", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("42 is the answer.");
+    // Check inference node output via nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.text).toBe("42 is the answer.");
 
     // The prompt should have resolved the template
     const callArgs = inferenceGenerate.mock.calls[0];
@@ -221,12 +224,14 @@ describe("Binary intent workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(true);
-    expect(result.finalOutputs.reasoning).toBe(
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(true);
+    expect(intentResult?.outputs.reasoning).toBe(
       "User is asking a direct question"
     );
     // When intent is true, the original message is passed through
-    expect(result.finalOutputs.message).toBe(
+    expect(intentResult?.outputs.message).toBe(
       "Hey, can you help me with something?"
     );
 
@@ -282,8 +287,10 @@ describe("Binary intent workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(false);
-    expect(result.finalOutputs.message).toBeNull();
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(false);
+    expect(intentResult?.outputs.message).toBeNull();
 
     inferenceGenerate.mockRestore();
   });
@@ -340,7 +347,9 @@ describe("Diamond DAG workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("Combined result");
+    // Check inference node output via nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.text).toBe("Combined result");
     // Verify execution order: config and system first, then llm
     const llmIdx = result.executionOrder!.indexOf("llm");
     const configIdx = result.executionOrder!.indexOf("config");
@@ -385,7 +394,9 @@ describe("Empty prompt handling", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("");
+    // Check inference node output via nodeResults (no prompt → empty text)
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.text).toBe("");
   });
 });
 
@@ -573,8 +584,10 @@ describe("Multi-step chain: inference then intent classification", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(true);
-    expect(result.finalOutputs.reasoning).toBe("Affirmative response");
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(true);
+    expect(intentResult?.outputs.reasoning).toBe("Affirmative response");
 
     // Verify two generate() calls happened (one for inference, one for intent)
     expect(inferenceGenerate).toHaveBeenCalledTimes(2);
@@ -602,9 +615,9 @@ describe("Parallel sources", () => {
 
     expect(result.success).toBe(true);
     expect(result.executionOrder).toHaveLength(3);
-    // All three are terminal nodes, so finalOutputs merges them
-    // (last write wins for 'text' key)
-    expect(result.finalOutputs.text).toBeDefined();
+    // All three nodes executed successfully (no output_text nodes → finalOutputs is empty)
+    expect(result.nodeResults).toHaveLength(3);
+    expect(result.nodeResults[2].outputs.text).toBeDefined();
   });
 });
 
@@ -634,7 +647,8 @@ describe("Large linear chain", () => {
     expect(result.executionOrder).toHaveLength(20);
     expect(result.executionOrder![0]).toBe("n0");
     expect(result.executionOrder![19]).toBe("n19");
-    // The value should propagate all the way through
-    expect(result.finalOutputs.text).toBe("start");
+    // The value should propagate all the way through (check last node's output)
+    const lastNodeResult = result.nodeResults.find((r) => r.nodeId === "n19");
+    expect(lastNodeResult?.outputs.text).toBe("start");
   });
 });

@@ -5,7 +5,7 @@
  */
 import { Router, Request, Response } from "express";
 import { ExecutionQueue, QueueFullError } from "./queue";
-import { WorkflowRunner } from "../core/execution/runner";
+import { WorkflowRunner, WorkflowLimitError } from "../core/execution/runner";
 import {
   convertFrontendWorkflow,
   convertBackendResults,
@@ -86,6 +86,10 @@ export function createRouter(): Router {
    * Start continuous workflow execution (autonomous/scheduled).
    * Body: { workflow, options }
    * Returns: { workflow_id, status, message }
+   *
+   * Rate limits (mirrors Python):
+   * - Max 5 total running workflows
+   * - Max 2 running workflows per user
    */
   router.post("/workflow/run", (req: Request, res: Response) => {
     try {
@@ -105,8 +109,7 @@ export function createRouter(): Router {
 
       const workflowId = runner.startWorkflow(
         backendWorkflow,
-        contextVars,
-        30_000 // default tick interval
+        contextVars
       );
 
       res.json({
@@ -115,6 +118,11 @@ export function createRouter(): Router {
         message: `Workflow ${workflowId} started`,
       });
     } catch (err) {
+      if (err instanceof WorkflowLimitError) {
+        // Rate limit exceeded - return 429 Too Many Requests (matches Python)
+        res.status(429).json({ detail: err.message });
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`Workflow run failed: ${msg}`);
       res.status(500).json({ detail: msg });
@@ -159,6 +167,7 @@ export function createRouter(): Router {
   /**
    * GET /workflow/status/:workflow_id
    * Get workflow status with latest results and version counter.
+   * Returns the exact same shape as Python WorkflowStatusResponse.
    */
   router.get("/workflow/status/:workflow_id", (req: Request, res: Response) => {
     const { workflow_id } = req.params;
@@ -172,15 +181,8 @@ export function createRouter(): Router {
       return;
     }
 
-    res.json({
-      workflow_id,
-      state: status.state,
-      tick_count: status.tickCount,
-      last_tick_time: status.lastTickTime,
-      node_count: status.nodeCount,
-      latest_results: status.latestResults,
-      results_version: status.resultsVersion,
-    });
+    // Status already has snake_case keys from runner.getStatus()
+    res.json(status);
   });
 
   /**
@@ -212,6 +214,10 @@ export function createRouter(): Router {
    * POST /queue/execute
    * Queue a workflow for execution. Returns immediately with job_id.
    * Poll /queue/status/:job_id for progress, /queue/result/:job_id for results.
+   *
+   * Rate limits (mirrors Python):
+   * - Max 20 jobs in queue (ExecutionQueue.MAX_QUEUE_SIZE)
+   * - Max 3 pending jobs per user (ExecutionQueue.MAX_JOBS_PER_USER)
    */
   router.post("/queue/execute", (req: Request, res: Response) => {
     try {
@@ -236,6 +242,7 @@ export function createRouter(): Router {
       });
     } catch (err) {
       if (err instanceof QueueFullError) {
+        // Rate limit exceeded - return 429 (matches Python)
         res.status(429).json({ detail: err.message });
         return;
       }

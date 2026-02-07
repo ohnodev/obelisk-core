@@ -11,7 +11,6 @@
  *   • Node instances are kept alive across ticks so stateful nodes (offset tracking,
  *     message queues, fire-counts, etc.) persist correctly.
  */
-import crypto from "crypto";
 import {
   WorkflowData,
   ConnectionData,
@@ -29,7 +28,7 @@ const logger = getLogger("runner");
 
 // ── Configuration ──────────────────────────────────────────────────────
 
-/** How often the tick loop fires (ms). Python uses 100ms. */
+/** How often the tick loop fires (ms). Python uses 0.1s = 100ms. */
 const DEFAULT_TICK_MS = 100;
 
 /** How long (ms) to retain a stopped workflow so getStatus() still works. */
@@ -38,13 +37,19 @@ const STOPPED_RETENTION_MS = 60_000;
 /** Maximum number of concurrent running workflows. */
 const MAX_RUNNING_WORKFLOWS = 5;
 
+/** Maximum running workflows per user. */
+const MAX_WORKFLOWS_PER_USER = 2;
+
 // ── Types ──────────────────────────────────────────────────────────────
+
+/** Mirrors Python RunnerState enum */
+type RunnerState = "stopped" | "running" | "paused";
 
 interface WorkflowState {
   workflowId: string;
   workflow: WorkflowData;
   contextVariables: Record<string, unknown>;
-  state: "running" | "stopped" | "error";
+  state: RunnerState;
 
   /** Live node instances — persist across ticks */
   nodes: Map<NodeID, BaseNode>;
@@ -52,7 +57,7 @@ interface WorkflowState {
   context: ExecutionContext;
 
   tickCount: number;
-  lastTickTime: number | null;
+  lastTickTime: number;
   nodeCount: number;
   latestResults: Record<string, unknown> | null;
   resultsVersion: number;
@@ -70,6 +75,59 @@ export interface TickResult {
   executedNodes: string[];
   error?: string;
   executionTime?: number;
+}
+
+export class WorkflowLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkflowLimitError";
+  }
+}
+
+// ── Serialization helper (mirrors Python _make_serializable) ──────────
+
+function makeSerializable(value: unknown, maxDepth = 5): unknown {
+  if (maxDepth <= 0) return "<max depth reached>";
+
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => makeSerializable(item, maxDepth - 1));
+  }
+
+  if (typeof value === "object") {
+    const proto = Object.getPrototypeOf(value);
+    if (proto !== null && proto !== Object.prototype) {
+      // Non-plain object – return type info
+      const typeName = (value as Record<string, unknown>).constructor?.name ?? "Object";
+      try {
+        const strRepr = String(value);
+        if (strRepr.length < 200 && !strRepr.startsWith("<")) {
+          return `<${typeName}: ${strRepr}>`;
+        }
+      } catch {
+        // ignore
+      }
+      return `<${typeName}>`;
+    }
+
+    // Plain object – recursively serialize
+    const obj: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      obj[String(k)] = makeSerializable(v, maxDepth - 1);
+    }
+    return obj;
+  }
+
+  return String(value);
 }
 
 // ── Runner ─────────────────────────────────────────────────────────────
@@ -92,25 +150,49 @@ export class WorkflowRunner {
   /**
    * Start a workflow.
    *
-   * Builds node instances once, initialises CONTINUOUS nodes (execute()),
-   * then joins the global tick loop.
+   * Mirrors Python start_workflow:
+   * - Uses workflow's own ID (not UUID)
+   * - Checks if already running (returns existing)
+   * - Enforces total + per-user limits
+   * - Builds node instances once, initialises CONTINUOUS nodes
    */
   startWorkflow(
     workflow: WorkflowData,
     contextVariables: Record<string, unknown> = {},
-    _tickIntervalMs?: number, // kept for API compat, ignored (uses DEFAULT_TICK_MS)
     onTickComplete?: (result: TickResult) => void,
     onError?: (error: string) => void
   ): string {
-    // Throttle
+    const workflowId = workflow.id ?? `workflow-${Date.now()}`;
+    const userId = String(contextVariables.user_id ?? "anonymous");
+
+    // Check if already running
+    const existing = this.workflows.get(workflowId);
+    if (existing && existing.state === "running") {
+      logger.warning(`Workflow ${workflowId} is already running`);
+      return workflowId;
+    }
+
+    // Check total running workflows limit
     const runningCount = this.listWorkflows().length;
     if (runningCount >= MAX_RUNNING_WORKFLOWS) {
-      throw new Error(
-        `Maximum running workflows reached (${MAX_RUNNING_WORKFLOWS}). Stop one first.`
+      throw new WorkflowLimitError(
+        `Maximum running workflows reached (${MAX_RUNNING_WORKFLOWS}). ` +
+          `Please stop a workflow first.`
       );
     }
 
-    const workflowId = crypto.randomUUID();
+    // Check per-user limit
+    const userRunningCount = Array.from(this.workflows.values()).filter(
+      (s) =>
+        s.state === "running" &&
+        String(s.contextVariables.user_id ?? "anonymous") === userId
+    ).length;
+    if (userRunningCount >= MAX_WORKFLOWS_PER_USER) {
+      throw new WorkflowLimitError(
+        `You have ${userRunningCount} running workflows (max ${MAX_WORKFLOWS_PER_USER}). ` +
+          `Please stop one first.`
+      );
+    }
 
     // Build live node instances
     registerAllNodes();
@@ -128,6 +210,20 @@ export class WorkflowRunner {
     const hasAutonomous = Array.from(nodes.values()).some((n) => n.isAutonomous());
     if (!hasAutonomous) {
       logger.info(`Workflow ${workflowId} has no autonomous nodes — executing once`);
+      // Execute once and return (matches Python)
+      const result = this.engine.execute(workflow, contextVariables);
+      if (onTickComplete) {
+        result.then((r) => {
+          onTickComplete({
+            tick: 0,
+            success: r.success,
+            executedNodes: r.executionOrder ?? [],
+            executionTime: r.totalExecutionTime,
+            error: r.error ?? undefined,
+          });
+        });
+      }
+      return workflowId;
     }
 
     // Wire connections on the live nodes
@@ -143,9 +239,8 @@ export class WorkflowRunner {
       });
     }
 
-    const vars = { ...contextVariables, _workflowId: workflowId };
     const context: ExecutionContext = {
-      variables: vars,
+      variables: { ...contextVariables },
       nodeOutputs: {},
     };
 
@@ -156,7 +251,7 @@ export class WorkflowRunner {
           node.execute(context);
           logger.debug(`Initialized autonomous node ${nid}`);
         } catch (err) {
-          logger.warn(`Failed to initialize autonomous node ${nid}: ${err}`);
+          logger.warning(`Failed to initialize autonomous node ${nid}: ${err}`);
         }
       }
     }
@@ -164,12 +259,12 @@ export class WorkflowRunner {
     const state: WorkflowState = {
       workflowId,
       workflow,
-      contextVariables: vars,
+      contextVariables: { ...contextVariables },
       state: "running",
       nodes,
       context,
       tickCount: 0,
-      lastTickTime: null,
+      lastTickTime: 0.0,
       nodeCount: nodes.size,
       latestResults: null,
       resultsVersion: 0,
@@ -178,7 +273,7 @@ export class WorkflowRunner {
     };
 
     this.workflows.set(workflowId, state);
-    logger.info(`Workflow ${workflowId} started (tick every ${DEFAULT_TICK_MS}ms)`);
+    logger.info(`Started workflow ${workflowId} with ${nodes.size} nodes`);
 
     // Ensure global tick loop is running
     this.ensureTickLoop();
@@ -188,16 +283,16 @@ export class WorkflowRunner {
 
   stopWorkflow(workflowId: string): boolean {
     const state = this.workflows.get(workflowId);
-    if (!state) return false;
+    if (!state) {
+      logger.warning(`Workflow ${workflowId} not found`);
+      return false;
+    }
 
     state.state = "stopped";
+    logger.info(`Stopped workflow ${workflowId} after ${state.tickCount} ticks`);
 
-    // Schedule cleanup so getStatus() still works briefly
-    state.cleanupTimer = setTimeout(() => {
-      this.workflows.delete(workflowId);
-    }, STOPPED_RETENTION_MS);
-
-    logger.info(`Workflow ${workflowId} stopped after ${state.tickCount} ticks`);
+    // Remove from running workflows (matches Python: del self._running_workflows[workflow_id])
+    this.workflows.delete(workflowId);
 
     // Stop tick loop if no more running workflows
     if (!this.listWorkflows().length) this.stopTickLoop();
@@ -206,33 +301,40 @@ export class WorkflowRunner {
   }
 
   stopAll(): void {
-    const ids = this.listWorkflows();
+    const ids = Array.from(this.workflows.keys());
     for (const id of ids) this.stopWorkflow(id);
     logger.info(`Stopped all workflows (${ids.length})`);
   }
 
+  /**
+   * Get status of a workflow.
+   * Mirrors Python get_status return shape.
+   */
   getStatus(
     workflowId: string
   ): {
+    workflow_id: string;
     state: string;
-    tickCount: number;
-    lastTickTime: number | null;
-    nodeCount: number;
-    latestResults: Record<string, unknown> | null;
-    resultsVersion: number;
+    tick_count: number;
+    last_tick_time: number;
+    node_count: number;
+    latest_results: Record<string, unknown> | null;
+    results_version: number;
   } | null {
     const s = this.workflows.get(workflowId);
     if (!s) return null;
     return {
+      workflow_id: workflowId,
       state: s.state,
-      tickCount: s.tickCount,
-      lastTickTime: s.lastTickTime,
-      nodeCount: s.nodeCount,
-      latestResults: s.latestResults,
-      resultsVersion: s.resultsVersion,
+      tick_count: s.tickCount,
+      last_tick_time: s.lastTickTime,
+      node_count: s.nodeCount,
+      latest_results: s.latestResults,
+      results_version: s.resultsVersion,
     };
   }
 
+  /** List IDs of all running workflows. Mirrors Python list_running. */
   listWorkflows(): string[] {
     return Array.from(this.workflows.values())
       .filter((s) => s.state === "running")
@@ -301,9 +403,12 @@ export class WorkflowRunner {
         // Node fired — store its outputs and find downstream targets
         state.context.nodeOutputs[nodeId] = result;
 
+        // Find nodes connected to this node's outputs
         for (const conn of state.workflow.connections) {
-          if (conn.source_node === nodeId) {
-            triggeredNodes.add(conn.target_node);
+          const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+          if (sourceId === String(nodeId)) {
+            const targetId = String(conn.target_node ?? conn["to"] ?? "");
+            triggeredNodes.add(targetId);
           }
         }
       }
@@ -332,11 +437,11 @@ export class WorkflowRunner {
     }
 
     // Step 1: BFS downstream from triggered nodes
-    const downstream = this.getAllDownstream(workflow.connections, triggeredIds, nodes);
+    const downstream = this.getAllDownstream(workflow, triggeredIds, nodes);
 
     // Step 2: Find upstream dependencies of the downstream nodes
     const subgraphNodeIds = this.getSubgraphWithDependencies(
-      workflow.connections,
+      workflow,
       downstream,
       nodes
     );
@@ -344,6 +449,7 @@ export class WorkflowRunner {
     logger.info(
       `Scheduler triggered – executing subgraph with ${subgraphNodeIds.size} nodes`
     );
+    logger.debug(`Subgraph nodes: ${Array.from(subgraphNodeIds).join(", ")}`);
 
     // Step 3: Build a filtered workflow
     const subWorkflow = this.buildSubgraphWorkflow(
@@ -359,24 +465,34 @@ export class WorkflowRunner {
       { ...context.nodeOutputs }
     );
 
-    // Merge outputs back into context
+    // Update context with new outputs
     for (const nr of result.nodeResults) {
-      if (nr.success) {
-        context.nodeOutputs[nr.nodeId] = nr.outputs;
+      const nodeId = nr.nodeId;
+      if (nodeId && nr.success) {
+        context.nodeOutputs[nodeId] = nr.outputs;
       }
     }
 
-    // Store latest results for frontend polling
+    // Store latest results for frontend polling (sanitized for JSON serialization)
+    // Mirrors Python runner._execute_subgraph result format
     state.resultsVersion++;
     state.latestResults = {
       tick: state.tickCount,
       success: result.success,
       executed_nodes: result.executionOrder ?? [],
-      results: convertBackendResults(result),
-      error: result.error,
+      results: Object.fromEntries(
+        result.nodeResults
+          .filter((nr) => nr.success)
+          .map((nr) => [
+            String(nr.nodeId),
+            { outputs: makeSerializable(nr.outputs) },
+          ])
+      ),
+      error: result.error ?? null,
       version: state.resultsVersion,
     };
 
+    // Call completion callback
     state.onTickComplete?.({
       tick: state.tickCount,
       success: result.success,
@@ -396,14 +512,17 @@ export class WorkflowRunner {
 
   /** BFS to find all nodes downstream from `startNodes`. */
   private getAllDownstream(
-    connections: ConnectionData[],
+    workflow: WorkflowData,
     startNodes: Set<NodeID>,
     nodes: Map<NodeID, BaseNode>
   ): Set<NodeID> {
+    const connections = workflow.connections ?? [];
     const adj = new Map<NodeID, Set<NodeID>>();
     for (const nid of nodes.keys()) adj.set(nid, new Set());
     for (const conn of connections) {
-      adj.get(conn.source_node)?.add(conn.target_node);
+      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+      const targetId = String(conn.target_node ?? conn["to"] ?? "");
+      adj.get(sourceId)?.add(targetId);
     }
 
     const downstream = new Set(startNodes);
@@ -422,14 +541,17 @@ export class WorkflowRunner {
 
   /** BFS backwards to find upstream dependencies (excluding autonomous nodes). */
   private getSubgraphWithDependencies(
-    connections: ConnectionData[],
+    workflow: WorkflowData,
     downstreamNodes: Set<NodeID>,
     nodes: Map<NodeID, BaseNode>
   ): Set<NodeID> {
+    const connections = workflow.connections ?? [];
     const reverseAdj = new Map<NodeID, Set<NodeID>>();
     for (const nid of nodes.keys()) reverseAdj.set(nid, new Set());
     for (const conn of connections) {
-      reverseAdj.get(conn.target_node)?.add(conn.source_node);
+      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+      const targetId = String(conn.target_node ?? conn["to"] ?? "");
+      reverseAdj.get(targetId)?.add(sourceId);
     }
 
     const subgraph = new Set(downstreamNodes);
@@ -460,11 +582,13 @@ export class WorkflowRunner {
       subgraphNodes.has(n.id)
     );
 
-    const filteredConnections = workflow.connections.filter((conn) => {
-      if (!subgraphNodes.has(conn.target_node)) return false;
+    const filteredConnections = (workflow.connections ?? []).filter((conn) => {
+      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+      const targetId = String(conn.target_node ?? conn["to"] ?? "");
+      if (!subgraphNodes.has(targetId)) return false;
       return (
-        subgraphNodes.has(conn.source_node) ||
-        autonomousSources.has(conn.source_node)
+        subgraphNodes.has(sourceId) ||
+        autonomousSources.has(sourceId)
       );
     });
 

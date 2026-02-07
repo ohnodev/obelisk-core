@@ -84,15 +84,32 @@ describe("SchedulerNode", () => {
     SchedulerNode.resetAll();
   });
 
-  it("should fire on first execution", () => {
+  it("should seed timing on first execute (trigger=false)", () => {
     const node = new SchedulerNode("s1", {
       id: "s1",
       type: "scheduler",
       inputs: {},
       metadata: { interval_seconds: 60 },
     });
+    // execute() seeds timing — actual triggering is via onTick()
     const result = node.execute(makeContext());
-    expect(result.trigger).toBe(true);
+    expect(result.trigger).toBe(false);
+    expect(result.tick_count).toBe(0);
+  });
+
+  it("should fire on onTick when interval has elapsed", () => {
+    const node = new SchedulerNode("s1b", {
+      id: "s1b",
+      type: "scheduler",
+      inputs: {},
+      metadata: { min_seconds: 0, max_seconds: 0 }, // fire immediately
+    });
+    // Seed timing via execute
+    node.execute(makeContext());
+    // onTick should fire (interval is 0)
+    const tick = node.onTick(makeContext());
+    expect(tick).not.toBeNull();
+    expect(tick!.trigger).toBe(true);
   });
 
   it("should not fire again immediately", () => {

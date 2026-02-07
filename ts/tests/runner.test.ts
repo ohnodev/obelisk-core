@@ -1,8 +1,9 @@
 /**
  * Tests for the WorkflowRunner – lifecycle management and tick scheduling.
+ * Mirrors the behaviour of Python src/core/execution/runner.py
  */
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
-import { WorkflowRunner, TickResult } from "../src/core/execution/runner";
+import { WorkflowRunner, TickResult, WorkflowLimitError } from "../src/core/execution/runner";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
 import { WorkflowData } from "../src/core/types";
 import { InferenceClient } from "../src/core/execution/nodes/inference/inferenceClient";
@@ -11,9 +12,37 @@ beforeAll(() => {
   registerAllNodes();
 });
 
+/** Simple workflow with no autonomous nodes — used for executeOnce tests */
 const simpleWorkflow: WorkflowData = {
+  id: "test-simple",
   nodes: [{ id: "1", type: "text", inputs: { text: "tick output" } }],
   connections: [],
+};
+
+/**
+ * Workflow with a scheduler (autonomous) node.
+ * This will be tracked as "running" in the runner.
+ * Short interval so tests don't hang.
+ */
+const schedulerWorkflow: WorkflowData = {
+  id: "test-scheduler",
+  nodes: [
+    {
+      id: "sched",
+      type: "scheduler",
+      inputs: {},
+      metadata: { min_seconds: 0.1, max_seconds: 0.2, enabled: true },
+    },
+    { id: "text", type: "text", inputs: { text: "triggered" } },
+  ],
+  connections: [
+    {
+      source_node: "sched",
+      source_output: "trigger",
+      target_node: "text",
+      target_input: "trigger",
+    },
+  ],
 };
 
 describe("WorkflowRunner", () => {
@@ -25,43 +54,43 @@ describe("WorkflowRunner", () => {
 
   afterEach(() => {
     // Stop all workflows to clear timers
-    for (const id of runner.listWorkflows()) {
-      runner.stopWorkflow(id);
-    }
+    runner.stopAll();
   });
 
-  it("should start a workflow and return an ID", () => {
-    const id = runner.startWorkflow(simpleWorkflow, {}, 999_999);
+  // ── Start / Stop ─────────────────────────────────────────────────
 
-    expect(id).toBeDefined();
+  it("should start a workflow and return its ID", () => {
+    const id = runner.startWorkflow(schedulerWorkflow);
+
+    expect(id).toBe("test-scheduler"); // uses workflow.id, not UUID
     expect(typeof id).toBe("string");
-    expect(id.length).toBeGreaterThan(0);
   });
 
-  it("should report running state after start", async () => {
-    const id = runner.startWorkflow(simpleWorkflow, {}, 999_999);
+  it("should return existing ID if workflow is already running (matches Python)", () => {
+    const id1 = runner.startWorkflow(schedulerWorkflow);
+    const id2 = runner.startWorkflow(schedulerWorkflow);
 
-    // Wait a bit for the first tick to complete
-    await new Promise((r) => setTimeout(r, 50));
+    expect(id1).toBe(id2); // same workflow — Python returns existing
+  });
+
+  it("should report running state after start", () => {
+    const id = runner.startWorkflow(schedulerWorkflow);
 
     const status = runner.getStatus(id);
     expect(status).not.toBeNull();
     expect(status!.state).toBe("running");
-    expect(status!.tickCount).toBeGreaterThanOrEqual(1);
-    // New fields from Python-compatible status
-    expect(status!.nodeCount).toBe(1);
-    expect(status!.resultsVersion).toBeGreaterThanOrEqual(1);
-    expect(status!.latestResults).not.toBeNull();
+    expect(status!.node_count).toBe(2); // sched + text
   });
 
   it("should stop a workflow", () => {
-    const id = runner.startWorkflow(simpleWorkflow, {}, 999_999);
+    const id = runner.startWorkflow(schedulerWorkflow);
 
     const stopped = runner.stopWorkflow(id);
     expect(stopped).toBe(true);
 
+    // After stop, workflow is deleted (matches Python: del self._running_workflows[id])
     const status = runner.getStatus(id);
-    expect(status!.state).toBe("stopped");
+    expect(status).toBeNull();
   });
 
   it("should return false when stopping unknown workflow", () => {
@@ -73,42 +102,42 @@ describe("WorkflowRunner", () => {
   });
 
   it("should list active workflows", () => {
-    const id1 = runner.startWorkflow(simpleWorkflow, {}, 999_999);
-    const id2 = runner.startWorkflow(simpleWorkflow, {}, 999_999);
+    // Use different workflow IDs so both are tracked
+    const w1: WorkflowData = { ...schedulerWorkflow, id: "sched-1" };
+    const w2: WorkflowData = { ...schedulerWorkflow, id: "sched-2" };
+
+    const id1 = runner.startWorkflow(w1);
+    const id2 = runner.startWorkflow(w2);
 
     const list = runner.listWorkflows();
     expect(list).toContain(id1);
     expect(list).toContain(id2);
   });
 
-  it("should invoke onTickComplete callback", async () => {
-    const tickResults: TickResult[] = [];
+  it("should stop all workflows", () => {
+    const w1: WorkflowData = { ...schedulerWorkflow, id: "stop-all-1" };
+    const w2: WorkflowData = { ...schedulerWorkflow, id: "stop-all-2" };
 
-    runner.startWorkflow(
-      simpleWorkflow,
-      {},
-      999_999,
-      (result) => tickResults.push(result)
-    );
+    runner.startWorkflow(w1);
+    runner.startWorkflow(w2);
+    expect(runner.listWorkflows().length).toBe(2);
 
-    // Wait for first tick
-    await new Promise((r) => setTimeout(r, 100));
-
-    expect(tickResults.length).toBeGreaterThanOrEqual(1);
-    expect(tickResults[0].success).toBe(true);
-    expect(tickResults[0].tick).toBe(1);
-    expect(tickResults[0].executedNodes).toContain("1");
+    runner.stopAll();
+    expect(runner.listWorkflows().length).toBe(0);
   });
 
-  it("should execute once (no scheduling)", async () => {
+  // ── Execute once (no scheduling) ──────────────────────────────────
+
+  it("should execute once for workflow with no autonomous nodes", async () => {
     const result = await runner.executeOnce(simpleWorkflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("tick output");
+    expect(result.nodeResults[0].outputs.text).toBe("tick output");
   });
 
   it("should executeOnce with context variables", async () => {
     const workflow: WorkflowData = {
+      id: "ctx-var-test",
       nodes: [{ id: "1", type: "text", inputs: { text: "{{greeting}}" } }],
       connections: [],
     };
@@ -118,7 +147,7 @@ describe("WorkflowRunner", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("Ahoy!");
+    expect(result.nodeResults[0].outputs.text).toBe("Ahoy!");
   });
 
   it("should executeOnce a full inference workflow (mocked)", async () => {
@@ -130,6 +159,7 @@ describe("WorkflowRunner", () => {
       });
 
     const workflow: WorkflowData = {
+      id: "mock-inference",
       nodes: [
         {
           id: "config",
@@ -167,13 +197,16 @@ describe("WorkflowRunner", () => {
     const result = await runner.executeOnce(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("Runner says hello!");
+    // LLM is terminal node — check nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.text).toBe("Runner says hello!");
 
     mock.mockRestore();
   });
 
   it("should handle cycle errors in executeOnce", async () => {
     const cycleWorkflow: WorkflowData = {
+      id: "cycle-test",
       nodes: [
         { id: "1", type: "text", inputs: {} },
         { id: "2", type: "text", inputs: {} },
@@ -196,6 +229,31 @@ describe("WorkflowRunner", () => {
 
     const result = await runner.executeOnce(cycleWorkflow);
     expect(result.success).toBe(false);
-    expect(result.error).toContain("cycle");
+    expect(result.error).toContain("ycle"); // "Cycle" or "cycle"
+  });
+
+  // ── Non-autonomous workflow: executed once, not tracked ────────────
+
+  it("should execute non-autonomous workflow once and not track it", () => {
+    const id = runner.startWorkflow(simpleWorkflow);
+
+    expect(id).toBe("test-simple");
+    // Not tracked as running (matches Python behaviour: no autonomous nodes → execute once)
+    expect(runner.listWorkflows()).not.toContain(id);
+    expect(runner.getStatus(id)).toBeNull();
+  });
+
+  // ── Tick loop ─────────────────────────────────────────────────────
+
+  it("should tick and update lastTickTime", async () => {
+    const id = runner.startWorkflow(schedulerWorkflow);
+
+    // Wait for a couple ticks (100ms each)
+    await new Promise((r) => setTimeout(r, 250));
+
+    const status = runner.getStatus(id);
+    expect(status).not.toBeNull();
+    expect(status!.tick_count).toBeGreaterThan(0);
+    expect(status!.last_tick_time).toBeGreaterThan(0);
   });
 });

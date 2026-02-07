@@ -231,7 +231,7 @@ describe("POST /api/v1/workflow/execute", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("error");
-    expect(res.body.error).toContain("cycle");
+    expect(res.body.error).toContain("ycle"); // "Cycle" or "cycle"
   });
 });
 
@@ -250,19 +250,43 @@ describe("GET /api/v1/queue/info", () => {
 });
 
 // ── Workflow lifecycle: run → status → running → stop ─────────────────
+//
+// Use a scheduler workflow so the runner keeps it "running" (non-autonomous
+// workflows are executed once and not tracked, matching Python).
+
+const schedulerWorkflow = {
+  id: "api-lifecycle-test",
+  nodes: [
+    {
+      id: "sched",
+      type: "scheduler",
+      inputs: {},
+      metadata: { min_seconds: 60, max_seconds: 120, enabled: true },
+    },
+    { id: "txt", type: "text", inputs: { text: "tick" } },
+  ],
+  connections: [
+    {
+      source_node: "sched",
+      source_output: "trigger",
+      target_node: "txt",
+      target_input: "trigger",
+    },
+  ],
+};
 
 describe("Workflow lifecycle", () => {
   let workflowId: string;
 
-  it("POST /api/v1/workflow/run should start a workflow", async () => {
+  afterAll(async () => {
+    // Clean up any running workflows from this test suite
+    await request(app).post("/api/v1/workflow/stop-all");
+  });
+
+  it("POST /api/v1/workflow/run should start a scheduler workflow", async () => {
     const res = await request(app)
       .post("/api/v1/workflow/run")
-      .send({
-        workflow: {
-          nodes: [{ id: "1", type: "text", inputs: { text: "tick" } }],
-          connections: [],
-        },
-      });
+      .send({ workflow: schedulerWorkflow });
 
     expect(res.status).toBe(200);
     expect(res.body.workflow_id).toBeDefined();
@@ -272,19 +296,17 @@ describe("Workflow lifecycle", () => {
   });
 
   it("GET /api/v1/workflow/status/:id should return running state", async () => {
-    // Wait briefly for the first async tick to complete
-    await new Promise((r) => setTimeout(r, 50));
-
     const res = await request(app).get(
       `/api/v1/workflow/status/${workflowId}`
     );
 
     expect(res.status).toBe(200);
     expect(res.body.state).toBe("running");
-    expect(res.body.tick_count).toBeGreaterThanOrEqual(1);
     // Python-compatible fields
+    expect(res.body).toHaveProperty("tick_count");
     expect(res.body).toHaveProperty("results_version");
     expect(res.body).toHaveProperty("node_count");
+    expect(res.body.node_count).toBe(2);
   });
 
   it("GET /api/v1/workflow/running should list active workflows", async () => {
@@ -306,36 +328,34 @@ describe("Workflow lifecycle", () => {
     expect(res.body.workflow_id).toBe(workflowId);
   });
 
-  it("GET /api/v1/workflow/status/:id should return stopped state", async () => {
+  it("GET /api/v1/workflow/status/:id returns not_found after stop", async () => {
+    // Python deletes the workflow on stop, so getStatus returns None → not_found
     const res = await request(app).get(
       `/api/v1/workflow/status/${workflowId}`
     );
 
     expect(res.status).toBe(200);
-    expect(res.body.state).toBe("stopped");
+    expect(res.body.state).toBe("not_found");
   });
 
   it("POST /api/v1/workflow/stop-all should stop everything", async () => {
-    // Start a workflow first
+    // Start a scheduler workflow first
     const startRes = await request(app)
       .post("/api/v1/workflow/run")
       .send({
-        workflow: {
-          nodes: [{ id: "1", type: "text", inputs: { text: "temp" } }],
-          connections: [],
-        },
+        workflow: { ...schedulerWorkflow, id: "stop-all-api-test" },
       });
-    const id = startRes.body.workflow_id;
+    expect(startRes.body.status).toBe("running");
 
     const res = await request(app).post("/api/v1/workflow/stop-all");
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("stopped");
 
-    // Verify it's stopped
+    // Verify it's gone
     const statusRes = await request(app).get(
-      `/api/v1/workflow/status/${id}`
+      `/api/v1/workflow/status/${startRes.body.workflow_id}`
     );
-    expect(statusRes.body.state).toBe("stopped");
+    expect(statusRes.body.state).toBe("not_found");
   });
 
   it("POST /api/v1/workflow/stop on unknown ID should return not_found", async () => {
