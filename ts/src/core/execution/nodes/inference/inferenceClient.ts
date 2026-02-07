@@ -42,7 +42,8 @@ export class InferenceClient {
     temperature: number;
     topP: number;
   } {
-    const qi = Math.max(0.0, Math.min(1.0, quantumInfluence));
+    // Python clamps to [0, 0.1] — the "quantum_influence" UI slider range
+    const qi = Math.max(0.0, Math.min(0.1, quantumInfluence));
     let temperature = InferenceClient.TEMPERATURE_BASE + qi * InferenceClient.QUANTUM_TEMP_RANGE;
     let topP = InferenceClient.TOP_P_BASE + qi * InferenceClient.QUANTUM_TOP_P_RANGE;
     temperature = Math.max(0.1, Math.min(0.9, temperature));
