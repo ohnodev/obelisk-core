@@ -19,8 +19,8 @@ _ml_deps = [
 ]
 
 _quantum_deps = [
-    "qiskit>=0.45.0",
-    "qiskit-ibm-runtime>=0.12.0",
+    "qiskit>=1.0.0",
+    "qiskit-ibm-runtime>=0.20.0",
 ]
 
 _ai_deps = [
