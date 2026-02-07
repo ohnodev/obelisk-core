@@ -6,6 +6,10 @@
  * - Start / stop workflows
  * - Periodic tick-based execution (for schedulers)
  * - Status tracking
+ *
+ * Ticks use a self-scheduling async loop (setTimeout + await) instead of
+ * setInterval to guarantee a new tick never starts while the previous one
+ * is still in flight.
  */
 import crypto from "crypto";
 import {
@@ -25,7 +29,10 @@ interface WorkflowState {
   state: "running" | "stopped" | "error";
   tickCount: number;
   tickInterval: number; // ms
-  timer?: ReturnType<typeof setInterval>;
+  /** Handle for the next scheduled setTimeout (undefined when a tick is in flight). */
+  timer?: ReturnType<typeof setTimeout>;
+  /** True while executeTick is running – prevents overlapping ticks. */
+  inFlight: boolean;
   onTickComplete?: (result: TickResult) => void;
   onError?: (error: string) => void;
 }
@@ -78,6 +85,7 @@ export class WorkflowRunner {
       state: "running",
       tickCount: 0,
       tickInterval: tickIntervalMs,
+      inFlight: false,
       onTickComplete,
       onError,
     };
@@ -86,13 +94,8 @@ export class WorkflowRunner {
 
     logger.info(`Workflow ${workflowId} started (tick every ${tickIntervalMs}ms)`);
 
-    // Execute first tick immediately
-    this.executeTick(workflowId);
-
-    // Schedule subsequent ticks
-    state.timer = setInterval(() => {
-      this.executeTick(workflowId);
-    }, tickIntervalMs);
+    // Kick off the self-scheduling tick loop (first tick fires immediately)
+    this.scheduleNextTick(workflowId, 0);
 
     return workflowId;
   }
@@ -102,7 +105,10 @@ export class WorkflowRunner {
     const state = this.workflows.get(workflowId);
     if (!state) return false;
 
-    if (state.timer) clearInterval(state.timer);
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = undefined;
+    }
     state.state = "stopped";
 
     // Clear scheduler fire-times so a future restart begins fresh
@@ -135,6 +141,34 @@ export class WorkflowRunner {
   }
 
   // ── Private ────────────────────────────────────────────────────────
+
+  /**
+   * Schedule the next tick after `delayMs` milliseconds.
+   * Uses setTimeout + await so ticks never overlap.
+   */
+  private scheduleNextTick(workflowId: string, delayMs: number): void {
+    const state = this.workflows.get(workflowId);
+    if (!state || state.state !== "running") return;
+
+    state.timer = setTimeout(async () => {
+      state.timer = undefined;
+
+      // Guard: skip if already in flight or no longer running
+      if (state.inFlight || state.state !== "running") return;
+
+      state.inFlight = true;
+      try {
+        await this.executeTick(workflowId);
+      } finally {
+        state.inFlight = false;
+      }
+
+      // Schedule the next tick (only if still running after execution)
+      if (state.state === "running") {
+        this.scheduleNextTick(workflowId, state.tickInterval);
+      }
+    }, delayMs);
+  }
 
   private async executeTick(workflowId: string): Promise<void> {
     const state = this.workflows.get(workflowId);
