@@ -37,11 +37,13 @@ export class ExecutionEngine {
    *
    * @param workflow  The workflow JSON (nodes + connections)
    * @param contextVariables  Variables injected into execution (user_query, etc.)
+   * @param initialNodeOutputs  Pre-seeded node outputs (e.g. from autonomous nodes in the runner)
    * @returns Execution result with per-node outputs
    */
   async execute(
     workflow: WorkflowData,
-    contextVariables: Record<string, unknown> = {}
+    contextVariables: Record<string, unknown> = {},
+    initialNodeOutputs: Record<NodeID, Record<string, unknown>> = {}
   ): Promise<GraphExecutionResult> {
     const startTime = Date.now();
 
@@ -67,7 +69,7 @@ export class ExecutionEngine {
       // 4. Execute nodes in order
       const context: ExecutionContext = {
         variables: { ...contextVariables },
-        nodeOutputs: {},
+        nodeOutputs: { ...initialNodeOutputs },
       };
 
       const nodeResults: GraphExecutionResult["nodeResults"] = [];
@@ -137,9 +139,9 @@ export class ExecutionEngine {
     }
   }
 
-  // ── Private helpers ──────────────────────────────────────────────────
+  // ── Helpers (public so WorkflowRunner can use for subgraph building) ─
 
-  private buildNodeMap(workflow: WorkflowData): Map<NodeID, BaseNode> {
+  buildNodeMap(workflow: WorkflowData): Map<NodeID, BaseNode> {
     const map = new Map<NodeID, BaseNode>();
     for (const nodeData of workflow.nodes) {
       const Ctor = getNodeClass(nodeData.type);

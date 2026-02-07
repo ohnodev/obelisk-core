@@ -1,71 +1,121 @@
 /**
- * SchedulerNode – fires a trigger output on a configurable interval.
+ * SchedulerNode – autonomous node that fires a trigger at random intervals.
  * Mirrors Python src/core/execution/nodes/scheduler.py
  *
- * In the tick-based WorkflowRunner, the scheduler checks elapsed time since
- * its last fire and emits `trigger: true` when the interval has passed.
+ * This is a CONTINUOUS node. The WorkflowRunner calls onTick() every ~100ms;
+ * the node keeps its own timer and only fires when the random interval elapses.
  *
- * Fire timestamps are kept in a static map keyed by workflowId:nodeId so
- * state survives across ticks (the engine creates fresh instances each tick)
- * but can be explicitly cleared when a workflow starts or stops.
+ * Instance state (lastFireTime, nextInterval, fireCount) lives on the node
+ * object itself, which the runner keeps alive across ticks.
  */
-import { BaseNode, ExecutionContext } from "../nodeBase";
+import { BaseNode, ExecutionContext, ExecutionMode } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("scheduler");
 
 export class SchedulerNode extends BaseNode {
-  /**
-   * Shared fire-time map.
-   * Key: "workflowId:nodeId" (or just nodeId when no workflowId is available).
-   */
-  private static lastFireTimes: Map<string, number> = new Map();
+  // ── CONTINUOUS execution mode ──────────────────────────────────────
+  static override executionMode = ExecutionMode.CONTINUOUS;
 
-  private fireKey(context: ExecutionContext): string {
-    const wfId = context.variables._workflowId as string | undefined;
-    return wfId ? `${wfId}:${this.nodeId}` : this.nodeId;
-  }
+  // ── Instance state ─────────────────────────────────────────────────
+  private _minSeconds: number;
+  private _maxSeconds: number;
+  private _enabled: boolean;
+  private _lastFireTime = 0;
+  private _nextInterval: number;
+  private _fireCount = 0;
 
-  execute(context: ExecutionContext): Record<string, unknown> {
-    const intervalSeconds = Number(
-      this.getInputValue("interval_seconds", context, 60)
-    );
+  constructor(nodeId: string, nodeData: import("../../types").NodeData) {
+    super(nodeId, nodeData);
 
-    const key = this.fireKey(context);
-    const now = Date.now();
-    const lastFire = SchedulerNode.lastFireTimes.get(key) ?? 0;
-    const elapsed = (now - lastFire) / 1000;
+    const meta = this.metadata;
+    this._minSeconds = Number(meta.min_seconds ?? meta.interval_seconds ?? 5);
+    this._maxSeconds = Number(meta.max_seconds ?? meta.interval_seconds ?? 10);
+    this._enabled = meta.enabled !== false;
 
-    if (lastFire === 0 || elapsed >= intervalSeconds) {
-      SchedulerNode.lastFireTimes.set(key, now);
-      logger.debug(
-        `SchedulerNode ${this.nodeId}: fired (interval=${intervalSeconds}s, elapsed=${elapsed.toFixed(1)}s)`
-      );
-      return { trigger: true };
+    if (this._minSeconds > this._maxSeconds) {
+      [this._minSeconds, this._maxSeconds] = [this._maxSeconds, this._minSeconds];
     }
+
+    this._nextInterval = this._generateInterval();
 
     logger.debug(
-      `SchedulerNode ${this.nodeId}: not yet (${elapsed.toFixed(1)}s / ${intervalSeconds}s)`
+      `[Scheduler ${nodeId}] Initialized: interval=${this._minSeconds}-${this._maxSeconds}s, enabled=${this._enabled}`
     );
-    return { trigger: false };
+  }
+
+  private _generateInterval(): number {
+    return (
+      Math.random() * (this._maxSeconds - this._minSeconds) + this._minSeconds
+    );
+  }
+
+  // ── execute() — called once at workflow start to seed timing ───────
+  execute(_context: ExecutionContext): Record<string, unknown> {
+    this._lastFireTime = Date.now() / 1000;
+    this._nextInterval = this._generateInterval();
+
+    return {
+      trigger: false,
+      tick_count: this._fireCount,
+      timestamp: this._lastFireTime,
+      next_fire_in: this._nextInterval,
+    };
+  }
+
+  // ── onTick() — called every ~100ms by WorkflowRunner ──────────────
+  onTick(_context: ExecutionContext): Record<string, unknown> | null {
+    if (!this._enabled) return null;
+
+    const now = Date.now() / 1000;
+    const elapsed = now - this._lastFireTime;
+
+    if (elapsed >= this._nextInterval) {
+      this._fireCount++;
+      this._lastFireTime = now;
+      this._nextInterval = this._generateInterval();
+
+      logger.info(
+        `[Scheduler ${this.nodeId}] Fired! count=${this._fireCount}, next_in=${this._nextInterval.toFixed(2)}s`
+      );
+
+      return {
+        trigger: true,
+        tick_count: this._fireCount,
+        timestamp: now,
+        next_fire_in: this._nextInterval,
+      };
+    }
+
+    return null;
+  }
+
+  // ── Helpers used by the runner ─────────────────────────────────────
+
+  /** Clear state so the scheduler fires immediately on next tick. */
+  reset(): void {
+    this._lastFireTime = 0;
+    this._nextInterval = this._generateInterval();
+    this._fireCount = 0;
+    logger.debug(`[Scheduler ${this.nodeId}] Reset`);
   }
 
   /**
-   * Clear fire timestamps for a specific workflow so schedulers fire
-   * immediately on the next tick after a restart.
+   * Legacy static helpers (kept for backward compat / tests).
+   * With the new runner these are no longer needed — state lives on the
+   * instance — but we keep the API surface so nothing breaks.
    */
+  private static _legacyFireTimes = new Map<string, number>();
+
   static resetWorkflow(workflowId: string): void {
-    for (const key of SchedulerNode.lastFireTimes.keys()) {
+    for (const key of SchedulerNode._legacyFireTimes.keys()) {
       if (key.startsWith(`${workflowId}:`)) {
-        SchedulerNode.lastFireTimes.delete(key);
+        SchedulerNode._legacyFireTimes.delete(key);
       }
     }
-    logger.debug(`SchedulerNode: reset timers for workflow ${workflowId}`);
   }
 
-  /** Clear all fire timestamps (useful for tests). */
   static resetAll(): void {
-    SchedulerNode.lastFireTimes.clear();
-    logger.debug("SchedulerNode: all timers reset");
+    SchedulerNode._legacyFireTimes.clear();
   }
 }

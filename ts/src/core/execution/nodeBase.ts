@@ -7,6 +7,19 @@ import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("nodeBase");
 
+/**
+ * Node execution modes for autonomous workflows.
+ *
+ * ONCE:       Execute once per workflow run (default behaviour)
+ * CONTINUOUS: Keep executing on each tick (scheduler / listener nodes)
+ * TRIGGERED:  Execute only when a trigger input fires
+ */
+export enum ExecutionMode {
+  ONCE = "once",
+  CONTINUOUS = "continuous",
+  TRIGGERED = "triggered",
+}
+
 /** Shared context passed to every node during execution */
 export interface ExecutionContext {
   /** Context variables (user_query, user_id, etc.) */
@@ -28,6 +41,9 @@ export abstract class BaseNode {
   inputs: Record<string, unknown>;
   metadata: Record<string, unknown>;
 
+  /** Default execution mode — override in subclasses (e.g. SchedulerNode, TelegramListenerNode). */
+  static executionMode: ExecutionMode = ExecutionMode.ONCE;
+
   /** Populated by the engine before execution: maps inputName → {nodeId, outputName} */
   inputConnections: Record<string, { nodeId: string; outputName: string }[]> =
     {};
@@ -37,6 +53,27 @@ export abstract class BaseNode {
     this.nodeType = nodeData.type;
     this.inputs = (nodeData.inputs as Record<string, unknown>) ?? {};
     this.metadata = (nodeData.metadata as Record<string, unknown>) ?? {};
+  }
+
+  // ── Autonomous-node helpers ───────────────────────────────────────
+
+  /** True when this node runs continuously (CONTINUOUS mode). */
+  isAutonomous(): boolean {
+    return (this.constructor as typeof BaseNode).executionMode === ExecutionMode.CONTINUOUS;
+  }
+
+  /** True when this node only runs when triggered. */
+  isTriggered(): boolean {
+    return (this.constructor as typeof BaseNode).executionMode === ExecutionMode.TRIGGERED;
+  }
+
+  /**
+   * Called on each runner tick for CONTINUOUS nodes.
+   * Return an output dict to "fire" the node this tick, or `null` to skip.
+   * Override in autonomous subclasses (SchedulerNode, TelegramListenerNode).
+   */
+  onTick(_context: ExecutionContext): Promise<Record<string, unknown> | null> | Record<string, unknown> | null {
+    return null;
   }
 
   /** Execute the node logic. Must be implemented by subclasses. */
