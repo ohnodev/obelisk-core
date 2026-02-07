@@ -96,11 +96,19 @@ export abstract class BaseNode {
     context: ExecutionContext
   ): unknown {
     if (typeof value !== "string") return value;
-    const match = value.match(/^\{\{(.+?)\}\}$/);
-    if (match) {
-      const varName = match[1].trim();
+
+    // If the entire value is a single template, return the raw variable
+    // (preserves non-string types like objects / numbers).
+    const fullMatch = value.match(/^\{\{(.+?)\}\}$/);
+    if (fullMatch) {
+      const varName = fullMatch[1].trim();
       return context.variables[varName] ?? value;
     }
-    return value;
+
+    // Otherwise replace all {{var}} occurrences inline (always returns string).
+    return value.replace(/\{\{(.+?)\}\}/g, (_match, varName: string) => {
+      const resolved = context.variables[varName.trim()];
+      return resolved !== undefined ? String(resolved) : _match;
+    });
   }
 }
