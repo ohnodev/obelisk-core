@@ -120,6 +120,13 @@ export class InferenceNode extends BaseNode {
       `InferenceNode ${this.nodeId}: query="${queryPreview}", system_prompt=${mergedSystemPrompt.length} chars, thinking=${enableThinking}`
     );
 
+    // DEBUG: full untruncated data (visible when OBELISK_CORE_DEBUG=true)
+    logger.debug(`InferenceNode ${this.nodeId} === FULL QUERY ===\n${query}`);
+    logger.debug(`InferenceNode ${this.nodeId} === FULL SYSTEM PROMPT (${mergedSystemPrompt.length} chars) ===\n${mergedSystemPrompt}`);
+    if (conversationHistory && conversationHistory.length > 0) {
+      logger.debug(`InferenceNode ${this.nodeId} === CONVERSATION HISTORY (${conversationHistory.length} messages) ===\n${JSON.stringify(conversationHistory, null, 2)}`);
+    }
+
     // Generate response using the model (matches Python signature)
     const result = await model.generate(
       String(query),

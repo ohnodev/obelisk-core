@@ -104,7 +104,7 @@ export class BinaryIntentNode extends BaseNode {
 
     const query = queryParts.join("\n");
 
-    // Log the full breakdown of what we're sending to the LLM
+    // Log summary at INFO level
     logger.info(
       `[BinaryIntent ${this.nodeId}] Classifying intent for message (${message.length} chars), criteria="${intentCriteria.slice(0, 80)}..."`
     );
@@ -113,27 +113,29 @@ export class BinaryIntentNode extends BaseNode {
       `additional_context=${additionalContext ? additionalContext.length : 0} chars, ` +
       `message="${message.length > 80 ? message.slice(0, 80) + "..." : message}"`
     );
-    if (additionalContext && additionalContext.length > 0) {
-      // Show first 200 chars of context so we can see what the LLM is seeing
-      const contextPreview = additionalContext.length > 200
-        ? additionalContext.slice(0, 200) + "..."
-        : additionalContext;
-      logger.info(
-        `[BinaryIntent ${this.nodeId}] Context preview: ${contextPreview.replace(/\n/g, " | ")}`
-      );
-    }
     logger.info(
       `[BinaryIntent ${this.nodeId}] Total query to LLM: ${query.length} chars`
     );
 
+    // DEBUG: full untruncated data (visible when OBELISK_CORE_DEBUG=true)
+    logger.debug(`[BinaryIntent ${this.nodeId}] === FULL CRITERIA ===\n${intentCriteria}`);
+    logger.debug(`[BinaryIntent ${this.nodeId}] === FULL MESSAGE ===\n${message}`);
+    if (additionalContext && additionalContext.length > 0) {
+      logger.debug(`[BinaryIntent ${this.nodeId}] === FULL ADDITIONAL CONTEXT ===\n${additionalContext}`);
+    }
+    logger.debug(`[BinaryIntent ${this.nodeId}] === FULL QUERY TO LLM ===\n${query}`);
+    logger.debug(`[BinaryIntent ${this.nodeId}] === SYSTEM PROMPT ===\n${SYSTEM_PROMPT}`);
+
     // Generate classification (matches Python signature)
+    // Use thinking mode so the small model can reason through the criteria
+    // instead of hallucinating matches that don't exist
     const genResult = await model.generate(
       query,
       SYSTEM_PROMPT,
       0.1, // Low quantum_influence for consistent classification
-      200, // Short response needed
+      512, // More tokens to allow thinking + JSON response
       null, // No conversation history
-      false // Fast, direct response (no thinking)
+      true  // Enable thinking so the model reasons before answering
     );
 
     if (genResult.error || !genResult.response) {
