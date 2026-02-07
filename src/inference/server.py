@@ -37,13 +37,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS — allow_origins=["*"] is incompatible with allow_credentials=True
-# per the CORS spec.  Since this service is called from other backend
-# services (not browsers with cookies), credentials are not needed.
+# CORS — controlled via InferenceConfig.CORS_ORIGINS (env: INFERENCE_CORS_ORIGINS).
+# Defaults include https://build.theobelisk.ai and localhost dev origins.
+# Server-to-server calls (InferenceClient) bypass CORS entirely.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=InferenceConfig.CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,6 +63,7 @@ async def startup():
     logger.info(f"  Model:  {InferenceConfig.MODEL_NAME}")
     logger.info(f"  Host:   {InferenceConfig.HOST}:{InferenceConfig.PORT}")
     logger.info(f"  Queue:  max_size={InferenceConfig.MAX_QUEUE_SIZE}")
+    logger.info(f"  CORS:   {InferenceConfig.CORS_ORIGINS}")
     logger.info(f"  Debug:  {InferenceConfig.DEBUG}")
     logger.info("=" * 60)
     

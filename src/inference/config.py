@@ -31,6 +31,17 @@ class InferenceConfig:
     MAX_QUEUE_SIZE: int = int(os.getenv("INFERENCE_MAX_QUEUE_SIZE", "100"))
     REQUEST_TIMEOUT: int = int(os.getenv("INFERENCE_REQUEST_TIMEOUT", "120"))
     
+    # CORS — allowed origins for browser-based requests.
+    # Server-to-server calls (InferenceClient) are NOT affected by CORS.
+    # Override with INFERENCE_CORS_ORIGINS (comma-separated) in production.
+    # Default includes the production domain and common local dev origins.
+    CORS_ORIGINS: List[str] = [
+        o.strip() for o in os.getenv(
+            "INFERENCE_CORS_ORIGINS",
+            "https://build.theobelisk.ai,http://localhost:3000,http://localhost:7779,http://127.0.0.1:3000,http://127.0.0.1:7779"
+        ).split(",") if o.strip()
+    ]
+    
     # Debug
     DEBUG: bool = os.getenv("INFERENCE_DEBUG", "").lower() in ("true", "1", "yes")
     
