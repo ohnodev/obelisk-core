@@ -39,12 +39,20 @@ COPY docker/entrypoint.js .
 # Create directories for runtime data
 RUN mkdir -p /app/memory /app/workflows
 
+# Create a non-root user to run the application
+RUN groupadd --system obelisk \
+ && useradd --system --gid obelisk --home-dir /app --shell /bin/sh obelisk \
+ && chown -R obelisk:obelisk /app
+
 # Environment variables
 ENV NODE_ENV=production
 ENV OBELISK_LOG_LEVEL=INFO
 
 # The workflow JSON is passed via WORKFLOW_JSON env var
 # Or mounted as a file at /app/workflows/workflow.json
+
+# Switch to non-root user
+USER obelisk
 
 # Health check - verify Node.js and imports work
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

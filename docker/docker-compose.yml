@@ -12,34 +12,41 @@ services:
     environment:
       # Pass workflow as JSON (or mount workflow.json file instead)
       # WORKFLOW_JSON: '{"id": "test", "nodes": [...], "connections": [...]}'
-      
+
       # Agent identification
       AGENT_ID: dev-agent
       AGENT_NAME: Development Agent
-      
+
       # Logging
       OBELISK_LOG_LEVEL: DEBUG
-      
+
       # Inference service URL (for nodes that call LLM)
-      INFERENCE_SERVICE_URL: http://host.docker.internal:7780
-      
+      # Override from the host environment; defaults to Docker-Desktop-friendly URL.
+      INFERENCE_SERVICE_URL: ${INFERENCE_SERVICE_URL:-http://host.docker.internal:7780}
+
       # Custom variables (accessible in workflow as context.variables)
       # OBELISK_VAR_USER_ID: dev_user
-      
+
       # API keys (if needed by workflow nodes)
       # TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      
+
+    # Map host.docker.internal to the real host gateway IP.
+    # Required on Linux where Docker Desktop is not installed;
+    # harmless on macOS / Windows Docker Desktop (already defined).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     volumes:
       # Mount workflow file instead of using WORKFLOW_JSON env var
       - ./workflows:/app/workflows:ro
-      
+
       # Persist memory across restarts
       - agent_memory:/app/memory
-      
+
     # Resource limits
     mem_limit: 512m
     cpus: 0.5
-    
+
     # Auto-restart on crash
     restart: unless-stopped
 
