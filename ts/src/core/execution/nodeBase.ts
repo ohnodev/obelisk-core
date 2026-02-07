@@ -67,15 +67,18 @@ export abstract class BaseNode {
 
   /**
    * Initialize node after all nodes are built.
-   * Called by engine to allow nodes to set up relationships if needed.
-   * Override in subclasses for custom initialization.
+   * Called by engine/runner to allow nodes to set up relationships and state.
+   * Override in subclasses for custom initialization (e.g. TelegramListenerNode
+   * fetches bot info, SchedulerNode seeds timing state).
+   *
+   * May return a Promise for async initialisation (e.g. network calls).
    *
    * Mirrors Python `initialize()`.
    */
   initialize(
     _workflow: WorkflowData,
     _allNodes: Map<NodeID, BaseNode>
-  ): void {
+  ): void | Promise<void> {
     // Default implementation does nothing
   }
 
@@ -88,8 +91,8 @@ export abstract class BaseNode {
   _setup(
     workflow: WorkflowData,
     allNodes: Map<NodeID, BaseNode>
-  ): void {
-    this.initialize(workflow, allNodes);
+  ): void | Promise<void> {
+    return this.initialize(workflow, allNodes);
   }
 
   // ── Autonomous-node helpers ───────────────────────────────────────

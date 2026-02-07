@@ -9,6 +9,7 @@
  * object itself, which the runner keeps alive across ticks.
  */
 import { BaseNode, ExecutionContext, ExecutionMode } from "../nodeBase";
+import { WorkflowData, NodeID } from "../../types";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("scheduler");
@@ -57,11 +58,20 @@ export class SchedulerNode extends BaseNode {
     );
   }
 
-  // ── execute() — called once at workflow start to seed timing ───────
-  execute(_context: ExecutionContext): Record<string, unknown> {
+  // ── initialize() — called once when runner starts the workflow ──────
+  override initialize(
+    _workflow: WorkflowData,
+    _allNodes: Map<NodeID, BaseNode>
+  ): void {
     this._lastFireTime = Date.now() / 1000;
     this._nextInterval = this._generateInterval();
+    logger.debug(
+      `[Scheduler ${this.nodeId}] Initialized: first fire in ${this._nextInterval.toFixed(2)}s`
+    );
+  }
 
+  // ── execute() — returns current state (no side effects) ────────────
+  execute(_context: ExecutionContext): Record<string, unknown> {
     return {
       trigger: false,
       tick_count: this._fireCount,

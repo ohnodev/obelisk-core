@@ -8,6 +8,7 @@
  * message gets its own full downstream graph execution.
  */
 import { BaseNode, ExecutionContext, ExecutionMode } from "../nodeBase";
+import { WorkflowData, NodeID } from "../../types";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("telegramListener");
@@ -60,9 +61,12 @@ export class TelegramListenerNode extends BaseNode {
     );
   }
 
-  // ── execute() — called once at workflow start ──────────────────────
-  async execute(_context: ExecutionContext): Promise<Record<string, unknown>> {
-    // Fetch bot info on startup
+  // ── initialize() — called once when runner starts the workflow ──────
+  override async initialize(
+    _workflow: WorkflowData,
+    _allNodes: Map<NodeID, BaseNode>
+  ): Promise<void> {
+    // Fetch bot info so onTick can parse mentions / reply detection
     await this._getBotInfo();
 
     if (!this._botToken) {
@@ -73,8 +77,12 @@ export class TelegramListenerNode extends BaseNode {
       );
     }
 
+    // Seed timing so the first poll happens after poll_interval
     this._lastPollTime = Date.now() / 1000;
+  }
 
+  // ── execute() — returns current state (no side effects) ────────────
+  async execute(_context: ExecutionContext): Promise<Record<string, unknown>> {
     return {
       trigger: false,
       message: "",

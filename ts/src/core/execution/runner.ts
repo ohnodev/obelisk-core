@@ -194,10 +194,10 @@ export class WorkflowRunner {
       );
     }
 
-    // Build live node instances
+    // Build live node instances (defensive: workflow.nodes may be undefined)
     registerAllNodes();
     const nodes = new Map<NodeID, BaseNode>();
-    for (const nd of workflow.nodes) {
+    for (const nd of workflow.nodes ?? []) {
       const Ctor = getNodeClass(nd.type);
       if (!Ctor) {
         logger.error(`Unknown node type "${nd.type}" for node ${nd.id} – skipping`);
@@ -211,18 +211,28 @@ export class WorkflowRunner {
     if (!hasAutonomous) {
       logger.info(`Workflow ${workflowId} has no autonomous nodes — executing once`);
       // Execute once and return (matches Python)
-      const result = this.engine.execute(workflow, contextVariables);
-      if (onTickComplete) {
-        result.then((r) => {
-          onTickComplete({
+      this.engine
+        .execute(workflow, contextVariables)
+        .then((r) => {
+          onTickComplete?.({
             tick: 0,
             success: r.success,
             executedNodes: r.executionOrder ?? [],
             executionTime: r.totalExecutionTime,
             error: r.error ?? undefined,
           });
+        })
+        .catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error(`Workflow ${workflowId} one-shot execution failed: ${msg}`);
+          onTickComplete?.({
+            tick: 0,
+            success: false,
+            executedNodes: [],
+            executionTime: 0,
+            error: msg,
+          });
         });
-      }
       return workflowId;
     }
 
@@ -244,11 +254,17 @@ export class WorkflowRunner {
       nodeOutputs: {},
     };
 
-    // Initialise CONTINUOUS nodes (seed timing state)
+    // Initialise CONTINUOUS nodes via initialize() (no side-effect-producing execute())
     for (const [nid, node] of nodes) {
       if (node.isAutonomous()) {
         try {
-          node.execute(context);
+          // initialize() may be async (e.g. TelegramListenerNode fetches bot info)
+          const maybePromise = node.initialize(workflow, nodes);
+          if (maybePromise && typeof (maybePromise as Promise<void>).then === "function") {
+            (maybePromise as Promise<void>).catch((err) => {
+              logger.warning(`Async initialize failed for autonomous node ${nid}: ${err}`);
+            });
+          }
           logger.debug(`Initialized autonomous node ${nid}`);
         } catch (err) {
           logger.warning(`Failed to initialize autonomous node ${nid}: ${err}`);
@@ -393,6 +409,8 @@ export class WorkflowRunner {
     state.lastTickTime = Date.now() / 1000;
 
     const triggeredNodes = new Set<NodeID>();
+    /** Autonomous nodes that actually fired THIS tick (not stale from prior ticks) */
+    const firedAutonomousNodes = new Set<NodeID>();
 
     // Call onTick on every autonomous node
     for (const [nodeId, node] of state.nodes) {
@@ -400,8 +418,9 @@ export class WorkflowRunner {
 
       const result = await node.onTick(state.context);
       if (result !== null) {
-        // Node fired — store its outputs and find downstream targets
+        // Node fired — store its outputs and track it
         state.context.nodeOutputs[nodeId] = result;
+        firedAutonomousNodes.add(nodeId);
 
         // Find nodes connected to this node's outputs
         for (const conn of state.workflow.connections) {
@@ -417,23 +436,20 @@ export class WorkflowRunner {
     // If any autonomous node fired, execute the downstream subgraph
     if (triggeredNodes.size) {
       // Log which autonomous nodes triggered and which targets were found
-      for (const [nodeId, node] of state.nodes) {
-        if (node.isAutonomous() && state.context.nodeOutputs[nodeId]) {
-          const outputs = state.context.nodeOutputs[nodeId];
-          if (outputs.trigger) {
-            const preview = outputs.message
-              ? String(outputs.message).slice(0, 80)
-              : "<no message>";
-            logger.info(
-              `[Tick ${state.tickCount}] Autonomous node ${nodeId} (${node.nodeType}) triggered: ${preview}`
-            );
-          }
-        }
+      for (const nodeId of firedAutonomousNodes) {
+        const node = state.nodes.get(nodeId)!;
+        const outputs = state.context.nodeOutputs[nodeId];
+        const preview = outputs?.message
+          ? String(outputs.message).slice(0, 80)
+          : "<no message>";
+        logger.info(
+          `[Tick ${state.tickCount}] Autonomous node ${nodeId} (${node.nodeType}) triggered: ${preview}`
+        );
       }
       logger.info(
         `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
       );
-      await this.executeSubgraph(state, triggeredNodes);
+      await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
     }
   }
 
@@ -441,7 +457,8 @@ export class WorkflowRunner {
 
   private async executeSubgraph(
     state: WorkflowState,
-    triggeredIds: Set<NodeID>
+    triggeredIds: Set<NodeID>,
+    firedThisTick: Set<NodeID>
   ): Promise<void> {
     const { workflow, nodes, context } = state;
 
@@ -493,12 +510,12 @@ export class WorkflowRunner {
     // Mirrors Python runner._execute_subgraph result format
     state.resultsVersion++;
 
-    // Include autonomous trigger nodes in executed_nodes so the frontend can
-    // highlight them (telegram_listener, scheduler, etc.)
+    // Only include autonomous nodes that fired THIS tick (not stale from prior ticks)
+    // This keeps latestResults.executed_nodes consistent with the actual tick activity.
     const autonomousExecuted: string[] = [];
     const autonomousResults: Array<[string, { outputs: unknown }]> = [];
-    for (const [nid, node] of state.nodes) {
-      if (node.isAutonomous() && context.nodeOutputs[nid]) {
+    for (const nid of firedThisTick) {
+      if (context.nodeOutputs[nid]) {
         autonomousExecuted.push(nid);
         autonomousResults.push([
           nid,
@@ -508,6 +525,7 @@ export class WorkflowRunner {
     }
 
     const subgraphExecuted = result.executionOrder ?? [];
+    // Unified executed set — used for BOTH latestResults and onTickComplete
     const allExecuted = [...autonomousExecuted, ...subgraphExecuted];
 
     // Log what we're about to send so we can debug flashing issues
@@ -546,11 +564,11 @@ export class WorkflowRunner {
       version: state.resultsVersion,
     };
 
-    // Call completion callback
+    // Completion callback uses the same unified allExecuted set
     state.onTickComplete?.({
       tick: state.tickCount,
       success: result.success,
-      executedNodes: result.executionOrder ?? [],
+      executedNodes: allExecuted,
       executionTime: result.totalExecutionTime,
       error: result.error ?? undefined,
     });
@@ -634,7 +652,7 @@ export class WorkflowRunner {
     subgraphNodes: Set<NodeID>,
     autonomousSources: Set<NodeID>
   ): WorkflowData {
-    const filteredNodes = workflow.nodes.filter((n) =>
+    const filteredNodes = (workflow.nodes ?? []).filter((n) =>
       subgraphNodes.has(n.id)
     );
 
