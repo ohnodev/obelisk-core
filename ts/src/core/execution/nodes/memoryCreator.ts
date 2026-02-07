@@ -172,7 +172,22 @@ Example of correct JSON format:
     const quantumSeed = Number(
       this.getInputValue("quantum_seed", context, 0.7)
     );
-    const k = Number(this.getInputValue("k", context, 10));
+    const kRaw = this.getInputValue("k", context, 10);
+    let k = parseInt(String(kRaw), 10);
+    if (isNaN(k) || k < 1) {
+      logger.warning(
+        `[MemoryCreator] Invalid k value (${kRaw}), defaulting to 10`
+      );
+      k = 10;
+    }
+    // Clamp to a reasonable maximum
+    const MAX_K = 100;
+    if (k > MAX_K) {
+      logger.warning(
+        `[MemoryCreator] k value (${k}) exceeds max (${MAX_K}), clamping to ${MAX_K}`
+      );
+      k = MAX_K;
+    }
 
     // Validate and normalize summarize_threshold
     let summarizeThreshold: number;
@@ -247,9 +262,8 @@ Example of correct JSON format:
       `[MemoryCreator] Interaction saved successfully for user_id=${userId}`
     );
 
-    // Add to recent conversation buffer
-    const kInt = Math.max(1, Math.floor(k));
-    const bufMgr = getBufferManager(storage, kInt);
+    // Add to recent conversation buffer (k is already validated and sanitized above)
+    const bufMgr = getBufferManager(storage, k);
     const buffer = await bufMgr.getBuffer(String(userId), storage);
 
     // Check for duplication: get_buffer reloads from storage,

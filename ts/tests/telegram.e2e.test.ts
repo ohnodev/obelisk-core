@@ -114,6 +114,9 @@ function sleep(ms: number): Promise<void> {
 // Test Suite
 // ────────────────────────────────────────────────────────────────────────
 
+/** Resolved bot username from getMe (set in beforeAll). */
+let botUsername = process.env.TELEGRAM_BOT_USERNAME ?? "";
+
 describe("Telegram E2E workflow test", () => {
   let runner: WorkflowRunner;
 
@@ -125,6 +128,20 @@ describe("Telegram E2E workflow test", () => {
       console.warn(
         `⚠️  Inference service at ${INFERENCE_URL} is unreachable — full pipeline tests will be skipped`
       );
+    }
+
+    // Resolve bot username dynamically so @mentions always match the active bot
+    if (hasBotToken && !botUsername) {
+      try {
+        const info = await getBotInfo();
+        if (info.ok) {
+          const bot = info.result as Record<string, unknown>;
+          botUsername = (bot.username as string) ?? "";
+          console.log(`🤖 Resolved bot username: @${botUsername}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️  Could not resolve bot username via getMe: ${err}`);
+      }
     }
   });
 
@@ -283,7 +300,8 @@ describe("Telegram E2E workflow test", () => {
       await sleep(3_000);
 
       // ── Send a test message that should trigger the bot ────────
-      const testMessage = `@ObeliskAgentBot Hey, this is an E2E test — what's 2+2? (${Date.now()})`;
+      const mention = botUsername ? `@${botUsername}` : "@ObeliskAgentBot";
+      const testMessage = `${mention} Hey, this is an E2E test — what's 2+2? (${Date.now()})`;
       console.log(`📤 Sending test message: "${testMessage}"`);
 
       const sendResult = await sendMessage(CHAT_ID, testMessage);
@@ -457,8 +475,9 @@ describe("Telegram E2E workflow test", () => {
       await sleep(3_000);
 
       // Send a message that should trigger the binary_intent to return true
-      // (mentioning the bot name)
-      const msg = `@ObeliskAgentBot Hello, please respond to this E2E test. (${Date.now()})`;
+      // (mentioning the bot name, dynamically resolved)
+      const mention = botUsername ? `@${botUsername}` : "@ObeliskAgentBot";
+      const msg = `${mention} Hello, please respond to this E2E test. (${Date.now()})`;
       const sendResult = await sendMessage(CHAT_ID, msg);
       expect(sendResult.ok).toBe(true);
 

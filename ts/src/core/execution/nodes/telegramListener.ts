@@ -50,6 +50,7 @@ export class TelegramListenerNode extends BaseNode {
     this._botToken =
       (this.resolveEnvVar(meta.bot_token) as string) ||
       process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
+      process.env.TELEGRAM_BOT_TOKEN ||
       "";
     this._pollInterval = Number(meta.poll_interval ?? 2);
     this._timeout = Number(meta.timeout ?? 30);

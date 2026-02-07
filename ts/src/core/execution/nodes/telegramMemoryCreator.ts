@@ -224,10 +224,7 @@ Example of correct JSON format:
       type: "telegram_message",
     };
 
-    // Add to buffer for potential summarization
-    this._addToBuffer(storage, String(chatId), messageData);
-
-    // Save individual message to storage
+    // Save individual message to storage FIRST, then buffer on success
     try {
       const displayMsg =
         messageStr.length > 100 ? messageStr.slice(0, 100) + "..." : messageStr;
@@ -240,6 +237,9 @@ Example of correct JSON format:
       logger.error(`[TelegramMemoryCreator] Failed to save message: ${err}`);
       return { success: false, message_count: 0, summary_created: false };
     }
+
+    // Add to buffer only after successful persistence
+    this._addToBuffer(storage, String(chatId), messageData);
 
     // Increment count and check threshold
     const messageCount = this._incrementMessageCount(storage, String(chatId));

@@ -173,7 +173,11 @@ export class ExecutionQueue {
     if (!job) return null;
 
     if (job.status === "completed" && job.result) return job.result;
-    if (job.status === "failed") return { error: job.error ?? "Unknown error" };
+    if (job.status === "failed") {
+      // Preserve partial outputs and execution_order when available
+      if (job.result) return job.result;
+      return { error: job.error ?? "Unknown error" };
+    }
     return null;
   }
 
