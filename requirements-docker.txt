@@ -5,28 +5,29 @@
 # Inference is handled by the standalone inference service (not in this container),
 # so torch, transformers, peft, accelerate, bitsandbytes are NOT needed here.
 #
+# Upper bounds on major versions prevent unexpected breaking changes.
 # For the full dev/inference-service requirements, see requirements.txt
 
 # API server
-fastapi>=0.100.0
-uvicorn>=0.23.0
-pydantic>=2.0.0
+fastapi>=0.100.0,<1
+uvicorn>=0.23.0,<1
+pydantic>=2.0.0,<3
 
 # HTTP client (InferenceClient calls the inference service)
-requests>=2.31.0
+requests>=2.31.0,<3
 
 # Memory management (REQUIRED - no fallback)
-langchain>=1.0.0
-langchain-core>=1.0.0
+langchain>=1.0.0,<1.1
+langchain-core>=1.0.0,<1.1
 
 # Storage (Supabase for prod mode)
-supabase>=1.0.0
+supabase>=1.0.0,<3
 
 # Utilities
-python-dotenv>=1.0.0
-click>=8.0.0
-rich>=13.0.0
-numpy>=1.24.0
+python-dotenv>=1.0.0,<2
+click>=8.0.0,<9
+rich>=13.0.0,<14
+numpy>=1.24.0,<2
 
 # Testing
-pytest>=7.0.0
+pytest>=7.0.0,<9
