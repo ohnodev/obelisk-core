@@ -9,11 +9,12 @@
  *   connections: [{ source_node, source_output, target_node, target_input }]
  */
 
-import { WorkflowData, NodeData, ConnectionData, GraphExecutionResult } from "../core/types";
+import { WorkflowData, NodeData, ConnectionData, GraphExecutionResult, normalizeConnection } from "../core/types";
 
 // ─── Frontend → Backend ────────────────────────────────────────────────
 
 interface FrontendConnection {
+  id?: string;
   from?: string;
   from_output?: string;
   to?: string;
@@ -65,24 +66,10 @@ export function convertFrontendWorkflow(frontend: FrontendWorkflow): WorkflowDat
 
   const connections: ConnectionData[] = (frontend.connections ?? [])
     .map((c, i) => {
-      const sourceNode = String(c.from ?? c.source_node ?? "");
-      const targetNode = String(c.to ?? c.target_node ?? "");
-      const sourceOutput = c.from_output ?? c.source_output ?? "default";
-      const targetInput = c.to_input ?? c.target_input ?? "default";
-
-      if (!sourceNode || !targetNode) {
-        // Skip invalid connections with missing endpoints
-        return null;
-      }
-
-      return {
-        id: `conn-${i}`,
-        source_node: sourceNode,
-        source_output: sourceOutput,
-        target_node: targetNode,
-        target_input: targetInput,
-        data_type: "string",
-      } as ConnectionData;
+      const conn = normalizeConnection({ ...c, id: c.id ?? `conn-${i}` } as unknown as Record<string, unknown>);
+      // Skip invalid connections with missing endpoints
+      if (!conn.source_node || !conn.target_node) return null;
+      return conn;
     })
     .filter((c): c is ConnectionData => c !== null);
 

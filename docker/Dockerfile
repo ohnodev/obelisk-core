@@ -1,48 +1,62 @@
-# Obelisk Agent Docker Image
+# Obelisk Agent Docker Image (TypeScript)
 # Runs an autonomous workflow using obelisk-core WorkflowRunner
+#
+# Multi-stage build: compile TS in a build stage, run slim in production.
 
-FROM python:3.11-slim
+# ---- Build stage ----
+FROM node:20-slim AS build
 
-# Set working directory
+WORKDIR /build
+
+# Copy package manifests
+COPY ts/package.json ts/package-lock.json* ./
+
+# Install ALL dependencies (including devDependencies for tsc)
+RUN npm ci 2>/dev/null || npm install
+
+# Copy TypeScript source and build config
+COPY ts/tsconfig.json ./
+COPY ts/src/ ./src/
+
+# Compile TypeScript → dist/
+RUN npx tsc
+
+# ---- Production stage ----
+FROM node:20-slim
+
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Copy package manifests and install production deps only
+COPY ts/package.json ts/package-lock.json* ./
+RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 
-# Copy slim requirements (no torch/transformers/peft — inference runs as a
-# separate service, this container only needs HTTP client + langchain + API)
-COPY requirements-docker.txt .
-
-# Install Python dependencies (slim: ~300-400MB vs ~2.5GB with full ML stack)
-RUN pip install --no-cache-dir -r requirements-docker.txt
-
-# Copy source code
-COPY src/ ./src/
-COPY setup.py .
-COPY README.md .
-
-# Install obelisk-core package (--no-deps: deps already satisfied by
-# requirements-docker.txt; avoids pulling heavy ML extras from setup.py)
-RUN pip install --no-deps -e .
+# Copy compiled JS from build stage
+COPY --from=build /build/dist ./dist
 
 # Copy entrypoint
-COPY docker/entrypoint.py .
+COPY docker/entrypoint.js .
 
 # Create directories for runtime data
 RUN mkdir -p /app/memory /app/workflows
 
+# Create a non-root user to run the application
+RUN groupadd --system obelisk \
+ && useradd --system --gid obelisk --home-dir /app --shell /bin/sh obelisk \
+ && chown -R obelisk:obelisk /app
+
 # Environment variables
-ENV PYTHONUNBUFFERED=1
+ENV NODE_ENV=production
 ENV OBELISK_LOG_LEVEL=INFO
 
 # The workflow JSON is passed via WORKFLOW_JSON env var
 # Or mounted as a file at /app/workflows/workflow.json
 
-# Health check - verify Python and imports work
+# Switch to non-root user
+USER obelisk
+
+# Health check - verify Node.js and imports work
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "from src.core.execution.runner import WorkflowRunner; print('ok')" || exit 1
+    CMD node -e "require('./dist/core/execution/runner'); console.log('ok')" || exit 1
 
 # Run the agent
-ENTRYPOINT ["python", "entrypoint.py"]
+ENTRYPOINT ["node", "entrypoint.js"]

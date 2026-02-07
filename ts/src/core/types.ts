@@ -187,8 +187,35 @@ export interface ConnectionData {
   target_node: NodeID;
   target_input: string;
   data_type?: string;
-  /** Allow indexing by string for backward-compat with frontend format (from/to) */
-  [key: string]: unknown;
+}
+
+// ── Connection normalisation ────────────────────────────────────────────
+// Workflow JSON may arrive in either frontend format (from/to/from_output/to_input)
+// or backend format (source_node/target_node/source_output/target_input).
+// normalizeConnection() canonicalises to the backend format so all internal code
+// can simply use conn.source_node / conn.target_node with zero fallbacks.
+
+/** Normalise a single connection to canonical backend field names. */
+export function normalizeConnection(raw: Record<string, unknown>): ConnectionData {
+  return {
+    id: raw.id != null ? String(raw.id) : undefined,
+    source_node: String(raw.source_node ?? raw.from ?? ""),
+    source_output: String(raw.source_output ?? raw.from_output ?? "default"),
+    target_node: String(raw.target_node ?? raw.to ?? ""),
+    target_input: String(raw.target_input ?? raw.to_input ?? "default"),
+    data_type: raw.data_type != null ? String(raw.data_type) : undefined,
+  };
+}
+
+/** Normalise all connections in a workflow (mutates workflow.connections in place). */
+export function normalizeWorkflowConnections(workflow: WorkflowData): void {
+  if (!workflow.connections) {
+    workflow.connections = [];
+    return;
+  }
+  workflow.connections = workflow.connections.map((c) =>
+    normalizeConnection(c as unknown as Record<string, unknown>)
+  );
 }
 
 export interface WorkflowData {

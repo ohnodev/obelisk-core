@@ -100,7 +100,7 @@ Edit `docker-compose.yml` to configure your agent.
 
 ## Health Check
 
-The container includes a health check that verifies the Python environment is working:
+The container includes a health check that verifies the Node.js runtime is working:
 
 ```bash
 docker inspect --format='{{.State.Health.Status}}' my-agent
