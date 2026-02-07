@@ -6,6 +6,27 @@ from setuptools import setup, find_packages
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# --------------------------------------------------------------------------
+# Optional dependency groups (reusable lists to avoid duplication in "full")
+# --------------------------------------------------------------------------
+_ml_deps = [
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "peft>=0.4.0",
+    "accelerate>=0.20.0",
+    "bitsandbytes>=0.41.0",
+    "datasets>=2.14.0",
+]
+
+_quantum_deps = [
+    "qiskit>=0.45.0",
+    "qiskit-ibm-runtime>=0.12.0",
+]
+
+_ai_deps = [
+    "mistralai>=0.1.0",
+]
+
 setup(
     name="obelisk-core",
     version="0.1.0-alpha",
@@ -30,36 +51,10 @@ setup(
         "numpy>=1.24.0",
     ],
     extras_require={
-        # ML / inference service deps (torch, transformers, etc.)
-        "ml": [
-            "torch>=2.0.0",
-            "transformers>=4.30.0",
-            "peft>=0.4.0",
-            "accelerate>=0.20.0",
-            "bitsandbytes>=0.41.0",
-            "datasets>=2.14.0",
-        ],
-        # Quantum computing deps
-        "quantum": [
-            "qiskit>=0.45.0",
-            "qiskit-ibm-runtime>=0.12.0",
-        ],
-        # AI services (evaluation, etc.)
-        "ai": [
-            "mistralai>=0.1.0",
-        ],
-        # Everything — for local dev or the inference service host
-        "full": [
-            "torch>=2.0.0",
-            "transformers>=4.30.0",
-            "peft>=0.4.0",
-            "accelerate>=0.20.0",
-            "bitsandbytes>=0.41.0",
-            "datasets>=2.14.0",
-            "qiskit>=0.45.0",
-            "qiskit-ibm-runtime>=0.12.0",
-            "mistralai>=0.1.0",
-        ],
+        "ml": _ml_deps,                                # torch, transformers, peft, …
+        "quantum": _quantum_deps,                      # qiskit
+        "ai": _ai_deps,                                # mistralai
+        "full": _ml_deps + _quantum_deps + _ai_deps,   # everything
     },
     entry_points={
         "console_scripts": [
