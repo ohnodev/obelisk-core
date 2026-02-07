@@ -56,9 +56,38 @@ class InferenceModel:
     def __init__(self):
         self.model = None
         self.tokenizer = None
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = self._resolve_device()
         self.model_name = InferenceConfig.MODEL_NAME
         self._loaded = False
+
+    @staticmethod
+    def _resolve_device() -> str:
+        """
+        Resolve inference device.
+        
+        Priority:
+          1. INFERENCE_DEVICE env var (explicit override: "cuda", "cpu", "mps")
+          2. CUDA if available (default for GPU servers)
+          3. CPU fallback with warning
+        """
+        import os
+        explicit = os.getenv("INFERENCE_DEVICE", "").strip().lower()
+        if explicit:
+            if explicit == "cuda" and not torch.cuda.is_available():
+                logger.error("INFERENCE_DEVICE=cuda but no CUDA GPU detected!")
+                logger.error("Install NVIDIA drivers + CUDA toolkit, or set INFERENCE_DEVICE=cpu")
+                raise RuntimeError("CUDA requested but not available")
+            logger.info(f"Using explicit device from INFERENCE_DEVICE={explicit}")
+            return explicit
+
+        if torch.cuda.is_available():
+            gpu_name = torch.cuda.get_device_name(0)
+            gpu_mem = torch.cuda.get_device_properties(0).total_mem / (1024 ** 3)
+            logger.info(f"CUDA GPU detected: {gpu_name} ({gpu_mem:.1f} GB)")
+            return "cuda"
+
+        logger.warning("No CUDA GPU detected — falling back to CPU inference (this will be slow)")
+        return "cpu"
     
     def load(self) -> bool:
         """
