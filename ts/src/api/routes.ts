@@ -28,8 +28,11 @@ export function createRouter(): Router {
         return;
       }
 
+      // Normalize: ensure connections is always an array
+      workflow.connections = workflow.connections ?? [];
+
       logger.info(
-        `Execute request: ${workflow.nodes.length} nodes, ${(workflow.connections ?? []).length} connections`
+        `Execute request: ${workflow.nodes.length} nodes, ${workflow.connections.length} connections`
       );
 
       const result = await queue.submit(
@@ -62,6 +65,9 @@ export function createRouter(): Router {
         res.status(400).json({ error: "workflow with nodes is required" });
         return;
       }
+
+      // Normalize: ensure connections is always an array
+      workflow.connections = workflow.connections ?? [];
 
       const workflowId = runner.startWorkflow(
         workflow,

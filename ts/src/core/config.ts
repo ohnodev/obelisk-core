@@ -14,13 +14,20 @@ function envBool(key: string, fallback = false): boolean {
   return ["true", "1", "yes"].includes(val);
 }
 
+function envPort(key: string, fallback: number): number {
+  const raw = process.env[key];
+  if (!raw) return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const Config = {
   // Mode
   MODE: process.env.OBELISK_CORE_MODE || "solo",
 
   // API
   API_HOST: process.env.OBELISK_CORE_HOST || "0.0.0.0",
-  API_PORT: parseInt(process.env.OBELISK_CORE_PORT || "7779", 10),
+  API_PORT: envPort("OBELISK_CORE_PORT", 7779),
 
   // Storage
   STORAGE_PATH:
@@ -53,6 +60,12 @@ export const Config = {
 
   /** Validate configuration for the current mode */
   validate(): boolean {
+    if (!Number.isInteger(this.API_PORT) || this.API_PORT <= 0) {
+      console.error(
+        `[Config] API_PORT must be a positive integer, got: ${this.API_PORT}`
+      );
+      return false;
+    }
     if (this.MODE === "prod") {
       if (!this.SUPABASE_URL || !this.SUPABASE_KEY) {
         console.error(
