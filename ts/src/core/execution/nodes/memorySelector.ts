@@ -100,7 +100,16 @@ export class MemorySelectorNode extends BaseNode {
     if (!activities.length) return "";
 
     const summaryTexts = activities
-      .filter((a) => a.type === "telegram_summary" || a.type === "conversation_summary")
+      .filter((a) => {
+        if (a.type !== "telegram_summary" && a.type !== "conversation_summary") return false;
+        // Scope to current user: check summary_data.user_id first, fall back to user_id
+        const meta = a.metadata as Record<string, unknown> | undefined;
+        const summaryUserId =
+          (meta?.summary_data as Record<string, unknown> | undefined)?.user_id ??
+          meta?.user_id;
+        // Include if no user info stored (legacy) or if it matches the current user
+        return !summaryUserId || summaryUserId === userId;
+      })
       .map((a) => a.message)
       .slice(0, 5);
 
