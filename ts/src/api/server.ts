@@ -55,15 +55,21 @@ export function createApp(): express.Application {
       mode: Config.MODE,
       endpoints: {
         health: "/health",
-        execute: "POST /execute",
-        workflows: "/workflows",
-        queue_status: "/queue/status",
+        workflow_execute: "POST /api/v1/workflow/execute",
+        workflow_run: "POST /api/v1/workflow/run",
+        workflow_stop: "POST /api/v1/workflow/stop",
+        workflow_status: "GET /api/v1/workflow/status/:id",
+        workflow_running: "GET /api/v1/workflow/running",
+        queue_execute: "POST /api/v1/queue/execute",
+        queue_status: "GET /api/v1/queue/status/:job_id",
+        queue_result: "GET /api/v1/queue/result/:job_id",
+        queue_info: "GET /api/v1/queue/info",
       },
     });
   });
 
-  // ── Mount API routes ───────────────────────────────────────────────
-  app.use(createRouter());
+  // ── Mount API routes under /api/v1 (matches Python FastAPI prefix) ──
+  app.use("/api/v1", createRouter());
 
   return app;
 }

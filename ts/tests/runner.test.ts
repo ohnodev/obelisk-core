@@ -48,6 +48,10 @@ describe("WorkflowRunner", () => {
     expect(status).not.toBeNull();
     expect(status!.state).toBe("running");
     expect(status!.tickCount).toBeGreaterThanOrEqual(1);
+    // New fields from Python-compatible status
+    expect(status!.nodeCount).toBe(1);
+    expect(status!.resultsVersion).toBeGreaterThanOrEqual(1);
+    expect(status!.latestResults).not.toBeNull();
   });
 
   it("should stop a workflow", () => {

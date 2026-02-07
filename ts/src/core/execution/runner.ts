@@ -5,7 +5,7 @@
  * Responsibilities:
  * - Start / stop workflows
  * - Periodic tick-based execution (for schedulers)
- * - Status tracking
+ * - Status tracking with latest results + version counter
  *
  * Ticks use a self-scheduling async loop (setTimeout + await) instead of
  * setInterval to guarantee a new tick never starts while the previous one
@@ -18,6 +18,7 @@ import {
 } from "../types";
 import { ExecutionEngine } from "./engine";
 import { SchedulerNode } from "./nodes/scheduler";
+import { convertBackendResults } from "../../api/conversion";
 import { getLogger } from "../../utils/logger";
 
 const logger = getLogger("runner");
@@ -38,6 +39,14 @@ interface WorkflowState {
   cleanupTimer?: ReturnType<typeof setTimeout>;
   /** True while executeTick is running – prevents overlapping ticks. */
   inFlight: boolean;
+  /** Last time a tick executed (epoch seconds) */
+  lastTickTime: number | null;
+  /** Number of nodes in the workflow */
+  nodeCount: number;
+  /** Frontend-formatted results from the most recent tick */
+  latestResults: Record<string, unknown> | null;
+  /** Incremented on each tick – frontend can use this to detect new results */
+  resultsVersion: number;
   onTickComplete?: (result: TickResult) => void;
   onError?: (error: string) => void;
 }
@@ -91,6 +100,10 @@ export class WorkflowRunner {
       tickCount: 0,
       tickInterval: tickIntervalMs,
       inFlight: false,
+      lastTickTime: null,
+      nodeCount: workflow.nodes?.length ?? 0,
+      latestResults: null,
+      resultsVersion: 0,
       onTickComplete,
       onError,
     };
@@ -128,13 +141,39 @@ export class WorkflowRunner {
     return true;
   }
 
-  /** Get status of a workflow */
+  /** Stop all running workflows */
+  stopAll(): void {
+    const ids = this.listWorkflows();
+    for (const id of ids) {
+      this.stopWorkflow(id);
+    }
+    logger.info(`Stopped all workflows (${ids.length})`);
+  }
+
+  /**
+   * Get status of a workflow.
+   * Returns a shape matching Python's WorkflowStatusResponse.
+   */
   getStatus(
     workflowId: string
-  ): { state: string; tickCount: number } | null {
+  ): {
+    state: string;
+    tickCount: number;
+    lastTickTime: number | null;
+    nodeCount: number;
+    latestResults: Record<string, unknown> | null;
+    resultsVersion: number;
+  } | null {
     const s = this.workflows.get(workflowId);
     if (!s) return null;
-    return { state: s.state, tickCount: s.tickCount };
+    return {
+      state: s.state,
+      tickCount: s.tickCount,
+      lastTickTime: s.lastTickTime,
+      nodeCount: s.nodeCount,
+      latestResults: s.latestResults,
+      resultsVersion: s.resultsVersion,
+    };
   }
 
   /** List IDs of currently running workflows (excludes stopped/errored). */
@@ -188,12 +227,24 @@ export class WorkflowRunner {
 
     state.tickCount++;
     const tickNum = state.tickCount;
+    state.lastTickTime = Date.now() / 1000;
 
     try {
       const result = await this.engine.execute(
         state.workflow,
         state.contextVariables
       );
+
+      // Increment version and store frontend-formatted results
+      state.resultsVersion++;
+      state.latestResults = {
+        tick: tickNum,
+        success: result.success,
+        executed_nodes: result.executionOrder ?? [],
+        results: convertBackendResults(result),
+        error: result.error,
+        version: state.resultsVersion,
+      };
 
       const tickResult: TickResult = {
         tick: tickNum,
