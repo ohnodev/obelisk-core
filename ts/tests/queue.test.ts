@@ -1,17 +1,19 @@
 /**
- * Tests for the ExecutionQueue – serial workflow processing.
+ * Tests for the job-based ExecutionQueue.
+ * Mirrors the Python src/api/queue.py behaviour.
  */
 import { describe, it, expect, beforeAll, vi } from "vitest";
-import { ExecutionQueue } from "../src/api/queue";
+import { ExecutionQueue, QueueFullError } from "../src/api/queue";
 import { ExecutionEngine } from "../src/core/execution/engine";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
-import { WorkflowData, GraphExecutionResult } from "../src/core/types";
+import { GraphExecutionResult } from "../src/core/types";
 
 beforeAll(() => {
   registerAllNodes();
 });
 
-function textWorkflow(text: string): WorkflowData {
+/** Helper – minimal frontend-format text workflow */
+function textWorkflow(text: string): Record<string, unknown> {
   return {
     nodes: [{ id: "1", type: "text", inputs: { text } }],
     connections: [],
@@ -19,47 +21,60 @@ function textWorkflow(text: string): WorkflowData {
 }
 
 describe("ExecutionQueue", () => {
-  it("should process a single workflow", async () => {
+  it("should enqueue a job and return a job object", () => {
     const queue = new ExecutionQueue();
-    const result = await queue.submit(textWorkflow("hello"));
+    const job = queue.enqueue(textWorkflow("hello"));
 
-    expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("hello");
-    expect(queue.size).toBe(0);
-    expect(queue.isProcessing).toBe(false);
+    expect(job.id).toBeDefined();
+    // Job may already be "running" since processNext() fires immediately
+    expect(["queued", "running"]).toContain(job.status);
+    expect(typeof job.createdAt).toBe("number");
   });
 
-  it("should process multiple workflows in order", async () => {
+  it("should process a job to completion", async () => {
     const queue = new ExecutionQueue();
-    const results = await Promise.all([
-      queue.submit(textWorkflow("first")),
-      queue.submit(textWorkflow("second")),
-      queue.submit(textWorkflow("third")),
-    ]);
+    const job = queue.enqueue(textWorkflow("hello"));
 
-    expect(results).toHaveLength(3);
-    expect(results[0].finalOutputs.text).toBe("first");
-    expect(results[1].finalOutputs.text).toBe("second");
-    expect(results[2].finalOutputs.text).toBe("third");
+    // Wait for processing
+    await new Promise((r) => setTimeout(r, 100));
+
+    const status = queue.getStatus(job.id);
+    expect(status).not.toBeNull();
+    expect(status!.status).toBe("completed");
+    expect(status!.has_result).toBe(true);
+
+    const result = queue.getResult(job.id);
+    expect(result).not.toBeNull();
+    expect("results" in result!).toBe(true);
+    if ("results" in result!) {
+      expect(result.results["1"].outputs.text).toBe("hello");
+    }
   });
 
-  it("should report correct size while processing", async () => {
+  it("should process multiple jobs sequentially", async () => {
     const queue = new ExecutionQueue();
+    const job1 = queue.enqueue(textWorkflow("first"));
+    const job2 = queue.enqueue(textWorkflow("second"));
+    const job3 = queue.enqueue(textWorkflow("third"));
 
-    // Submit 3 – the first starts processing immediately,
-    // so size should be at most 2 queued at any point.
-    const p1 = queue.submit(textWorkflow("a"));
-    const p2 = queue.submit(textWorkflow("b"));
-    const p3 = queue.submit(textWorkflow("c"));
+    // Wait for all to finish
+    await new Promise((r) => setTimeout(r, 300));
 
-    // Wait for all
-    await Promise.all([p1, p2, p3]);
+    for (const j of [job1, job2, job3]) {
+      const status = queue.getStatus(j.id);
+      expect(status!.status).toBe("completed");
+    }
 
-    expect(queue.size).toBe(0);
+    const r1 = queue.getResult(job1.id) as any;
+    const r2 = queue.getResult(job2.id) as any;
+    const r3 = queue.getResult(job3.id) as any;
+    expect(r1.results["1"].outputs.text).toBe("first");
+    expect(r2.results["1"].outputs.text).toBe("second");
+    expect(r3.results["1"].outputs.text).toBe("third");
   });
 
   it("should reject when queue is full", async () => {
-    // Use a controlled promise so we can keep the first workflow "in flight"
+    // Use a controlled promise so we can keep the first job "in flight"
     let resolveFirst!: (v: GraphExecutionResult) => void;
     const blockedPromise = new Promise<GraphExecutionResult>((r) => {
       resolveFirst = r;
@@ -69,53 +84,38 @@ describe("ExecutionQueue", () => {
       .spyOn(ExecutionEngine.prototype, "execute")
       .mockImplementation(() => blockedPromise);
 
-    const queue = new ExecutionQueue(1); // buffer holds at most 1 pending item
+    // maxQueueSize=1 → only 1 pending item allowed in the buffer
+    const queue = new ExecutionQueue(1);
 
-    // Submit #1: pushed to queue (length=1), processNext shifts it off
-    // (length=0) and starts awaiting the blocked promise → processing=true
-    const p1 = queue.submit(textWorkflow("a"));
+    // Job #1: enqueued, immediately starts processing → pending=0
+    queue.enqueue(textWorkflow("a"));
 
-    // Submit #2: queue.length is 0 (< 1) so accepted, pushed (length=1),
-    // processNext returns early because processing=true
-    const p2 = queue.submit(textWorkflow("b"));
+    // Job #2: goes into pending (pending=1) since processing is busy
+    queue.enqueue(textWorkflow("b"));
 
-    // Submit #3: queue.length is 1 (>= maxSize) → should reject
-    await expect(queue.submit(textWorkflow("c"))).rejects.toThrow(
-      "Queue full (max 1)"
-    );
+    // Job #3: pending=1 >= maxQueueSize=1 → should throw
+    expect(() => queue.enqueue(textWorkflow("c"))).toThrow(QueueFullError);
+    expect(() => queue.enqueue(textWorkflow("c"))).toThrow("Queue is full");
 
-    // Clean up: resolve the blocked promise so p1 and p2 can finish
-    const fakeResult: GraphExecutionResult = {
+    // Cleanup
+    resolveFirst({
       success: true,
       nodeResults: [],
       finalOutputs: {},
       executionOrder: [],
       totalExecutionTime: 0,
-    };
-    resolveFirst(fakeResult);
+    });
 
-    await p1;
-    await p2;
-
+    // Wait for queue to drain
+    await new Promise((r) => setTimeout(r, 100));
     mock.mockRestore();
   });
 
-  it("should handle empty workflow", async () => {
-    const queue = new ExecutionQueue();
-    const result = await queue.submit({
-      nodes: [],
-      connections: [],
-    });
-
-    expect(result.success).toBe(true);
-    expect(result.nodeResults).toHaveLength(0);
-  });
-
-  it("should handle workflow execution errors without crashing queue", async () => {
+  it("should handle workflow execution errors", async () => {
     const queue = new ExecutionQueue();
 
     // Cycle workflow → engine returns success: false
-    const cycleResult = await queue.submit({
+    const job = queue.enqueue({
       nodes: [
         { id: "1", type: "text", inputs: {} },
         { id: "2", type: "text", inputs: {} },
@@ -136,27 +136,93 @@ describe("ExecutionQueue", () => {
       ],
     });
 
-    expect(cycleResult.success).toBe(false);
+    // Wait for processing
+    await new Promise((r) => setTimeout(r, 100));
+
+    const status = queue.getStatus(job.id);
+    // Cycle workflows return success: false from the engine,
+    // so the job should be marked as "failed" with the error preserved
+    expect(status!.status).toBe("failed");
 
     // Queue should still work after error
-    const okResult = await queue.submit(textWorkflow("recovery"));
-    expect(okResult.success).toBe(true);
-    expect(okResult.finalOutputs.text).toBe("recovery");
+    const okJob = queue.enqueue(textWorkflow("recovery"));
+    await new Promise((r) => setTimeout(r, 100));
+    const okResult = queue.getResult(okJob.id) as any;
+    expect(okResult.results["1"].outputs.text).toBe("recovery");
   });
 
-  it("should process workflows with context variables", async () => {
-    const queue = new ExecutionQueue();
-    const result = await queue.submit(
-      {
-        nodes: [
-          { id: "1", type: "text", inputs: { text: "Hi {{name}}" } },
-        ],
-        connections: [],
-      },
-      { name: "World" }
-    );
+  it("should cancel a queued job", async () => {
+    // Block processing so jobs stay in pending
+    let resolveFirst!: (v: GraphExecutionResult) => void;
+    const blockedPromise = new Promise<GraphExecutionResult>((r) => {
+      resolveFirst = r;
+    });
 
-    expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("Hi World");
+    const mock = vi
+      .spyOn(ExecutionEngine.prototype, "execute")
+      .mockImplementation(() => blockedPromise);
+
+    const queue = new ExecutionQueue();
+
+    // Job 1 starts processing
+    const job1 = queue.enqueue(textWorkflow("first"));
+    // Job 2 stays in pending
+    const job2 = queue.enqueue(textWorkflow("second"));
+
+    expect(queue.getJob(job2.id)!.status).toBe("queued");
+
+    const cancelled = queue.cancel(job2.id);
+    expect(cancelled).toBe(true);
+    expect(queue.getJob(job2.id)!.status).toBe("cancelled");
+    expect(queue.size).toBe(0); // pending is now empty
+
+    // Can't cancel a running job
+    expect(queue.cancel(job1.id)).toBe(false);
+
+    // Cleanup
+    resolveFirst({
+      success: true,
+      nodeResults: [],
+      finalOutputs: {},
+      executionOrder: [],
+      totalExecutionTime: 0,
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    mock.mockRestore();
+  });
+
+  it("should report queue info", () => {
+    const queue = new ExecutionQueue();
+    const info = queue.getQueueInfo();
+
+    expect(info.queue_length).toBe(0);
+    expect(info.current_job).toBeNull();
+    expect(info.is_processing).toBe(false);
+    expect(info.total_jobs).toBe(0);
+  });
+
+  it("should convert frontend connection format", async () => {
+    const queue = new ExecutionQueue();
+
+    // Use frontend-style connections (from/to instead of source_node/target_node)
+    const job = queue.enqueue({
+      nodes: [
+        { id: "a", type: "text", inputs: { text: "origin" } },
+        { id: "b", type: "text", inputs: {} },
+      ],
+      connections: [
+        {
+          from: "a",
+          from_output: "text",
+          to: "b",
+          to_input: "text",
+        },
+      ],
+    });
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const result = queue.getResult(job.id) as any;
+    expect(result.results["b"].outputs.text).toBe("origin");
   });
 });

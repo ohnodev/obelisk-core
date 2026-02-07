@@ -93,8 +93,8 @@ setup_logrotate() {
         pm2 install pm2-logrotate
     fi
     pm2 set pm2-logrotate:max_size 10M
-    pm2 set pm2-logrotate:retain 7
-    pm2 set pm2-logrotate:compress true
+    pm2 set pm2-logrotate:retain 5
+    pm2 set pm2-logrotate:compress false
     pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm-ss
     pm2 set pm2-logrotate:workerInterval 30
     pm2 set pm2-logrotate:rotateInterval "0 0 * * *"
@@ -143,6 +143,8 @@ module.exports = {
       env: {${core_env_extra}
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-core.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
       time: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
@@ -167,12 +169,14 @@ module.exports = {
         INFERENCE_HOST: '${INFERENCE_HOST}',
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-inference.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
       time: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
       autorestart: true,
       watch: false,
-      max_memory_restart: '2G',
+      max_memory_restart: '4G',
       min_uptime: '10s',
       max_restarts: 10,
     }
@@ -223,15 +227,20 @@ delete_logs() {
 }
 
 check_venv() {
-    # TypeScript core only needs node; still need Python venv for inference
+    # TypeScript core: only rebuild when the start target includes the core
+    # or when doing a full startup (no target). Skip for inference-only starts.
+    local _startup_target="${1:-}"
     if [ "$CORE_RUNTIME" = "typescript" ]; then
-        if [ ! -f "$SCRIPT_DIR/ts/dist/index.js" ]; then
-            echo -e "${YELLOW}⚠️  TypeScript build not found. Running build...${NC}"
+        if [ -z "$_startup_target" ] || [ "$_startup_target" = "$CORE_NAME" ]; then
+            echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
             (cd "$SCRIPT_DIR/ts" && npm run build) || {
                 echo -e "${RED}❌ TypeScript build failed.${NC}"
                 echo -e "${YELLOW}   Run: cd ts && npm install && npm run build${NC}"
                 return 1
             }
+            echo -e "${GREEN}✅ TypeScript build complete${NC}"
+        else
+            echo -e "${YELLOW}ℹ️  Skipping TypeScript build (target=${_startup_target})${NC}"
         fi
     fi
     # Python venv is always needed for the inference service
@@ -252,7 +261,7 @@ check_venv() {
 cmd_start() {
     local target="$1"
 
-    check_venv || return 1
+    check_venv "$target" || return 1
 
     # If starting all, generate ecosystem and start everything
     if [ -z "$target" ]; then
@@ -345,6 +354,16 @@ cmd_restart() {
         # Restart specific service
         echo -e "${BLUE}🔄 Restarting ${target}...${NC}"
         delete_logs "$target"
+
+        # Rebuild TypeScript core before restarting
+        if [ "$target" = "$CORE_NAME" ] && [ "$CORE_RUNTIME" = "typescript" ]; then
+            echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
+            (cd "$SCRIPT_DIR/ts" && npm run build) || {
+                echo -e "${RED}❌ TypeScript build failed. Aborting restart.${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ TypeScript build complete${NC}"
+        fi
 
         if service_exists "$target"; then
             if ! is_running "$target"; then

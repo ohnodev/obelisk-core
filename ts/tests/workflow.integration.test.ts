@@ -33,17 +33,11 @@ beforeAll(() => {
 const engine = new ExecutionEngine();
 
 // ────────────────────────────────────────────────────────────────────────
-// 1. Simple chat workflow:  InferenceConfig → Text (prompt) → Inference
+// 1. Simple chat workflow:  InferenceConfig → Text (system) + Text (query) → Inference
 // ────────────────────────────────────────────────────────────────────────
 
 describe("Simple chat workflow", () => {
   it("should pipe a prompt through inference and return text", async () => {
-    // We can't rely on a real server, so we create a workflow that:
-    //  - Uses a Text node for the prompt
-    //  - Uses an InferenceConfig node for the model
-    //  - Connects both into an Inference node
-    //
-    // Then we monkey-patch the InferenceClient.prototype.generate for this test.
     const inferenceGenerate = vi
       .spyOn(InferenceClient.prototype, "generate")
       .mockResolvedValue({
@@ -61,7 +55,12 @@ describe("Simple chat workflow", () => {
           metadata: { use_default: true },
         },
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are a helpful assistant." },
+        },
+        {
+          id: "query",
           type: "text",
           inputs: { text: "Hello, who are you?" },
         },
@@ -79,10 +78,16 @@ describe("Simple chat workflow", () => {
           target_input: "model",
         },
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -90,12 +95,12 @@ describe("Simple chat workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.executionOrder).toHaveLength(3);
-    // The inference node should be the terminal node
-    expect(result.finalOutputs.text).toBe("Hello! I'm Obelisk.");
-    expect(result.finalOutputs.thinking).toBe("Let me think...");
+    expect(result.executionOrder).toHaveLength(4);
+    // Check inference node output via nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.response).toBe("Hello! I'm Obelisk.");
 
-    // Verify the inference client was called with the prompt
+    // Verify the inference client was called with the query
     expect(inferenceGenerate).toHaveBeenCalled();
     const callArgs = inferenceGenerate.mock.calls[0];
     expect(callArgs[0]).toBe("Hello, who are you?");
@@ -126,7 +131,12 @@ describe("Template-variable workflow", () => {
           metadata: { use_default: true },
         },
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are a helpful assistant." },
+        },
+        {
+          id: "query",
           type: "text",
           inputs: { text: "User asks: {{user_query}}" },
         },
@@ -144,10 +154,16 @@ describe("Template-variable workflow", () => {
           target_input: "model",
         },
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -157,7 +173,9 @@ describe("Template-variable workflow", () => {
     });
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("42 is the answer.");
+    // Check inference node output via nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.response).toBe("42 is the answer.");
 
     // The prompt should have resolved the template
     const callArgs = inferenceGenerate.mock.calls[0];
@@ -176,7 +194,7 @@ describe("Binary intent workflow", () => {
     const inferenceGenerate = vi
       .spyOn(InferenceClient.prototype, "generate")
       .mockResolvedValue({
-        response: '{"result": true, "reasoning": "User is asking a direct question"}',
+        response: '{"result": true, "confidence": "high", "reasoning": "User is asking a direct question"}',
         source: "mock",
       });
 
@@ -198,7 +216,7 @@ describe("Binary intent workflow", () => {
           type: "binary_intent",
           inputs: {},
           metadata: {
-            intent_description: "Does this message require a response?",
+            intent_criteria: "Does this message require a response?",
           },
         },
       ],
@@ -221,12 +239,14 @@ describe("Binary intent workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(true);
-    expect(result.finalOutputs.reasoning).toBe(
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(true);
+    expect(intentResult?.outputs.reasoning).toBe(
       "User is asking a direct question"
     );
     // When intent is true, the original message is passed through
-    expect(result.finalOutputs.message).toBe(
+    expect(intentResult?.outputs.message).toBe(
       "Hey, can you help me with something?"
     );
 
@@ -237,7 +257,7 @@ describe("Binary intent workflow", () => {
     const inferenceGenerate = vi
       .spyOn(InferenceClient.prototype, "generate")
       .mockResolvedValue({
-        response: '{"result": false, "reasoning": "Just a greeting"}',
+        response: '{"result": false, "confidence": "high", "reasoning": "Just a greeting"}',
         source: "mock",
       });
 
@@ -259,7 +279,7 @@ describe("Binary intent workflow", () => {
           type: "binary_intent",
           inputs: {},
           metadata: {
-            intent_description: "Is the user asking a complex question?",
+            intent_criteria: "Is the user asking a complex question?",
           },
         },
       ],
@@ -282,8 +302,10 @@ describe("Binary intent workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(false);
-    expect(result.finalOutputs.message).toBeNull();
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(false);
+    expect(intentResult?.outputs.message).toBeNull();
 
     inferenceGenerate.mockRestore();
   });
@@ -316,6 +338,11 @@ describe("Diamond DAG workflow", () => {
           inputs: { text: "You are a helpful assistant." },
         },
         {
+          id: "user_q",
+          type: "text",
+          inputs: { text: "Explain quantum physics." },
+        },
+        {
           id: "llm",
           type: "inference",
           inputs: {},
@@ -332,7 +359,13 @@ describe("Diamond DAG workflow", () => {
           source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "user_q",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -340,7 +373,9 @@ describe("Diamond DAG workflow", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("Combined result");
+    // Check inference node output via nodeResults
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.response).toBe("Combined result");
     // Verify execution order: config and system first, then llm
     const llmIdx = result.executionOrder!.indexOf("llm");
     const configIdx = result.executionOrder!.indexOf("config");
@@ -353,11 +388,11 @@ describe("Diamond DAG workflow", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────
-// 5. Inference with empty prompt → should return gracefully
+// 5. Inference with empty query → should return gracefully
 // ────────────────────────────────────────────────────────────────────────
 
 describe("Empty prompt handling", () => {
-  it("should return empty text when inference gets no prompt", async () => {
+  it("should return empty response when inference gets no query", async () => {
     const workflow: WorkflowData = {
       nodes: [
         {
@@ -385,7 +420,9 @@ describe("Empty prompt handling", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.text).toBe("");
+    // Empty query returns early with empty response (matches Python)
+    const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
+    expect(llmResult?.outputs.response).toBe("");
   });
 });
 
@@ -398,7 +435,12 @@ describe("Missing model error handling", () => {
     const workflow: WorkflowData = {
       nodes: [
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are helpful." },
+        },
+        {
+          id: "query_node",
           type: "text",
           inputs: { text: "Hello" },
         },
@@ -410,10 +452,16 @@ describe("Missing model error handling", () => {
       ],
       connections: [
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query_node",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -451,7 +499,12 @@ describe("Inference error propagation", () => {
           metadata: { use_default: true },
         },
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are a helpful assistant." },
+        },
+        {
+          id: "query_node",
           type: "text",
           inputs: { text: "Hello" },
         },
@@ -469,10 +522,16 @@ describe("Inference error propagation", () => {
           target_input: "model",
         },
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query_node",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
       ],
     };
@@ -483,7 +542,7 @@ describe("Inference error propagation", () => {
     // The node succeeded (no throw), but response is empty
     const llmResult = result.nodeResults.find((r) => r.nodeId === "llm");
     expect(llmResult?.success).toBe(true);
-    expect(llmResult?.outputs.text).toBe("");
+    expect(llmResult?.outputs.response).toBe("");
 
     inferenceGenerate.mockRestore();
   });
@@ -498,7 +557,7 @@ describe("Multi-step chain: inference then intent classification", () => {
     let callCount = 0;
     const inferenceGenerate = vi
       .spyOn(InferenceClient.prototype, "generate")
-      .mockImplementation(async (query: string) => {
+      .mockImplementation(async () => {
         callCount++;
         if (callCount === 1) {
           // First call: inference node
@@ -509,7 +568,7 @@ describe("Multi-step chain: inference then intent classification", () => {
         }
         // Second call: binary intent node
         return {
-          response: '{"result": true, "reasoning": "Affirmative response"}',
+          response: '{"result": true, "confidence": "high", "reasoning": "Affirmative response"}',
           source: "mock",
         };
       });
@@ -523,7 +582,12 @@ describe("Multi-step chain: inference then intent classification", () => {
           metadata: { use_default: true },
         },
         {
-          id: "prompt",
+          id: "system",
+          type: "text",
+          inputs: { text: "You are a helpful assistant." },
+        },
+        {
+          id: "query_node",
           type: "text",
           inputs: { text: "Can you help me?" },
         },
@@ -537,7 +601,7 @@ describe("Multi-step chain: inference then intent classification", () => {
           type: "binary_intent",
           inputs: {},
           metadata: {
-            intent_description:
+            intent_criteria:
               "Does this response indicate willingness to help?",
           },
         },
@@ -556,14 +620,20 @@ describe("Multi-step chain: inference then intent classification", () => {
           target_input: "model",
         },
         {
-          source_node: "prompt",
+          source_node: "system",
           source_output: "text",
           target_node: "llm",
-          target_input: "prompt",
+          target_input: "system_prompt",
+        },
+        {
+          source_node: "query_node",
+          source_output: "text",
+          target_node: "llm",
+          target_input: "query",
         },
         {
           source_node: "llm",
-          source_output: "text",
+          source_output: "response",
           target_node: "intent",
           target_input: "message",
         },
@@ -573,8 +643,10 @@ describe("Multi-step chain: inference then intent classification", () => {
     const result = await engine.execute(workflow);
 
     expect(result.success).toBe(true);
-    expect(result.finalOutputs.result).toBe(true);
-    expect(result.finalOutputs.reasoning).toBe("Affirmative response");
+    // Check binary_intent node output via nodeResults
+    const intentResult = result.nodeResults.find((r) => r.nodeId === "intent");
+    expect(intentResult?.outputs.result).toBe(true);
+    expect(intentResult?.outputs.reasoning).toBe("Affirmative response");
 
     // Verify two generate() calls happened (one for inference, one for intent)
     expect(inferenceGenerate).toHaveBeenCalledTimes(2);
@@ -602,9 +674,9 @@ describe("Parallel sources", () => {
 
     expect(result.success).toBe(true);
     expect(result.executionOrder).toHaveLength(3);
-    // All three are terminal nodes, so finalOutputs merges them
-    // (last write wins for 'text' key)
-    expect(result.finalOutputs.text).toBeDefined();
+    // All three nodes executed successfully (no output_text nodes → finalOutputs is empty)
+    expect(result.nodeResults).toHaveLength(3);
+    expect(result.nodeResults[2].outputs.text).toBeDefined();
   });
 });
 
@@ -634,7 +706,8 @@ describe("Large linear chain", () => {
     expect(result.executionOrder).toHaveLength(20);
     expect(result.executionOrder![0]).toBe("n0");
     expect(result.executionOrder![19]).toBe("n19");
-    // The value should propagate all the way through
-    expect(result.finalOutputs.text).toBe("start");
+    // The value should propagate all the way through (check last node's output)
+    const lastNodeResult = result.nodeResults.find((r) => r.nodeId === "n19");
+    expect(lastNodeResult?.outputs.text).toBe("start");
   });
 });

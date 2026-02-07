@@ -25,6 +25,8 @@ export interface Logger {
   debug(msg: string): void;
   info(msg: string): void;
   warn(msg: string): void;
+  /** Alias for warn (matches Python's logger.warning) */
+  warning(msg: string): void;
   error(msg: string): void;
 }
 
@@ -35,19 +37,21 @@ export function getLogger(name: string): Logger {
   function log(level: LogLevel, msg: string) {
     if (LEVEL_PRIORITY[level] < LEVEL_PRIORITY[globalLevel]) return;
     const line = `[${level}] ${prefix}: ${msg}`;
-    if (level === "ERROR") {
-      console.error(line);
-    } else if (level === "WARN") {
-      console.warn(line);
-    } else {
-      console.log(line);
-    }
+    // Always use console.log so ALL output goes to stdout.
+    // PM2 captures stdout/stderr separately, and using console.error/warn
+    // causes WARN and ERROR messages to go to a different log file,
+    // making them invisible in the main log.  Python's logging goes to
+    // a single stream, so we match that behavior here.
+    console.log(line);
   }
+
+  const warnFn = (msg: string) => log("WARN", msg);
 
   return {
     debug: (msg: string) => log("DEBUG", msg),
     info: (msg: string) => log("INFO", msg),
-    warn: (msg: string) => log("WARN", msg),
+    warn: warnFn,
+    warning: warnFn, // alias (matches Python's logger.warning)
     error: (msg: string) => log("ERROR", msg),
   };
 }
