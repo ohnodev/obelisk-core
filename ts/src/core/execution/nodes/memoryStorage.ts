@@ -17,35 +17,17 @@ const storageCache: Record<string, StorageInterface> = {};
 
 export class MemoryStorageNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
+    // Resolve inputs (template variables handled by inherited resolveTemplateVariable)
     let storagePath = this.getInputValue(
       "storage_path",
       context,
       undefined
     ) as string | undefined;
-    let storageType = this.getInputValue(
+    let storageType = (this.getInputValue(
       "storage_type",
       context,
       "local_json"
-    ) as string;
-
-    // Resolve template variables
-    if (
-      typeof storagePath === "string" &&
-      storagePath.startsWith("{{") &&
-      storagePath.endsWith("}}")
-    ) {
-      const varName = storagePath.slice(2, -2).trim();
-      storagePath = (context.variables[varName] as string) ?? undefined;
-    }
-    if (
-      typeof storageType === "string" &&
-      storageType.startsWith("{{") &&
-      storageType.endsWith("}}")
-    ) {
-      const varName = storageType.slice(2, -2).trim();
-      storageType =
-        (context.variables[varName] as string) ?? "local_json";
-    }
+    ) as string | undefined) ?? "local_json";
 
     // Default storage path
     if (!storagePath) {
