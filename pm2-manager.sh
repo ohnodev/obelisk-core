@@ -227,15 +227,21 @@ delete_logs() {
 }
 
 check_venv() {
-    # TypeScript core: always rebuild on restart to pick up code changes
+    # TypeScript core: only rebuild when the start target includes the core
+    # or when doing a full startup (no target). Skip for inference-only starts.
+    local _startup_target="${1:-}"
     if [ "$CORE_RUNTIME" = "typescript" ]; then
-        echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
-        (cd "$SCRIPT_DIR/ts" && npm run build) || {
-            echo -e "${RED}❌ TypeScript build failed.${NC}"
-            echo -e "${YELLOW}   Run: cd ts && npm install && npm run build${NC}"
-            return 1
-        }
-        echo -e "${GREEN}✅ TypeScript build complete${NC}"
+        if [ -z "$_startup_target" ] || [ "$_startup_target" = "$CORE_NAME" ]; then
+            echo -e "${BLUE}🔨 Building TypeScript core...${NC}"
+            (cd "$SCRIPT_DIR/ts" && npm run build) || {
+                echo -e "${RED}❌ TypeScript build failed.${NC}"
+                echo -e "${YELLOW}   Run: cd ts && npm install && npm run build${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ TypeScript build complete${NC}"
+        else
+            echo -e "${YELLOW}ℹ️  Skipping TypeScript build (target=${_startup_target})${NC}"
+        fi
     fi
     # Python venv is always needed for the inference service
     if [ ! -d "$SCRIPT_DIR/venv" ]; then
@@ -255,7 +261,7 @@ check_venv() {
 cmd_start() {
     local target="$1"
 
-    check_venv || return 1
+    check_venv "$target" || return 1
 
     # If starting all, generate ecosystem and start everything
     if [ -z "$target" ]; then

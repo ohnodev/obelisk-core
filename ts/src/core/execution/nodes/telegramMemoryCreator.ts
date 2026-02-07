@@ -197,6 +197,12 @@ Example of correct JSON format:
       return { success: false, message_count: 0, summary_created: false };
     }
 
+    const userIdStr = userId ? String(userId) : "";
+    if (!userIdStr) {
+      logger.warning("[TelegramMemoryCreator] No user_id provided");
+      return { success: false, message_count: 0, summary_created: false };
+    }
+
     if (!chatId) {
       logger.warning("[TelegramMemoryCreator] No chat_id provided");
       return { success: false, message_count: 0, summary_created: false };
@@ -262,25 +268,32 @@ Example of correct JSON format:
         summaryData.message_count = summarizeThreshold;
         summaryData.timestamp = Date.now() / 1000;
 
-        // Save summary to storage
-        const summaryText = (summaryData.summary as string) ?? "";
-        const displaySummary =
-          summaryText.length > 100
-            ? summaryText.slice(0, 100) + "..."
-            : summaryText;
-        await storage.createActivityLog(
-          "telegram_summary",
-          `Chat summary for ${chatId}: ${displaySummary}`,
-          summaryData
-        );
+        // Save summary to storage (wrapped in try/catch to preserve buffer on failure)
+        try {
+          const summaryText = (summaryData.summary as string) ?? "";
+          const displaySummary =
+            summaryText.length > 100
+              ? summaryText.slice(0, 100) + "..."
+              : summaryText;
+          await storage.createActivityLog(
+            "telegram_summary",
+            `Chat summary for ${chatId}: ${displaySummary}`,
+            summaryData
+          );
 
-        // Clear buffer after successful summarization
-        this._clearBuffer(storage, String(chatId));
+          // Only clear buffer after successful persistence
+          this._clearBuffer(storage, String(chatId));
 
-        summaryCreated = true;
-        logger.info(
-          `[TelegramMemoryCreator] Created summary for chat ${chatId}`
-        );
+          summaryCreated = true;
+          logger.info(
+            `[TelegramMemoryCreator] Created summary for chat ${chatId}`
+          );
+        } catch (err) {
+          // Don't clear buffer so it's available for retry on next threshold hit
+          logger.error(
+            `[TelegramMemoryCreator] Failed to persist summary for chat ${chatId}: ${err}`
+          );
+        }
       } else {
         logger.warning(
           `[TelegramMemoryCreator] Failed to create summary for chat ${chatId}`

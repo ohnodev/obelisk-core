@@ -66,7 +66,8 @@ export class MemorySelectorNode extends BaseNode {
       context,
       true
     );
-    const k = Number(this.getInputValue("k", context, 10));
+    const kRaw = Number(this.getInputValue("k", context, 10));
+    const k = Number.isFinite(kRaw) ? kRaw : 10;
 
     // Resolve template variables
     const queryStr = String(query ?? "");
@@ -99,7 +100,7 @@ export class MemorySelectorNode extends BaseNode {
       );
     }
 
-    // Validate k
+    // Validate k (ensure no NaN propagation)
     const kInt = Math.max(1, Math.floor(k));
 
     // ── Recent conversation buffer ──────────────────────────────────

@@ -245,16 +245,27 @@ export class ExecutionQueue {
       // Convert result → frontend format
       const frontendResults = convertBackendResults(engineResult);
 
-      job.status = "completed";
       job.completedAt = Date.now() / 1000;
-      job.result = {
-        success: engineResult.success,
-        results: frontendResults,
-        execution_order: engineResult.executionOrder ?? [],
-        error: engineResult.error,
-      };
-
-      logger.info(`Job ${job.id} completed`);
+      if (engineResult.success) {
+        job.status = "completed";
+        job.result = {
+          success: true,
+          results: frontendResults,
+          execution_order: engineResult.executionOrder ?? [],
+          error: engineResult.error ?? undefined,
+        };
+        logger.info(`Job ${job.id} completed`);
+      } else {
+        job.status = "failed";
+        job.error = engineResult.error ?? "Workflow execution failed";
+        job.result = {
+          success: false,
+          results: frontendResults,
+          execution_order: engineResult.executionOrder ?? [],
+          error: engineResult.error ?? "Workflow execution failed",
+        };
+        logger.error(`Job ${job.id} failed: ${job.error}`);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       job.status = "failed";

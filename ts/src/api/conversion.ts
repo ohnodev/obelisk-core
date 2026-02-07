@@ -63,16 +63,28 @@ export function convertFrontendWorkflow(frontend: FrontendWorkflow): WorkflowDat
     return node;
   });
 
-  const connections: ConnectionData[] = (frontend.connections ?? []).map(
-    (c, i) => ({
-      id: `conn-${i}`,
-      source_node: String(c.from ?? c.source_node ?? ""),
-      source_output: c.from_output ?? c.source_output ?? "default",
-      target_node: String(c.to ?? c.target_node ?? ""),
-      target_input: c.to_input ?? c.target_input ?? "default",
-      data_type: "string",
+  const connections: ConnectionData[] = (frontend.connections ?? [])
+    .map((c, i) => {
+      const sourceNode = String(c.from ?? c.source_node ?? "");
+      const targetNode = String(c.to ?? c.target_node ?? "");
+      const sourceOutput = c.from_output ?? c.source_output ?? "default";
+      const targetInput = c.to_input ?? c.target_input ?? "default";
+
+      if (!sourceNode || !targetNode) {
+        // Skip invalid connections with missing endpoints
+        return null;
+      }
+
+      return {
+        id: `conn-${i}`,
+        source_node: sourceNode,
+        source_output: sourceOutput,
+        target_node: targetNode,
+        target_input: targetInput,
+        data_type: "string",
+      } as ConnectionData;
     })
-  );
+    .filter((c): c is ConnectionData => c !== null);
 
   return {
     id: frontend.id ?? "workflow-1",

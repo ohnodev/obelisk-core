@@ -306,6 +306,7 @@ Example of correct JSON format:
           summary_text: (summaryData.summary as string) ?? "",
           summary_data: summaryData,
           interactions_count: summaryData.interactions_count,
+          user_id: String(userId),
         };
 
         await storage.createActivityLog(

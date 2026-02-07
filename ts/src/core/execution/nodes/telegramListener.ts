@@ -179,7 +179,7 @@ export class TelegramListenerNode extends BaseNode {
 
     try {
       const params = new URLSearchParams({
-        timeout: "1",
+        timeout: String(this._timeout),
         allowed_updates: JSON.stringify(["message"]),
         limit: "10",
       });

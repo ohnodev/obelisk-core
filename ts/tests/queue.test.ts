@@ -140,9 +140,9 @@ describe("ExecutionQueue", () => {
     await new Promise((r) => setTimeout(r, 100));
 
     const status = queue.getStatus(job.id);
-    // Cycle workflows don't throw – they return success: false
-    // So the job should still complete (with success=false in the result)
-    expect(status!.status).toBe("completed");
+    // Cycle workflows return success: false from the engine,
+    // so the job should be marked as "failed" with the error preserved
+    expect(status!.status).toBe("failed");
 
     // Queue should still work after error
     const okJob = queue.enqueue(textWorkflow("recovery"));

@@ -29,9 +29,16 @@ export class SchedulerNode extends BaseNode {
     super(nodeId, nodeData);
 
     const meta = this.metadata;
-    this._minSeconds = Number(meta.min_seconds ?? meta.interval_seconds ?? 5);
-    this._maxSeconds = Number(meta.max_seconds ?? meta.interval_seconds ?? 10);
+    let minRaw = Number(meta.min_seconds ?? meta.interval_seconds ?? 5);
+    let maxRaw = Number(meta.max_seconds ?? meta.interval_seconds ?? 10);
     this._enabled = meta.enabled !== false;
+
+    // Sanitize: fall back to sane defaults for NaN / Infinity
+    if (!Number.isFinite(minRaw)) minRaw = 5;
+    if (!Number.isFinite(maxRaw)) maxRaw = 10;
+
+    this._minSeconds = minRaw;
+    this._maxSeconds = maxRaw;
 
     if (this._minSeconds > this._maxSeconds) {
       [this._minSeconds, this._maxSeconds] = [this._maxSeconds, this._minSeconds];
@@ -101,12 +108,13 @@ export class SchedulerNode extends BaseNode {
   }
 
   /**
-   * Legacy static helpers (kept for backward compat / tests).
-   * With the new runner these are no longer needed — state lives on the
-   * instance — but we keep the API surface so nothing breaks.
+   * @deprecated Legacy static helpers — no-ops retained for backward compatibility.
+   * State lives on the node instance now; use the instance reset() method instead.
+   * These do not affect runtime state and will be removed in a future version.
    */
   private static _legacyFireTimes = new Map<string, number>();
 
+  /** @deprecated No-op. Use instance reset() instead. */
   static resetWorkflow(workflowId: string): void {
     for (const key of SchedulerNode._legacyFireTimes.keys()) {
       if (key.startsWith(`${workflowId}:`)) {
@@ -115,6 +123,7 @@ export class SchedulerNode extends BaseNode {
     }
   }
 
+  /** @deprecated No-op. Use instance reset() instead. */
   static resetAll(): void {
     SchedulerNode._legacyFireTimes.clear();
   }

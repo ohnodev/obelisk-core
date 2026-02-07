@@ -40,6 +40,20 @@ const API_BASE = "https://api.telegram.org/bot";
 const hasBotToken = !!BOT_TOKEN;
 const hasChatId = !!CHAT_ID;
 
+/** Quick probe: is the inference service reachable? Resolved in beforeAll. */
+let inferenceAvailable = false;
+
+async function probeInferenceEndpoint(): Promise<boolean> {
+  try {
+    const res = await fetch(`${INFERENCE_URL}/health`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // ── Telegram API helpers ────────────────────────────────────────────────
 
 async function getBotInfo(): Promise<Record<string, unknown>> {
@@ -103,9 +117,15 @@ function sleep(ms: number): Promise<void> {
 describe("Telegram E2E workflow test", () => {
   let runner: WorkflowRunner;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     registerAllNodes();
     runner = new WorkflowRunner();
+    inferenceAvailable = await probeInferenceEndpoint();
+    if (!inferenceAvailable) {
+      console.warn(
+        `⚠️  Inference service at ${INFERENCE_URL} is unreachable — full pipeline tests will be skipped`
+      );
+    }
   });
 
   afterAll(() => {
@@ -182,7 +202,7 @@ describe("Telegram E2E workflow test", () => {
 
   // ── 5. Full workflow: start → send message → wait for processing ───
 
-  it.skipIf(!hasBotToken || !hasChatId)(
+  it.skipIf(!hasBotToken || !hasChatId || !inferenceAvailable)(
     "should run the default workflow and process a Telegram message through the full pipeline",
     async () => {
       // ── Load the default workflow ──────────────────────────────────
@@ -391,7 +411,7 @@ describe("Telegram E2E workflow test", () => {
 
   // ── 6. Verify specific node execution in the subgraph ─────────────
 
-  it.skipIf(!hasBotToken || !hasChatId)(
+  it.skipIf(!hasBotToken || !hasChatId || !inferenceAvailable)(
     "should have called inference at least once (binary_intent or main inference)",
     async () => {
       // This test depends on test 5 having run, so we just load and start

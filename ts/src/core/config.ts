@@ -43,7 +43,7 @@ export const Config = {
     process.env.INFERENCE_SERVICE_URL || "http://localhost:7780",
 
   // Telegram
-  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN || "",
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
   TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || "",
 
   // Debug

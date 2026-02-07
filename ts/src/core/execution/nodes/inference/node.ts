@@ -40,9 +40,15 @@ export class InferenceNode extends BaseNode {
     const maxLength = this.getInputValue("max_length", context,
       this.metadata.max_length ?? 1024
     ) as number;
-    const enableThinking = this.getInputValue("enable_thinking", context,
+    const enableThinkingRaw = this.getInputValue("enable_thinking", context,
       this.metadata.enable_thinking ?? true
-    ) as boolean;
+    );
+    let enableThinking: boolean;
+    if (typeof enableThinkingRaw === "string") {
+      enableThinking = enableThinkingRaw.toLowerCase() === "true";
+    } else {
+      enableThinking = Boolean(enableThinkingRaw);
+    }
     let conversationHistory = this.getInputValue(
       "conversation_history", context, null
     ) as Array<Record<string, string>> | null;
@@ -121,7 +127,7 @@ export class InferenceNode extends BaseNode {
       Number(quantumInfluence),
       Number(maxLength),
       conversationHistory,
-      Boolean(enableThinking)
+      enableThinking
     );
 
     const responseText = result.response ?? "";
