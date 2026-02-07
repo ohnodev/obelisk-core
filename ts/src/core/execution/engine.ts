@@ -303,14 +303,20 @@ export class ExecutionEngine {
     connections: ConnectionData[]
   ): void {
     for (const conn of connections) {
-      const targetNode = nodeMap.get(conn.target_node);
+      // Support both formats: source_node/target_node (backend) and from/to (frontend)
+      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+      const sourceOutput = String(conn.source_output ?? conn["from_output"] ?? "default");
+      const targetId = String(conn.target_node ?? conn["to"] ?? "");
+      const targetInput = String(conn.target_input ?? conn["to_input"] ?? "default");
+
+      const targetNode = nodeMap.get(targetId);
       if (!targetNode) continue;
-      if (!targetNode.inputConnections[conn.target_input]) {
-        targetNode.inputConnections[conn.target_input] = [];
+      if (!targetNode.inputConnections[targetInput]) {
+        targetNode.inputConnections[targetInput] = [];
       }
-      targetNode.inputConnections[conn.target_input].push({
-        nodeId: conn.source_node,
-        outputName: conn.source_output,
+      targetNode.inputConnections[targetInput].push({
+        nodeId: sourceId,
+        outputName: sourceOutput,
       });
     }
   }
@@ -411,12 +417,15 @@ export class ExecutionEngine {
     }
 
     for (const conn of connections) {
-      if (!nodeMap.has(conn.source_node) || !nodeMap.has(conn.target_node))
+      // Support both formats: source_node/target_node (backend) and from/to (frontend)
+      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
+      const targetId = String(conn.target_node ?? conn["to"] ?? "");
+      if (!nodeMap.has(sourceId) || !nodeMap.has(targetId))
         continue;
       // Avoid counting duplicate edges
-      if (!adjacency[conn.source_node].has(conn.target_node)) {
-        adjacency[conn.source_node].add(conn.target_node);
-        inDegree[conn.target_node]++;
+      if (!adjacency[sourceId].has(targetId)) {
+        adjacency[sourceId].add(targetId);
+        inDegree[targetId]++;
       }
     }
 
