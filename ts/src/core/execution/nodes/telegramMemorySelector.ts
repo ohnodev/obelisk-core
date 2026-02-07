@@ -2,24 +2,29 @@
  * TelegramMemorySelectorNode – retrieves relevant context for a Telegram chat.
  * Mirrors Python src/core/execution/nodes/telegram_memory_selector.py
  *
+ * When multiple summaries are available, uses the LLM (non-thinking) to select
+ * the most relevant ones — just like the regular MemorySelectorNode.
+ *
  * Inputs:
  *   message: The incoming message (optional, passed through)
  *   chat_id: Telegram chat/group ID to filter by (required)
  *   storage_instance: StorageInterface instance (required)
- *   model: InferenceClient (optional, for future semantic search)
+ *   model: InferenceClient (optional, used for intelligent summary selection)
  *
  * Properties:
  *   recent_count: Number of recent messages to include (default: 20)
  *   include_summaries: Whether to include summaries (default: true)
  *
  * Outputs:
- *   context: Combined context string (summaries + recent messages)
+ *   context: Combined context string (selected summaries + recent messages)
  *   recent_messages: Formatted recent messages string
  *   summaries: Formatted summaries string
  *   message: Original message passed through (for chaining to next node)
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
+import { InferenceClient } from "./inference/inferenceClient";
+import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("telegramMemorySelector");
@@ -36,6 +41,8 @@ interface ChatSummary {
   keyTopics: string[];
   sentiment: string;
   timestamp: number;
+  importantMessages?: string[];
+  activeUsers?: string[];
 }
 
 export class TelegramMemorySelectorNode extends BaseNode {
@@ -56,6 +63,9 @@ export class TelegramMemorySelectorNode extends BaseNode {
       context,
       undefined
     ) as StorageInterface | undefined;
+    const model = this.getInputValue("model", context, undefined) as
+      | InferenceClient
+      | undefined;
 
     // Validate required inputs
     if (!chatId) {
@@ -82,16 +92,37 @@ export class TelegramMemorySelectorNode extends BaseNode {
     );
     const recentMessagesText = this._formatMessages(messages);
 
-    // Fetch summaries if enabled
+    // Fetch summaries if enabled — with LLM-based selection when available
     let summariesText = "";
     let summaryCount = 0;
     if (this._includeSummaries) {
-      const summaries = await this._getSummaries(
+      const allSummaries = await this._getSummaries(
         storageInstance,
-        String(chatId)
+        String(chatId),
+        10 // Fetch more than we need so we can select
       );
-      summariesText = this._formatSummaries(summaries);
-      summaryCount = summaries.length;
+      summaryCount = allSummaries.length;
+
+      if (allSummaries.length > 0) {
+        let selectedSummaries: ChatSummary[];
+
+        // Use LLM to select relevant summaries when we have >1 and a model
+        if (allSummaries.length > 1 && model && message) {
+          logger.info(
+            `[TelegramMemorySelector] Using LLM to select relevant summaries from ${allSummaries.length} candidates`
+          );
+          selectedSummaries = await this._selectRelevantSummaries(
+            model,
+            String(message),
+            allSummaries,
+            5 // Select top 5 most relevant
+          );
+        } else {
+          selectedSummaries = allSummaries;
+        }
+
+        summariesText = this._formatSummaries(selectedSummaries);
+      }
     }
 
     // Combine into context
@@ -116,6 +147,104 @@ export class TelegramMemorySelectorNode extends BaseNode {
   }
 
   // ── Private helpers ────────────────────────────────────────────────
+
+  /**
+   * Use LLM (non-thinking) to select the most relevant summaries for the
+   * current message. Mirrors the regular MemorySelectorNode._selectRelevantMemories.
+   */
+  private async _selectRelevantSummaries(
+    model: InferenceClient,
+    userMessage: string,
+    summaries: ChatSummary[],
+    topK: number
+  ): Promise<ChatSummary[]> {
+    if (!summaries.length) return [];
+    if (summaries.length <= topK) return summaries;
+
+    try {
+      // Format summaries for LLM analysis
+      let summariesText = "";
+      for (let i = 0; i < summaries.length; i++) {
+        const s = summaries[i];
+        let str = `Summary ${i}:\n`;
+        str += `  Content: ${s.summary || "N/A"}\n`;
+        if (s.keyTopics.length) {
+          str += `  Topics: ${s.keyTopics.join(", ")}\n`;
+        }
+        if (s.sentiment) {
+          str += `  Sentiment: ${s.sentiment}\n`;
+        }
+        if (s.importantMessages?.length) {
+          str += `  Key messages: ${s.importantMessages.slice(0, 3).join("; ")}\n`;
+        }
+        summariesText += str + "\n";
+      }
+
+      const systemPrompt = `You are a memory selector for a Telegram chat agent. Your role is to select the ${topK} most relevant chat summaries given the current incoming message.
+
+You MUST return ONLY valid JSON. No markdown code blocks, no explanations, no text before or after the JSON. Start with { and end with }.
+
+Analyze which summaries are most relevant and return a JSON object with:
+- selected_indices: Array of 0-based indices of the ${topK} most relevant summaries (e.g., [0, 2, 5])
+- reason: Brief explanation of why these summaries were selected
+
+Example of correct JSON format:
+{
+  "selected_indices": [0, 2, 5],
+  "reason": "Summary 0 discusses the main topic, Summary 2 has relevant context"
+}`;
+
+      const query = `Current message: ${userMessage}\n\nAvailable Chat Summaries:\n${summariesText}\nReturn the indices (0-based) of the ${topK} most relevant summaries. Return ONLY the JSON object, nothing else.`;
+
+      logger.info(
+        `[TelegramMemorySelector] Calling inference for summary selection (${summaries.length} candidates)`
+      );
+
+      const result = await model.generate(
+        query,
+        systemPrompt,
+        0.1, // Low quantum_influence for consistent selection
+        800,
+        null,
+        false // Non-thinking for fast selection
+      );
+
+      const selectionText = (result.response ?? "").trim();
+      const selectionData = extractJsonFromLlmResponse(
+        selectionText,
+        "telegram_memory_selection"
+      );
+
+      const selectedIndices =
+        (selectionData.selected_indices as number[]) ?? [];
+
+      const selectedSummaries: ChatSummary[] = [];
+      for (const idx of selectedIndices) {
+        if (typeof idx === "number" && idx >= 0 && idx < summaries.length) {
+          selectedSummaries.push(summaries[idx]);
+        }
+      }
+
+      if (selectedSummaries.length) {
+        logger.info(
+          `[TelegramMemorySelector] LLM selected ${selectedSummaries.length} relevant summaries from ${summaries.length} total`
+        );
+        return selectedSummaries;
+      }
+
+      // Fallback: return first topK if LLM selection returned invalid indices
+      logger.warning(
+        `[TelegramMemorySelector] LLM selection returned invalid indices: ${JSON.stringify(selectedIndices)}, falling back to first ${topK}`
+      );
+      return summaries.slice(0, topK);
+    } catch (err) {
+      logger.error(
+        `[TelegramMemorySelector] Error in LLM summary selection: ${err}`
+      );
+      // Fallback: return first topK
+      return summaries.slice(0, topK);
+    }
+  }
 
   private async _getRecentMessages(
     storage: StorageInterface,
@@ -155,7 +284,7 @@ export class TelegramMemorySelectorNode extends BaseNode {
   private async _getSummaries(
     storage: StorageInterface,
     chatId: string,
-    limit = 5
+    limit = 10
   ): Promise<ChatSummary[]> {
     try {
       const logs = await storage.getActivityLogs(
@@ -171,6 +300,8 @@ export class TelegramMemorySelectorNode extends BaseNode {
             summary: String(meta.summary ?? ""),
             keyTopics: (meta.keyTopics as string[]) ?? [],
             sentiment: String(meta.sentiment ?? ""),
+            importantMessages: (meta.importantMessages as string[]) ?? [],
+            activeUsers: (meta.activeUsers as string[]) ?? [],
             timestamp: Number(
               meta.timestamp ?? (log.created_at ? new Date(log.created_at).getTime() / 1000 : 0)
             ),
