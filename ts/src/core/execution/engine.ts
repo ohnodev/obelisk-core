@@ -153,8 +153,7 @@ export class ExecutionEngine {
             executionTime: nodeExecTime,
           });
 
-          // Log per-node execution at INFO level so it's visible in logs
-          // (Python logs at debug, but we want visibility for debugging)
+          // Log per-node execution at INFO level (truncated summary)
           const outputKeys = Object.keys(outputs);
           const outputSummary = outputKeys
             .map((k) => {
@@ -168,6 +167,19 @@ export class ExecutionEngine {
           logger.info(
             `  Node ${nodeId} (${node.nodeType}) → ${nodeExecTime}ms [${outputSummary}]`
           );
+
+          // DEBUG: log full untruncated outputs (visible when OBELISK_CORE_DEBUG=true)
+          for (const k of outputKeys) {
+            const v = outputs[k];
+            if (typeof v === "string" && v.length > 60) {
+              logger.debug(`  [${nodeId}] FULL ${k} (${v.length} chars):\n${v}`);
+            } else if (v !== null && v !== undefined && typeof v === "object") {
+              try {
+                const json = JSON.stringify(v, null, 2);
+                logger.debug(`  [${nodeId}] FULL ${k}:\n${json}`);
+              } catch { /* skip non-serialisable */ }
+            }
+          }
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const fullErrMsg = `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`;

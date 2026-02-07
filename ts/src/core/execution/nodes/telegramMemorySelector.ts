@@ -144,6 +144,17 @@ export class TelegramMemorySelectorNode extends BaseNode {
       `[TelegramMemorySelector] Retrieved ${messages.length} messages and ${summaryCount} summaries for chat ${chatId}`
     );
 
+    // DEBUG: full untruncated context output (visible when OBELISK_CORE_DEBUG=true)
+    if (combinedContext.length > 0) {
+      logger.debug(`[TelegramMemorySelector] === FULL CONTEXT (${combinedContext.length} chars) ===\n${combinedContext}`);
+    }
+    if (recentMessagesText.length > 0) {
+      logger.debug(`[TelegramMemorySelector] === FULL RECENT MESSAGES (${recentMessagesText.length} chars) ===\n${recentMessagesText}`);
+    }
+    if (summariesText.length > 0) {
+      logger.debug(`[TelegramMemorySelector] === FULL SUMMARIES (${summariesText.length} chars) ===\n${summariesText}`);
+    }
+
     return {
       context: combinedContext,
       recent_messages: recentMessagesText,

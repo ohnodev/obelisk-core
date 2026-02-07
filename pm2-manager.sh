@@ -25,6 +25,7 @@ ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 # OBELISK_CORE_RUNTIME: "typescript" (default) or "python"
 # When set to "python", the core service runs the Python build under src/.
 CORE_RUNTIME="${OBELISK_CORE_RUNTIME:-typescript}"
+CORE_DEBUG="${OBELISK_CORE_DEBUG:-false}"
 
 CORE_NAME="obelisk-core"
 CORE_PORT="${OBELISK_CORE_PORT:-7779}"
@@ -112,7 +113,8 @@ generate_ecosystem() {
         core_env_extra="
         NODE_ENV: 'production',
         OBELISK_CORE_PORT: '${CORE_PORT}',
-        OBELISK_CORE_HOST: '${CORE_HOST}',"
+        OBELISK_CORE_HOST: '${CORE_HOST}',
+        OBELISK_CORE_DEBUG: '${CORE_DEBUG}',"
         core_max_mem="'512M'"
     else
         core_script="path.resolve(__dirname, 'venv/bin/python')"
@@ -473,6 +475,7 @@ cmd_help() {
     echo "  OBELISK_CORE_PORT    Core API port (default: 7779)"
     echo "  OBELISK_CORE_HOST    Core API host (default: 0.0.0.0)"
     echo "  OBELISK_CORE_RUNTIME Core runtime: 'typescript' (default) or 'python'"
+    echo "  OBELISK_CORE_DEBUG   Enable debug logging: 'true' for full untruncated output (default: false)"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
     echo ""
