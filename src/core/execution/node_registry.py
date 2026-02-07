@@ -37,12 +37,11 @@ def get_node_class(node_type: str) -> Optional[Type[BaseNode]]:
 # This ensures nodes are registered when the module is imported
 def _register_all_nodes():
     """Register all node types"""
-    from .nodes.model_loader import ModelLoaderNode
+    from .nodes.inference_config import InferenceConfigNode
     from .nodes.inference import InferenceNode
     from .nodes.memory_storage import MemoryStorageNode
     from .nodes.memory_selector import MemorySelectorNode
     from .nodes.memory_creator import MemoryCreatorNode
-    from .nodes.lora_loader import LoRALoaderNode
     from .nodes.text import TextNode
     from .nodes.telegram_bot import TelegramBotNode
     from .nodes.scheduler import SchedulerNode
@@ -51,12 +50,16 @@ def _register_all_nodes():
     from .nodes.telegram_memory_selector import TelegramMemorySelectorNode
     from .nodes.binary_intent import BinaryIntentNode
     
-    register_node("model_loader", ModelLoaderNode)
+    # InferenceConfigNode replaces ModelLoaderNode — provides an InferenceClient
+    # that duck-types as ObeliskLLM. Register both types for backward compatibility
+    # with existing workflow JSON files that use "model_loader".
+    register_node("inference_config", InferenceConfigNode)
+    register_node("model_loader", InferenceConfigNode)  # backward compat alias
+    
     register_node("inference", InferenceNode)
     register_node("memory_storage", MemoryStorageNode)
     register_node("memory_selector", MemorySelectorNode)
     register_node("memory_creator", MemoryCreatorNode)
-    register_node("lora_loader", LoRALoaderNode)
     register_node("text", TextNode)
     register_node("telegram_bot", TelegramBotNode)
     register_node("scheduler", SchedulerNode)
@@ -64,6 +67,10 @@ def _register_all_nodes():
     register_node("telegram_memory_creator", TelegramMemoryCreatorNode)
     register_node("telegram_memory_selector", TelegramMemorySelectorNode)
     register_node("binary_intent", BinaryIntentNode)
+    
+    # NOTE: LoRA is not supported via the inference service yet.
+    # LoRALoaderNode is removed from registration until remote LoRA
+    # support is added to the inference service.
 
 
 # Auto-register on import

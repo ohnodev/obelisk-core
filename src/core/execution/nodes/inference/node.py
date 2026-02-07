@@ -5,7 +5,6 @@ Simple interface: system_prompt + query -> response
 """
 from typing import Dict, Any, Optional
 from ...node_base import BaseNode, ExecutionContext
-from .obelisk_llm import ObeliskLLM
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -18,7 +17,7 @@ class InferenceNode(BaseNode):
     Simple interface:
     - system_prompt: System prompt from TextNode (required)
     - query: User query string (required)
-    - model: ObeliskLLM instance from ModelLoaderNode (required)
+    - model: InferenceClient (from InferenceConfigNode) or ObeliskLLM instance (required)
     - context: Conversation context from MemorySelectorNode with 'messages' and 'memories' (optional)
     - quantum_influence: Quantum influence value (default: 0.7)
     - max_length: Maximum response length (default: 1024)
@@ -81,9 +80,9 @@ class InferenceNode(BaseNode):
                 "tokens_used": 0
             }
         
-        # Model is required - must be provided by ModelLoaderNode
+        # Model is required - must be provided by InferenceConfigNode
         if model is None:
-            raise ValueError("model is required for InferenceNode. Connect a ModelLoaderNode first.")
+            raise ValueError("model is required for InferenceNode. Connect an InferenceConfigNode first.")
         
         # System prompt is required - must be provided by TextNode (not just from context)
         if not original_system_prompt:

@@ -16,7 +16,7 @@ class MemorySelectorNode extends LGraphNode {
     this.title = "Memory Selector";
     this.addInput("query", "string");
     this.addInput("storage_instance", "object");
-    this.addInput("model", "object"); // From ModelLoaderNode
+    this.addInput("model", "object"); // From InferenceConfigNode
     this.addInput("k", "number");
     // user_id input - widget will render inline with this
     this.addInput("user_id", "string");
