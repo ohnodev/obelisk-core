@@ -17,7 +17,8 @@ export class RecentConversationBuffer {
   messages: ChatMessage[] = [];
 
   constructor(k = 10) {
-    this.k = k;
+    const parsed = Number(k);
+    this.k = Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 10;
   }
 
   addUserMessage(content: string): void {

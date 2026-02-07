@@ -13,7 +13,8 @@ export class RecentBufferManager {
   private buffers: Record<string, RecentConversationBuffer> = {};
 
   constructor(k = 10) {
-    this.k = k;
+    const parsed = Number(k);
+    this.k = Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 10;
   }
 
   /**
