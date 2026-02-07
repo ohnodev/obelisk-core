@@ -141,24 +141,34 @@ export class ExecutionEngine {
           // Restore original inputs (prevents side-effects across ticks)
           node.inputs = originalInputs;
 
+          const nodeExecTime = Date.now() - nodeStart;
           nodeResults.push({
             nodeId,
             success: true,
             outputs,
-            executionTime: Date.now() - nodeStart,
+            executionTime: nodeExecTime,
           });
 
-          logger.debug(
-            `Node ${nodeId} (${node.nodeType}) executed in ${Date.now() - nodeStart}ms`
+          // Log per-node execution at INFO level so it's visible in logs
+          // (Python logs at debug, but we want visibility for debugging)
+          const outputKeys = Object.keys(outputs);
+          const outputSummary = outputKeys
+            .map((k) => {
+              const v = outputs[k];
+              if (v === null || v === undefined) return `${k}=null`;
+              if (typeof v === "string") return `${k}="${v.length > 60 ? v.slice(0, 60) + "..." : v}"`;
+              if (typeof v === "boolean" || typeof v === "number") return `${k}=${v}`;
+              return `${k}=<${typeof v}>`;
+            })
+            .join(", ");
+          logger.info(
+            `  Node ${nodeId} (${node.nodeType}) → ${nodeExecTime}ms [${outputSummary}]`
           );
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          errors.push(
-            `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`
-          );
-          logger.error(
-            `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`
-          );
+          const fullErrMsg = `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`;
+          errors.push(fullErrMsg);
+          logger.error(`  ✗ ${fullErrMsg}`);
 
           nodeResults.push({
             nodeId,

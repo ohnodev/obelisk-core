@@ -42,7 +42,7 @@ export class InferenceClient {
     temperature: number;
     topP: number;
   } {
-    const qi = Math.max(0.0, Math.min(0.1, quantumInfluence));
+    const qi = Math.max(0.0, Math.min(1.0, quantumInfluence));
     let temperature = InferenceClient.TEMPERATURE_BASE + qi * InferenceClient.QUANTUM_TEMP_RANGE;
     let topP = InferenceClient.TOP_P_BASE + qi * InferenceClient.QUANTUM_TOP_P_RANGE;
     temperature = Math.max(0.1, Math.min(0.9, temperature));
@@ -80,6 +80,10 @@ export class InferenceClient {
       body.conversation_history = conversationHistory;
     }
 
+    logger.info(
+      `Calling inference service: ${url} (query=${query.length} chars, system_prompt=${systemPrompt.length} chars, temp=${sampling.temperature.toFixed(2)}, thinking=${enableThinking})`
+    );
+
     let controller: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -87,6 +91,7 @@ export class InferenceClient {
       controller = new AbortController();
       timer = setTimeout(() => controller!.abort(), this.timeout);
 
+      const startTime = Date.now();
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -100,15 +105,23 @@ export class InferenceClient {
       }
 
       const data = (await res.json()) as Record<string, unknown>;
+      const elapsed = Date.now() - startTime;
       const genParams = (data.generation_params as Record<string, unknown>) ?? {};
 
+      const responseText = (data.response as string) ?? "";
+      const tokensUsed =
+        ((data.input_tokens as number) ?? 0) +
+        ((data.output_tokens as number) ?? 0);
+
+      logger.info(
+        `Inference response: ${elapsed}ms, ${tokensUsed} tokens, response=${responseText.length} chars`
+      );
+
       return {
-        response: (data.response as string) ?? "",
+        response: responseText,
         thinkingContent: (data.thinking_content as string) ?? undefined,
         source: (data.source as string) ?? "inference_service",
-        tokensUsed:
-          ((data.input_tokens as number) ?? 0) +
-          ((data.output_tokens as number) ?? 0),
+        tokensUsed,
         temperature: (genParams.temperature as number) ?? sampling.temperature,
         topP: (genParams.top_p as number) ?? sampling.topP,
         quantumInfluence: sampling.quantumInfluence,

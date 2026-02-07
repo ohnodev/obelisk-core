@@ -100,8 +100,8 @@ export class BinaryIntentNode extends BaseNode {
 
     const query = queryParts.join("\n");
 
-    logger.debug(
-      `BinaryIntentNode ${this.nodeId}: classifying intent for message (${message.length} chars)`
+    logger.info(
+      `[BinaryIntent ${this.nodeId}] Classifying intent for message (${message.length} chars), criteria="${intentCriteria.slice(0, 80)}..."`
     );
 
     // Generate classification (matches Python signature)

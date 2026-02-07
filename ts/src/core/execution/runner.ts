@@ -416,6 +416,20 @@ export class WorkflowRunner {
 
     // If any autonomous node fired, execute the downstream subgraph
     if (triggeredNodes.size) {
+      // Log which autonomous nodes triggered
+      for (const [nodeId, node] of state.nodes) {
+        if (node.isAutonomous() && state.context.nodeOutputs[nodeId]) {
+          const outputs = state.context.nodeOutputs[nodeId];
+          if (outputs.trigger) {
+            const preview = outputs.message
+              ? String(outputs.message).slice(0, 80)
+              : "<no message>";
+            logger.info(
+              `[Tick ${state.tickCount}] Autonomous node ${nodeId} (${node.nodeType}) triggered: ${preview}`
+            );
+          }
+        }
+      }
       await this.executeSubgraph(state, triggeredNodes);
     }
   }
@@ -447,9 +461,8 @@ export class WorkflowRunner {
     );
 
     logger.info(
-      `Scheduler triggered – executing subgraph with ${subgraphNodeIds.size} nodes`
+      `Autonomous trigger → executing subgraph with ${subgraphNodeIds.size} nodes: [${Array.from(subgraphNodeIds).join(", ")}]`
     );
-    logger.debug(`Subgraph nodes: ${Array.from(subgraphNodeIds).join(", ")}`);
 
     // Step 3: Build a filtered workflow
     const subWorkflow = this.buildSubgraphWorkflow(

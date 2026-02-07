@@ -82,8 +82,8 @@ export class InferenceNode extends BaseNode {
 
     // Handle missing/empty query gracefully (like Python)
     if (!query || !String(query).trim()) {
-      logger.debug(
-        `InferenceNode ${this.nodeId}: No query provided (likely gated), returning empty response`
+      logger.info(
+        `InferenceNode ${this.nodeId}: No query provided (likely gated by binary_intent), returning empty response`
       );
       return {
         query: typeof query === "string" ? query : "",
@@ -109,9 +109,9 @@ export class InferenceNode extends BaseNode {
       );
     }
 
-    const queryPreview = query.length > 100 ? query.slice(0, 100) : query;
-    logger.debug(
-      `InferenceNode ${this.nodeId}: query=${queryPreview}, system_prompt_length=${mergedSystemPrompt.length}`
+    const queryPreview = query.length > 100 ? query.slice(0, 100) + "..." : query;
+    logger.info(
+      `InferenceNode ${this.nodeId}: query="${queryPreview}", system_prompt=${mergedSystemPrompt.length} chars, thinking=${enableThinking}`
     );
 
     // Generate response using the model (matches Python signature)
@@ -125,8 +125,8 @@ export class InferenceNode extends BaseNode {
     );
 
     const responseText = result.response ?? "";
-    logger.debug(
-      `InferenceNode ${this.nodeId}: generated response length=${responseText.length}`
+    logger.info(
+      `InferenceNode ${this.nodeId}: response=${responseText.length} chars, tokens=${result.tokensUsed ?? 0}`
     );
 
     // Output format matches Python exactly
