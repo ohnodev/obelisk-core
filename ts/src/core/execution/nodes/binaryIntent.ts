@@ -100,8 +100,26 @@ export class BinaryIntentNode extends BaseNode {
 
     const query = queryParts.join("\n");
 
+    // Log the full breakdown of what we're sending to the LLM
     logger.info(
       `[BinaryIntent ${this.nodeId}] Classifying intent for message (${message.length} chars), criteria="${intentCriteria.slice(0, 80)}..."`
+    );
+    logger.info(
+      `[BinaryIntent ${this.nodeId}] Query breakdown: criteria=${intentCriteria.length} chars, ` +
+      `additional_context=${additionalContext ? additionalContext.length : 0} chars, ` +
+      `message="${message.length > 80 ? message.slice(0, 80) + "..." : message}"`
+    );
+    if (additionalContext && additionalContext.length > 0) {
+      // Show first 200 chars of context so we can see what the LLM is seeing
+      const contextPreview = additionalContext.length > 200
+        ? additionalContext.slice(0, 200) + "..."
+        : additionalContext;
+      logger.info(
+        `[BinaryIntent ${this.nodeId}] Context preview: ${contextPreview.replace(/\n/g, " | ")}`
+      );
+    }
+    logger.info(
+      `[BinaryIntent ${this.nodeId}] Total query to LLM: ${query.length} chars`
     );
 
     // Generate classification (matches Python signature)
