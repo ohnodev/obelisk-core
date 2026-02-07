@@ -64,11 +64,28 @@ export class LocalJSONStorage implements StorageInterface {
   }
 
   // ── helpers ────────────────────────────────────────────────────────
+
+  /**
+   * Map an arbitrary ID to a safe filename that cannot escape the target
+   * directory. IDs matching a strict allow-list (a-z, A-Z, 0-9, -, _) are
+   * used as-is for readability; everything else is SHA-256 hashed.
+   * Leading dots and path separators are always stripped/rejected.
+   */
+  private safeFilename(id: string): string {
+    if (!id) return this.sha256("__empty__");
+    // Strict allow-list: alphanumeric, hyphens, underscores only
+    if (/^[a-zA-Z0-9_-]+$/.test(id) && !id.startsWith(".")) {
+      return id;
+    }
+    // Fallback: deterministic hash so the same id always maps to the same file
+    return this.sha256(id);
+  }
+
   private userFile(userId: string): string {
-    return path.join(this.interactionsPath, `${userId}.json`);
+    return path.join(this.interactionsPath, `${this.safeFilename(userId)}.json`);
   }
   private cycleFile(cycleId: string): string {
-    return path.join(this.cyclesPath, `${cycleId}.json`);
+    return path.join(this.cyclesPath, `${this.safeFilename(cycleId)}.json`);
   }
   private readJson<T>(filePath: string, fallback: T): T {
     try {
@@ -200,7 +217,7 @@ export class LocalJSONStorage implements StorageInterface {
 
   async getOrCreateUser(walletAddress: string): Promise<string> {
     const userId = this.sha256(walletAddress).slice(0, 16);
-    const userFile = path.join(this.usersPath, `${userId}.json`);
+    const userFile = path.join(this.usersPath, `${this.safeFilename(userId)}.json`);
     if (!fs.existsSync(userFile)) {
       this.writeJson(userFile, {
         id: userId,
@@ -327,7 +344,7 @@ export class LocalJSONStorage implements StorageInterface {
     userId: string,
     amount: number
   ): Promise<Record<string, unknown>> {
-    const userFile = path.join(this.usersPath, `${userId}.json`);
+    const userFile = path.join(this.usersPath, `${this.safeFilename(userId)}.json`);
     const userData = this.readJson<Record<string, unknown>>(userFile, {
       id: userId,
       token_balance: 0,

@@ -246,6 +246,9 @@ describe("Workflow lifecycle", () => {
   });
 
   it("GET /workflows/:id/status should return running state", async () => {
+    // Wait briefly for the first async tick to complete
+    await new Promise((r) => setTimeout(r, 50));
+
     const res = await request(app).get(`/workflows/${workflowId}/status`);
 
     expect(res.status).toBe(200);
