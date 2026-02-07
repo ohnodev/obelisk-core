@@ -13,10 +13,9 @@
  */
 import {
   WorkflowData,
-  ConnectionData,
   GraphExecutionResult,
   NodeID,
-  NodeData,
+  normalizeWorkflowConnections,
 } from "../types";
 import { ExecutionEngine } from "./engine";
 import { BaseNode, ExecutionContext } from "./nodeBase";
@@ -162,6 +161,10 @@ export class WorkflowRunner {
     onTickComplete?: (result: TickResult) => void,
     onError?: (error: string) => void
   ): string {
+    // Normalise connections once at the boundary — all downstream code can
+    // rely on source_node / target_node being present.
+    normalizeWorkflowConnections(workflow);
+
     const workflowId = workflow.id ?? `workflow-${Date.now()}`;
     const userId = String(contextVariables.user_id ?? "anonymous");
 
@@ -236,8 +239,8 @@ export class WorkflowRunner {
       return workflowId;
     }
 
-    // Wire connections on the live nodes
-    for (const conn of workflow.connections) {
+    // Wire connections on the live nodes (connections already normalised)
+    for (const conn of workflow.connections ?? []) {
       const target = nodes.get(conn.target_node);
       if (!target) continue;
       if (!target.inputConnections[conn.target_input]) {
@@ -423,11 +426,9 @@ export class WorkflowRunner {
         firedAutonomousNodes.add(nodeId);
 
         // Find nodes connected to this node's outputs
-        for (const conn of state.workflow.connections) {
-          const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-          if (sourceId === String(nodeId)) {
-            const targetId = String(conn.target_node ?? conn["to"] ?? "");
-            triggeredNodes.add(targetId);
+        for (const conn of state.workflow.connections ?? []) {
+          if (conn.source_node === String(nodeId)) {
+            triggeredNodes.add(conn.target_node);
           }
         }
       }
@@ -594,9 +595,7 @@ export class WorkflowRunner {
     const adj = new Map<NodeID, Set<NodeID>>();
     for (const nid of nodes.keys()) adj.set(nid, new Set());
     for (const conn of connections) {
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      adj.get(sourceId)?.add(targetId);
+      adj.get(conn.source_node)?.add(conn.target_node);
     }
 
     const downstream = new Set(startNodes);
@@ -623,9 +622,7 @@ export class WorkflowRunner {
     const reverseAdj = new Map<NodeID, Set<NodeID>>();
     for (const nid of nodes.keys()) reverseAdj.set(nid, new Set());
     for (const conn of connections) {
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      reverseAdj.get(targetId)?.add(sourceId);
+      reverseAdj.get(conn.target_node)?.add(conn.source_node);
     }
 
     const subgraph = new Set(downstreamNodes);
@@ -657,12 +654,10 @@ export class WorkflowRunner {
     );
 
     const filteredConnections = (workflow.connections ?? []).filter((conn) => {
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      if (!subgraphNodes.has(targetId)) return false;
+      if (!subgraphNodes.has(conn.target_node)) return false;
       return (
-        subgraphNodes.has(sourceId) ||
-        autonomousSources.has(sourceId)
+        subgraphNodes.has(conn.source_node) ||
+        autonomousSources.has(conn.source_node)
       );
     });
 

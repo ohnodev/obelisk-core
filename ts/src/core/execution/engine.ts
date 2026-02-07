@@ -12,8 +12,8 @@ import {
   NodeID,
   WorkflowData,
   ConnectionData,
-  NodeData,
   GraphExecutionResult,
+  normalizeWorkflowConnections,
 } from "../types";
 import { BaseNode, ExecutionContext } from "./nodeBase";
 import { getNodeClass, registerAllNodes } from "./nodeRegistry";
@@ -50,6 +50,10 @@ export class ExecutionEngine {
     initialNodeOutputs: Record<NodeID, Record<string, unknown>> = {}
   ): Promise<GraphExecutionResult> {
     const startTime = Date.now();
+
+    // Normalise connections once at the boundary — all downstream code can
+    // rely on source_node / target_node being present.
+    normalizeWorkflowConnections(workflow);
 
     logger.info(
       `Executing workflow: ${workflow.name ?? workflow.id ?? "unknown"}`
@@ -242,22 +246,18 @@ export class ExecutionEngine {
     const nodeIds = new Set(workflow.nodes.map((n) => String(n.id)));
 
     for (const conn of workflow.connections) {
-      // Support both formats: source_node/target_node (backend) and from/to (frontend)
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-
       if (
-        !nodeIds.has(sourceId) &&
-        !externalSources.has(sourceId)
+        !nodeIds.has(conn.source_node) &&
+        !externalSources.has(conn.source_node)
       ) {
         logger.error(
-          `Connection references invalid source node: ${sourceId}`
+          `Connection references invalid source node: ${conn.source_node}`
         );
         return false;
       }
-      if (!nodeIds.has(targetId)) {
+      if (!nodeIds.has(conn.target_node)) {
         logger.error(
-          `Connection references invalid target node: ${targetId}`
+          `Connection references invalid target node: ${conn.target_node}`
         );
         return false;
       }
@@ -303,20 +303,14 @@ export class ExecutionEngine {
     connections: ConnectionData[]
   ): void {
     for (const conn of connections) {
-      // Support both formats: source_node/target_node (backend) and from/to (frontend)
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const sourceOutput = String(conn.source_output ?? conn["from_output"] ?? "default");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      const targetInput = String(conn.target_input ?? conn["to_input"] ?? "default");
-
-      const targetNode = nodeMap.get(targetId);
+      const targetNode = nodeMap.get(conn.target_node);
       if (!targetNode) continue;
-      if (!targetNode.inputConnections[targetInput]) {
-        targetNode.inputConnections[targetInput] = [];
+      if (!targetNode.inputConnections[conn.target_input]) {
+        targetNode.inputConnections[conn.target_input] = [];
       }
-      targetNode.inputConnections[targetInput].push({
-        nodeId: sourceId,
-        outputName: sourceOutput,
+      targetNode.inputConnections[conn.target_input].push({
+        nodeId: conn.source_node,
+        outputName: conn.source_output,
       });
     }
   }
@@ -334,25 +328,15 @@ export class ExecutionEngine {
     const connections = workflow.connections ?? [];
 
     // Find all connections targeting this node
-    // Support both formats: source_node/target_node (backend) and from/to (frontend)
     for (const conn of connections) {
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      if (targetId !== String(node.nodeId)) continue;
-
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const sourceOutput = String(
-        conn.source_output ?? conn["from_output"] ?? "default"
-      );
-      const targetInput = String(
-        conn.target_input ?? conn["to_input"] ?? "default"
-      );
+      if (conn.target_node !== String(node.nodeId)) continue;
 
       // Get output from source node
-      const sourceOutputs = context.nodeOutputs[String(sourceId)];
+      const sourceOutputs = context.nodeOutputs[conn.source_node];
       if (sourceOutputs) {
-        const val = sourceOutputs[String(sourceOutput)];
+        const val = sourceOutputs[conn.source_output];
         if (val !== undefined) {
-          resolved[String(targetInput)] = val;
+          resolved[conn.target_input] = val;
         }
       }
     }
@@ -417,15 +401,12 @@ export class ExecutionEngine {
     }
 
     for (const conn of connections) {
-      // Support both formats: source_node/target_node (backend) and from/to (frontend)
-      const sourceId = String(conn.source_node ?? conn["from"] ?? "");
-      const targetId = String(conn.target_node ?? conn["to"] ?? "");
-      if (!nodeMap.has(sourceId) || !nodeMap.has(targetId))
+      if (!nodeMap.has(conn.source_node) || !nodeMap.has(conn.target_node))
         continue;
       // Avoid counting duplicate edges
-      if (!adjacency[sourceId].has(targetId)) {
-        adjacency[sourceId].add(targetId);
-        inDegree[targetId]++;
+      if (!adjacency[conn.source_node].has(conn.target_node)) {
+        adjacency[conn.source_node].add(conn.target_node);
+        inDegree[conn.target_node]++;
       }
     }
 
