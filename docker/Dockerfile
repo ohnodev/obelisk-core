@@ -23,8 +23,9 @@ COPY src/ ./src/
 COPY setup.py .
 COPY README.md .
 
-# Install obelisk-core
-RUN pip install -e .
+# Install obelisk-core package (--no-deps: deps already satisfied by
+# requirements-docker.txt; avoids pulling heavy ML extras from setup.py)
+RUN pip install --no-deps -e .
 
 # Copy entrypoint
 COPY docker/entrypoint.py .

@@ -15,22 +15,52 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     python_requires=">=3.8",
+    # Lightweight runtime deps only — enough for the Docker agent container.
+    # Heavy ML/quantum deps are in extras_require["ml"] and ["quantum"].
     install_requires=[
-        "torch>=2.0.0",
-        "transformers>=4.30.0",
-        "peft>=0.4.0",
-        "qiskit>=0.45.0",
-        "qiskit-ibm-runtime>=0.12.0",
         "fastapi>=0.100.0",
         "uvicorn>=0.23.0",
+        "pydantic>=2.0.0",
+        "requests>=2.31.0",
         "langchain>=0.1.0",
         "langchain-core>=0.1.0",
         "supabase>=1.0.0",
-        "mistralai>=0.1.0",
         "python-dotenv>=1.0.0",
         "click>=8.0.0",
-        "pydantic>=2.0.0",
+        "numpy>=1.24.0",
     ],
+    extras_require={
+        # ML / inference service deps (torch, transformers, etc.)
+        "ml": [
+            "torch>=2.0.0",
+            "transformers>=4.30.0",
+            "peft>=0.4.0",
+            "accelerate>=0.20.0",
+            "bitsandbytes>=0.41.0",
+            "datasets>=2.14.0",
+        ],
+        # Quantum computing deps
+        "quantum": [
+            "qiskit>=0.45.0",
+            "qiskit-ibm-runtime>=0.12.0",
+        ],
+        # AI services (evaluation, etc.)
+        "ai": [
+            "mistralai>=0.1.0",
+        ],
+        # Everything — for local dev or the inference service host
+        "full": [
+            "torch>=2.0.0",
+            "transformers>=4.30.0",
+            "peft>=0.4.0",
+            "accelerate>=0.20.0",
+            "bitsandbytes>=0.41.0",
+            "datasets>=2.14.0",
+            "qiskit>=0.45.0",
+            "qiskit-ibm-runtime>=0.12.0",
+            "mistralai>=0.1.0",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "obelisk-core=src.cli.main:cli",

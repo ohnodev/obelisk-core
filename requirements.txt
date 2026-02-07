@@ -1,5 +1,11 @@
-# Obelisk Core Requirements
-# Core dependencies for LLM, evolution, quantum, and memory
+# Obelisk Core Requirements (FULL — for local dev & inference service host)
+# For the slim Docker agent image, use requirements-docker.txt instead.
+#
+# Editable install shortcuts:
+#   pip install -e .            # lightweight runtime only
+#   pip install -e ".[ml]"      # + torch/transformers/peft
+#   pip install -e ".[quantum]" # + qiskit
+#   pip install -e ".[full]"    # everything
 
 # PyTorch and Transformers (for LLM)
 torch>=2.0.0
