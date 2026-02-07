@@ -15,15 +15,22 @@ export interface Container {
   mode: string;
 }
 
+/** Normalize mode aliases to a canonical value. */
+function canonicalMode(raw: string): string {
+  const lower = raw.trim().toLowerCase();
+  if (lower === "prod" || lower === "production") return "prod";
+  return lower || "solo";
+}
+
 export function buildContainer(mode?: string): Container {
-  const resolvedMode = mode ?? Config.MODE;
+  const resolvedMode = canonicalMode(mode ?? Config.MODE);
 
   let storage: StorageInterface;
 
   if (resolvedMode === "prod") {
-    if (!Config.SUPABASE_URL || !Config.SUPABASE_KEY) {
+    if (!Config.validate()) {
       throw new Error(
-        "Prod mode requires SUPABASE_URL and SUPABASE_KEY env vars"
+        "Config validation failed – check SUPABASE_URL / SUPABASE_KEY and API_PORT"
       );
     }
     logger.info("Building container in PROD mode (Supabase)");
