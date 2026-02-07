@@ -91,7 +91,8 @@ class InferenceQueue:
             result = await asyncio.wait_for(future, timeout=timeout)
             return result
         except asyncio.TimeoutError:
-            logger.warning(f"Request timed out after {timeout}s")
+            future.cancel()
+            logger.warning(f"Request timed out after {timeout}s (future cancelled)")
             raise
     
     async def _worker(self):
@@ -102,6 +103,12 @@ class InferenceQueue:
             try:
                 # Wait for next request
                 request, future = await self._queue.get()
+                
+                # Skip cancelled futures (e.g. caller timed out)
+                if future.cancelled():
+                    logger.debug("Skipping cancelled request")
+                    self._queue.task_done()
+                    continue
                 
                 self._is_processing = True
                 start_time = time.time()

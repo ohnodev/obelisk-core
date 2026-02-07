@@ -12,7 +12,10 @@ class InferenceConfig:
     """Configuration for the standalone inference service"""
     
     # Server
-    HOST: str = os.getenv("INFERENCE_HOST", "0.0.0.0")
+    # Default to localhost so the service is NOT publicly exposed.
+    # Set INFERENCE_HOST=0.0.0.0 explicitly to bind to all interfaces
+    # (required for Docker / remote access).
+    HOST: str = os.getenv("INFERENCE_HOST", "127.0.0.1")
     PORT: int = int(os.getenv("INFERENCE_PORT", "7780"))
     
     # Model

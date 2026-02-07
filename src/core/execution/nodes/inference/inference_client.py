@@ -9,6 +9,7 @@ When LoRA support is needed, it will require a /v1/lora/load endpoint
 on the inference service. For now, LoRA is local-only.
 """
 import logging
+import os
 from typing import Dict, Any, Optional, List
 
 import requests
@@ -23,9 +24,14 @@ class InferenceClient:
     Nodes (InferenceNode, BinaryIntentNode, TelegramMemoryCreatorNode)
     call model.generate() — they don't care whether 'model' is an
     ObeliskLLM instance or an InferenceClient. Same interface, same return dict.
+    
+    The endpoint URL is resolved in this order:
+    1. INFERENCE_SERVICE_URL environment variable (useful for Docker containers
+       where the host is reachable at host.docker.internal instead of localhost)
+    2. Hardcoded default: http://localhost:7780
     """
     
-    DEFAULT_ENDPOINT = "http://localhost:7780"
+    DEFAULT_ENDPOINT = os.getenv("INFERENCE_SERVICE_URL", "http://localhost:7780")
     REQUEST_TIMEOUT = 120  # seconds
     
     # Quantum influence → sampling parameter mapping

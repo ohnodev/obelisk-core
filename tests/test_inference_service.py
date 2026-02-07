@@ -13,11 +13,22 @@ Usage:
     
     # Or run directly for a quick smoke test:
     python tests/test_inference_service.py
+
+    # To run via pytest (skipped by default — heavy integration tests):
+    RUN_INTEGRATION_TESTS=1 python -m pytest tests/test_inference_service.py -v
 """
 import asyncio
 import sys
 import os
 import time
+
+import pytest
+
+# Skip the entire module unless the caller explicitly opts in.
+pytestmark = pytest.mark.skipif(
+    not os.getenv("RUN_INTEGRATION_TESTS"),
+    reason="skip heavy integration tests unless RUN_INTEGRATION_TESTS is set",
+)
 
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -66,7 +77,7 @@ def test_direct_generation(model):
     
     print(f"  Query: {query}")
     print(f"  System: {system_prompt}")
-    print(f"  Thinking: enabled")
+    print("  Thinking: enabled")
     
     start = time.time()
     result = model.generate(
@@ -105,7 +116,7 @@ def test_generation_no_thinking(model):
     system_prompt = "You are a friendly assistant."
     
     print(f"  Query: {query}")
-    print(f"  Thinking: disabled")
+    print("  Thinking: disabled")
     
     start = time.time()
     result = model.generate(
@@ -187,7 +198,7 @@ def test_queue_processing(model):
                 max_tokens=64,
             )
             
-            print(f"  Submitting request...")
+            print("  Submitting request...")
             print(f"  Queue pending: {queue.pending_count}")
             
             start = time.time()

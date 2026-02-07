@@ -6,7 +6,7 @@ Usage:
     python -m src.inference.server
     
     Or with uvicorn:
-    uvicorn src.inference.server:app --host 0.0.0.0 --port 7780
+    uvicorn src.inference.server:app --host 127.0.0.1 --port 7780
 """
 import asyncio
 import logging
@@ -37,11 +37,13 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# CORS
+# CORS — allow_origins=["*"] is incompatible with allow_credentials=True
+# per the CORS spec.  Since this service is called from other backend
+# services (not browsers with cookies), credentials are not needed.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

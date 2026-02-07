@@ -2,8 +2,11 @@
 Node registry for execution engine
 Maps node type strings to node classes
 """
+import logging
 from typing import Dict, Type, Optional
-from .node_base import BaseNode
+from .node_base import BaseNode, ExecutionContext
+
+logger = logging.getLogger(__name__)
 
 # Registry mapping node type -> node class
 NODE_REGISTRY: Dict[str, Type[BaseNode]] = {}
@@ -31,6 +34,25 @@ def get_node_class(node_type: str) -> Optional[Type[BaseNode]]:
         Node class or None if not found
     """
     return NODE_REGISTRY.get(node_type)
+
+
+class _LoRALoaderStub(BaseNode):
+    """
+    Backward-compatibility stub for LoRALoaderNode.
+
+    LoRA support has been removed from the inference service.  This stub
+    allows existing workflow JSON files that reference the "lora_loader"
+    node type to still deserialize successfully.  Any attempt to *execute*
+    the node raises a clear error pointing to the migration path.
+    """
+
+    def execute(self, context: ExecutionContext) -> Dict:
+        raise NotImplementedError(
+            "LoRA loading is not supported in the current inference service. "
+            "The LoRALoaderNode has been retired.  Please remove this node "
+            "from your workflow and use the InferenceConfigNode instead.  "
+            "Remote LoRA support may be added in a future release."
+        )
 
 
 # Import and register all node types
@@ -68,9 +90,11 @@ def _register_all_nodes():
     register_node("telegram_memory_selector", TelegramMemorySelectorNode)
     register_node("binary_intent", BinaryIntentNode)
     
-    # NOTE: LoRA is not supported via the inference service yet.
-    # LoRALoaderNode is removed from registration until remote LoRA
-    # support is added to the inference service.
+    # LoRA is NOT supported via the inference service yet.
+    # Register a backward-compatible stub so existing workflow JSON files that
+    # reference "lora_loader" can still be deserialized.  The stub raises a
+    # clear error at execution time directing users to remove the node.
+    register_node("lora_loader", _LoRALoaderStub)
 
 
 # Auto-register on import

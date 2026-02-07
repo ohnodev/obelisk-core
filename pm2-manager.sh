@@ -27,7 +27,7 @@ CORE_HOST="${OBELISK_CORE_HOST:-0.0.0.0}"
 
 INFERENCE_NAME="obelisk-inference"
 INFERENCE_PORT="${INFERENCE_PORT:-7780}"
-INFERENCE_HOST="${INFERENCE_HOST:-0.0.0.0}"
+INFERENCE_HOST="${INFERENCE_HOST:-127.0.0.1}"
 
 ALL_SERVICES=("$CORE_NAME" "$INFERENCE_NAME")
 
@@ -418,7 +418,7 @@ cmd_help() {
     echo "  OBELISK_CORE_PORT    Core API port (default: 7779)"
     echo "  OBELISK_CORE_HOST    Core API host (default: 0.0.0.0)"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
-    echo "  INFERENCE_HOST       Inference service host (default: 0.0.0.0)"
+    echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
     echo ""
 }
 

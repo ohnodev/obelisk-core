@@ -114,7 +114,7 @@ class InferenceModel:
                 self.model_name,
                 quantization_config=quantization_config,
                 device_map="auto",
-                dtype=torch.float16,
+                torch_dtype=torch.float16,
                 trust_remote_code=True,
                 local_files_only=False,
             )
@@ -125,7 +125,7 @@ class InferenceModel:
             logger.warning(f"4-bit quantization unavailable ({e}), loading in float16...")
             return AutoModelForCausalLM.from_pretrained(
                 self.model_name,
-                dtype=torch.float16,
+                torch_dtype=torch.float16,
                 device_map="auto",
                 trust_remote_code=True,
                 local_files_only=False,
