@@ -34,42 +34,72 @@ pytestmark = pytest.mark.skipif(
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
-def test_model_loading():
-    """Test that the model loads successfully"""
-    print("\n" + "=" * 60)
-    print("TEST 1: Model Loading")
-    print("=" * 60)
-    
+# ---------------------------------------------------------------------------
+# Helper: load the model once (used by both the pytest fixture and the
+# manual runner at the bottom of the file)
+# ---------------------------------------------------------------------------
+
+def load_test_model():
+    """
+    Construct an InferenceModel, call load(), and return it.
+
+    Raises AssertionError if the model fails to load so the caller gets a
+    clear signal rather than a half-initialised object.
+    """
     from src.inference.model import InferenceModel
     from src.inference.config import InferenceConfig
-    
+
+    print("\n" + "=" * 60)
+    print("Loading model for tests")
+    print("=" * 60)
     print(f"  Model: {InferenceConfig.MODEL_NAME}")
-    
+
     model = InferenceModel()
     assert not model.is_loaded, "Model should not be loaded yet"
-    
+
     start = time.time()
     success = model.load()
     elapsed = time.time() - start
-    
+
     print(f"  Loaded: {success}")
     print(f"  Time: {elapsed:.2f}s")
     print(f"  Device: {model.device}")
     print(f"  Memory: ~{model.estimate_memory()}MB")
-    
+
     assert success, "Model should load successfully"
     assert model.is_loaded, "Model should be loaded"
     assert model.tokenizer is not None, "Tokenizer should be loaded"
     assert model.model is not None, "Model should be loaded"
-    
-    print("  PASSED")
+
+    print("  OK — model ready")
     return model
+
+
+# ---------------------------------------------------------------------------
+# Pytest fixture: session-scoped so the model is loaded once across all tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def model():
+    """Session-scoped fixture that loads the model once for all tests."""
+    return load_test_model()
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+def test_model_loading(model):
+    """Test that the model loads successfully (via the session fixture)"""
+    assert model.is_loaded, "Model should be loaded"
+    assert model.tokenizer is not None, "Tokenizer should be loaded"
+    assert model.model is not None, "Model weights should be loaded"
 
 
 def test_direct_generation(model):
     """Test direct generation without queue or server"""
     print("\n" + "=" * 60)
-    print("TEST 2: Direct Generation")
+    print("TEST: Direct Generation")
     print("=" * 60)
     
     query = "What is 2 + 2?"
@@ -103,13 +133,12 @@ def test_direct_generation(model):
     assert result['source'] == "inference_service", "Source should be inference_service"
     
     print("  PASSED")
-    return result
 
 
 def test_generation_no_thinking(model):
     """Test generation with thinking mode disabled"""
     print("\n" + "=" * 60)
-    print("TEST 3: Generation (no thinking)")
+    print("TEST: Generation (no thinking)")
     print("=" * 60)
     
     query = "Say hello in one sentence."
@@ -141,7 +170,7 @@ def test_generation_no_thinking(model):
 def test_generation_with_history(model):
     """Test generation with conversation history"""
     print("\n" + "=" * 60)
-    print("TEST 4: Generation with conversation history")
+    print("TEST: Generation with conversation history")
     print("=" * 60)
     
     history = [
@@ -179,7 +208,7 @@ def test_generation_with_history(model):
 def test_queue_processing(model):
     """Test the async queue"""
     print("\n" + "=" * 60)
-    print("TEST 5: Queue Processing")
+    print("TEST: Queue Processing")
     print("=" * 60)
     
     from src.inference.queue import InferenceQueue
@@ -253,7 +282,7 @@ def test_queue_processing(model):
 def test_parameter_validation(model):
     """Test that invalid parameters are clamped properly"""
     print("\n" + "=" * 60)
-    print("TEST 6: Parameter Validation")
+    print("TEST: Parameter Validation")
     print("=" * 60)
     
     # Temperature too high
@@ -285,31 +314,28 @@ def test_parameter_validation(model):
     print("  PASSED")
 
 
+# ---------------------------------------------------------------------------
+# Manual runner (python tests/test_inference_service.py)
+# ---------------------------------------------------------------------------
+
 def run_all_tests():
-    """Run all tests sequentially"""
+    """Run all tests sequentially (manual / smoke-test mode)"""
     print("=" * 60)
     print("OBELISK INFERENCE SERVICE - TEST SUITE")
     print("=" * 60)
     
     start = time.time()
     
-    # Test 1: Model loading
-    model = test_model_loading()
+    # Load model once
+    loaded_model = load_test_model()
     
-    # Test 2: Direct generation
-    test_direct_generation(model)
-    
-    # Test 3: No thinking
-    test_generation_no_thinking(model)
-    
-    # Test 4: With history
-    test_generation_with_history(model)
-    
-    # Test 5: Queue
-    test_queue_processing(model)
-    
-    # Test 6: Parameter validation
-    test_parameter_validation(model)
+    # Run tests
+    test_model_loading(loaded_model)
+    test_direct_generation(loaded_model)
+    test_generation_no_thinking(loaded_model)
+    test_generation_with_history(loaded_model)
+    test_queue_processing(loaded_model)
+    test_parameter_validation(loaded_model)
     
     elapsed = time.time() - start
     print("\n" + "=" * 60)
