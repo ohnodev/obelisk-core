@@ -241,11 +241,16 @@ class InferenceModel:
             # Validate and truncate query
             query, query_token_count = self._validate_query(query)
             
+            logger.debug(f"[GEN] Query ({query_token_count} tokens): {query[:200]}{'...' if len(query) > 200 else ''}")
+            logger.debug(f"[GEN] System prompt: {system_prompt[:200]}{'...' if len(system_prompt) > 200 else ''}")
+            
             # Clean conversation history (strip thinking tags from assistant msgs)
             history = self._clean_history(conversation_history or [])
+            logger.debug(f"[GEN] Conversation history: {len(history)} messages")
             
             # Build messages
             messages = self._build_messages(query, history, system_prompt)
+            logger.debug(f"[GEN] Total messages built: {len(messages)}")
             
             # Apply chat template
             prompt_text = self.tokenizer.apply_chat_template(
@@ -254,6 +259,7 @@ class InferenceModel:
                 add_generation_prompt=True,
                 enable_thinking=enable_thinking,
             )
+            logger.debug(f"[GEN] Prompt text length: {len(prompt_text)} chars")
             
             # Tokenize
             inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
@@ -261,7 +267,9 @@ class InferenceModel:
             
             # Check context window
             available_tokens = InferenceConfig.MAX_CONTEXT_TOKENS - input_token_count
+            logger.debug(f"[GEN] Input tokens: {input_token_count}, available: {available_tokens}")
             if available_tokens <= 0:
+                logger.warning(f"[GEN] Context window exceeded: {input_token_count} tokens")
                 return {
                     "response": "",
                     "thinking_content": "",
@@ -274,6 +282,7 @@ class InferenceModel:
                 }
             
             safe_max_tokens = min(max_tokens, available_tokens)
+            logger.debug(f"[GEN] Generating with max_tokens={safe_max_tokens}, temp={temperature}, top_p={top_p}, top_k={top_k}")
             
             # Generate
             generated_tokens = self._generate_tokens(
@@ -281,12 +290,15 @@ class InferenceModel:
                 temperature, top_p, top_k, repetition_penalty,
             )
             output_token_count = len(generated_tokens)
+            logger.debug(f"[GEN] Generated {output_token_count} tokens")
             
             # Parse thinking vs content
             thinking_content, raw_content = self._parse_thinking(generated_tokens, enable_thinking)
+            logger.debug(f"[GEN] Thinking: {len(thinking_content)} chars, Content: {len(raw_content)} chars")
             
             # Post-process
             response = self._post_process(raw_content)
+            logger.debug(f"[GEN] Post-processed response: {len(response)} chars")
             
             return {
                 "response": response,

@@ -172,6 +172,18 @@ async def inference(request: InferenceRequest, raw_request: Request):
     """
     _verify_api_key(raw_request)
     
+    # Log incoming request summary
+    client_ip = raw_request.client.host if raw_request.client else "unknown"
+    query_preview = request.query[:120] + "..." if len(request.query) > 120 else request.query
+    logger.info(
+        f"[API] Inference request from {client_ip} — "
+        f"query={len(request.query)} chars, "
+        f"history={len(request.conversation_history or [])} msgs, "
+        f"thinking={request.enable_thinking}"
+    )
+    if InferenceConfig.DEBUG:
+        logger.debug(f"[API] Query preview: {query_preview}")
+    
     if not _model or not _model.is_loaded:
         raise HTTPException(
             status_code=503,
@@ -187,11 +199,13 @@ async def inference(request: InferenceRequest, raw_request: Request):
     try:
         result = await _queue.submit(request)
     except asyncio.QueueFull:
+        logger.warning(f"[API] Queue full — rejecting request from {client_ip}")
         raise HTTPException(
             status_code=429,
             detail=f"Inference queue is full ({InferenceConfig.MAX_QUEUE_SIZE} requests pending). Try again later.",
         )
     except asyncio.TimeoutError:
+        logger.warning(f"[API] Request from {client_ip} timed out after {InferenceConfig.REQUEST_TIMEOUT}s")
         raise HTTPException(
             status_code=504,
             detail=f"Inference request timed out after {InferenceConfig.REQUEST_TIMEOUT}s.",
@@ -205,11 +219,21 @@ async def inference(request: InferenceRequest, raw_request: Request):
     
     # Check for generation errors
     if result.get("error"):
-        # Still return the response (may have partial content or error message)
-        logger.warning(f"Inference completed with error: {result['error']}")
+        logger.warning(f"[API] Inference completed with error: {result['error']}")
+    
+    # Log response summary
+    response_text = result.get("response", "")
+    response_preview = response_text[:120] + "..." if len(response_text) > 120 else response_text
+    logger.info(
+        f"[API] Response — "
+        f"{len(response_text)} chars, "
+        f"input={result.get('input_tokens', 0)} / output={result.get('output_tokens', 0)} tokens"
+    )
+    if InferenceConfig.DEBUG:
+        logger.debug(f"[API] Response preview: {response_preview}")
     
     return InferenceResponse(
-        response=result.get("response", ""),
+        response=response_text,
         thinking_content=result.get("thinking_content", ""),
         model=result.get("model", InferenceConfig.MODEL_NAME),
         input_tokens=result.get("input_tokens", 0),
