@@ -58,7 +58,6 @@ Respond with JSON only. Start with { and end with }."""
         """Execute binary intent classification"""
         message = self.get_input_value('message', context, '')
         intent_criteria_input = self.get_input_value('intent_criteria', context, '')
-        additional_context = self.get_input_value('context', context, '')
         llm = self.get_input_value('model', context, None)
         
         # Use input criteria if provided, otherwise use widget/property value
@@ -86,30 +85,25 @@ Respond with JSON only. Start with { and end with }."""
         if llm is None:
             raise ValueError("model is required for BinaryIntentNode")
         
-        # Build the query
-        query_parts = [
-            f"CRITERIA TO CHECK:\n{intent_criteria}",
-        ]
-        
-        if additional_context:
-            query_parts.append(f"\nADDITIONAL CONTEXT:\n{additional_context}")
-        
-        query_parts.append(f"\nMESSAGE TO ANALYZE:\n{message}")
-        query_parts.append("\nRespond with JSON only:")
-        
-        query = "\n".join(query_parts)
+        # Build the query — only criteria + message, no extra context.
+        # Keeping the prompt minimal reduces token usage and avoids confusing
+        # the classifier with unrelated context.
+        query = (
+            f"CRITERIA TO CHECK:\n{intent_criteria}\n\n"
+            f"MESSAGE TO ANALYZE:\n{message}\n\n"
+            f"Respond with JSON only:"
+        )
         
         try:
-            # Generate classification
-            # Budget 2048 tokens: when thinking is enabled the model can easily
-            # consume 800+ tokens reasoning before producing the JSON response.
+            # Generate classification — no thinking, fast direct JSON response.
+            # The JSON output is short (~50 tokens) so 200 is plenty without thinking.
             result = llm.generate(
                 query=query,
                 system_prompt=self.SYSTEM_PROMPT,
                 quantum_influence=0.1,  # Low influence for consistent classification
-                max_length=2048,  # Generous budget for thinking + JSON response
+                max_length=200,  # Short response — no thinking overhead
                 conversation_history=None,
-                enable_thinking=True  # Thinking improves classification accuracy
+                enable_thinking=False  # No thinking — fast, direct JSON response
             )
             
             response_text = result.get('response', '').strip()
