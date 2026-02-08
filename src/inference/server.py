@@ -13,13 +13,45 @@ import logging
 import sys
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import InferenceConfig
 from .model import InferenceModel
 from .queue import InferenceQueue
 from .types import InferenceRequest, InferenceResponse, HealthResponse, QueueStatusResponse
+
+
+def _verify_api_key(request: Request) -> None:
+    """
+    Verify the API key from the request.
+    Accepts either:
+      - Authorization: Bearer <key>
+      - X-API-Key: <key>
+    
+    If INFERENCE_API_KEY is not set, auth is disabled (local dev mode).
+    Raises HTTPException 401 if key is missing/invalid.
+    """
+    api_key = InferenceConfig.API_KEY
+    if not api_key:
+        return  # Auth disabled
+    
+    # Check Authorization: Bearer <key>
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        if token == api_key:
+            return
+    
+    # Check X-API-Key header
+    x_api_key = request.headers.get("x-api-key", "")
+    if x_api_key == api_key:
+        return
+    
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid or missing API key. Provide via 'Authorization: Bearer <key>' or 'X-API-Key: <key>' header.",
+    )
 
 # Configure logging
 log_level = logging.DEBUG if InferenceConfig.DEBUG else logging.INFO
@@ -65,6 +97,7 @@ async def startup():
     logger.info(f"  Queue:   max_size={InferenceConfig.MAX_QUEUE_SIZE}")
     logger.info(f"  CORS:    {InferenceConfig.CORS_ORIGINS}")
     logger.info(f"  Device:  {os.getenv('INFERENCE_DEVICE', 'auto (cuda > cpu)')}")
+    logger.info(f"  Auth:    {'API key required' if InferenceConfig.API_KEY else 'DISABLED (no INFERENCE_API_KEY set)'}")
     logger.info(f"  Debug:   {InferenceConfig.DEBUG}")
     logger.info("=" * 60)
     
@@ -127,13 +160,18 @@ async def queue_status():
 
 
 @app.post("/v1/inference", response_model=InferenceResponse)
-async def inference(request: InferenceRequest):
+async def inference(request: InferenceRequest, raw_request: Request):
     """
     Run inference on the model.
     
     Accepts a query + system prompt and returns the generated response.
     Requests are queued and processed one at a time.
+    
+    Requires API key when INFERENCE_API_KEY is set.
+    Send via: Authorization: Bearer <key> or X-API-Key: <key>
     """
+    _verify_api_key(raw_request)
+    
     if not _model or not _model.is_loaded:
         raise HTTPException(
             status_code=503,

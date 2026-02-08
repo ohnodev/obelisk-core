@@ -42,6 +42,11 @@ class InferenceConfig:
         ).split(",") if o.strip()
     ]
     
+    # API Key — if set, all /v1/* endpoints require this key via
+    # the Authorization header: "Bearer <key>" or X-API-Key header.
+    # Leave empty/unset to disable auth (local dev).
+    API_KEY: str = os.getenv("INFERENCE_API_KEY", "")
+    
     # Debug
     DEBUG: bool = os.getenv("INFERENCE_DEBUG", "").lower() in ("true", "1", "yes")
     

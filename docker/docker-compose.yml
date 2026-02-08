@@ -24,6 +24,9 @@ services:
       # Override from the host environment; defaults to Docker-Desktop-friendly URL.
       INFERENCE_SERVICE_URL: ${INFERENCE_SERVICE_URL:-http://host.docker.internal:7780}
 
+      # Inference API key (must match INFERENCE_API_KEY on the inference server)
+      INFERENCE_API_KEY: ${INFERENCE_API_KEY:-}
+
       # Custom variables (accessible in workflow as context.variables)
       # OBELISK_VAR_USER_ID: dev_user
 

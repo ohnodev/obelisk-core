@@ -114,7 +114,8 @@ generate_ecosystem() {
         NODE_ENV: 'production',
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',
-        OBELISK_CORE_DEBUG: '${CORE_DEBUG}',"
+        OBELISK_CORE_DEBUG: '${CORE_DEBUG}',
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
         core_max_mem="'512M'"
     else
         core_script="path.resolve(__dirname, 'venv/bin/python')"
@@ -124,7 +125,8 @@ generate_ecosystem() {
         NODE_ENV: 'production',
         PYTHONUNBUFFERED: '1',
         OBELISK_CORE_PORT: '${CORE_PORT}',
-        OBELISK_CORE_HOST: '${CORE_HOST}',"
+        OBELISK_CORE_HOST: '${CORE_HOST}',
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
         core_max_mem="'1G'"
     fi
 
@@ -169,6 +171,7 @@ module.exports = {
         PYTHONUNBUFFERED: '1',
         INFERENCE_PORT: '${INFERENCE_PORT}',
         INFERENCE_HOST: '${INFERENCE_HOST}',
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-inference.log'),
       out_file: '/dev/null',
@@ -478,6 +481,7 @@ cmd_help() {
     echo "  OBELISK_CORE_DEBUG   Enable debug logging: 'true' for full untruncated output (default: false)"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
+    echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
     echo ""
 }
 
