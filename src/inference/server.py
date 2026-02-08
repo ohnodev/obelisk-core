@@ -60,11 +60,12 @@ async def startup():
     
     logger.info("=" * 60)
     logger.info("Obelisk Inference Service starting...")
-    logger.info(f"  Model:  {InferenceConfig.MODEL_NAME}")
-    logger.info(f"  Host:   {InferenceConfig.HOST}:{InferenceConfig.PORT}")
-    logger.info(f"  Queue:  max_size={InferenceConfig.MAX_QUEUE_SIZE}")
-    logger.info(f"  CORS:   {InferenceConfig.CORS_ORIGINS}")
-    logger.info(f"  Debug:  {InferenceConfig.DEBUG}")
+    logger.info(f"  Model:   {InferenceConfig.MODEL_NAME}")
+    logger.info(f"  Host:    {InferenceConfig.HOST}:{InferenceConfig.PORT}")
+    logger.info(f"  Queue:   max_size={InferenceConfig.MAX_QUEUE_SIZE}")
+    logger.info(f"  CORS:    {InferenceConfig.CORS_ORIGINS}")
+    logger.info(f"  Device:  {os.getenv('INFERENCE_DEVICE', 'auto (cuda > cpu)')}")
+    logger.info(f"  Debug:   {InferenceConfig.DEBUG}")
     logger.info("=" * 60)
     
     # Load model
