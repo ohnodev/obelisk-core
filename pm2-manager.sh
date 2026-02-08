@@ -27,15 +27,21 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
         # Skip empty lines and comments
         [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-        # Strip inline comments and trim
-        line="${line%%#*}"
         # Parse KEY=VALUE (handles KEY=VALUE and KEY="VALUE" / KEY='VALUE')
         if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
             key="${BASH_REMATCH[1]}"
             val="${BASH_REMATCH[2]}"
-            # Strip surrounding quotes if present
-            val="${val#\"}" ; val="${val%\"}"
-            val="${val#\'}" ; val="${val%\'}"
+            # Strip surrounding quotes first, preserving # inside them
+            if [[ "$val" =~ ^\"(.*)\"(.*)$ ]]; then
+                val="${BASH_REMATCH[1]}"
+            elif [[ "$val" =~ ^\'(.*)\'(.*)$ ]]; then
+                val="${BASH_REMATCH[1]}"
+            else
+                # Unquoted value — strip inline comment (first #)
+                val="${val%%#*}"
+                # Trim trailing whitespace
+                val="${val%"${val##*[![:space:]]}"}"
+            fi
             # Only export if not already set in the environment
             if [ -z "${!key+x}" ]; then
                 export "$key=$val"
