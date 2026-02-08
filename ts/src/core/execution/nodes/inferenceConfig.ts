@@ -26,13 +26,19 @@ export class InferenceConfigNode extends BaseNode {
       resolvedUrl = endpointUrl;
     }
 
-    // Cache to reuse the same client for the same endpoint
+    // Resolve API key from metadata override or environment default
+    const apiKey =
+      (this.metadata.api_key as string) || InferenceClient.DEFAULT_API_KEY;
+
+    // Cache key includes endpoint so different URLs get separate clients.
+    // API key comes from env, so all clients for the same URL share the key.
     if (!clientCache[resolvedUrl]) {
       logger.info(
-        `InferenceConfigNode ${this.nodeId}: creating client → ${resolvedUrl}`
+        `InferenceConfigNode ${this.nodeId}: creating client → ${resolvedUrl}${apiKey ? " (with API key)" : ""}`
       );
       clientCache[resolvedUrl] = new InferenceClient({
         endpointUrl: resolvedUrl,
+        apiKey,
       });
     } else {
       logger.debug(
