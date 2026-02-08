@@ -69,11 +69,29 @@ export default function WalletButton({ fullWidth }: WalletButtonProps) {
     }
   };
 
-  const handleCopy = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
+  const handleCopy = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy address to clipboard:", err);
+      // Fallback: select text via a temporary textarea
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = address;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setCopied(false);
+      }
     }
   };
 

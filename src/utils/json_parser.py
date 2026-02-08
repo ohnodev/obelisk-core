@@ -171,10 +171,14 @@ def _try_repair_truncated_json(text: str) -> Optional[Dict[str, Any]]:
         repair += '"'
     
     # Find the last comma at brace depth 1 (top-level of the object)
+    # Track the brace depth *at* that comma so we close the correct number of
+    # braces after slicing (the final brace_depth may differ if truncation
+    # happened inside a nested object).
     scan_in_string = False
     scan_escaped = False
     scan_depth = 0
     last_top_comma = -1
+    last_top_comma_depth = 0
     for i, ch in enumerate(repair):
         if scan_escaped:
             scan_escaped = False
@@ -193,9 +197,10 @@ def _try_repair_truncated_json(text: str) -> Optional[Dict[str, Any]]:
             scan_depth -= 1
         elif ch == ',' and scan_depth == 1:
             last_top_comma = i
+            last_top_comma_depth = scan_depth
     
     if last_top_comma > 0:
-        repair = repair[:last_top_comma] + '}' * brace_depth
+        repair = repair[:last_top_comma] + '}' * last_top_comma_depth
         try:
             result = json.loads(_sanitize_json_string(repair))
             return result

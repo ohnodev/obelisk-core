@@ -189,10 +189,14 @@ function tryRepairTruncatedJson(
   }
 
   // Find the last comma at brace depth 1 (top-level of the object)
+  // Track the brace depth *at* that comma so we close the correct number of braces
+  // after slicing (the final braceDepth may differ if truncation happened inside
+  // a nested object).
   let scanInString = false;
   let scanEscaped = false;
   let scanDepth = 0;
   let lastTopComma = -1;
+  let lastTopCommaDepth = 0;
   for (let i = 0; i < repair.length; i++) {
     const ch = repair[i];
     if (scanEscaped) {
@@ -215,11 +219,12 @@ function tryRepairTruncatedJson(
       scanDepth--;
     } else if (ch === "," && scanDepth === 1) {
       lastTopComma = i;
+      lastTopCommaDepth = scanDepth;
     }
   }
 
   if (lastTopComma > 0) {
-    repair = repair.slice(0, lastTopComma) + "}".repeat(braceDepth);
+    repair = repair.slice(0, lastTopComma) + "}".repeat(lastTopCommaDepth);
     try {
       return JSON.parse(sanitizeJsonString(repair)) as Record<string, unknown>;
     } catch {

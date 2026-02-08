@@ -65,10 +65,11 @@ export default function Toolbar({
   }, []);
 
   const handleDeploy = async (name: string, envVars: Record<string, string>) => {
-    // Require wallet connection for deploy
+    // If wallet is not connected, prompt connection and return early so
+    // the modal doesn't treat this as a failed deploy.
     if (!isConnected || !address) {
       connectWallet();
-      throw new Error("Please connect your wallet to deploy an agent");
+      return;
     }
 
     const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;

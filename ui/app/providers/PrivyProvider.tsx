@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { PrivyProvider, type PrivyClientConfig } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "@privy-io/wagmi";
@@ -8,8 +8,6 @@ import { base } from 'viem/chains';
 import { wagmiConfig } from "../config/wagmi";
 import { useAccount } from 'wagmi';
 import { useWallets } from '@privy-io/react-auth';
-
-const queryClient = new QueryClient();
 
 // Component to handle automatic chain switching when wallet connects
 function ChainSwitcher() {
@@ -56,8 +54,18 @@ function ChainSwitcher() {
   return null;
 }
 
-// Privy App ID - same as the main Obelisk frontend
-const PRIVY_APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cmkjsxdjk01pnl40djrfd6or8";
+// Privy App ID — must be set via NEXT_PUBLIC_PRIVY_APP_ID env var.
+// Fail fast if missing so misconfigurations are caught immediately.
+const PRIVY_APP_ID: string = (() => {
+  const id = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+  if (!id) {
+    throw new Error(
+      "NEXT_PUBLIC_PRIVY_APP_ID is not set. " +
+      "Add it to your .env.local or hosting environment."
+    );
+  }
+  return id;
+})();
 
 // Privy configuration - wallet-only login on Base
 const privyConfig: PrivyClientConfig = {
@@ -79,6 +87,10 @@ const privyConfig: PrivyClientConfig = {
 type Props = { children: ReactNode };
 
 function OnchainProviders({ children }: Props) {
+  // Create QueryClient inside state so each SSR request gets its own instance
+  // (avoids cross-request state leakage) while the browser reuses a single one.
+  const [queryClient] = useState(() => new QueryClient());
+
   return (
     <PrivyProvider
       appId={PRIVY_APP_ID}
