@@ -171,6 +171,13 @@ function tryRepairTruncatedJson(
   // Attempt 1: Close unterminated string + close all open braces
   let repair = fragment;
   if (inString) {
+    // If the fragment ends with an odd number of trailing backslashes, the
+    // appended quote would be escaped (e.g. ...\" instead of ...").
+    // Strip one trailing backslash so the quote actually closes the string.
+    const trailingBs = repair.length - repair.replace(/\\+$/, "").length;
+    if (trailingBs % 2 === 1) {
+      repair = repair.slice(0, -1);
+    }
     repair += '"';
   }
   repair += "}".repeat(braceDepth);
@@ -185,6 +192,10 @@ function tryRepairTruncatedJson(
   // Strip back to the last top-level comma and close the object.
   repair = fragment;
   if (inString) {
+    const trailingBs = repair.length - repair.replace(/\\+$/, "").length;
+    if (trailingBs % 2 === 1) {
+      repair = repair.slice(0, -1);
+    }
     repair += '"';
   }
 

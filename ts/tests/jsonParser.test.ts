@@ -300,6 +300,21 @@ describe("Truncated JSON", () => {
     // "tru" is not valid JSON and there's no comma to fall back to
     expect(() => extractJsonFromLlmResponse('{"result": tru', "test")).toThrow();
   });
+
+  it("truncated string ending with trailing backslash", () => {
+    // Fragment ends ...\\  — naively appending " would produce \\" which
+    // escapes the quote. Repair should strip the odd trailing backslash.
+    const raw = '{"a": 1, "b": "hello\\';
+    const r = extractJsonFromLlmResponse(raw, "test");
+    expect(r.a).toBe(1);
+  });
+
+  it("truncated string ending with even backslashes", () => {
+    // Even trailing backslashes (\\\\) are fine — the quote closes normally.
+    const raw = '{"a": 1, "b": "hello\\\\';
+    const r = extractJsonFromLlmResponse(raw, "test");
+    expect(r.a).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -268,6 +268,23 @@ class TestTruncatedJson:
         with pytest.raises((ValueError, Exception)):
             extract_json_from_llm_response(raw, "test")
 
+    def test_truncated_string_ending_with_trailing_backslash(self):
+        """
+        If fragment ends mid-string with a trailing backslash, naively
+        appending '"' produces ...\\\" which escapes the quote instead of
+        closing the string. The repair should strip the odd trailing
+        backslash before appending.
+        """
+        raw = '{"a": 1, "b": "hello\\'
+        r = extract_json_from_llm_response(raw, "test")
+        assert r["a"] == 1
+
+    def test_truncated_string_ending_with_even_backslashes(self):
+        """Even trailing backslashes (\\\\) are fine — the quote closes normally."""
+        raw = '{"a": 1, "b": "hello\\\\'
+        r = extract_json_from_llm_response(raw, "test")
+        assert r["a"] == 1
+
 
 # ---------------------------------------------------------------------------
 # 9. Simulated binary intent e2e: mock responses → parser

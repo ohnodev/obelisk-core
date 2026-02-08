@@ -18,6 +18,7 @@ export default function WalletButton({ fullWidth }: WalletButtonProps) {
   const [copied, setCopied] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [chainError, setChainError] = useState<string | null>(null);
 
   const { connectWallet } = usePrivy();
   const { isConnected, address } = useAccount();
@@ -62,10 +63,16 @@ export default function WalletButton({ fullWidth }: WalletButtonProps) {
   };
 
   const handleSwitchChain = async () => {
+    setChainError(null);
     try {
       await switchChain({ chainId: base.id });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to switch chain:", err);
+      const msg =
+        err?.shortMessage || err?.message || "Unknown error switching chain";
+      setChainError(msg);
+      // Auto-clear after 6 seconds
+      setTimeout(() => setChainError(null), 6000);
     }
   };
 
@@ -176,6 +183,23 @@ export default function WalletButton({ fullWidth }: WalletButtonProps) {
                       </button>
                     )}
                   </div>
+                  {chainError && (
+                    <div
+                      style={{
+                        marginTop: "0.5rem",
+                        padding: "0.5rem 0.75rem",
+                        background: "rgba(231, 76, 60, 0.12)",
+                        border: "1px solid rgba(231, 76, 60, 0.3)",
+                        borderRadius: "4px",
+                        color: "#e74c3c",
+                        fontSize: "0.8rem",
+                        lineHeight: 1.4,
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      ⚠ {chainError}
+                    </div>
+                  )}
                 </div>
 
                 <div className="wallet-modal-divider" />

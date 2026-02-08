@@ -155,6 +155,12 @@ def _try_repair_truncated_json(text: str) -> Optional[Dict[str, Any]]:
     # Attempt 1: Close unterminated string + close all open braces
     repair = fragment
     if in_string:
+        # If fragment ends with an odd number of trailing backslashes, the
+        # appended quote would be escaped (e.g. ...\\\" instead of ...\\").
+        # Strip one trailing backslash so the quote actually closes the string.
+        trailing_bs = len(repair) - len(repair.rstrip('\\'))
+        if trailing_bs % 2 == 1:
+            repair = repair[:-1]
         repair += '"'
     repair += '}' * brace_depth
     
@@ -168,6 +174,9 @@ def _try_repair_truncated_json(text: str) -> Optional[Dict[str, Any]]:
     # Strip back to the last top-level comma and close the object.
     repair = fragment
     if in_string:
+        trailing_bs = len(repair) - len(repair.rstrip('\\'))
+        if trailing_bs % 2 == 1:
+            repair = repair[:-1]
         repair += '"'
     
     # Find the last comma at brace depth 1 (top-level of the object)
