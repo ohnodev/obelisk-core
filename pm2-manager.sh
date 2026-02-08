@@ -20,13 +20,28 @@ LOG_DIR="$SCRIPT_DIR/logs"
 ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 
 # ─── Load .env file ───────────────────────────────────────────────────
-# Source the .env file so PM2 ecosystem config can read variables like
-# INFERENCE_API_KEY, INFERENCE_SERVICE_URL, OBELISK_CORE_DEBUG, etc.
-# Only exports vars that aren't already set in the shell environment.
+# Read .env and export only variables that are NOT already set in the
+# shell environment. This ensures shell-provided values (e.g.,
+# INFERENCE_API_KEY=xxx ./pm2-manager.sh start) take precedence.
 if [ -f "$SCRIPT_DIR/.env" ]; then
-    set -a  # auto-export all sourced variables
-    source "$SCRIPT_DIR/.env"
-    set +a
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        # Strip inline comments and trim
+        line="${line%%#*}"
+        # Parse KEY=VALUE (handles KEY=VALUE and KEY="VALUE" / KEY='VALUE')
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            val="${BASH_REMATCH[2]}"
+            # Strip surrounding quotes if present
+            val="${val#\"}" ; val="${val%\"}"
+            val="${val#\'}" ; val="${val%\'}"
+            # Only export if not already set in the environment
+            if [ -z "${!key+x}" ]; then
+                export "$key=$val"
+            fi
+        fi
+    done < "$SCRIPT_DIR/.env"
 fi
 
 # ─── Service definitions ──────────────────────────────────────────────
