@@ -444,15 +444,15 @@ class TestBinaryIntentMock:
         report_path = tmp_path / "binary_intent_parse_report.json"
         report_path.write_text(json.dumps(report, indent=2, default=str))
 
-        print(f"\n{'='*60}")
-        print(f"Binary Intent Parser Report")
-        print(f"{'='*60}")
+        print("\n" + "=" * 60)
+        print("Binary Intent Parser Report")
+        print("=" * 60)
         print(f"Total test cases:  {total}")
         print(f"Passed:            {passed}")
         print(f"Repaired:          {repaired}")
         print(f"Failed:            {failed}")
         print(f"Report saved to:   {report_path}")
-        print(f"{'='*60}")
+        print("=" * 60)
 
         # Allow short truncations to fail (they cut before any valid k/v pair)
         # but everything else should parse
