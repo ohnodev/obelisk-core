@@ -419,9 +419,6 @@ export default function Toolbar({
 
   const renderRightButtons = () => (
     <>
-      {/* Wallet Button */}
-      <WalletButton fullWidth={isMobile} />
-
       <button
         onClick={handleDeployClick}
         disabled={!workflow}
@@ -602,6 +599,8 @@ export default function Toolbar({
 
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               {renderRightButtons()}
+              {/* Wallet – always rightmost */}
+              <WalletButton />
             </div>
           </>
         )}
@@ -625,6 +624,8 @@ export default function Toolbar({
               gap: "0.5rem",
             }}>
               {renderRightButtons()}
+              {/* Wallet – full-width variant for mobile */}
+              <WalletButton fullWidth />
             </div>
           </div>
         )}
