@@ -56,7 +56,6 @@ export class BinaryIntentNode extends BaseNode {
       context,
       ""
     ) as string;
-    const additionalContext = this.getInputValue("context", context, "") as string;
 
     // Use input criteria if provided, otherwise use widget/property value
     const intentCriteria =
@@ -88,30 +87,14 @@ export class BinaryIntentNode extends BaseNode {
       );
     }
 
-    // Build the query (matches Python format)
-    const queryParts = [`CRITERIA TO CHECK:\n${intentCriteria}`];
-
-    if (additionalContext) {
-      queryParts.push(
-        `\nADDITIONAL CONTEXT (for reference ONLY — do NOT use this to judge the message below):\n${additionalContext}`
-      );
-    }
-
-    queryParts.push(
-      `\nMESSAGE TO ANALYZE (apply the criteria ONLY to this message, ignore everything above):\n${message}`
-    );
-    queryParts.push("\nRespond with JSON only:");
-
-    const query = queryParts.join("\n");
+    // Build the query — only criteria + message, no extra context.
+    // Keeping the prompt minimal reduces token usage and avoids confusing
+    // the classifier with unrelated context.
+    const query = `CRITERIA TO CHECK:\n${intentCriteria}\n\nMESSAGE TO ANALYZE:\n${message}\n\nRespond with JSON only:`;
 
     // Log summary at INFO level
     logger.info(
       `[BinaryIntent ${this.nodeId}] Classifying intent for message (${message.length} chars), criteria="${intentCriteria.slice(0, 80)}..."`
-    );
-    logger.info(
-      `[BinaryIntent ${this.nodeId}] Query breakdown: criteria=${intentCriteria.length} chars, ` +
-      `additional_context=${additionalContext ? additionalContext.length : 0} chars, ` +
-      `message="${message.length > 80 ? message.slice(0, 80) + "..." : message}"`
     );
     logger.info(
       `[BinaryIntent ${this.nodeId}] Total query to LLM: ${query.length} chars`
@@ -120,22 +103,17 @@ export class BinaryIntentNode extends BaseNode {
     // DEBUG: full untruncated data (visible when OBELISK_CORE_DEBUG=true)
     logger.debug(`[BinaryIntent ${this.nodeId}] === FULL CRITERIA ===\n${intentCriteria}`);
     logger.debug(`[BinaryIntent ${this.nodeId}] === FULL MESSAGE ===\n${message}`);
-    if (additionalContext && additionalContext.length > 0) {
-      logger.debug(`[BinaryIntent ${this.nodeId}] === FULL ADDITIONAL CONTEXT ===\n${additionalContext}`);
-    }
     logger.debug(`[BinaryIntent ${this.nodeId}] === FULL QUERY TO LLM ===\n${query}`);
-    logger.debug(`[BinaryIntent ${this.nodeId}] === SYSTEM PROMPT ===\n${SYSTEM_PROMPT}`);
 
-    // Generate classification (matches Python signature)
-    // Use thinking mode so the small model can reason through the criteria
-    // instead of hallucinating matches that don't exist
+    // Generate classification — no thinking, fast direct JSON response.
+    // The JSON output is short (~50 tokens) so 200 is plenty without thinking.
     const genResult = await model.generate(
       query,
       SYSTEM_PROMPT,
       0.1, // Low quantum_influence for consistent classification
-      512, // More tokens to allow thinking + JSON response
+      200, // Short response — no thinking overhead
       null, // No conversation history
-      true  // Enable thinking so the model reasons before answering
+      false // No thinking — fast, direct JSON response
     );
 
     if (genResult.error || !genResult.response) {

@@ -103,4 +103,23 @@ p {
   }
 }
 
+/* Privy UI Customization - Match app's golden theme */
+body {
+  --privy-border-radius-sm: 2px;
+  --privy-border-radius-md: 4px;
+  --privy-border-radius-lg: 6px;
+  --privy-border-radius-full: 9999px;
+  --privy-color-accent: #d4af37;
+  --privy-color-accent-light: rgba(212, 175, 55, 0.2);
+  --privy-color-accent-dark: #b8941f;
+  --privy-color-background: #0a0a0a;
+  --privy-color-background-2: #0f1419;
+  --privy-color-foreground: #e0e8f0;
+  --privy-color-foreground-2: rgba(224, 232, 240, 0.8);
+  --privy-color-foreground-3: rgba(224, 232, 240, 0.6);
+  --privy-color-foreground-4: rgba(224, 232, 240, 0.4);
+  --privy-color-error: #ef4444;
+  --privy-color-success: #22c55e;
+}
+
 /* ComfyUI Litegraph styles - copied from ComfyUI_frontend */

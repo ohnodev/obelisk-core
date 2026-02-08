@@ -142,5 +142,9 @@ ui/out/
 ui/.open-next/
 ui/.wrangler/
 ui/.vercel
+# Allow UI config and package files (overrides *.json above)
+!ui/package.json
+!ui/package-lock.json
+!ui/tsconfig.json
 ui/.env*.local
 ui/*.tsbuildinfo

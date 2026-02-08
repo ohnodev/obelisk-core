@@ -77,6 +77,9 @@ export class TelegramListenerNode extends BaseNode {
       );
     }
 
+    // Skip all pending updates so the bot only processes NEW messages
+    await this._skipOldUpdates();
+
     // Seed timing so the first poll happens after poll_interval
     this._lastPollTime = Date.now() / 1000;
   }
@@ -133,6 +136,45 @@ export class TelegramListenerNode extends BaseNode {
   }
 
   // ── Private helpers ────────────────────────────────────────────────
+
+  /**
+   * Fast-forward past all pending Telegram updates so the bot starts
+   * fresh.  Calls getUpdates with offset=-1 to grab only the very
+   * latest update, records its update_id, and discards the message.
+   */
+  private async _skipOldUpdates(): Promise<void> {
+    if (!this._botToken) return;
+
+    try {
+      const params = new URLSearchParams({
+        offset: "-1",
+        limit: "1",
+        timeout: "0",
+      });
+
+      const res = await fetch(
+        `${API_BASE}${this._botToken}/getUpdates?${params}`,
+        { signal: AbortSignal.timeout(10_000) }
+      );
+      const json = (await res.json()) as Record<string, unknown>;
+
+      if (json.ok) {
+        const updates = (json.result as Record<string, unknown>[]) ?? [];
+        if (updates.length) {
+          this._lastUpdateId = updates[updates.length - 1].update_id as number;
+          logger.info(
+            `[TelegramListener] Skipped old updates, starting after update_id=${this._lastUpdateId}`
+          );
+        } else {
+          logger.info("[TelegramListener] No pending updates, starting fresh");
+        }
+      }
+    } catch (err) {
+      logger.error(
+        `[TelegramListener] Failed to skip old updates: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  }
 
   private _emitNextMessage(): Record<string, unknown> | null {
     if (!this._pendingMessages.length) return null;

@@ -1,6 +1,7 @@
 /**
  * JSON parsing utilities for extracting JSON from LLM responses.
- * Handles markdown code blocks, thinking blocks, and common LLM mistakes.
+ * Handles markdown code blocks, thinking blocks, truncated JSON, and
+ * common LLM mistakes.
  * Mirrors Python src/utils/json_parser.py
  */
 import { getLogger } from "./logger";
@@ -14,6 +15,7 @@ const logger = getLogger("jsonParser");
  * - Markdown code blocks (```json ... ``` or ``` ... ```)
  * - Thinking blocks (<think>...</think>)
  * - Extra text before/after JSON
+ * - Truncated JSON (from token limit cuts)
  */
 export function extractJsonFromLlmResponse(
   response: string,
@@ -91,12 +93,157 @@ export function extractJsonFromLlmResponse(
   // Strategy 2: Try parsing the whole cleaned response
   try {
     return JSON.parse(sanitizeJsonString(text));
-  } catch (e) {
-    logger.error(
-      `Failed to parse JSON from ${context} (full text): ${text.slice(0, 200)}`
-    );
-    throw new Error(`Invalid JSON in ${context} response: ${e}`);
+  } catch {
+    // fall through to repair
   }
+
+  // Strategy 3: Try to repair truncated JSON (token limit may have cut off the response)
+  const repaired = tryRepairTruncatedJson(text);
+  if (repaired !== null) {
+    logger.warning(
+      `Repaired truncated JSON from ${context} — response was likely cut off by token limit. ` +
+        `Recovered keys: ${Object.keys(repaired).join(", ")}`
+    );
+    return repaired;
+  }
+
+  // All strategies failed
+  logger.error(
+    `Failed to parse JSON from ${context} (full text): ${text.slice(0, 200)}`
+  );
+  throw new Error(
+    `Cannot extract valid JSON from ${context} response (text was ${text.length} chars)`
+  );
+}
+
+/**
+ * Attempt to repair truncated JSON that was cut off by token limits.
+ *
+ * When thinking mode uses most of the token budget, the actual JSON response
+ * can be truncated mid-string, e.g.:
+ *   {"result": true, "confidence": "high", "reasoning": "Message directly addresses the bot by
+ *
+ * This function tries to close unterminated strings and missing braces to
+ * recover as much data as possible.
+ *
+ * @returns Parsed object if repair succeeds, null otherwise
+ */
+function tryRepairTruncatedJson(
+  text: string
+): Record<string, unknown> | null {
+  const jsonStart = text.indexOf("{");
+  if (jsonStart < 0) return null;
+
+  const fragment = text.slice(jsonStart);
+
+  // Walk through tracking parser state
+  let inString = false;
+  let escaped = false;
+  let braceDepth = 0;
+
+  for (const ch of fragment) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{") {
+      braceDepth++;
+    } else if (ch === "}") {
+      braceDepth--;
+      if (braceDepth === 0) {
+        return null; // JSON looks complete — repair won't help
+      }
+    }
+  }
+
+  // JSON is truncated (braceDepth > 0). Try multiple repair strategies.
+
+  // Attempt 1: Close unterminated string + close all open braces
+  let repair = fragment;
+  if (inString) {
+    // If the fragment ends with an odd number of trailing backslashes, the
+    // appended quote would be escaped (e.g. ...\" instead of ...").
+    // Strip one trailing backslash so the quote actually closes the string.
+    const trailingBs = repair.length - repair.replace(/\\+$/, "").length;
+    if (trailingBs % 2 === 1) {
+      repair = repair.slice(0, -1);
+    }
+    repair += '"';
+  }
+  repair += "}".repeat(braceDepth);
+
+  try {
+    return JSON.parse(sanitizeJsonString(repair)) as Record<string, unknown>;
+  } catch {
+    // fall through
+  }
+
+  // Attempt 2: The truncation may have left an incomplete key-value pair.
+  // Strip back to the last top-level comma and close the object.
+  repair = fragment;
+  if (inString) {
+    const trailingBs = repair.length - repair.replace(/\\+$/, "").length;
+    if (trailingBs % 2 === 1) {
+      repair = repair.slice(0, -1);
+    }
+    repair += '"';
+  }
+
+  // Find the last comma at brace depth 1 (top-level of the object)
+  // Track the brace depth *at* that comma so we close the correct number of braces
+  // after slicing (the final braceDepth may differ if truncation happened inside
+  // a nested object).
+  let scanInString = false;
+  let scanEscaped = false;
+  let scanDepth = 0;
+  let lastTopComma = -1;
+  let lastTopCommaDepth = 0;
+  for (let i = 0; i < repair.length; i++) {
+    const ch = repair[i];
+    if (scanEscaped) {
+      scanEscaped = false;
+      continue;
+    }
+    if (scanInString) {
+      if (ch === "\\") {
+        scanEscaped = true;
+      } else if (ch === '"') {
+        scanInString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      scanInString = true;
+    } else if (ch === "{") {
+      scanDepth++;
+    } else if (ch === "}") {
+      scanDepth--;
+    } else if (ch === "," && scanDepth === 1) {
+      lastTopComma = i;
+      lastTopCommaDepth = scanDepth;
+    }
+  }
+
+  if (lastTopComma > 0) {
+    repair = repair.slice(0, lastTopComma) + "}".repeat(lastTopCommaDepth);
+    try {
+      return JSON.parse(sanitizeJsonString(repair)) as Record<string, unknown>;
+    } catch {
+      // fall through
+    }
+  }
+
+  return null;
 }
 
 /**
