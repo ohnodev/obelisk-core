@@ -12,14 +12,18 @@ const logger = getLogger("inferenceClient");
 
 export interface InferenceClientOptions {
   endpointUrl?: string;
+  apiKey?: string;
   timeout?: number;
 }
 
 export class InferenceClient {
   static readonly DEFAULT_ENDPOINT =
     process.env.INFERENCE_SERVICE_URL || "http://localhost:7780";
+  static readonly DEFAULT_API_KEY =
+    process.env.INFERENCE_API_KEY || "";
 
   readonly endpointUrl: string;
+  private readonly apiKey: string;
   private readonly timeout: number;
 
   // Quantum influence → sampling parameter mapping (mirrors Python)
@@ -33,6 +37,8 @@ export class InferenceClient {
   constructor(opts?: InferenceClientOptions) {
     this.endpointUrl =
       opts?.endpointUrl || InferenceClient.DEFAULT_ENDPOINT;
+    this.apiKey =
+      opts?.apiKey || InferenceClient.DEFAULT_API_KEY;
     this.timeout = opts?.timeout || 120_000;
   }
 
@@ -93,9 +99,15 @@ export class InferenceClient {
       timer = setTimeout(() => controller!.abort(), this.timeout);
 
       const startTime = Date.now();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (this.apiKey) {
+        headers["Authorization"] = `Bearer ${this.apiKey}`;
+      }
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
         signal: controller.signal,
       });
