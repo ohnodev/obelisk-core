@@ -101,13 +101,15 @@ Respond with JSON only. Start with { and end with }."""
         
         try:
             # Generate classification
+            # Budget 2048 tokens: when thinking is enabled the model can easily
+            # consume 800+ tokens reasoning before producing the JSON response.
             result = llm.generate(
                 query=query,
                 system_prompt=self.SYSTEM_PROMPT,
                 quantum_influence=0.1,  # Low influence for consistent classification
-                max_length=200,  # Short response needed
+                max_length=2048,  # Generous budget for thinking + JSON response
                 conversation_history=None,
-                enable_thinking=False  # Fast, direct response
+                enable_thinking=True  # Thinking improves classification accuracy
             )
             
             response_text = result.get('response', '').strip()

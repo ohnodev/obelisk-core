@@ -128,12 +128,14 @@ export class BinaryIntentNode extends BaseNode {
 
     // Generate classification (matches Python signature)
     // Use thinking mode so the small model can reason through the criteria
-    // instead of hallucinating matches that don't exist
+    // instead of hallucinating matches that don't exist.
+    // Budget 2048 tokens: thinking can easily consume 800+ tokens, leaving
+    // insufficient room for the JSON response if the budget is too small.
     const genResult = await model.generate(
       query,
       SYSTEM_PROMPT,
       0.1, // Low quantum_influence for consistent classification
-      512, // More tokens to allow thinking + JSON response
+      2048, // Generous budget — thinking can use 800+ tokens before the JSON response
       null, // No conversation history
       true  // Enable thinking so the model reasons before answering
     );
