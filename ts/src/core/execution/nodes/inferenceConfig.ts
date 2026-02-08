@@ -30,13 +30,14 @@ export class InferenceConfigNode extends BaseNode {
     const apiKey =
       (this.metadata.api_key as string) ?? InferenceClient.DEFAULT_API_KEY;
 
-    // Cache key includes endpoint so different URLs get separate clients.
-    // API key comes from env, so all clients for the same URL share the key.
-    if (!clientCache[resolvedUrl]) {
+    // Cache key includes both endpoint and API key so different
+    // credentials produce distinct client instances.
+    const cacheKey = `${resolvedUrl}::${apiKey}`;
+    if (!clientCache[cacheKey]) {
       logger.info(
         `InferenceConfigNode ${this.nodeId}: creating client → ${resolvedUrl}${apiKey ? " (with API key)" : ""}`
       );
-      clientCache[resolvedUrl] = new InferenceClient({
+      clientCache[cacheKey] = new InferenceClient({
         endpointUrl: resolvedUrl,
         apiKey,
       });
@@ -46,6 +47,6 @@ export class InferenceConfigNode extends BaseNode {
       );
     }
 
-    return { model: clientCache[resolvedUrl] };
+    return { model: clientCache[cacheKey] };
   }
 }
