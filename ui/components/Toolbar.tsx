@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useAccount } from "wagmi";
+import { usePrivy } from "@privy-io/react-auth";
 import { WorkflowGraph } from "@/lib/litegraph";
 import { updateNodeOutputs } from "@/lib/workflow-execution";
 import { getApiUrls } from "@/lib/api-config";
-import { getUserId } from "@/lib/user-id";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
 import LoadIcon from "./icons/LoadIcon";
@@ -13,6 +14,7 @@ import DeployIcon from "./icons/DeployIcon";
 import AgentsIcon from "./icons/AgentsIcon";
 import HamburgerIcon from "./icons/HamburgerIcon";
 import DeployModal from "./DeployModal";
+import WalletButton from "./WalletButton";
 import { useNotifications } from "./Notification";
 
 // Single breakpoint for responsive design
@@ -43,6 +45,10 @@ export default function Toolbar({
   const lastResultsVersionRef = useRef<number>(0);
   const { showNotification, NotificationProvider } = useNotifications();
 
+  // Wallet auth
+  const { isConnected, address } = useAccount();
+  const { connectWallet } = usePrivy();
+
   // Check if mobile on mount and resize
   useEffect(() => {
     const checkMobile = () => {
@@ -59,6 +65,12 @@ export default function Toolbar({
   }, []);
 
   const handleDeploy = async (name: string, envVars: Record<string, string>) => {
+    // Require wallet connection for deploy
+    if (!isConnected || !address) {
+      connectWallet();
+      throw new Error("Please connect your wallet to deploy an agent");
+    }
+
     const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
     if (!serializeWorkflow) {
       throw new Error("Workflow serializer not available");
@@ -75,7 +87,7 @@ export default function Toolbar({
       body: JSON.stringify({
         workflow: currentWorkflow,
         name,
-        user_id: getUserId(),
+        user_id: address.toLowerCase(), // Use wallet address as user_id
         env_vars: envVars,
       }),
     });
@@ -87,6 +99,17 @@ export default function Toolbar({
 
     const result = await response.json();
     showNotification(`Agent deployed successfully! ID: ${result.agent_id}`, "success", 6000);
+  };
+
+  const handleDeployClick = () => {
+    if (!isConnected || !address) {
+      // Prompt wallet connection first
+      connectWallet();
+      showNotification("Connect your wallet to deploy agents", "info", 3000);
+      return;
+    }
+    setShowDeployModal(true);
+    setIsMobileMenuOpen(false);
   };
 
   const handleExecute = async () => {
@@ -251,7 +274,7 @@ export default function Toolbar({
           body: JSON.stringify({
             workflow: currentWorkflow,
             options: {
-              user_id: getUserId(),
+              user_id: address?.toLowerCase() || "anonymous",
             },
           }),
         });
@@ -395,8 +418,11 @@ export default function Toolbar({
 
   const renderRightButtons = () => (
     <>
+      {/* Wallet Button */}
+      <WalletButton fullWidth={isMobile} />
+
       <button
-        onClick={() => { setShowDeployModal(true); setIsMobileMenuOpen(false); }}
+        onClick={handleDeployClick}
         disabled={!workflow}
         style={{
           display: "flex",
@@ -417,7 +443,7 @@ export default function Toolbar({
           width: isMobile ? "100%" : "auto",
           justifyContent: isMobile ? "flex-start" : "center",
         }}
-        title="Deploy workflow as persistent agent"
+        title={!isConnected ? "Connect wallet to deploy" : "Deploy workflow as persistent agent"}
       >
         <DeployIcon />
         <span>Deploy</span>
@@ -624,6 +650,7 @@ export default function Toolbar({
         onClose={() => setShowDeployModal(false)}
         onDeploy={handleDeploy}
         workflowName={workflow?.name}
+        walletAddress={address}
       />
 
       {/* Notifications */}

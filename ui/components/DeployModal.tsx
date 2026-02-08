@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { formatAddress } from "@/lib/wallet";
 
 interface DeployModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDeploy: (name: string, envVars: Record<string, string>) => Promise<void>;
   workflowName?: string;
+  walletAddress?: string;
 }
 
-export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }: DeployModalProps) {
+export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, walletAddress }: DeployModalProps) {
   const [name, setName] = useState(workflowName || "My Agent");
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([
     { key: "", value: "" }
@@ -133,6 +135,27 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName }:
         <p style={{ color: "var(--color-text-muted, #888)", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
           Deploy this workflow as a persistent Docker container that runs autonomously.
         </p>
+
+        {/* Connected wallet info */}
+        {walletAddress && (
+          <div style={{
+            marginBottom: "1rem",
+            padding: "0.75rem",
+            background: "rgba(212, 175, 55, 0.05)",
+            border: "1px solid rgba(212, 175, 55, 0.2)",
+            borderRadius: "4px",
+          }}>
+            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted, #888)", marginBottom: "0.25rem" }}>
+              Deploying as
+            </div>
+            <div style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "#d4af37" }}>
+              {formatAddress(walletAddress)}
+            </div>
+            <div style={{ fontSize: "0.7rem", color: "var(--color-text-muted, #666)", marginTop: "0.25rem" }}>
+              Only you can manage this agent after deployment
+            </div>
+          </div>
+        )}
 
         {/* Agent Name */}
         <div style={{ marginBottom: "1rem" }}>

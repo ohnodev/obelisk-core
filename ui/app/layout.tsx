@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./styles/fonts.css";
+import { PrivyProvider } from "./providers/PrivyProvider";
 
 const siteUrl = "https://build.theobelisk.ai";
 const ogImageUrl = `${siteUrl}/build-og-image.jpg`;
@@ -74,7 +75,9 @@ export default function RootLayout({
         <script src="/lib/litegraph-widgets/touch-handler.js"></script>
       </head>
       <body>
-        {children}
+        <PrivyProvider>
+          {children}
+        </PrivyProvider>
       </body>
     </html>
   );

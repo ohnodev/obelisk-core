@@ -1,0 +1,295 @@
+/* Wallet Button - Builder Toolbar Integration */
+
+.wallet-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-button-secondary-bg);
+  color: var(--color-text-secondary);
+}
+
+.wallet-btn:hover {
+  background: var(--color-button-primary-bg-hover);
+  border-color: var(--color-border-hover);
+}
+
+.wallet-btn-connected {
+  border-color: rgba(212, 175, 55, 0.3);
+  background: rgba(212, 175, 55, 0.08);
+  color: #d4af37;
+  font-family: monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.wallet-btn-connected:hover {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: rgba(212, 175, 55, 0.5);
+}
+
+.wallet-btn-loading {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Wallet status dot */
+.wallet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wallet-dot-connected {
+  background: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+}
+
+.wallet-dot-disconnected {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Wallet Modal Overlay */
+.wallet-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: walletFadeIn 0.2s ease;
+}
+
+/* Ensure Privy modal appears above our wallet modal */
+#privy-dialog,
+[data-privy-dialog],
+.privy-dialog,
+[class*="privy"] {
+  z-index: 10100 !important;
+}
+
+@keyframes walletFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.wallet-modal {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.98), rgba(15, 15, 15, 0.98));
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 380px;
+  max-height: 90dvh;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: walletSlideUp 0.3s ease;
+}
+
+@keyframes walletSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wallet-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  flex-shrink: 0;
+}
+
+.wallet-modal-title {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: #d4af37;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.wallet-modal-close {
+  background: transparent;
+  border: none;
+  color: rgba(212, 175, 55, 0.7);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.wallet-modal-close:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: #d4af37;
+}
+
+.wallet-modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.wallet-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.wallet-modal-label {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: rgba(212, 175, 55, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
+}
+
+.wallet-address-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  background: rgba(212, 175, 55, 0.05);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 4px;
+}
+
+.wallet-address-text {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #d4af37;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wallet-copy-btn {
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  color: rgba(212, 175, 55, 0.7);
+}
+
+.wallet-copy-btn:hover {
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+}
+
+.wallet-modal-divider {
+  height: 1px;
+  background: rgba(212, 175, 55, 0.15);
+  margin: 0.25rem 0;
+  flex-shrink: 0;
+}
+
+.wallet-disconnect-btn {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  padding: 0.625rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-weight: 500;
+}
+
+.wallet-disconnect-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.wallet-connect-modal-btn {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.1));
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  border-radius: 4px;
+  color: #d4af37;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.wallet-connect-modal-btn:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.2));
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+}
+
+/* Chain badge */
+.wallet-chain-badge {
+  font-size: 0.8rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 4px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.wallet-chain-badge.chain-ok {
+  background: rgba(0, 82, 255, 0.15);
+  color: #4d8bff;
+  border: 1px solid rgba(0, 82, 255, 0.25);
+}
+
+.wallet-chain-badge.chain-wrong {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.wallet-switch-btn {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.625rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wallet-switch-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
