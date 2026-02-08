@@ -19,6 +19,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 
+# ─── Load .env file ───────────────────────────────────────────────────
+# Read .env and export only variables that are NOT already set in the
+# shell environment. This ensures shell-provided values (e.g.,
+# INFERENCE_API_KEY=xxx ./pm2-manager.sh start) take precedence.
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        # Parse KEY=VALUE (handles KEY=VALUE and KEY="VALUE" / KEY='VALUE')
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
+            key="${BASH_REMATCH[1]}"
+            val="${BASH_REMATCH[2]}"
+            # Strip surrounding quotes first, preserving # inside them
+            if [[ "$val" =~ ^\"(.*)\"(.*)$ ]]; then
+                val="${BASH_REMATCH[1]}"
+            elif [[ "$val" =~ ^\'(.*)\'(.*)$ ]]; then
+                val="${BASH_REMATCH[1]}"
+            else
+                # Unquoted value — strip inline comment (first #)
+                val="${val%%#*}"
+                # Trim trailing whitespace
+                val="${val%"${val##*[![:space:]]}"}"
+            fi
+            # Only export if not already set in the environment
+            if [ -z "${!key+x}" ]; then
+                export "$key=$val"
+            fi
+        fi
+    done < "$SCRIPT_DIR/.env"
+fi
+
 # ─── Service definitions ──────────────────────────────────────────────
 # Each service: PM2_NAME  PORT  HOST  MODULE
 #
@@ -115,7 +146,8 @@ generate_ecosystem() {
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',
         OBELISK_CORE_DEBUG: '${CORE_DEBUG}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
+        INFERENCE_SERVICE_URL: process.env.INFERENCE_SERVICE_URL || 'http://localhost:7780',"
         core_max_mem="'512M'"
     else
         core_script="path.resolve(__dirname, 'venv/bin/python')"
@@ -126,7 +158,8 @@ generate_ecosystem() {
         PYTHONUNBUFFERED: '1',
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
+        INFERENCE_SERVICE_URL: process.env.INFERENCE_SERVICE_URL || 'http://localhost:7780',"
         core_max_mem="'1G'"
     fi
 
@@ -481,6 +514,7 @@ cmd_help() {
     echo "  OBELISK_CORE_DEBUG   Enable debug logging: 'true' for full untruncated output (default: false)"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
+    echo "  INFERENCE_SERVICE_URL Inference endpoint URL (default: http://localhost:7780)"
     echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
     echo ""
 }
