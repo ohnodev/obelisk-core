@@ -19,6 +19,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 
+# ─── Load .env file ───────────────────────────────────────────────────
+# Source the .env file so PM2 ecosystem config can read variables like
+# INFERENCE_API_KEY, INFERENCE_SERVICE_URL, OBELISK_CORE_DEBUG, etc.
+# Only exports vars that aren't already set in the shell environment.
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a  # auto-export all sourced variables
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+
 # ─── Service definitions ──────────────────────────────────────────────
 # Each service: PM2_NAME  PORT  HOST  MODULE
 #
