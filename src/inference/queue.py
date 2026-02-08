@@ -6,6 +6,7 @@ The model can only process one request at a time, so we serialize access.
 import asyncio
 import logging
 import time
+import uuid
 from typing import Dict, Any, Optional
 
 from .config import InferenceConfig
@@ -13,6 +14,9 @@ from .model import InferenceModel
 from .types import InferenceRequest
 
 logger = logging.getLogger("inference_service.queue")
+
+# Separate debug logger for verbose input/output tracing
+_debug = InferenceConfig.DEBUG
 
 
 class InferenceQueue:
@@ -112,6 +116,18 @@ class InferenceQueue:
                 
                 self._is_processing = True
                 start_time = time.time()
+                req_id = uuid.uuid4().hex[:8]
+                
+                # --- Log incoming request ---
+                logger.info(
+                    f"[{req_id}] Processing request "
+                    f"(queue_size={self._queue.qsize()}, "
+                    f"enable_thinking={request.enable_thinking}, "
+                    f"max_tokens={request.max_tokens}, "
+                    f"temp={request.temperature})"
+                )
+                if _debug:
+                    _log_request_detail(req_id, request)
                 
                 try:
                     # Run inference in a thread to not block the event loop
@@ -122,11 +138,20 @@ class InferenceQueue:
                     )
                     
                     elapsed = time.time() - start_time
+                    input_tok = result.get('input_tokens', 0)
+                    output_tok = result.get('output_tokens', 0)
+                    tok_per_sec = output_tok / elapsed if elapsed > 0 else 0
+                    
                     logger.info(
-                        f"Request processed in {elapsed:.2f}s "
-                        f"(input={result.get('input_tokens', 0)}, "
-                        f"output={result.get('output_tokens', 0)} tokens)"
+                        f"[{req_id}] Completed in {elapsed:.2f}s "
+                        f"(input={input_tok}, output={output_tok} tokens, "
+                        f"{tok_per_sec:.1f} tok/s)"
                     )
+                    if _debug:
+                        _log_response_detail(req_id, result)
+                    
+                    if result.get("error"):
+                        logger.warning(f"[{req_id}] Generation returned error: {result['error']}")
                     
                     # Deliver result to caller
                     if not future.cancelled():
@@ -135,7 +160,8 @@ class InferenceQueue:
                     self._total_processed += 1
                     
                 except Exception as e:
-                    logger.exception("Error processing inference request")
+                    elapsed = time.time() - start_time
+                    logger.exception(f"[{req_id}] Error processing inference request after {elapsed:.2f}s")
                     if not future.cancelled():
                         future.set_result({
                             "response": "",
@@ -194,3 +220,55 @@ class InferenceQueue:
     def total_processed(self) -> int:
         """Total number of requests processed since start"""
         return self._total_processed
+
+
+# ---------------------------------------------------------------------------
+# Detailed debug helpers (only called when DEBUG=true)
+# ---------------------------------------------------------------------------
+
+def _truncate(text: str, max_len: int = 500) -> str:
+    """Truncate text for logging, adding ellipsis if cut."""
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + f"... ({len(text)} chars total)"
+
+
+def _log_request_detail(req_id: str, request: InferenceRequest) -> None:
+    """Log full request details at DEBUG level."""
+    logger.debug(f"[{req_id}] === INCOMING REQUEST ===")
+    logger.debug(f"[{req_id}]   system_prompt : {_truncate(request.system_prompt, 300)}")
+    logger.debug(f"[{req_id}]   query         : {_truncate(request.query, 500)}")
+    if request.conversation_history:
+        logger.debug(f"[{req_id}]   history_msgs  : {len(request.conversation_history)}")
+        for i, msg in enumerate(request.conversation_history[-3:]):  # last 3 messages
+            role = msg.get("role", "?")
+            content = _truncate(msg.get("content", ""), 200)
+            logger.debug(f"[{req_id}]     [{i}] {role}: {content}")
+    else:
+        logger.debug(f"[{req_id}]   history_msgs  : 0")
+    logger.debug(
+        f"[{req_id}]   params: temp={request.temperature}, "
+        f"top_p={request.top_p}, top_k={request.top_k}, "
+        f"rep_penalty={request.repetition_penalty}, "
+        f"max_tokens={request.max_tokens}, "
+        f"thinking={request.enable_thinking}"
+    )
+
+
+def _log_response_detail(req_id: str, result: Dict[str, Any]) -> None:
+    """Log full response details at DEBUG level."""
+    logger.debug(f"[{req_id}] === OUTGOING RESPONSE ===")
+    response_text = result.get("response", "")
+    thinking_text = result.get("thinking_content", "")
+    logger.debug(f"[{req_id}]   response      : {_truncate(response_text, 500)}")
+    if thinking_text:
+        logger.debug(f"[{req_id}]   thinking      : {_truncate(thinking_text, 300)}")
+    logger.debug(
+        f"[{req_id}]   tokens: input={result.get('input_tokens', 0)}, "
+        f"output={result.get('output_tokens', 0)}"
+    )
+    gen_params = result.get("generation_params", {})
+    if gen_params:
+        logger.debug(f"[{req_id}]   gen_params    : {gen_params}")
+    if result.get("error"):
+        logger.debug(f"[{req_id}]   error         : {result['error']}")
