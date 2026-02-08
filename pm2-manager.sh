@@ -115,7 +115,8 @@ generate_ecosystem() {
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',
         OBELISK_CORE_DEBUG: '${CORE_DEBUG}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
+        INFERENCE_SERVICE_URL: process.env.INFERENCE_SERVICE_URL || 'http://localhost:7780',"
         core_max_mem="'512M'"
     else
         core_script="path.resolve(__dirname, 'venv/bin/python')"
@@ -126,7 +127,8 @@ generate_ecosystem() {
         PYTHONUNBUFFERED: '1',
         OBELISK_CORE_PORT: '${CORE_PORT}',
         OBELISK_CORE_HOST: '${CORE_HOST}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',"
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
+        INFERENCE_SERVICE_URL: process.env.INFERENCE_SERVICE_URL || 'http://localhost:7780',"
         core_max_mem="'1G'"
     fi
 
@@ -481,6 +483,7 @@ cmd_help() {
     echo "  OBELISK_CORE_DEBUG   Enable debug logging: 'true' for full untruncated output (default: false)"
     echo "  INFERENCE_PORT       Inference service port (default: 7780)"
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
+    echo "  INFERENCE_SERVICE_URL Inference endpoint URL (default: http://localhost:7780)"
     echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
     echo ""
 }
