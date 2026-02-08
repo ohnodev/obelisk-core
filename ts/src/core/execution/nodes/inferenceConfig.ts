@@ -28,7 +28,7 @@ export class InferenceConfigNode extends BaseNode {
 
     // Resolve API key from metadata override or environment default
     const apiKey =
-      (this.metadata.api_key as string) || InferenceClient.DEFAULT_API_KEY;
+      (this.metadata.api_key as string) ?? InferenceClient.DEFAULT_API_KEY;
 
     // Cache key includes endpoint so different URLs get separate clients.
     // API key comes from env, so all clients for the same URL share the key.
