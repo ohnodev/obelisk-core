@@ -419,7 +419,7 @@ class TestBinaryIntentMock:
                         if variant.startswith("truncated"):
                             repaired += 1
                         passed += 1
-                    except Exception as e:
+                    except ValueError as e:
                         entry["parsed"] = False
                         entry["error"] = str(e)[:200]
                         # Short truncations are expected to fail
@@ -582,7 +582,7 @@ class TestFuzz:
                 # If we recovered, result should be True (it's always first)
                 if "result" in r:
                     assert r["result"] is True
-            except (ValueError, Exception):
+            except ValueError:
                 raised += 1
 
         print(f"\n[Fuzz] Full length={len(full)}: recovered={recovered}, raised={raised}")
