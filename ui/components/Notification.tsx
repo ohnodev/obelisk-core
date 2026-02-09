@@ -210,13 +210,21 @@ function NotificationContainer({
 // Hook for managing notifications
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const lastShownRef = useRef<{ message: string; time: number }>({ message: "", time: 0 });
 
   const showNotification = (
     message: string,
     type: NotificationType = "info",
     duration: number = 5000
   ) => {
-    const id = `notification-${Date.now()}-${Math.random()}`;
+    // Deduplicate: ignore if same message was shown within 1 second
+    const now = Date.now();
+    if (lastShownRef.current.message === message && now - lastShownRef.current.time < 1000) {
+      return "";
+    }
+    lastShownRef.current = { message, time: now };
+
+    const id = `notification-${now}-${Math.random()}`;
     const notification: Notification = {
       id,
       type,
