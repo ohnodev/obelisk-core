@@ -15,8 +15,8 @@ class RerouteNode extends LGraphNode {
     super();
     this.title = "Reroute";
 
-    this.addInput("", "*");
-    this.addOutput("", "*");
+    this.addInput("in", "*");
+    this.addOutput("out", "*");
 
     this.size = [75, 26];
     (this as any).type = "reroute";

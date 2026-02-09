@@ -342,17 +342,17 @@
       "from": "12",
       "from_output": "chat_id",
       "to": "20",
-      "to_input": ""
+      "to_input": "in"
     },
     {
       "from": "20",
-      "from_output": "",
+      "from_output": "out",
       "to": "22",
-      "to_input": ""
+      "to_input": "in"
     },
     {
       "from": "22",
-      "from_output": "",
+      "from_output": "out",
       "to": "10",
       "to_input": "chat_id"
     },
@@ -360,17 +360,17 @@
       "from": "12",
       "from_output": "message_id",
       "to": "21",
-      "to_input": ""
+      "to_input": "in"
     },
     {
       "from": "21",
-      "from_output": "",
+      "from_output": "out",
       "to": "23",
-      "to_input": ""
+      "to_input": "in"
     },
     {
       "from": "23",
-      "from_output": "",
+      "from_output": "out",
       "to": "10",
       "to_input": "message_id"
     }

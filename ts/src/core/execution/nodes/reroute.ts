@@ -20,21 +20,12 @@ export class RerouteNode extends BaseNode {
     // any key that upstream might connect.
     const outputs: Record<string, unknown> = {};
 
-    // Try all known input connection names
-    for (const inputName of Object.keys(this.inputConnections)) {
-      const value = this.getInputValue(inputName, context, null);
-      outputs[inputName] = value;
-      logger.debug(
-        `[Reroute ${this.nodeId}] Forwarding input '${inputName}' → output`
-      );
-    }
+    // Forward the "in" input to the "out" output
+    const value = this.getInputValue("in", context, null);
+    logger.debug(
+      `[Reroute ${this.nodeId}] Forwarding value: ${value !== null ? "present" : "null"}`
+    );
 
-    // If no connections matched, pass through a generic "" key
-    if (Object.keys(outputs).length === 0) {
-      const value = this.getInputValue("", context, null);
-      outputs[""] = value;
-    }
-
-    return outputs;
+    return { out: value };
   }
 }
