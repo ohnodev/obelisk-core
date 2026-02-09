@@ -197,7 +197,7 @@ export default function DeploymentsPage() {
     >
       {/* Header */}
       <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.5rem" }}>
           <div>
             <Link
               href="/"
@@ -214,58 +214,32 @@ export default function DeploymentsPage() {
             <h1 style={{ margin: 0, fontSize: "1.75rem" }}>Deployed Agents</h1>
           </div>
           
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            {/* Wallet Button */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+            {/* Wallet Button - rightmost */}
             <WalletButton />
 
-            {/* Slots indicator */}
+            {/* Compact slots counter */}
             {slots && (
               <div
                 style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  padding: "1rem 1.5rem",
-                  borderRadius: "8px",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontSize: "0.8rem",
+                  color: "var(--color-text-muted, #888)",
                 }}
               >
-                <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted, #888)", marginBottom: "0.25rem" }}>
-                  Deployment Slots
-                </div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 600 }}>
+                <span>Slots</span>
+                <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
                   <span style={{ color: slots.slots_available > 0 ? "#2ecc71" : "#e74c3c" }}>
                     {slots.slots_used}
                   </span>
                   <span style={{ color: "var(--color-text-muted, #666)" }}> / {slots.slots_total}</span>
-                </div>
+                </span>
               </div>
             )}
           </div>
         </div>
-
-        {/* Auth notice */}
-        {!isConnected && (
-          <div
-            style={{
-              background: "rgba(212, 175, 55, 0.08)",
-              border: "1px solid rgba(212, 175, 55, 0.25)",
-              borderRadius: "8px",
-              padding: "1rem",
-              marginBottom: "1.5rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span style={{ color: "#d4af37", fontSize: "0.9rem" }}>
-              Connect your wallet to manage your deployed agents. Only the wallet that deployed an agent can stop or restart it.
-            </span>
-          </div>
-        )}
 
         {/* Error state */}
         {error && (
@@ -414,53 +388,44 @@ export default function DeploymentsPage() {
                     </div>
                   </div>
 
-                  {/* Actions - only shown for owner */}
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    {canManage ? (
-                      <>
-                        {agent.status === "running" && (
-                          <button
-                            onClick={() => handleRestart(agent)}
-                            disabled={actionLoading[agent.agent_id] || false}
-                            style={{
-                              padding: "0.5rem 1rem",
-                              background: "rgba(241, 196, 15, 0.1)",
-                              border: "1px solid rgba(241, 196, 15, 0.3)",
-                              borderRadius: "4px",
-                              color: "#f1c40f",
-                              cursor: (actionLoading[agent.agent_id] || false) ? "not-allowed" : "pointer",
-                              opacity: (actionLoading[agent.agent_id] || false) ? 0.5 : 1,
-                              fontSize: "0.85rem",
-                            }}
-                          >
-                            Restart
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openStopConfirm(agent)}
-                          disabled={actionLoading[agent.agent_id] || false}
-                          style={{
-                            padding: "0.5rem 1rem",
-                            background: "rgba(231, 76, 60, 0.1)",
-                            border: "1px solid rgba(231, 76, 60, 0.3)",
-                            borderRadius: "4px",
-                            color: "#e74c3c",
-                            cursor: (actionLoading[agent.agent_id] || false) ? "not-allowed" : "pointer",
-                            opacity: (actionLoading[agent.agent_id] || false) ? 0.5 : 1,
-                            fontSize: "0.85rem",
-                          }}
-                        >
-                          {agent.status === "running" ? "Stop" : "Remove"}
-                        </button>
-                      </>
-                    ) : (
-                      // Non-owner or not connected: show a muted label
-                      <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted, #666)", fontStyle: "italic" }}>
-                        {!isConnected
-                          ? "Connect wallet to manage"
-                          : "Owned by another wallet"}
-                      </span>
+                  {/* Actions - always visible, greyed out when not authorized */}
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    {agent.status === "running" && (
+                      <button
+                        onClick={() => canManage ? handleRestart(agent) : !isConnected ? connectWallet() : null}
+                        disabled={actionLoading[agent.agent_id] || (!canManage && isConnected)}
+                        title={!isConnected ? "Connect wallet to manage" : !canManage ? "Only the owner can manage this agent" : "Restart agent"}
+                        style={{
+                          padding: "0.5rem 1rem",
+                          background: canManage ? "rgba(241, 196, 15, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                          border: `1px solid ${canManage ? "rgba(241, 196, 15, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
+                          borderRadius: "4px",
+                          color: canManage ? "#f1c40f" : "var(--color-text-muted, #555)",
+                          cursor: (actionLoading[agent.agent_id] || (!canManage && isConnected)) ? "not-allowed" : "pointer",
+                          opacity: (actionLoading[agent.agent_id] || !canManage) ? 0.4 : 1,
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        Restart
+                      </button>
                     )}
+                    <button
+                      onClick={() => canManage ? openStopConfirm(agent) : !isConnected ? connectWallet() : null}
+                      disabled={actionLoading[agent.agent_id] || (!canManage && isConnected)}
+                      title={!isConnected ? "Connect wallet to manage" : !canManage ? "Only the owner can manage this agent" : (agent.status === "running" ? "Stop agent" : "Remove agent")}
+                      style={{
+                        padding: "0.5rem 1rem",
+                        background: canManage ? "rgba(231, 76, 60, 0.1)" : "rgba(255, 255, 255, 0.03)",
+                        border: `1px solid ${canManage ? "rgba(231, 76, 60, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
+                        borderRadius: "4px",
+                        color: canManage ? "#e74c3c" : "var(--color-text-muted, #555)",
+                        cursor: (actionLoading[agent.agent_id] || (!canManage && isConnected)) ? "not-allowed" : "pointer",
+                        opacity: (actionLoading[agent.agent_id] || !canManage) ? 0.4 : 1,
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      {agent.status === "running" ? "Stop" : "Remove"}
+                    </button>
                   </div>
                 </div>
               );
