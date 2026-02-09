@@ -59,7 +59,7 @@ export class BooleanLogicNode extends BaseNode {
         result = a || b;
     }
 
-    logger.info(
+    logger.debug(
       `[BooleanLogic ${this.nodeId}] ${this.operation}(a=${a}, b=${b}) → ${result}` +
         (value !== null ? ` | value passes to ${result ? "pass" : "reject"}` : "")
     );

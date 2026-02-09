@@ -268,6 +268,19 @@ export default function Toolbar({
     }
   };
 
+  /** Download a workflow object as a JSON file */
+  const downloadWorkflow = (wf: WorkflowGraph) => {
+    const blob = new Blob([JSON.stringify(wf, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${wf.name || "workflow"}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleSave = () => {
     // Manually serialize current workflow from canvas
     const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
@@ -277,29 +290,12 @@ export default function Toolbar({
         if (onSave) {
           onSave(currentWorkflow);
         }
-        // Download as JSON file
-        const blob = new Blob([JSON.stringify(currentWorkflow, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${currentWorkflow.name || "workflow"}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        downloadWorkflow(currentWorkflow);
       }
     } else if (onSave && workflow) {
       // Fallback to prop workflow if serialize function not available
       onSave(workflow);
-      const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${workflow.name || "workflow"}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadWorkflow(workflow);
     }
   };
 
@@ -315,10 +311,7 @@ export default function Toolbar({
           reader.onload = (event) => {
             try {
               const workflow = JSON.parse(event.target?.result as string);
-              // Pass the parsed workflow to the parent component
-              if (onLoad) {
-                onLoad(workflow);
-              }
+              onLoad(workflow);
             } catch (error) {
               console.error("Failed to load workflow:", error);
             }

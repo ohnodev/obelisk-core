@@ -107,6 +107,7 @@ ui/
 │       ├── ModelLoaderNode.tsx
 │       ├── LoRALoaderNode.tsx
 │       ├── BooleanLogicNode.tsx
+│       ├── RerouteNode.tsx
 │       └── index.ts
 ├── lib/
 │   ├── litegraph.ts            # Workflow serialization utilities
@@ -131,6 +132,12 @@ ui/
 | **Binary Intent** | message, criteria | result, raw | Yes/no classification for conditional logic |
 | **Boolean Logic** | a, b, value | result, pass, reject | Boolean gate (OR/AND/NOT) with value passthrough |
 | **Scheduler** | — | trigger | Cron-based periodic execution |
+
+### Utils
+
+| Node | Inputs | Outputs | Description |
+|------|--------|---------|-------------|
+| **Reroute** | in | out | Pass-through node for cleaner wire routing |
 
 ### Telegram
 

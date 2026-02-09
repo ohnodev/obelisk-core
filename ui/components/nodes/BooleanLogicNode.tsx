@@ -121,7 +121,7 @@ class BooleanLogicNode extends LGraphNode {
 
 // Only register on client side
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph?.registerNodeType("boolean_logic", BooleanLogicNode);
+  LiteGraph.registerNodeType("boolean_logic", BooleanLogicNode);
 }
 
 export default BooleanLogicNode;

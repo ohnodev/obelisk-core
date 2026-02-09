@@ -59,7 +59,7 @@ class RerouteNode extends LGraphNode {
 
 // Register with LiteGraph
 if (typeof window !== "undefined" && LiteGraph?.registerNodeType) {
-  LiteGraph?.registerNodeType(
+  LiteGraph.registerNodeType(
     "reroute",
     Object.assign(RerouteNode, {
       title_mode: (LiteGraph as any).NO_TITLE ?? 1,
