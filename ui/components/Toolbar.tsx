@@ -653,6 +653,7 @@ export default function Toolbar({
         onDeploy={handleDeploy}
         workflowName={workflow?.name}
         walletAddress={address}
+        workflow={workflow as Record<string, unknown> | undefined}
       />
 
     </>
