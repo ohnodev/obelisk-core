@@ -89,7 +89,7 @@
       },
       "inputs": {},
       "metadata": {
-        "intent_criteria": "Is this message DIRECTLY addressing or calling the bot?\n\nRespond TRUE only if the message:\n- Contains @ObeliskAgentBot mention\n- Explicitly calls out: Overseer, Agent #001, Obelisk Agent, The Obelisk\n- Is clearly a question or request directed AT the bot (not just mentioning AI/agents in general)\n\nRespond FALSE if:\n- The message is general chat not directed at the bot\n- Just mentions AI/agents in passing without addressing the bot\n- Is talking ABOUT the bot to others, not TO the bot\n- Is a reaction, emoji, or short acknowledgment"
+        "intent_criteria": "Should the bot respond to this message?\n\nNote: @mentions and direct replies are already handled separately. This message was NOT a mention or reply, so use context clues only.\n\nRespond TRUE if the message:\n- Asks a question the bot can answer (tech, AI, crypto, general knowledge)\n- Explicitly calls out the bot by name (Overseer, Agent #001, Obelisk Agent, The Obelisk)\n- Is a direct request or prompt clearly meant for the bot\n- Raises a topic the bot has relevant context on from recent conversation\n\nRespond FALSE if:\n- General chatter between users not involving the bot\n- Reactions, emojis, short acknowledgments (ok, lol, nice, etc.)\n- Talking ABOUT the bot to others, not TO the bot\n- Off-topic banter the bot has nothing to add to"
       }
     },
     {
