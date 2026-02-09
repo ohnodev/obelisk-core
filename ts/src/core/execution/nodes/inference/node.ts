@@ -5,7 +5,7 @@
  *
  * Inputs:
  *   model: InferenceClient (from InferenceConfigNode) – required
- *   system_prompt: System prompt from TextNode – required
+ *   system_prompt: System prompt (from connected TextNode or widget) – required
  *   query: User query string – required
  *   context: Conversation context from MemorySelectorNode (optional)
  *   quantum_influence: Quantum influence value (default: 0.7)
@@ -107,11 +107,11 @@ export class InferenceNode extends BaseNode {
       );
     }
 
-    // System prompt is required (must come from TextNode, not just context)
+    // System prompt is required (from connected input or widget/metadata)
     if (!originalSystemPrompt) {
       throw new Error(
-        `InferenceNode ${this.nodeId}: 'system_prompt' input is required. ` +
-          "Connect a TextNode to system_prompt input."
+        `InferenceNode ${this.nodeId}: 'system_prompt' is required. ` +
+          "Set it via the node's textarea widget or connect a TextNode."
       );
     }
 

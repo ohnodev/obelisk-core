@@ -103,7 +103,8 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "enable_thinking": true
+        "enable_thinking": true,
+        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line."
       }
     },
     {
@@ -117,18 +118,6 @@
       "metadata": {
         "recent_count": 20,
         "include_summaries": true
-      }
-    },
-    {
-      "id": "5",
-      "type": "text",
-      "position": {
-        "x": 1650,
-        "y": -81
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line."
       }
     },
     {
@@ -258,12 +247,6 @@
       "from_output": "context",
       "to": "6",
       "to_input": "context"
-    },
-    {
-      "from": "5",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "system_prompt"
     },
     {
       "from": "12",
