@@ -313,11 +313,14 @@ export default function Toolbar({
               const workflow = JSON.parse(event.target?.result as string);
               onLoad(workflow);
             } catch (error) {
+              const msg = error instanceof Error ? error.message : String(error);
               console.error("Failed to load workflow:", error);
+              showNotification(`Failed to load workflow: ${msg}`, "error");
             }
           };
           reader.onerror = () => {
             console.error("Failed to read workflow file");
+            showNotification("Failed to read workflow file", "error");
           };
           reader.readAsText(file);
         }
