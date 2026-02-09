@@ -15,6 +15,7 @@ class TelegramBotNode extends LGraphNode {
     this.addInput("message", "string");
     this.addInput("bot_id", "string");
     this.addInput("chat_id", "string");
+    this.addInput("message_id", "number");  // Optional: quote-reply to this message
     
     // Outputs
     this.addOutput("success", "boolean");
