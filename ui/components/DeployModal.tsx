@@ -4,15 +4,28 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { formatAddress } from "@/lib/wallet";
 
+/** Scan a workflow object for {{process.env.XXX}} references and return unique var names. */
+function extractEnvVarsFromWorkflow(workflow: Record<string, unknown> | undefined): string[] {
+  if (!workflow) return [];
+  const text = JSON.stringify(workflow);
+  const matches = text.matchAll(/\{\{process\.env\.([A-Z_][A-Z0-9_]*)\}\}/gi);
+  const names = new Set<string>();
+  for (const m of matches) {
+    names.add(m[1]);
+  }
+  return Array.from(names);
+}
+
 interface DeployModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDeploy: (name: string, envVars: Record<string, string>) => Promise<void>;
   workflowName?: string;
   walletAddress?: string;
+  workflow?: Record<string, unknown>;
 }
 
-export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, walletAddress }: DeployModalProps) {
+export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, walletAddress, workflow }: DeployModalProps) {
   const [name, setName] = useState(workflowName || "My Agent");
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([
     { key: "", value: "" }
@@ -26,15 +39,22 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, w
     setMounted(true);
   }, []);
 
-  // Reset state when modal is opened to ensure fresh state
+  // Reset state when modal is opened — auto-detect env vars from workflow
   useEffect(() => {
     if (isOpen) {
       setName(workflowName ?? "My Agent");
-      setEnvVars([{ key: "", value: "" }]);
       setError(null);
       setIsDeploying(false);
+
+      // Auto-detect {{process.env.XXX}} references from the workflow
+      const detected = extractEnvVarsFromWorkflow(workflow);
+      if (detected.length > 0) {
+        setEnvVars(detected.map((key) => ({ key, value: "" })));
+      } else {
+        setEnvVars([{ key: "", value: "" }]);
+      }
     }
-  }, [isOpen, workflowName]);
+  }, [isOpen, workflowName, workflow]);
 
   if (!isOpen || !mounted) return null;
 
@@ -185,7 +205,7 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, w
             Environment Variables (optional)
           </label>
           <p style={{ color: "var(--color-text-muted, #666)", fontSize: "0.8rem", marginBottom: "0.5rem" }}>
-            Add API keys or secrets needed by your workflow nodes
+            Keys detected from your workflow are pre-filled. Just add the values.
           </p>
           
           {envVars.map((envVar, index) => (
