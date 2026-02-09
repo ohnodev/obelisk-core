@@ -13,3 +13,4 @@ import "./SchedulerNode";
 import "./TelegramMemoryCreatorNode";
 import "./TelegramMemorySelectorNode";
 import "./BinaryIntentNode";
+import "./BooleanLogicNode";
