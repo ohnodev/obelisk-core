@@ -176,6 +176,12 @@
       "to_input": "chat_id"
     },
     {
+      "from": "12",
+      "from_output": "message_id",
+      "to": "10",
+      "to_input": "message_id"
+    },
+    {
       "from": "16",
       "from_output": "storage_instance",
       "to": "15",

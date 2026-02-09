@@ -48,20 +48,45 @@ export class TelegramBotNode extends BaseNode {
       );
     }
 
+    // Optional message_id for quote-replying
+    const replyToMessageId =
+      (this.getInputValue("message_id", context, undefined) as number | string | undefined);
+    const replyId = replyToMessageId ? Number(replyToMessageId) : undefined;
+
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 
+    // Build payload — include reply_to_message_id when available
+    const payload: Record<string, unknown> = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "HTML",
+    };
+    if (replyId && Number.isFinite(replyId)) {
+      payload.reply_parameters = { message_id: replyId };
+    }
+
     try {
-      const res = await fetch(url, {
+      let res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: "HTML",
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = (await res.json()) as Record<string, unknown>;
+      let data = (await res.json()) as Record<string, unknown>;
+
+      // If quote-reply failed (e.g. message deleted), retry without it
+      if ((!res.ok || !data.ok) && payload.reply_parameters) {
+        logger.warn(
+          `[TelegramBot] Quote-reply failed (message_id=${replyId}), retrying without reply: ${(data as any).description ?? ""}`
+        );
+        delete payload.reply_parameters;
+        res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        data = (await res.json()) as Record<string, unknown>;
+      }
 
       if (!res.ok || !data.ok) {
         logger.error(
@@ -71,7 +96,7 @@ export class TelegramBotNode extends BaseNode {
       }
 
       logger.debug(
-        `[TelegramBot] Message sent to chat ${chatId} (${message.length} chars)`
+        `[TelegramBot] Message sent to chat ${chatId} (${message.length} chars)${replyId ? ` reply_to=${replyId}` : ""}`
       );
       return { success: true, response: data };
     } catch (err) {
