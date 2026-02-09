@@ -110,6 +110,21 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Binary Intent",
         description: "Classifies text as yes/no based on intent criteria",
       },
+      {
+        type: "boolean_logic",
+        title: "Boolean Logic",
+        description: "AND / OR / NOT operations with pass-through gating",
+      },
+    ],
+  },
+  {
+    name: "Utils",
+    nodes: [
+      {
+        type: "reroute",
+        title: "Reroute",
+        description: "Pass-through node for cleaner wire routing",
+      },
     ],
   },
   {
