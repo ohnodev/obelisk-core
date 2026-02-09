@@ -96,7 +96,7 @@ TELEGRAM_CHAT_ID=your-chat-id
 
 Logs are stored in the `logs/` directory:
 
-```
+```text
 logs/
 ├── obelisk-core.log        # Execution engine logs
 └── obelisk-inference.log   # Inference service logs

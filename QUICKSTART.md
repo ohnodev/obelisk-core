@@ -48,7 +48,7 @@ Obelisk Inference Service starting...
 Verify it's running:
 ```bash
 curl http://localhost:7780/health
-# → {"status":"ok","model_loaded":true,"device":"cuda"}
+# → {"status":"healthy","model_name":"Qwen/Qwen3-0.6B","memory_estimate_mb":620,"queue_size":0}
 ```
 
 > **Tip**: Leave this running in a terminal tab. Or use PM2 (see Step 5).

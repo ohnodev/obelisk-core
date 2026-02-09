@@ -55,10 +55,10 @@ data/
 # Only ignore root-level memory/ (runtime data), not ts/src/.../memory/ (source code)
 /memory/
 /default/
-interactions/
+/default/interactions/
 activities.json
-users/
-cycles/
+/default/users/
+/default/cycles/
 weights/
 lora_output/
 

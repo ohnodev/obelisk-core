@@ -8,7 +8,7 @@ The Obelisk Inference Service is a FastAPI server that hosts the LLM model and s
 
 When `INFERENCE_API_KEY` is set in `.env`, all `/v1/*` endpoints require authentication. Send the key via either header:
 
-```
+```text
 Authorization: Bearer <your-api-key>
 X-API-Key: <your-api-key>
 ```
@@ -28,7 +28,7 @@ Service info.
 ```json
 {
   "service": "Obelisk Inference Service",
-  "version": "0.1.0",
+  "version": "0.2.0-beta",
   "model": "Qwen/Qwen3-0.6B",
   "status": "running"
 }

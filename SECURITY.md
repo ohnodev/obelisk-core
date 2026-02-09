@@ -28,7 +28,7 @@
 
 - **API Key Authentication**: Set `INFERENCE_API_KEY` to require auth on all `/v1/*` inference endpoints. Agents and the execution engine pass this key automatically.
 - **Bind Address**: In production, bind the inference service to `127.0.0.1` (localhost only) and use a reverse proxy (nginx) with SSL for external access. Never expose port 7780 directly to the internet without auth.
-- **CORS**: The inference service has CORS configured via `INFERENCE_CORS_ORIGINS`. Only allow trusted origins.
+- **CORS**: The inference service has CORS configured via `INFERENCE_CORS_ORIGINS`. Only allow trusted origins. See [.env.example](.env.example) for the configuration format.
 
 ### Docker Agent Security
 
