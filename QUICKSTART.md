@@ -141,7 +141,8 @@ The default workflow already has Telegram nodes wired up with quote-reply suppor
 
 **Docker agent can't reach inference?**
 - Agents in Docker need `INFERENCE_SERVICE_URL=http://host.docker.internal:7780`
-- This is handled automatically when deploying from the UI
+- **Linux:** `host.docker.internal` may not resolve by default. Add `--add-host=host.docker.internal:host-gateway` when running the container (e.g., `docker run --add-host=host.docker.internal:host-gateway ...`)
+- This is handled automatically when deploying from the UI, so the workaround is only needed for manual local Linux Docker runs
 
 **PM2 not found?**
 - Install it globally: `npm install -g pm2`
