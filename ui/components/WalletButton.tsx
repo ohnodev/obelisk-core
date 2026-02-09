@@ -133,27 +133,28 @@ export default function WalletButton({ fullWidth }: WalletButtonProps) {
     </svg>
   );
 
-  // -- Full-width variant for mobile hamburger menu --
-  if (fullWidth) {
-    return (
-      <button
-        className="wallet-btn-mobile"
-        onClick={() => setIsModalOpen(true)}
-      >
-        <WalletIcon />
-        <span>
-          {isInitializing && !address
-            ? "···"
-            : isConnected && address
-              ? formatAddress(address)
-              : "Wallet"}
-        </span>
-      </button>
-    );
-  }
-
-  // -- Square icon button for desktop toolbar --
+  // -- Render the trigger button (desktop square or mobile full-width) --
   const renderButton = () => {
+    // Full-width variant for mobile hamburger menu
+    if (fullWidth) {
+      return (
+        <button
+          className="wallet-btn-mobile"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <WalletIcon />
+          <span>
+            {isInitializing && !address
+              ? "···"
+              : isConnected && address
+                ? formatAddress(address)
+                : "Wallet"}
+          </span>
+        </button>
+      );
+    }
+
+    // Square icon button for desktop toolbar
     // Loading
     if (isInitializing && !address) {
       return (
