@@ -2,6 +2,16 @@
 
 Thank you for your interest in contributing to Obelisk Core! We welcome contributions from the community.
 
+## Project Overview
+
+Obelisk Core has three components:
+
+| Component | Language | Directory | Description |
+|-----------|----------|-----------|-------------|
+| Inference Service | Python | `src/inference/` | FastAPI server hosting the LLM |
+| Execution Engine | TypeScript | `ts/` | Workflow runner and node implementations |
+| UI | TypeScript/React | `ui/` | Next.js visual workflow editor |
+
 ## Getting Started
 
 1. **Fork the repository** on GitHub
@@ -10,13 +20,7 @@ Thank you for your interest in contributing to Obelisk Core! We welcome contribu
    git clone https://github.com/YOUR_USERNAME/obelisk-core.git
    cd obelisk-core
    ```
-3. **Set up your development environment**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   pip install -e .
-   ```
+3. **Set up your development environment** (see below)
 4. **Create a branch** for your changes:
    ```bash
    git checkout -b feature/your-feature-name
@@ -24,62 +28,98 @@ Thank you for your interest in contributing to Obelisk Core! We welcome contribu
    git checkout -b fix/your-bug-fix
    ```
 
+## Development Setup
+
+### Inference Service (Python)
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Execution Engine (TypeScript)
+
+```bash
+cd ts
+npm install
+npm run build    # Compile TypeScript
+npm test         # Run tests with Vitest
+```
+
+### UI (Next.js)
+
+```bash
+cd ui
+npm install
+npm run dev      # Start dev server on port 3000
+npm run build    # Production build
+```
+
 ## Development Guidelines
 
 ### Code Style
 
-- Follow PEP 8 Python style guidelines
-- Use type hints where appropriate
-- Keep functions focused and small
+**TypeScript (ts/ and ui/)**
+- Use TypeScript strict mode
+- Follow existing code patterns — consistent naming, explicit types
+- Use `const` by default, `let` only when needed
+- Prefer `async/await` over raw Promises
+- Add JSDoc comments to exported functions and classes
+
+**Python (src/inference/)**
+- Follow PEP 8 guidelines
+- Use type hints
 - Add docstrings to classes and functions
-- Write clear, descriptive commit messages
 
 ### Testing
 
-- Run tests before submitting:
-  ```bash
-  python3 -m pytest tests/ -v
-  ```
-- Add tests for new features
-- Ensure all tests pass before creating a pull request
+**TypeScript tests** use [Vitest](https://vitest.dev/):
+```bash
+cd ts
+npm test                    # Run all tests
+npm test -- --watch         # Watch mode
+npx vitest run tests/jsonParser.test.ts  # Run specific test
+```
+
+**Python tests**:
+```bash
+source venv/bin/activate
+python -m pytest tests/ -v
+```
 
 ### Project Structure
 
-```
+```text
 obelisk-core/
-├── src/
-│   ├── llm/          # LLM inference
-│   ├── memory/       # Memory management
-│   ├── storage/      # Storage abstraction
-│   ├── api/          # API server
-│   └── cli/          # CLI interface
-├── tests/            # Test suite
-└── docs/             # Documentation
+├── src/inference/          # Python inference service
+├── ts/
+│   ├── src/
+│   │   ├── core/execution/ # Workflow runner + nodes
+│   │   └── utils/          # Shared utilities
+│   └── tests/              # Vitest tests
+├── ui/
+│   ├── app/                # Next.js pages
+│   ├── components/         # React components + node definitions
+│   └── lib/                # Utilities
+├── docker/                 # Agent container Dockerfile
+└── pm2-manager.sh          # Service management
 ```
 
 ## Creating a Pull Request
 
 ### Before Submitting
 
-1. **Update documentation** if you've changed functionality
-2. **Run tests** and ensure they pass
-3. **Check for linting errors**:
+1. **Run tests** and ensure they pass
+2. **Build** — make sure TypeScript compiles:
    ```bash
-   # If you have a linter configured
-   pylint src/
+   cd ts && npm run build
+   cd ../ui && npm run build
    ```
-4. **Update CHANGELOG.md** (if it exists) with your changes
+3. **Update documentation** if you've changed functionality
+4. **No sensitive data** — check for accidentally committed API keys or secrets
 
-### PR Checklist
-
-- [ ] Code follows the project's style guidelines
-- [ ] Tests pass locally
-- [ ] Documentation is updated
-- [ ] Commit messages are clear and descriptive
-- [ ] No sensitive data (API keys, secrets) is included
-- [ ] Changes are focused and address a single issue/feature
-
-### PR Description Template
+### PR Description
 
 When creating a pull request, please include:
 
@@ -99,28 +139,37 @@ How have you tested this change?
 
 ## Checklist
 - [ ] Tests pass
-- [ ] Documentation updated
-- [ ] No breaking changes (or breaking changes documented)
+- [ ] TypeScript builds without errors
+- [ ] Documentation updated (if applicable)
+- [ ] No breaking changes (or documented)
 ```
-
-### Review Process
-
-1. **Automated checks** will run on your PR (tests, linting)
-2. **Maintainers will review** your code
-3. **Feedback will be provided** if changes are needed
-4. **Once approved**, your PR will be merged
 
 ## Areas for Contribution
 
 We're particularly interested in contributions for:
 
-- **Memory improvements**: Better summarization, context management
-- **LLM enhancements**: Better prompt engineering, response quality
-- **Storage backends**: Additional storage options beyond JSON/Supabase
-- **Testing**: More comprehensive test coverage
-- **Documentation**: Examples, tutorials, API docs
-- **Performance**: Optimization, caching, efficiency improvements
-- **New features**: Tool integrations, agent capabilities
+- **New workflow nodes** — Extend the agent capabilities (new integrations, tools, etc.)
+- **UI improvements** — Better UX, new node widgets, mobile responsiveness
+- **Testing** — More test coverage for the execution engine and JSON parser
+- **Documentation** — Tutorials, examples, guides
+- **Performance** — Inference optimization, execution engine efficiency
+- **Bug fixes** — Check open issues for known problems
+
+## Adding a New Node
+
+To add a new workflow node:
+
+1. **Backend**: Create `ts/src/core/execution/nodes/yourNode.ts`
+   - Extend `BaseNode`
+   - Implement `execute()` (and optionally `onTick()` for listener nodes)
+   - Register in `ts/src/core/execution/nodes/index.ts`
+
+2. **Frontend**: Create `ui/components/nodes/YourNode.tsx`
+   - Extend `LGraphNode`
+   - Define inputs, outputs, and widgets
+   - Register in `ui/components/nodes/index.ts`
+
+3. **Tests**: Add tests in `ts/tests/`
 
 ## Questions?
 
@@ -128,11 +177,4 @@ We're particularly interested in contributions for:
 - Check existing issues before creating new ones
 - Be respectful and constructive in discussions
 
-## Code of Conduct
-
-- Be respectful and inclusive
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Respect different viewpoints and experiences
-
-Thank you for contributing to Obelisk Core! 🚀
+Thank you for contributing to Obelisk Core!

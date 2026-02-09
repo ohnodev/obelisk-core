@@ -66,7 +66,7 @@ logger = logging.getLogger("inference_service")
 app = FastAPI(
     title="Obelisk Inference Service",
     description="Standalone inference service for Obelisk LLM",
-    version="0.1.0",
+    version="0.2.0-beta",
 )
 
 # CORS — controlled via InferenceConfig.CORS_ORIGINS (env: INFERENCE_CORS_ORIGINS).
@@ -131,7 +131,7 @@ async def root():
     """Root endpoint"""
     return {
         "service": "Obelisk Inference Service",
-        "version": "0.1.0",
+        "version": "0.2.0-beta",
         "model": InferenceConfig.MODEL_NAME,
         "status": "running" if (_model and _model.is_loaded) else "model_not_loaded",
     }

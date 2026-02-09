@@ -51,17 +51,16 @@ ENV/
 # Generic data directories
 data/
 
-# Local data directories (created in repo root during development/testing)
-# Memory-related files (new structure)
+# Runtime data directories (created during development/testing)
 # Only ignore root-level memory/ (runtime data), not ts/src/.../memory/ (source code)
 /memory/
-# Old structure (kept for backward compatibility during migration)
-interactions/
+/default/
+/default/interactions/
 activities.json
-# Other data directories
-users/
-cycles/
+/default/users/
+/default/cycles/
 weights/
+lora_output/
 
 # User data files - conversations, memory, preferences
 *.json
@@ -118,13 +117,9 @@ Desktop.ini
 *.swp
 *~
 
-# LoRA output
-lora_output/
+# Model weights
 *.pt
 *.pth
-
-# Quantum job outputs
-quantum_jobs/
 
 # TypeScript runtime (ts/)
 ts/node_modules/
