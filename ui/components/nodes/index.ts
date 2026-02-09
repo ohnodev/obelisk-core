@@ -14,3 +14,4 @@ import "./TelegramMemoryCreatorNode";
 import "./TelegramMemorySelectorNode";
 import "./BinaryIntentNode";
 import "./BooleanLogicNode";
+import "./RerouteNode";
