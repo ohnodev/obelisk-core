@@ -36,6 +36,7 @@ pip install -r requirements.txt
 
 # Start the inference service
 python3 -m uvicorn src.inference.server:app --host 127.0.0.1 --port 7780
+# Note: If running inside Docker, use --host 0.0.0.0 so the service is reachable from other containers.
 ```
 
 You should see:
@@ -141,6 +142,7 @@ The default workflow already has Telegram nodes wired up with quote-reply suppor
 
 **Docker agent can't reach inference?**
 - Agents in Docker need `INFERENCE_SERVICE_URL=http://host.docker.internal:7780`
+- Make sure the inference service is bound to `0.0.0.0` (not `127.0.0.1`) so it's reachable from Docker containers: use `--host 0.0.0.0` when starting Uvicorn
 - **Linux:** `host.docker.internal` may not resolve by default. Add `--add-host=host.docker.internal:host-gateway` when running the container (e.g., `docker run --add-host=host.docker.internal:host-gateway ...`)
 - This is handled automatically when deploying from the UI, so the workaround is only needed for manual local Linux Docker runs
 
