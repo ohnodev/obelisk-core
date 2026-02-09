@@ -42,7 +42,7 @@ export default function DeploymentsPage() {
     agentName: string;
     action: "stop" | "remove";
   }>({ isOpen: false, agentId: "", agentName: "", action: "stop" });
-  const { showNotification, NotificationProvider } = useNotifications();
+  const { showNotification } = useNotifications();
 
   // Wallet auth
   const { isConnected, address } = useAccount();
@@ -449,8 +449,6 @@ export default function DeploymentsPage() {
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Notifications */}
-      <NotificationProvider />
     </div>
   );
 }

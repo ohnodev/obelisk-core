@@ -59,7 +59,7 @@ function workflowsEqual(a: WorkflowGraph, b: WorkflowGraph): boolean {
 export default function Home() {
   const [workflow, setWorkflow] = useState<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
   const previousWorkflowRef = useRef<WorkflowGraph | undefined>(DEFAULT_WORKFLOW);
-  const { showNotification, NotificationProvider } = useNotifications();
+  const { showNotification } = useNotifications();
 
   // Memoize onWorkflowChange to stabilize function reference
   // Empty dependency array ensures this function reference never changes
@@ -194,7 +194,6 @@ export default function Home() {
 
   return (
     <>
-      <NotificationProvider />
       <div
         style={{
           display: "flex",

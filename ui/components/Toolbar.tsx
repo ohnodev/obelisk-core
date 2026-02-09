@@ -43,7 +43,7 @@ export default function Toolbar({
   const [isMobile, setIsMobile] = useState(false);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastResultsVersionRef = useRef<number>(0);
-  const { showNotification, NotificationProvider } = useNotifications();
+  const { showNotification } = useNotifications();
 
   // Wallet auth
   const { isConnected, address } = useAccount();
@@ -655,8 +655,6 @@ export default function Toolbar({
         walletAddress={address}
       />
 
-      {/* Notifications */}
-      <NotificationProvider />
     </>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useEffect, useState } from "react";
+import { NotificationContainer } from "@/components/Notification";
 import { PrivyProvider, type PrivyClientConfig } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "@privy-io/wagmi";
@@ -100,6 +101,7 @@ function OnchainProviders({ children }: Props) {
         <WagmiProvider config={wagmiConfig}>
           <ChainSwitcher />
           {children}
+          <NotificationContainer />
         </WagmiProvider>
       </QueryClientProvider>
     </PrivyProvider>
