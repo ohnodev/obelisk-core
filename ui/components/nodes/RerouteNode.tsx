@@ -26,7 +26,7 @@ class RerouteNode extends LGraphNode {
     this.addProperty("showType", false, "boolean");
   }
 
-  override computeSize(): [number, number] {
+  computeSize(): [number, number] {
     return [75, 26];
   }
 
