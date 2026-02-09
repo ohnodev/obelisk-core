@@ -152,10 +152,8 @@ export class TelegramListenerNode extends BaseNode {
         timeout: "0",
       });
 
-      const res = await fetch(
-        `${API_BASE}${this._botToken}/getUpdates?${params}`,
-        { signal: AbortSignal.timeout(10_000) }
-      );
+      const url = `${API_BASE}${this._botToken}/getUpdates?${params}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       const json = (await res.json()) as Record<string, unknown>;
 
       if (json.ok) {
@@ -168,6 +166,12 @@ export class TelegramListenerNode extends BaseNode {
         } else {
           logger.info("[TelegramListener] No pending updates, starting fresh");
         }
+      } else {
+        const desc = (json.description as string) || JSON.stringify(json).slice(0, 300);
+        logger.error(
+          `[TelegramListener] Failed to skip old updates — API returned ok=false ` +
+          `(HTTP ${res.status} ${res.statusText}): ${desc}`
+        );
       }
     } catch (err) {
       logger.error(

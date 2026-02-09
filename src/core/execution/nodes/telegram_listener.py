@@ -131,6 +131,12 @@ class TelegramListenerNode(BaseNode):
                     )
                 else:
                     logger.info("[TelegramListener] No pending updates, starting fresh")
+            else:
+                desc = result.get('description') or str(result)[:300]
+                logger.error(
+                    f"[TelegramListener] Failed to skip old updates — API returned ok=false "
+                    f"(HTTP {response.status_code}): {desc}"
+                )
         except Exception as e:
             logger.error(f"[TelegramListener] Failed to skip old updates: {e}")
     
