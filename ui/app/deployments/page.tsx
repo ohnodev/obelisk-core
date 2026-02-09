@@ -392,8 +392,8 @@ export default function DeploymentsPage() {
                   <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                     {agent.status === "running" && (
                       <button
-                        onClick={() => canManage ? handleRestart(agent) : !isConnected ? connectWallet() : null}
-                        disabled={actionLoading[agent.agent_id] || (!canManage && isConnected)}
+                        onClick={() => canManage ? handleRestart(agent) : !isConnected ? showNotification("Connect your wallet to manage agents", "info", 3000) : showNotification("Only the owner can manage this agent", "error", 3000)}
+                        disabled={actionLoading[agent.agent_id]}
                         title={!isConnected ? "Connect wallet to manage" : !canManage ? "Only the owner can manage this agent" : "Restart agent"}
                         style={{
                           padding: "0.5rem 1rem",
@@ -401,7 +401,7 @@ export default function DeploymentsPage() {
                           border: `1px solid ${canManage ? "rgba(241, 196, 15, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
                           borderRadius: "4px",
                           color: canManage ? "#f1c40f" : "var(--color-text-muted, #555)",
-                          cursor: (actionLoading[agent.agent_id] || (!canManage && isConnected)) ? "not-allowed" : "pointer",
+                          cursor: actionLoading[agent.agent_id] ? "not-allowed" : "pointer",
                           opacity: (actionLoading[agent.agent_id] || !canManage) ? 0.4 : 1,
                           fontSize: "0.85rem",
                         }}
@@ -410,8 +410,8 @@ export default function DeploymentsPage() {
                       </button>
                     )}
                     <button
-                      onClick={() => canManage ? openStopConfirm(agent) : !isConnected ? connectWallet() : null}
-                      disabled={actionLoading[agent.agent_id] || (!canManage && isConnected)}
+                      onClick={() => canManage ? openStopConfirm(agent) : !isConnected ? showNotification("Connect your wallet to manage agents", "info", 3000) : showNotification("Only the owner can manage this agent", "error", 3000)}
+                      disabled={actionLoading[agent.agent_id]}
                       title={!isConnected ? "Connect wallet to manage" : !canManage ? "Only the owner can manage this agent" : (agent.status === "running" ? "Stop agent" : "Remove agent")}
                       style={{
                         padding: "0.5rem 1rem",
@@ -419,7 +419,7 @@ export default function DeploymentsPage() {
                         border: `1px solid ${canManage ? "rgba(231, 76, 60, 0.3)" : "rgba(255, 255, 255, 0.08)"}`,
                         borderRadius: "4px",
                         color: canManage ? "#e74c3c" : "var(--color-text-muted, #555)",
-                        cursor: (actionLoading[agent.agent_id] || (!canManage && isConnected)) ? "not-allowed" : "pointer",
+                        cursor: actionLoading[agent.agent_id] ? "not-allowed" : "pointer",
                         opacity: (actionLoading[agent.agent_id] || !canManage) ? 0.4 : 1,
                         fontSize: "0.85rem",
                       }}
