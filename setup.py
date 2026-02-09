@@ -11,7 +11,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="obelisk-core",
-    version="0.2.0-alpha",
+    version="0.2.0-beta",
     author="The Obelisk",
     description="Obelisk inference service — LLM model hosting and API",
     long_description=long_description,

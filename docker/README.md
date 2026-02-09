@@ -52,12 +52,14 @@ docker rm my-agent
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `WORKFLOW_JSON` | Workflow JSON string | - |
+| `WORKFLOW_JSON` | Workflow JSON string | — |
 | `WORKFLOW_FILE` | Path to workflow JSON file | `/app/workflows/workflow.json` |
 | `AGENT_ID` | Unique agent identifier | `unknown` |
 | `AGENT_NAME` | Human-readable agent name | `unnamed` |
+| `INFERENCE_SERVICE_URL` | URL to reach the inference service | `http://host.docker.internal:7780` |
+| `INFERENCE_API_KEY` | API key for inference auth | — |
 | `OBELISK_LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` |
-| `OBELISK_VAR_*` | Custom context variables (e.g., `OBELISK_VAR_USER_ID=123`) | - |
+| `OBELISK_VAR_*` | Custom context variables (e.g., `OBELISK_VAR_USER_ID=123`) | — |
 
 ## Passing Secrets
 
@@ -67,12 +69,13 @@ For API keys and sensitive data, pass them as environment variables:
 docker run -d \
   --name my-agent \
   -e WORKFLOW_JSON='...' \
-  -e OPENAI_API_KEY=sk-xxx \
+  -e INFERENCE_SERVICE_URL=http://host.docker.internal:7780 \
+  -e INFERENCE_API_KEY=your-key \
   -e TELEGRAM_BOT_TOKEN=123:ABC \
   obelisk-agent:latest
 ```
 
-These will be available in workflow nodes via `process.env.*` template syntax.
+These will be available in workflow nodes via `{{process.env.XXX}}` template syntax.
 
 ## Resource Limits
 

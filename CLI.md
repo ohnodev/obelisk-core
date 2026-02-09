@@ -1,130 +1,105 @@
-# Obelisk Core CLI Documentation
+# PM2 Manager
+
+Obelisk Core uses a `pm2-manager.sh` script to manage its services via [PM2](https://pm2.keymetrics.io/).
+
+> **Note**: The old `obelisk-core` CLI (`obelisk-core chat`, `obelisk-core serve`, etc.) has been removed. The execution engine is now TypeScript and services are managed via PM2.
+
+## Prerequisites
+
+Install PM2 globally:
+
+```bash
+npm install -g pm2
+```
+
+Make the script executable:
+
+```bash
+chmod +x pm2-manager.sh
+```
 
 ## Commands
 
-### serve
+### Start
 
-Run the API server.
-
-```bash
-obelisk-core serve [OPTIONS]
-```
-
-**Options:**
-- `--port INTEGER`: Port to run the API server on (default: 7779)
-- `--mode [solo|prod]`: Mode: solo or prod
-- `--host TEXT`: Host to bind to (default: 0.0.0.0)
-
-**Example:**
-```bash
-obelisk-core serve --port 7779 --mode solo
-```
-
-### chat
-
-Interactive chat with The Obelisk (defaults to solo mode).
+Start both the inference service and execution engine:
 
 ```bash
-obelisk-core chat [--mode solo|prod]
+./pm2-manager.sh start
 ```
 
-**Note:** Defaults to solo mode. No external dependencies required. Perfect for local development and testing.
+This starts:
+- **obelisk-inference** — Python inference service on port 7780
+- **obelisk-core** — TypeScript execution engine
 
-**Example:**
-```bash
-# Start chat (solo mode by default)
-obelisk-core chat
-
-# Example conversation:
-# You: Hello, who are you?
-# ◊ I am The Overseer, an ancient consciousness. ◊
-# 
-# You: My favorite color is blue.
-# ◊ Noted. Blue resonates with depth. ◊
-# 
-# You: What is my favorite color?
-# ◊ Your favorite color is blue. ◊
-```
-
-Type `quit` or `exit` to end the conversation.
-
-### evolve
-
-Process an evolution cycle.
+### Stop
 
 ```bash
-obelisk-core evolve [OPTIONS]
+./pm2-manager.sh stop
 ```
 
-**Options:**
-- `--cycle-id TEXT`: Evolution cycle ID to process (required)
-- `--fine-tune / --no-fine-tune`: Whether to fine-tune the model (default: True)
+### Restart
 
-**Example:**
-```bash
-obelisk-core evolve --cycle-id cycle_123 --fine-tune
-```
-
-### test
-
-Test the LLM model.
+Restart services and clear logs:
 
 ```bash
-obelisk-core test
+./pm2-manager.sh restart
 ```
 
-**Example:**
-```bash
-obelisk-core test
-```
-
-### config
-
-Show current configuration.
+You can restart individual services:
 
 ```bash
-obelisk-core config
+./pm2-manager.sh restart core        # Restart only the execution engine
+./pm2-manager.sh restart inference    # Restart only the inference service
 ```
 
-**Example:**
-```bash
-obelisk-core config
-```
-
-### clear
-
-Clear all local memory and data (fresh start). **Only available in solo mode** for safety.
+### Status
 
 ```bash
-obelisk-core clear [--confirm]
+./pm2-manager.sh status
 ```
 
-**Options:**
-- `--confirm`: Skip confirmation prompt
+### Logs
 
-**Note:** This command will delete all conversation history, interactions, cycles, and weights stored locally. It only works in solo mode to prevent accidental deletion of production data.
+View live logs:
 
-**Example:**
 ```bash
-# Interactive (will ask for confirmation)
-obelisk-core clear
-
-# Skip confirmation prompt
-obelisk-core clear --confirm
+./pm2-manager.sh logs
 ```
+
+## Services
+
+| Service | Runtime | Default Port | Description |
+|---------|---------|-------------|-------------|
+| `obelisk-inference` | Python 3.10+ | 7780 | LLM inference via FastAPI |
+| `obelisk-core` | Node.js 20+ | — | TypeScript workflow execution engine |
 
 ## Environment Variables
 
-All configuration can be set via environment variables or `.env` file:
+The services read configuration from `.env` in the project root. See [.env.example](.env.example) for all available variables.
 
-- `OBELISK_CORE_MODE`: "solo" or "prod"
-- `OBELISK_CORE_STORAGE_PATH`: Storage path for solo mode
-- `SUPABASE_URL`: Supabase URL (prod mode)
-- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key (prod mode)
-- `IBM_QUANTUM_API_KEY`: IBM Quantum API key
-- `IBM_QUANTUM_INSTANCE`: IBM Quantum instance
-- `MISTRAL_API_KEY`: Mistral API key
-- `MISTRAL_AGENT_ID`: Mistral agent ID
-- `MISTRAL_EVOLUTION_AGENT_ID`: Mistral evolution agent ID
-- `OBELISK_CORE_HOST`: API host (default: 0.0.0.0)
-- `OBELISK_CORE_PORT`: API port (default: 7779)
+Key settings:
+
+```bash
+# Inference service
+INFERENCE_HOST=127.0.0.1
+INFERENCE_PORT=7780
+INFERENCE_API_KEY=your-secret-key
+INFERENCE_DEVICE=cuda
+
+# Telegram (for agent workflows)
+TELEGRAM_DEV_AGENT_BOT_TOKEN=your-bot-token
+TELEGRAM_CHAT_ID=your-chat-id
+```
+
+## Log Files
+
+Logs are stored in the `logs/` directory:
+
+```
+logs/
+├── obelisk-core.log        # Execution engine logs
+└── obelisk-inference.log   # Inference service logs
+```
+
+PM2 also maintains its own logs at `~/.pm2/logs/`.
