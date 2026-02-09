@@ -101,6 +101,45 @@ class TelegramListenerNode(BaseNode):
         
         return None
     
+    def _skip_old_updates(self) -> None:
+        """
+        Fast-forward past all pending updates so the bot starts fresh.
+        
+        Calls getUpdates with offset=-1 to fetch only the very latest update,
+        then records its update_id so subsequent polls only see new messages.
+        """
+        if not self._bot_token:
+            return
+        
+        try:
+            url = f"{self.API_BASE}{self._bot_token}/getUpdates"
+            params = {
+                'offset': -1,
+                'limit': 1,
+                'timeout': 0,
+            }
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get('ok'):
+                updates = result.get('result', [])
+                if updates:
+                    self._last_update_id = updates[-1].get('update_id', 0)
+                    logger.info(
+                        f"[TelegramListener] Skipped old updates, starting after update_id={self._last_update_id}"
+                    )
+                else:
+                    logger.info("[TelegramListener] No pending updates, starting fresh")
+            else:
+                desc = result.get('description') or str(result)[:300]
+                logger.error(
+                    f"[TelegramListener] Failed to skip old updates — API returned ok=false "
+                    f"(HTTP {response.status_code}): {desc}"
+                )
+        except Exception as e:
+            logger.error(f"[TelegramListener] Failed to skip old updates: {e}")
+    
     def _get_updates(self) -> List[Dict]:
         """
         Poll Telegram API for new updates using long polling.
@@ -218,6 +257,9 @@ class TelegramListenerNode(BaseNode):
             logger.warning("[TelegramListener] No bot_token - node will not poll")
         elif bot_info:
             logger.info(f"[TelegramListener] Ready to poll as @{bot_info.get('username')}")
+        
+        # Skip all pending updates so the bot only processes NEW messages
+        self._skip_old_updates()
         
         # Initialize polling time
         self._last_poll_time = time.time()
