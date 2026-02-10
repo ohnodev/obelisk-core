@@ -5,7 +5,7 @@ Visual node-based workflow editor for Obelisk Core AI agents, built with Next.js
 ## Features
 
 - **Visual Node Editor** — Drag-and-drop interface for building AI agent workflows (ComfyUI-style)
-- **16 Node Types — BinaryIntentNode, InferenceConfigNode, InferenceNode, InputPromptNode, LoRALoaderNode, MemoryCreatorNode, MemorySelectorNode, MemoryStorageNode, ModelLoaderNode, OutputTextNode, SchedulerNode, TelegramBotNode, TelegramListenerNode, TelegramMemoryCreatorNode, TelegramMemorySelectorNode, TextNode**
+- **18 Node Types — BinaryIntentNode, BooleanLogicNode, InferenceConfigNode, InferenceNode, InputPromptNode, LoRALoaderNode, MemoryCreatorNode, MemorySelectorNode, MemoryStorageNode, ModelLoaderNode, OutputTextNode, RerouteNode, SchedulerNode, TelegramBotNode, TelegramListenerNode, TelegramMemoryCreatorNode, TelegramMemorySelectorNode, TextNode**
 - **One-Click Deploy** — Deploy workflows as autonomous Docker agents from the UI
 - **Wallet Authentication** — Privy-based wallet connect for agent ownership
 - **Deployments Dashboard** — View, restart, and stop running agents
@@ -106,6 +106,8 @@ ui/
 │       ├── OutputTextNode.tsx
 │       ├── ModelLoaderNode.tsx
 │       ├── LoRALoaderNode.tsx
+│       ├── BooleanLogicNode.tsx
+│       ├── RerouteNode.tsx
 │       └── index.ts
 ├── lib/
 │   ├── litegraph.ts            # Workflow serialization utilities
@@ -128,7 +130,14 @@ ui/
 | **Inference** | query, system_prompt, context | response, thinking | Calls the LLM via inference service |
 | **Inference Config** | — | config | Model parameters (temperature, max tokens, thinking) |
 | **Binary Intent** | message, criteria | result, raw | Yes/no classification for conditional logic |
+| **Boolean Logic** | a, b, value | result, pass, reject | Boolean gate (OR/AND/NOT) with value passthrough |
 | **Scheduler** | — | trigger | Cron-based periodic execution |
+
+### Utils
+
+| Node | Inputs | Outputs | Description |
+|------|--------|---------|-------------|
+| **Reroute** | in | out | Pass-through node for cleaner wire routing |
 
 ### Telegram
 

@@ -85,9 +85,9 @@ export function serializeGraph(graph: InstanceType<typeof LGraph>): WorkflowGrap
             const link = graph.links[linkId];
             if (link) {
               const targetNode = graph.getNodeById(link.target_id);
-              if (targetNode && output.name) {
+              if (targetNode && output.name !== undefined) {
                 const targetInput = targetNode.inputs?.[link.target_slot];
-                if (targetInput && targetInput.name) {
+                if (targetInput && targetInput.name !== undefined) {
                   connections.push({
                     from: node.id.toString(),
                     from_output: output.name,
@@ -222,8 +222,8 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
     // Normalize IDs to strings for Map lookup
     const fromId = String(conn.from ?? conn.source_node ?? "");
     const toId = String(conn.to ?? conn.target_node ?? "");
-    const fromOutputName = conn.from_output || conn.source_output;
-    const toInputName = conn.to_input || conn.target_input;
+    const fromOutputName = conn.from_output ?? conn.source_output;
+    const toInputName = conn.to_input ?? conn.target_input;
 
     const fromNode = nodeMap.get(fromId);
     const toNode = nodeMap.get(toId);

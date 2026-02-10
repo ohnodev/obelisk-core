@@ -19,6 +19,8 @@ import { TelegramBotNode } from "./nodes/telegramBot";
 import { TelegramListenerNode } from "./nodes/telegramListener";
 import { TelegramMemoryCreatorNode } from "./nodes/telegramMemoryCreator";
 import { TelegramMemorySelectorNode } from "./nodes/telegramMemorySelector";
+import { BooleanLogicNode } from "./nodes/booleanLogic";
+import { RerouteNode } from "./nodes/reroute";
 
 const logger = getLogger("nodeRegistry");
 
@@ -72,6 +74,8 @@ export function registerAllNodes(): void {
   registerNode("telegram_listener", TelegramListenerNode);
   registerNode("telegram_memory_creator", TelegramMemoryCreatorNode);
   registerNode("telegram_memory_selector", TelegramMemorySelectorNode);
+  registerNode("boolean_logic", BooleanLogicNode);
+  registerNode("reroute", RerouteNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

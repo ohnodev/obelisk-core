@@ -3,31 +3,6 @@
   "name": "Obelisk Workflow",
   "nodes": [
     {
-      "id": "12",
-      "type": "telegram_listener",
-      "position": {
-        "x": 11,
-        "y": 170
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_token": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
-        "poll_interval": 2
-      }
-    },
-    {
-      "id": "15",
-      "type": "telegram_memory_creator",
-      "position": {
-        "x": 916,
-        "y": 236
-      },
-      "inputs": {},
-      "metadata": {
-        "summarize_threshold": 20
-      }
-    },
-    {
       "id": "16",
       "type": "memory_storage",
       "position": {
@@ -37,7 +12,9 @@
       "inputs": {},
       "metadata": {
         "storage_path": "default",
-        "storage_type": "local_json"
+        "storage_type": "local_json",
+        "Storage Path": "default",
+        "Storage Type": "local_json"
       }
     },
     {
@@ -49,16 +26,92 @@
       },
       "inputs": {},
       "metadata": {
+        "endpoint_url": "http://localhost:7780",
+        "use_default": true,
         "model_path": "models/default_model",
         "auto_load": true
+      }
+    },
+    {
+      "id": "12",
+      "type": "telegram_listener",
+      "position": {
+        "x": -94,
+        "y": 166
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_token": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
+        "poll_interval": 2
+      }
+    },
+    {
+      "id": "20",
+      "type": "reroute",
+      "position": {
+        "x": 204,
+        "y": -159
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "21",
+      "type": "reroute",
+      "position": {
+        "x": 207,
+        "y": -125
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "23",
+      "type": "reroute",
+      "position": {
+        "x": 2476,
+        "y": -129
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "22",
+      "type": "reroute",
+      "position": {
+        "x": 2476,
+        "y": -162
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "10",
+      "type": "telegram_bot",
+      "position": {
+        "x": 2857,
+        "y": 75
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
+        "chat_id": ""
       }
     },
     {
       "id": "7",
       "type": "text",
       "position": {
-        "x": 2182,
-        "y": 171
+        "x": 2322,
+        "y": 61
       },
       "inputs": {
         "text": ""
@@ -68,71 +121,121 @@
       }
     },
     {
-      "id": "10",
-      "type": "telegram_bot",
-      "position": {
-        "x": 2581,
-        "y": 196
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
-        "chat_id": ""
-      }
-    },
-    {
-      "id": "17",
-      "type": "binary_intent",
-      "position": {
-        "x": 1525,
-        "y": 334
-      },
-      "inputs": {},
-      "metadata": {
-        "intent_criteria": "Is this message DIRECTLY addressing or calling the bot?\n\nRespond TRUE only if the message:\n- Contains @ObeliskAgentBot mention\n- Explicitly calls out: Overseer, Agent #001, Obelisk Agent, The Obelisk\n- Is clearly a question or request directed AT the bot (not just mentioning AI/agents in general)\n\nRespond FALSE if:\n- The message is general chat not directed at the bot\n- Just mentions AI/agents in passing without addressing the bot\n- Is talking ABOUT the bot to others, not TO the bot\n- Is a reaction, emoji, or short acknowledgment"
-      }
-    },
-    {
       "id": "6",
       "type": "inference",
       "position": {
-        "x": 1917,
-        "y": 100
+        "x": 1938,
+        "y": 47
       },
       "inputs": {},
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
+        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line.",
         "enable_thinking": true
+      }
+    },
+    {
+      "id": "19",
+      "type": "boolean_logic",
+      "position": {
+        "x": 1659,
+        "y": 79
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "OR"
+      }
+    },
+    {
+      "id": "15",
+      "type": "telegram_memory_creator",
+      "position": {
+        "x": 762,
+        "y": 44
+      },
+      "inputs": {},
+      "metadata": {
+        "summarize_threshold": 20
       }
     },
     {
       "id": "14",
       "type": "telegram_memory_selector",
       "position": {
-        "x": 936,
-        "y": 477
+        "x": 840,
+        "y": 292
       },
       "inputs": {},
       "metadata": {
         "recent_count": 20,
-        "include_summaries": true
+        "include_summaries": true,
+        "Recent Messages": 20,
+        "Include Summaries": true
       }
     },
     {
-      "id": "5",
-      "type": "text",
+      "id": "18",
+      "type": "boolean_logic",
       "position": {
-        "x": 1543,
-        "y": -81
+        "x": 1227,
+        "y": 93
       },
       "inputs": {},
       "metadata": {
-        "text": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line."
+        "operation": "OR"
+      }
+    },
+    {
+      "id": "17",
+      "type": "binary_intent",
+      "position": {
+        "x": 1382,
+        "y": 377
+      },
+      "inputs": {},
+      "metadata": {
+        "intent_criteria": "Should the bot respond to this message?\n\nNote: @mentions and direct replies are already handled separately. This message was NOT a mention or reply, so use context clues only.\n\nRespond TRUE if the message:\n- Asks a question the bot can answer (tech, AI, crypto, general knowledge)\n- Explicitly calls out the bot by name (Overseer, Agent #001, Obelisk Agent, The Obelisk)\n- Is a direct request or prompt clearly meant for the bot\n- Raises a topic the bot has relevant context on from recent conversation\n\nRespond FALSE if:\n- General chatter between users not involving the bot\n- Reactions, emojis, short acknowledgments (ok, lol, nice, etc.)\n- Talking ABOUT the bot to others, not TO the bot\n- Off-topic banter the bot has nothing to add to"
       }
     }
   ],
   "connections": [
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "15",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "14",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "15",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "14",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "17",
+      "to_input": "model"
+    },
     {
       "from": "12",
       "from_output": "message",
@@ -171,51 +274,15 @@
     },
     {
       "from": "12",
-      "from_output": "chat_id",
-      "to": "10",
-      "to_input": "chat_id"
+      "from_output": "is_mention",
+      "to": "18",
+      "to_input": "a"
     },
     {
       "from": "12",
-      "from_output": "message_id",
-      "to": "10",
-      "to_input": "message_id"
-    },
-    {
-      "from": "16",
-      "from_output": "storage_instance",
-      "to": "15",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "16",
-      "from_output": "storage_instance",
-      "to": "14",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "6",
-      "to_input": "model"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "15",
-      "to_input": "model"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "14",
-      "to_input": "model"
-    },
-    {
-      "from": "4",
-      "from_output": "model",
-      "to": "17",
-      "to_input": "model"
+      "from_output": "is_reply_to_bot",
+      "to": "18",
+      "to_input": "b"
     },
     {
       "from": "7",
@@ -224,16 +291,16 @@
       "to_input": "message"
     },
     {
-      "from": "17",
-      "from_output": "message",
-      "to": "6",
-      "to_input": "query"
-    },
-    {
       "from": "6",
       "from_output": "response",
       "to": "7",
       "to_input": "text"
+    },
+    {
+      "from": "19",
+      "from_output": "pass",
+      "to": "6",
+      "to_input": "query"
     },
     {
       "from": "14",
@@ -244,14 +311,68 @@
     {
       "from": "14",
       "from_output": "message",
+      "to": "18",
+      "to_input": "value"
+    },
+    {
+      "from": "14",
+      "from_output": "message",
+      "to": "19",
+      "to_input": "value"
+    },
+    {
+      "from": "18",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "a"
+    },
+    {
+      "from": "18",
+      "from_output": "reject",
       "to": "17",
       "to_input": "message"
     },
     {
-      "from": "5",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "system_prompt"
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "b"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "20",
+      "to_input": "in"
+    },
+    {
+      "from": "20",
+      "from_output": "out",
+      "to": "22",
+      "to_input": "in"
+    },
+    {
+      "from": "22",
+      "from_output": "out",
+      "to": "10",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "message_id",
+      "to": "21",
+      "to_input": "in"
+    },
+    {
+      "from": "21",
+      "from_output": "out",
+      "to": "23",
+      "to_input": "in"
+    },
+    {
+      "from": "23",
+      "from_output": "out",
+      "to": "10",
+      "to_input": "message_id"
     }
   ]
 }

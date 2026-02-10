@@ -14,3 +14,5 @@ export { TelegramBotNode } from "./telegramBot";
 export { TelegramListenerNode } from "./telegramListener";
 export { TelegramMemoryCreatorNode } from "./telegramMemoryCreator";
 export { TelegramMemorySelectorNode } from "./telegramMemorySelector";
+export { BooleanLogicNode } from "./booleanLogic";
+export { RerouteNode } from "./reroute";
