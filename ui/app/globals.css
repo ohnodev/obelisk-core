@@ -25,6 +25,7 @@ body {
   overflow-y: auto;
   height: 100vh; /* Fallback for browsers that don't support dvh */
   height: 100dvh;
+  overscroll-behavior: none; /* Disable pull-to-refresh */
 }
 
 body {
