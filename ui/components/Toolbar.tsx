@@ -40,6 +40,7 @@ export default function Toolbar({
   const { coreApi: apiBaseUrl, serviceApi: deploymentApiUrl } = getApiUrls();
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
+  const [isRunPending, setIsRunPending] = useState(false); // guards against double-clicks
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -137,134 +138,135 @@ export default function Toolbar({
     }
   };
 
+  /** Helper: tear down the status poller and reset running state */
+  const clearRunnerState = () => {
+    setIsRunning(false);
+    setRunningWorkflowId(null);
+    if (statusPollRef.current) {
+      clearInterval(statusPollRef.current);
+      statusPollRef.current = null;
+    }
+  };
+
   /** Unified Run button handler – auto-detects autonomous vs one-shot */
   const handleRun = async () => {
-    // If already running autonomously, stop it
-    if (isRunning && runningWorkflowId) {
-      try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/workflow/stop`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workflow_id: runningWorkflowId }),
-        });
-        if (response.ok) {
-          setIsRunning(false);
-          setRunningWorkflowId(null);
-          if (statusPollRef.current) {
-            clearInterval(statusPollRef.current);
-            statusPollRef.current = null;
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.detail || `Server returned ${response.status}`;
-          showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
-          try {
-            const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${runningWorkflowId}`);
-            if (statusRes.ok) {
-              const status = await statusRes.json();
-              setIsRunning(status.state === "running");
-            } else {
-              setIsRunning(false);
-              setRunningWorkflowId(null);
-            }
-          } catch {
-            setIsRunning(false);
-            setRunningWorkflowId(null);
-          }
-        }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
-        setIsRunning(false);
-        setRunningWorkflowId(null);
-        if (statusPollRef.current) {
-          clearInterval(statusPollRef.current);
-          statusPollRef.current = null;
-        }
-      }
-      return;
-    }
+    // Guard against rapid double-clicks while a start/stop request is in flight
+    if (isRunPending) return;
+    setIsRunPending(true);
 
-    // Serialize the current workflow
-    const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
-    if (!serializeWorkflow) {
-      showNotification("Workflow serializer not available", "error");
-      return;
-    }
-    const currentWorkflow = serializeWorkflow() as WorkflowGraph | null;
-    if (!currentWorkflow) {
-      showNotification("No workflow to run", "error");
-      return;
-    }
-
-    // Route: autonomous nodes → persistent runner, otherwise → one-shot queue
-    if (hasAutonomousNodes(currentWorkflow)) {
-      // Autonomous mode — persistent runner with status polling
-      try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/workflow/run`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            workflow: currentWorkflow,
-            options: {
-              user_id: address?.toLowerCase() || "anonymous",
-            },
-          }),
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          setIsRunning(true);
-          setRunningWorkflowId(result.workflow_id);
-          lastResultsVersionRef.current = 0;
-
-          statusPollRef.current = setInterval(async () => {
+    try {
+      // If already running autonomously, stop it
+      if (isRunning && runningWorkflowId) {
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/v1/workflow/stop`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ workflow_id: runningWorkflowId }),
+          });
+          if (response.ok) {
+            clearRunnerState();
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.detail || `Server returned ${response.status}`;
+            showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
+            // Re-sync UI with actual server state
             try {
-              const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${result.workflow_id}`);
+              const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${runningWorkflowId}`);
               if (statusRes.ok) {
                 const status = await statusRes.json();
-                if (status.state !== "running") {
-                  setIsRunning(false);
-                  setRunningWorkflowId(null);
-                  if (statusPollRef.current) {
-                    clearInterval(statusPollRef.current);
-                    statusPollRef.current = null;
-                  }
-                  return;
+                if (status.state === "running") {
+                  setIsRunning(true);
+                } else {
+                  clearRunnerState();
                 }
-                if (status.results_version && status.results_version > lastResultsVersionRef.current) {
-                  lastResultsVersionRef.current = status.results_version;
-                  if (status.latest_results?.results) {
-                    const graph = (window as any).__obeliskGraph;
-                    if (graph) {
-                      console.log("[Runner] Applying new results to graph, version:", status.results_version);
-                      updateNodeOutputs(graph, status.latest_results.results, status.latest_results.executed_nodes);
+              } else {
+                clearRunnerState();
+              }
+            } catch {
+              clearRunnerState();
+            }
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
+          clearRunnerState();
+        }
+        return;
+      }
+
+      // Serialize the current workflow
+      const serializeWorkflow = (window as any).__obeliskSerializeWorkflow;
+      if (!serializeWorkflow) {
+        showNotification("Workflow serializer not available", "error");
+        return;
+      }
+      const currentWorkflow = serializeWorkflow() as WorkflowGraph | null;
+      if (!currentWorkflow) {
+        showNotification("No workflow to run", "error");
+        return;
+      }
+
+      // Route: autonomous nodes → persistent runner, otherwise → one-shot queue
+      if (hasAutonomousNodes(currentWorkflow)) {
+        // Autonomous mode — persistent runner with status polling
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/v1/workflow/run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              workflow: currentWorkflow,
+              options: {
+                user_id: address?.toLowerCase() || "anonymous",
+              },
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            setIsRunning(true);
+            setRunningWorkflowId(result.workflow_id);
+            lastResultsVersionRef.current = 0;
+
+            statusPollRef.current = setInterval(async () => {
+              try {
+                const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${result.workflow_id}`);
+                if (statusRes.ok) {
+                  const status = await statusRes.json();
+                  if (status.state !== "running") {
+                    clearRunnerState();
+                    return;
+                  }
+                  if (status.results_version && status.results_version > lastResultsVersionRef.current) {
+                    lastResultsVersionRef.current = status.results_version;
+                    if (status.latest_results?.results) {
+                      const graph = (window as any).__obeliskGraph;
+                      if (graph) {
+                        console.log("[Runner] Applying new results to graph, version:", status.results_version);
+                        updateNodeOutputs(graph, status.latest_results.results, status.latest_results.executed_nodes);
+                      }
                     }
                   }
                 }
+              } catch {
+                // Ignore polling errors
               }
-            } catch {
-              // Ignore polling errors
-            }
-          }, 1000);
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMsg = errorData.detail || `Server returned ${response.status}`;
+            }, 1000);
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.detail || `Server returned ${response.status}`;
+            showNotification(`Failed to start workflow: ${errorMsg}`, "error");
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
           showNotification(`Failed to start workflow: ${errorMsg}`, "error");
+          clearRunnerState();
         }
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        showNotification(`Failed to start workflow: ${errorMsg}`, "error");
-        setIsRunning(false);
-        setRunningWorkflowId(null);
-        if (statusPollRef.current) {
-          clearInterval(statusPollRef.current);
-          statusPollRef.current = null;
-        }
+      } else {
+        // One-shot mode — execute once via queue
+        await executeOnce();
       }
-    } else {
-      // One-shot mode — execute once via queue
-      await executeOnce();
+    } finally {
+      setIsRunPending(false);
     }
   };
 
@@ -443,7 +445,7 @@ export default function Toolbar({
 
       <button
         onClick={() => { handleRun(); setIsMobileMenuOpen(false); }}
-        disabled={isExecuting}
+        disabled={isExecuting || isRunPending}
         style={{
           display: "flex",
           alignItems: "center",
@@ -451,18 +453,18 @@ export default function Toolbar({
           padding: "0.5rem 1.25rem",
           background: isRunning
             ? "rgba(231, 76, 60, 0.08)"
-            : isExecuting
+            : (isExecuting || isRunPending)
               ? "var(--color-button-secondary-bg)"
               : "rgba(212, 175, 55, 0.08)",
           color: isRunning
             ? "#e74c3c"
-            : isExecuting
+            : (isExecuting || isRunPending)
               ? "var(--color-text-muted)"
               : "var(--color-primary)",
           border: `1px solid ${
             isRunning
               ? "rgba(231, 76, 60, 0.25)"
-              : isExecuting
+              : (isExecuting || isRunPending)
                 ? "var(--color-border-primary)"
                 : "rgba(212, 175, 55, 0.25)"
           }`,
@@ -470,14 +472,14 @@ export default function Toolbar({
           fontFamily: "var(--font-body)",
           fontSize: "0.875rem",
           fontWeight: 500,
-          cursor: isExecuting ? "not-allowed" : "pointer",
+          cursor: (isExecuting || isRunPending) ? "not-allowed" : "pointer",
           transition: "all 0.2s ease",
           boxShadow: isRunning
             ? "0 2px 6px rgba(231, 76, 60, 0.15)"
-            : isExecuting
+            : (isExecuting || isRunPending)
               ? "none"
               : "0 2px 6px rgba(212, 175, 55, 0.15)",
-          opacity: isExecuting ? 0.5 : 1,
+          opacity: (isExecuting || isRunPending) ? 0.5 : 1,
           width: isMobile ? "100%" : "auto",
           justifyContent: isMobile ? "flex-start" : "center",
         }}
@@ -555,7 +557,7 @@ export default function Toolbar({
             {/* Quick action button on mobile */}
             <button
               onClick={() => { handleRun(); }}
-              disabled={isExecuting}
+              disabled={isExecuting || isRunPending}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -563,25 +565,25 @@ export default function Toolbar({
                 padding: "0.5rem 0.75rem",
                 background: isRunning
                   ? "rgba(231, 76, 60, 0.15)"
-                  : isExecuting
+                  : (isExecuting || isRunPending)
                     ? "var(--color-button-secondary-bg)"
                     : "rgba(212, 175, 55, 0.15)",
                 color: isRunning
                   ? "#e74c3c"
-                  : isExecuting
+                  : (isExecuting || isRunPending)
                     ? "var(--color-text-muted)"
                     : "var(--color-primary)",
                 border: `1px solid ${
                   isRunning
                     ? "rgba(231, 76, 60, 0.3)"
-                    : isExecuting
+                    : (isExecuting || isRunPending)
                       ? "var(--color-border-primary)"
                       : "rgba(212, 175, 55, 0.3)"
                 }`,
                 borderRadius: "4px",
-                cursor: isExecuting ? "not-allowed" : "pointer",
+                cursor: (isExecuting || isRunPending) ? "not-allowed" : "pointer",
                 transition: "all 0.2s ease",
-                opacity: isExecuting ? 0.5 : 1,
+                opacity: (isExecuting || isRunPending) ? 0.5 : 1,
               }}
               title={isRunning ? "Stop workflow" : "Run workflow"}
             >
