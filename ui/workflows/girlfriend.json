@@ -40,9 +40,7 @@
       "inputs": {},
       "metadata": {
         "storage_path": "default",
-        "storage_type": "local_json",
-        "Storage Path": "default",
-        "Storage Type": "local_json"
+        "storage_type": "local_json"
       }
     },
     {
