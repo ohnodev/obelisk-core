@@ -35,6 +35,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
@@ -213,23 +214,35 @@ function buildGirlfriendWorkflow(opts: {
 
 /**
  * Read saved interactions from a LocalJSONStorage data directory.
+ *
+ * Reads ALL JSON files in interactionsDir (sorted for determinism), parses
+ * each (handling both array and single-object payloads), and returns the
+ * aggregated list of interactions whose user_id === userId.
  */
 function readSavedInteractions(storagePath: string, userId: string) {
   const interactionsDir = path.join(storagePath, "memory", "interactions");
   const files = fs.existsSync(interactionsDir)
-    ? fs.readdirSync(interactionsDir).filter((f) => f.endsWith(".json"))
+    ? fs.readdirSync(interactionsDir).filter((f) => f.endsWith(".json")).sort()
     : [];
+
+  const result: any[] = [];
 
   for (const file of files) {
     const data = JSON.parse(
       fs.readFileSync(path.join(interactionsDir, file), "utf-8")
     );
-    // Check if any interaction belongs to the target user
-    if (Array.isArray(data) && data.some((i: any) => i.user_id === userId)) {
-      return data;
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        if (item.user_id === userId) {
+          result.push(item);
+        }
+      }
+    } else if (data && typeof data === "object" && data.user_id === userId) {
+      result.push(data);
     }
   }
-  return [];
+
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -270,16 +283,22 @@ describe("Girlfriend workflow — query storage", () => {
       "Hey! I'm doing amazing, thanks for asking! 😜"
     );
 
-    // Verify inference was called with the RAW query (no system prompt in query arg)
-    const generateCall = inferenceGenerate.mock.calls[0];
-    const queryArg = generateCall[0] as string;
+    // Verify inference was called with the RAW query (no system prompt in query arg).
+    // MemorySelectorNode may also call generate(), so find the specific call
+    // whose first argument matches userMessage.
+    const generateCall = inferenceGenerate.mock.calls.find(
+      (call) => call[0] === userMessage
+    );
+    expect(generateCall).toBeDefined();
+
+    const queryArg = generateCall![0] as string;
     expect(queryArg).toBe(userMessage);
     expect(queryArg).not.toContain("[Character:");
     expect(queryArg).not.toContain("You are Aria");
     expect(queryArg).not.toContain("User says:");
 
     // The system prompt should be in the second argument (systemPrompt)
-    const systemPromptArg = generateCall[1] as string;
+    const systemPromptArg = generateCall![1] as string;
     expect(systemPromptArg).toContain("You are Aria");
 
     // Check saved interactions in storage
