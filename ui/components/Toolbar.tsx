@@ -38,8 +38,8 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
   {
     id: "girlfriend",
-    name: "AI Girlfriend",
-    description: "HTTP-based AI girlfriend with memory and personality",
+    name: "Aria – The Playful One",
+    description: "Energetic, witty HTTP-based AI companion with memory",
     data: girlfriendTemplate,
   },
 ];
