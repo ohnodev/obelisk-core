@@ -13,12 +13,39 @@ import StopIcon from "./icons/StopIcon";
 import DeployIcon from "./icons/DeployIcon";
 import AgentsIcon from "./icons/AgentsIcon";
 import HamburgerIcon from "./icons/HamburgerIcon";
+import TemplatesIcon from "./icons/TemplatesIcon";
 import DeployModal from "./DeployModal";
 import WalletButton from "./WalletButton";
 import { useNotifications } from "./Notification";
 
+// Workflow templates
+import telegramV1Template from "@/workflows/default.json";
+import girlfriendTemplate from "@/workflows/girlfriend.json";
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  data: any;
+}
+
+const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: "telegram-v1",
+    name: "Telegram V1 Bot",
+    description: "Default Telegram bot with memory, binary intent, and boolean logic",
+    data: telegramV1Template,
+  },
+  {
+    id: "girlfriend",
+    name: "Aria – The Playful One",
+    description: "Energetic, witty HTTP-based AI companion with memory",
+    data: girlfriendTemplate,
+  },
+];
+
 // Node types that run autonomously (continuously) and require the persistent runner
-const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler"]);
+const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler", "http_listener"]);
 
 // Single breakpoint for responsive design
 const MOBILE_BREAKPOINT = 1200;
@@ -44,7 +71,9 @@ export default function Toolbar({
   const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const templatesRef = useRef<HTMLDivElement>(null);
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
   const lastResultsVersionRef = useRef<number>(0);
   const { showNotification } = useNotifications();
@@ -104,6 +133,27 @@ export default function Toolbar({
 
     const result = await response.json();
     showNotification(`Agent deployed successfully! ID: ${result.agent_id}`, "success", 6000);
+  };
+
+  // Close templates dropdown when clicking outside
+  useEffect(() => {
+    if (!isTemplatesOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (templatesRef.current && !templatesRef.current.contains(e.target as Node)) {
+        setIsTemplatesOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTemplatesOpen]);
+
+  const handleTemplateSelect = (template: WorkflowTemplate) => {
+    setIsTemplatesOpen(false);
+    setIsMobileMenuOpen(false);
+    if (onLoad) {
+      onLoad(template.data as WorkflowGraph);
+      showNotification(`Loaded template: ${template.name}`, "info", 2000);
+    }
   };
 
   const handleDeployClick = () => {
@@ -382,6 +432,100 @@ export default function Toolbar({
   // Render menu items (reusable for both desktop and mobile)
   const renderLeftButtons = () => (
     <>
+      {/* Templates dropdown */}
+      <div ref={templatesRef} style={{ position: "relative" }}>
+        <button
+          onClick={() => setIsTemplatesOpen(!isTemplatesOpen)}
+          style={{
+            ...secondaryButtonStyle,
+            background: isTemplatesOpen ? "rgba(212, 175, 55, 0.12)" : secondaryButtonStyle.background,
+            color: isTemplatesOpen ? "var(--color-primary)" : secondaryButtonStyle.color,
+            borderColor: isTemplatesOpen ? "rgba(212, 175, 55, 0.25)" : undefined,
+          }}
+        >
+          <TemplatesIcon />
+          <span>Templates</span>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              marginLeft: "0.125rem",
+              transition: "transform 0.2s ease",
+              transform: isTemplatesOpen ? "rotate(180deg)" : "rotate(0deg)",
+            }}
+          >
+            <path d="M2 3.5L5 6.5L8 3.5" />
+          </svg>
+        </button>
+
+        {isTemplatesOpen && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              minWidth: "260px",
+              background: "rgba(15, 20, 25, 0.98)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "6px",
+              padding: "0.375rem",
+              zIndex: 200,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+              animation: "slideDown 0.15s ease",
+            }}
+          >
+            {WORKFLOW_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => handleTemplateSelect(template)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: "0.125rem",
+                  width: "100%",
+                  padding: "0.5rem 0.75rem",
+                  background: "transparent",
+                  color: "var(--color-text-primary)",
+                  border: "none",
+                  borderRadius: "4px",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(212, 175, 55, 0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{template.name}</span>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--color-text-muted)",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {template.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <button
         onClick={() => { handleSave(); setIsMobileMenuOpen(false); }}
         disabled={!workflow}
