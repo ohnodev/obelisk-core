@@ -169,7 +169,7 @@ export default function Toolbar({
             const errorData = await response.json().catch(() => ({}));
             const errorMsg = errorData.detail || `Server returned ${response.status}`;
             showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
-            // Re-sync UI with actual server state
+            // Re-sync UI with actual server state — only clear if confirmed stopped
             try {
               const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${runningWorkflowId}`);
               if (statusRes.ok) {
@@ -179,17 +179,17 @@ export default function Toolbar({
                 } else {
                   clearRunnerState();
                 }
-              } else {
-                clearRunnerState();
               }
+              // If status fetch fails, keep current state — don't assume stopped
             } catch {
-              clearRunnerState();
+              // Network error on status check — keep running state as-is
             }
           }
         } catch (error) {
+          // Network/transport error on the stop request itself —
+          // the workflow may still be running, so don't clear state
           const errorMsg = error instanceof Error ? error.message : String(error);
           showNotification(`Failed to stop workflow: ${errorMsg}`, "error");
-          clearRunnerState();
         }
         return;
       }
@@ -232,10 +232,8 @@ export default function Toolbar({
                 const statusRes = await fetch(`${apiBaseUrl}/api/v1/workflow/status/${result.workflow_id}`);
                 if (statusRes.ok) {
                   const status = await statusRes.json();
-                  if (status.state !== "running") {
-                    clearRunnerState();
-                    return;
-                  }
+
+                  // Apply latest results first (including final results when workflow finishes)
                   if (status.results_version && status.results_version > lastResultsVersionRef.current) {
                     lastResultsVersionRef.current = status.results_version;
                     if (status.latest_results?.results) {
@@ -245,6 +243,12 @@ export default function Toolbar({
                         updateNodeOutputs(graph, status.latest_results.results, status.latest_results.executed_nodes);
                       }
                     }
+                  }
+
+                  // Then check if the workflow has stopped
+                  if (status.state !== "running") {
+                    clearRunnerState();
+                    return;
                   }
                 }
               } catch {
