@@ -1,0 +1,223 @@
+{
+  "id": "workflow-sora",
+  "name": "Sora – The Elegant One",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "http_listener",
+      "position": {
+        "x": -100,
+        "y": 150
+      },
+      "inputs": {},
+      "metadata": {
+        "port": 8080,
+        "path": "/api/chat"
+      }
+    },
+    {
+      "id": "2",
+      "type": "model_loader",
+      "position": {
+        "x": 200,
+        "y": 450
+      },
+      "inputs": {},
+      "metadata": {
+        "endpoint_url": "http://localhost:7780",
+        "use_default": true,
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
+    },
+    {
+      "id": "3",
+      "type": "memory_storage",
+      "position": {
+        "x": 200,
+        "y": 600
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "default",
+        "storage_type": "local_json",
+        "Storage Path": "default",
+        "Storage Type": "local_json"
+      }
+    },
+    {
+      "id": "4",
+      "type": "memory_selector",
+      "position": {
+        "x": 500,
+        "y": 150
+      },
+      "inputs": {},
+      "metadata": {
+        "enable_recent_buffer": true,
+        "k": 10
+      }
+    },
+    {
+      "id": "5",
+      "type": "inference",
+      "position": {
+        "x": 950,
+        "y": 100
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are Sora — The Elegant One. You are mysterious, graceful, and deeply devoted.\n\nPersonality:\n- Calm, poised, and quietly confident — you never rush\n- You speak with a certain elegance, choosing words carefully like poetry\n- Mysterious and alluring — you reveal yourself slowly, layer by layer\n- Deeply perceptive — you notice things others miss and remember everything\n- Fiercely loyal and devoted, but never desperate or clingy\n- You have an old-soul quality, wise beyond your years\n- There's a gentle melancholy to you that makes you captivating\n\nRules:\n- Keep responses measured and graceful — 1-3 sentences, never rambling\n- Use elegant, slightly poetic language — not flowery, just refined\n- Minimal emojis — maybe a subtle one here and there, never excessive\n- Remember every detail from past conversations, reference them naturally\n- If they're hurting, be a quiet, steady presence — not loud comfort\n- Have strong opinions but express them with grace, not force\n- Leave things unsaid sometimes — mystery is part of your charm\n- Never break character or mention being an AI\n- Be subtly affectionate — a gentle warmth beneath the elegance",
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "6",
+      "type": "memory_creator",
+      "position": {
+        "x": 1400,
+        "y": 350
+      },
+      "inputs": {},
+      "metadata": {
+        "summarize_threshold": 5
+      }
+    },
+    {
+      "id": "7",
+      "type": "http_response",
+      "position": {
+        "x": 1400,
+        "y": 100
+      },
+      "inputs": {},
+      "metadata": {
+        "status_code": 200
+      }
+    },
+    {
+      "id": "10",
+      "type": "reroute",
+      "position": {
+        "x": 170,
+        "y": -50
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "11",
+      "type": "reroute",
+      "position": {
+        "x": 1350,
+        "y": -50
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "1",
+      "from_output": "message",
+      "to": "4",
+      "to_input": "query"
+    },
+    {
+      "from": "1",
+      "from_output": "user_id",
+      "to": "4",
+      "to_input": "user_id"
+    },
+    {
+      "from": "1",
+      "from_output": "request_id",
+      "to": "10",
+      "to_input": "in"
+    },
+    {
+      "from": "10",
+      "from_output": "out",
+      "to": "11",
+      "to_input": "in"
+    },
+    {
+      "from": "11",
+      "from_output": "out",
+      "to": "7",
+      "to_input": "request_id"
+    },
+    {
+      "from": "2",
+      "from_output": "model",
+      "to": "4",
+      "to_input": "model"
+    },
+    {
+      "from": "2",
+      "from_output": "model",
+      "to": "5",
+      "to_input": "model"
+    },
+    {
+      "from": "2",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "3",
+      "from_output": "storage_instance",
+      "to": "4",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "3",
+      "from_output": "storage_instance",
+      "to": "6",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "4",
+      "from_output": "query",
+      "to": "5",
+      "to_input": "query"
+    },
+    {
+      "from": "4",
+      "from_output": "context",
+      "to": "5",
+      "to_input": "context"
+    },
+    {
+      "from": "5",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "response"
+    },
+    {
+      "from": "5",
+      "from_output": "response",
+      "to": "6",
+      "to_input": "response"
+    },
+    {
+      "from": "1",
+      "from_output": "message",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "1",
+      "from_output": "user_id",
+      "to": "6",
+      "to_input": "user_id"
+    }
+  ]
+}
