@@ -472,7 +472,199 @@ describe("Girlfriend workflow — memory isolation", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────────
-// 3. InferenceNode should pass system prompt via the systemPrompt argument
+// 3. Memory recall — the second message should include the first
+//    conversation in the context sent to the LLM.
+// ────────────────────────────────────────────────────────────────────────
+
+describe("Girlfriend workflow — memory recall", () => {
+  it("should include previous conversation in context on the second message", async () => {
+    const storagePath = path.join(tmpDir, "memory-recall");
+    const systemPrompt = "You are Aria — The Playful One.";
+
+    let callCount = 0;
+    const inferenceGenerate = vi
+      .spyOn(InferenceClient.prototype, "generate")
+      .mockImplementation(async () => {
+        callCount++;
+        if (callCount === 1) {
+          return { response: "Ooh green is such a vibe! 💚", source: "mock" };
+        }
+        return { response: "Your favorite color is green! 💚", source: "mock" };
+      });
+
+    // ── Turn 1: tell the agent your favorite color ──────────────────
+    const workflow1 = buildGirlfriendWorkflow({
+      storagePath,
+      systemPrompt,
+      userMessage: "My favorite color is green",
+    });
+    const result1 = await engine.execute(workflow1);
+    expect(result1.success).toBe(true);
+
+    // Verify first turn was saved to storage
+    const interactionsAfterTurn1 = readSavedInteractions(
+      storagePath,
+      "test-user"
+    );
+    expect(interactionsAfterTurn1.length).toBe(1);
+    expect(interactionsAfterTurn1[0].query).toBe("My favorite color is green");
+    expect(interactionsAfterTurn1[0].response).toBe(
+      "Ooh green is such a vibe! 💚"
+    );
+
+    // Reset call tracking for turn 2
+    inferenceGenerate.mockClear();
+    callCount = 1; // next call will be callCount=2
+
+    // ── Turn 2: ask if it remembers ─────────────────────────────────
+    const workflow2 = buildGirlfriendWorkflow({
+      storagePath,
+      systemPrompt,
+      userMessage: "What's my favorite color?",
+    });
+    const result2 = await engine.execute(workflow2);
+    expect(result2.success).toBe(true);
+
+    // Now inspect the generate() calls from turn 2.
+    // The MemorySelectorNode loads the buffer from storage, then passes
+    // it as context → InferenceNode merges it into the system prompt or
+    // conversation_history before calling generate().
+    const turn2Calls = inferenceGenerate.mock.calls;
+
+    // Find the inference call (the one with "What's my favorite color?")
+    const inferenceCall = turn2Calls.find(
+      (c) => c[0] === "What's my favorite color?"
+    );
+    expect(inferenceCall).toBeDefined();
+
+    // The system prompt (arg 1) should now include the previous
+    // conversation from the buffer (merged as chat history).
+    const sentSystemPrompt = inferenceCall![1] as string;
+
+    // The conversation history (arg 4) should contain the previous exchange
+    const conversationHistory = inferenceCall![4] as
+      | Array<Record<string, string>>
+      | null;
+
+    // At least ONE of these should contain our previous conversation:
+    // Either the system prompt has "Chat History" appended, or
+    // conversationHistory has the previous messages.
+    const systemPromptHasHistory =
+      sentSystemPrompt.includes("My favorite color is green") ||
+      sentSystemPrompt.includes("green is such a vibe");
+    const historyHasPreviousConvo =
+      conversationHistory !== null &&
+      conversationHistory !== undefined &&
+      conversationHistory.length > 0 &&
+      conversationHistory.some(
+        (msg) =>
+          msg.content?.includes("My favorite color is green") ||
+          msg.content?.includes("green is such a vibe")
+      );
+
+    expect(systemPromptHasHistory || historyHasPreviousConvo).toBe(true);
+
+    // Verify we can identify which mechanism was used
+    if (historyHasPreviousConvo) {
+      // conversation_history approach: messages array
+      const userMsg = conversationHistory!.find(
+        (m) => m.role === "user" && m.content?.includes("favorite color")
+      );
+      const aiMsg = conversationHistory!.find(
+        (m) =>
+          m.role === "assistant" && m.content?.includes("green is such a vibe")
+      );
+      expect(userMsg).toBeDefined();
+      expect(aiMsg).toBeDefined();
+    }
+
+    if (systemPromptHasHistory) {
+      // System prompt approach: chat history appended
+      expect(sentSystemPrompt).toContain("You are Aria");
+      expect(sentSystemPrompt).toContain("My favorite color is green");
+    }
+
+    inferenceGenerate.mockRestore();
+  });
+
+  it("should accumulate multiple turns in context", async () => {
+    const storagePath = path.join(tmpDir, "multi-recall");
+    const systemPrompt = "You are Aria — The Playful One.";
+
+    let callCount = 0;
+    const inferenceGenerate = vi
+      .spyOn(InferenceClient.prototype, "generate")
+      .mockImplementation(async () => {
+        callCount++;
+        switch (callCount) {
+          case 1:
+            return { response: "Green, nice! 💚", source: "mock" };
+          case 2:
+            return { response: "Pizza is the best! 🍕", source: "mock" };
+          default:
+            return {
+              response: "You love green and pizza!",
+              source: "mock",
+            };
+        }
+      });
+
+    // Turn 1
+    const w1 = buildGirlfriendWorkflow({
+      storagePath,
+      systemPrompt,
+      userMessage: "My favorite color is green",
+    });
+    expect((await engine.execute(w1)).success).toBe(true);
+
+    // Turn 2
+    const w2 = buildGirlfriendWorkflow({
+      storagePath,
+      systemPrompt,
+      userMessage: "My favorite food is pizza",
+    });
+    expect((await engine.execute(w2)).success).toBe(true);
+
+    // Reset for turn 3
+    inferenceGenerate.mockClear();
+    callCount = 2;
+
+    // Turn 3: ask about both
+    const w3 = buildGirlfriendWorkflow({
+      storagePath,
+      systemPrompt,
+      userMessage: "What are my favorites?",
+    });
+    const result3 = await engine.execute(w3);
+    expect(result3.success).toBe(true);
+
+    // Find the inference call for turn 3
+    const turn3Calls = inferenceGenerate.mock.calls;
+    const inferenceCall = turn3Calls.find(
+      (c) => c[0] === "What are my favorites?"
+    );
+    expect(inferenceCall).toBeDefined();
+
+    const sentSystemPrompt = inferenceCall![1] as string;
+    const conversationHistory = inferenceCall![4] as
+      | Array<Record<string, string>>
+      | null;
+
+    // Both previous conversations should be present somewhere
+    const allContext = [
+      sentSystemPrompt,
+      ...(conversationHistory?.map((m) => m.content) ?? []),
+    ].join("\n");
+
+    expect(allContext).toContain("favorite color is green");
+    expect(allContext).toContain("favorite food is pizza");
+
+    inferenceGenerate.mockRestore();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// 4. InferenceNode should pass system prompt via the systemPrompt argument
 //    to generate(), NOT concatenated into the query.
 // ────────────────────────────────────────────────────────────────────────
 
