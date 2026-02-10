@@ -137,7 +137,11 @@ export class HttpListenerNode extends BaseNode {
       const requestId = randomUUID();
       const body = req.body;
 
-      // Extract message: prefer body.message, fall back to body.text, then stringify
+      // Compute rawBody first so it's always a safe string
+      const rawBody =
+        typeof body === "string" ? body : (JSON.stringify(body) ?? "");
+
+      // Extract message: prefer body.message, fall back to body.text, then rawBody
       let message: string;
       if (typeof body === "string") {
         message = body;
@@ -146,7 +150,7 @@ export class HttpListenerNode extends BaseNode {
       } else if (body?.text) {
         message = String(body.text);
       } else {
-        message = JSON.stringify(body);
+        message = rawBody;
       }
 
       const userId = String(body?.user_id ?? body?.userId ?? "anonymous");
@@ -158,7 +162,7 @@ export class HttpListenerNode extends BaseNode {
         method: req.method,
         path: req.path,
         headers: req.headers as Record<string, string>,
-        rawBody: typeof body === "string" ? body : JSON.stringify(body),
+        rawBody,
         timestamp: Date.now(),
         resolve: ({ status, body: respBody }) => {
           if (!res.headersSent) {
