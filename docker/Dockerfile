@@ -51,6 +51,9 @@ ENV OBELISK_LOG_LEVEL=INFO
 # The workflow JSON is passed via WORKFLOW_JSON env var
 # Or mounted as a file at /app/workflows/workflow.json
 
+# Expose HTTP Listener port (used by HttpListenerNode for API endpoints)
+EXPOSE 8080
+
 # Switch to non-root user
 USER obelisk
 

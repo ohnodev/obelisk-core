@@ -131,6 +131,16 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Integrations",
     nodes: [
       {
+        type: "http_listener",
+        title: "HTTP Listener",
+        description: "Starts an HTTP server and listens for POST requests (autonomous)",
+      },
+      {
+        type: "http_response",
+        title: "HTTP Response",
+        description: "Sends a response back to the waiting HTTP client",
+      },
+      {
         type: "telegram_listener",
         title: "Telegram Listener",
         description: "Polls for new Telegram messages (autonomous)",

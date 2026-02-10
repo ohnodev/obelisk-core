@@ -39,13 +39,13 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     id: "girlfriend",
     name: "AI Girlfriend",
-    description: "Conversational AI girlfriend personality via Telegram",
+    description: "HTTP-based AI girlfriend with memory and personality",
     data: girlfriendTemplate,
   },
 ];
 
 // Node types that run autonomously (continuously) and require the persistent runner
-const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler"]);
+const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler", "http_listener"]);
 
 // Single breakpoint for responsive design
 const MOBILE_BREAKPOINT = 1200;
