@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { formatAddress } from "@/lib/wallet";
 
@@ -33,15 +33,16 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, w
   const [isDeploying, setIsDeploying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const wasOpenRef = useRef(false);
 
   // Ensure we only render portal on client side
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Reset state when modal is opened — auto-detect env vars from workflow
+  // Reset state only when modal transitions from closed → open
   useEffect(() => {
-    if (isOpen) {
+    if (!wasOpenRef.current && isOpen) {
       setName(workflowName ?? "My Agent");
       setError(null);
       setIsDeploying(false);
@@ -54,6 +55,7 @@ export default function DeployModal({ isOpen, onClose, onDeploy, workflowName, w
         setEnvVars([{ key: "", value: "" }]);
       }
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen, workflowName, workflow]);
 
   if (!isOpen || !mounted) return null;
