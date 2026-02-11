@@ -21,7 +21,7 @@ import { useNotifications } from "./Notification";
 // Workflow templates
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
-import soraTemplate from "@/workflows/sora.json";
+import crabTemplate from "@/workflows/crab.json";
 
 interface WorkflowTemplate {
   id: string;
@@ -44,10 +44,10 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     data: girlfriendTemplate,
   },
   {
-    id: "sora",
-    name: "Sora – The Elegant One",
-    description: "Mysterious, graceful, and deeply devoted to you alone",
-    data: soraTemplate,
+    id: "crab",
+    name: "Crab AI 🦀",
+    description: "Hilarious, witty crypto crab — Telegram bot for $CAI on Base Chain",
+    data: crabTemplate,
   },
 ];
 
