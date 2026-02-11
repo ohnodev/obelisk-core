@@ -557,6 +557,8 @@ describe("Telegram E2E workflow test", () => {
 
   // ── 7. Reply then "delete the message I replied to" ───────────────────
 
+  // Resolving user_id from reply_to_message_id via storage is unit-tested in
+  // telegram-storage-resolution.test.ts (no inference, no Telegram API).
   it.skipIf(!hasBotToken || !hasChatId || !inferenceAvailable)(
     "should delete the message user replied to when asked",
     async () => {

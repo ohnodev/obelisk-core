@@ -25,6 +25,40 @@ const logger = getLogger("telegramAction");
 
 const API_BASE = "https://api.telegram.org/bot";
 
+/**
+ * Resolve user_id from storage by message_id (author of that message) or by username.
+ * Exported for unit tests. Returns empty string if not found.
+ */
+export async function resolveUserIdFromStorage(
+  storage: StorageInterface | undefined,
+  chatId: string,
+  params: Record<string, unknown>
+): Promise<string> {
+  if (!storage || !chatId) return "";
+  try {
+    const logs = await storage.getActivityLogs("telegram_message", 200);
+    const byChat = logs.filter((log) => String(log.metadata?.chat_id ?? "") === String(chatId));
+
+    const byMessageId =
+      params.message_id != null
+        ? byChat.find((log) => Number(log.metadata?.message_id) === Number(params.message_id))
+        : null;
+    if (byMessageId?.metadata?.user_id) return String(byMessageId.metadata.user_id);
+
+    const usernameRaw = (params.username as string) ?? "";
+    const username = usernameRaw.replace(/^@/, "").toLowerCase();
+    if (!username) return "";
+    const byUsername = byChat.find((log) => {
+      const u = String(log.metadata?.username ?? "").toLowerCase();
+      return u === username || u === `@${username}`;
+    });
+    if (byUsername?.metadata?.user_id) return String(byUsername.metadata.user_id);
+  } catch (err) {
+    logger.warn(`[TelegramAction] resolveUserIdFromStorage failed: ${err}`);
+  }
+  return "";
+}
+
 interface ActionResult {
   action: string;
   success: boolean;
@@ -257,37 +291,12 @@ export class TelegramActionNode extends BaseNode {
     }
   }
 
-  /**
-   * Resolve user_id from storage by username or by message_id (author of that message).
-   * Returns empty string if not found.
-   */
   private async resolveUserIdFromStorage(
     storage: StorageInterface | undefined,
     chatId: string,
     params: Record<string, unknown>
   ): Promise<string> {
-    if (!storage || !chatId) return "";
-    try {
-      const logs = await storage.getActivityLogs("telegram_message", 200);
-      const byChat = logs.filter((log) => String(log.metadata?.chat_id ?? "") === String(chatId));
-
-      const byMessageId = params.message_id != null
-        ? byChat.find((log) => Number(log.metadata?.message_id) === Number(params.message_id))
-        : null;
-      if (byMessageId?.metadata?.user_id) return String(byMessageId.metadata.user_id);
-
-      const usernameRaw = (params.username as string) ?? "";
-      const username = usernameRaw.replace(/^@/, "").toLowerCase();
-      if (!username) return "";
-      const byUsername = byChat.find((log) => {
-        const u = String(log.metadata?.username ?? "").toLowerCase();
-        return u === username || u === `@${username}`;
-      });
-      if (byUsername?.metadata?.user_id) return String(byUsername.metadata.user_id);
-    } catch (err) {
-      logger.warn(`[TelegramAction] resolveUserIdFromStorage failed: ${err}`);
-    }
-    return "";
+    return resolveUserIdFromStorage(storage, chatId, params);
   }
 
   private async post(
