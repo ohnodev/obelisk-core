@@ -89,6 +89,7 @@ class HttpResponseNode extends LGraphNode {
           widget.value = props.status_code;
         }
       });
+      this.updateWidgetState("status_code", "_status_widget");
     }
   }
 

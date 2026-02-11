@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class TelegramActionNode extends LGraphNode {
   static title = "TG Action";
-  static desc = "Executes action list for Telegram (reply, send_dm, pin_message, timeout_message_author, delete_message)";
+  static desc = "Executes action list for Telegram (reply, send_dm, pin_message, timeout_message_author, delete_message, delete_reply_to_message, pin_reply_to_message, timeout_reply_to_author)";
   static title_color = "#0088cc";
 
   constructor() {
@@ -74,6 +74,7 @@ class TelegramActionNode extends LGraphNode {
           widget.value = props.bot_id;
         }
       });
+      (this as any).updateWidgetState("_bot_id_widget");
     }
   }
 

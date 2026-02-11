@@ -175,7 +175,14 @@ Example of correct JSON format:
     const username = this.getInputValue("username", context, "") as string;
     const chatId = this.getInputValue("chat_id", context, "") as string;
     const messageIdRaw = this.getInputValue("message_id", context, undefined);
-    const messageId = messageIdRaw != null ? Number(messageIdRaw) : undefined;
+    const num =
+      messageIdRaw != null && messageIdRaw !== ""
+        ? Number(messageIdRaw)
+        : NaN;
+    const messageId =
+      Number.isFinite(num) && num > 0 && Math.floor(num) === num
+        ? num
+        : undefined;
     const storage = this.getInputValue(
       "storage_instance",
       context,
@@ -225,7 +232,8 @@ Example of correct JSON format:
       timestamp: Date.now() / 1000,
       type: "telegram_message",
     };
-    if (messageId != null && Number.isFinite(messageId)) {
+    // Persist message_id so memory selector and TG action can show/resolve it (required for delete/pin/timeout by context)
+    if (typeof messageId === "number" && Number.isFinite(messageId)) {
       messageData.message_id = messageId;
     }
 

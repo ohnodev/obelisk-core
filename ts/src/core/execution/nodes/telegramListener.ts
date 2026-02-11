@@ -312,7 +312,11 @@ export class TelegramListenerNode extends BaseNode {
     const isReplyToBot =
       !!this._botInfo && replyFrom.id === (this._botInfo as any).id;
 
-    const replyToMessageId = replyTo.message_id != null ? Number(replyTo.message_id) : undefined;
+    const rawReplyId = replyTo.message_id;
+    const replyToMessageId =
+      rawReplyId != null && Number.isFinite(Number(rawReplyId))
+        ? Number(rawReplyId)
+        : undefined;
     const replyToUserId = replyFrom.id != null ? String(replyFrom.id) : undefined;
     const replyToUsername = (replyFrom.username as string) ?? undefined;
 

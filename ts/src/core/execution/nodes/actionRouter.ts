@@ -51,7 +51,7 @@ function extractReplyTextFromJsonLike(raw: string): string | null {
   if (end <= start) return null;
   const value = raw.slice(start, end);
   try {
-    return JSON.parse('"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"') as string;
+    return JSON.parse('"' + value.replace(/"/g, '\\"') + '"') as string;
   } catch {
     return value;
   }
