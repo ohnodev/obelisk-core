@@ -174,6 +174,8 @@ Example of correct JSON format:
     const userId = this.getInputValue("user_id", context, "") as string;
     const username = this.getInputValue("username", context, "") as string;
     const chatId = this.getInputValue("chat_id", context, "") as string;
+    const messageIdRaw = this.getInputValue("message_id", context, undefined);
+    const messageId = messageIdRaw != null ? Number(messageIdRaw) : undefined;
     const storage = this.getInputValue(
       "storage_instance",
       context,
@@ -214,7 +216,7 @@ Example of correct JSON format:
       );
     }
 
-    // Create message data
+    // Create message data (include message_id so storage can resolve message_id → user_id / username later)
     const messageData: Record<string, unknown> = {
       message: messageStr,
       user_id: userId ? String(userId) : "",
@@ -223,6 +225,9 @@ Example of correct JSON format:
       timestamp: Date.now() / 1000,
       type: "telegram_message",
     };
+    if (messageId != null && Number.isFinite(messageId)) {
+      messageData.message_id = messageId;
+    }
 
     // Save individual message to storage FIRST, then buffer on success
     try {

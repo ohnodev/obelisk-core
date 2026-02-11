@@ -52,6 +52,9 @@ export class ActionRouterNode extends BaseNode {
       | string
       | undefined;
     const userId = this.getInputValue("user_id", context, "") as string;
+    const replyToMessageIdRaw = this.getInputValue("reply_to_message_id", context, undefined);
+    const replyToMessageId = replyToMessageIdRaw != null ? Number(replyToMessageIdRaw) : undefined;
+    const replyToUserId = this.getInputValue("reply_to_message_user_id", context, undefined) as string | undefined;
 
     const responseStr = response != null ? String(response).trim() : "";
 
@@ -84,18 +87,18 @@ export class ActionRouterNode extends BaseNode {
               params = { ...params, duration_seconds: duration };
             }
 
-            // Fill in context where params don't specify
-            if (action === "pin_message" && params.message_id == null && messageId != null) {
-              params.message_id = typeof messageId === "number" ? messageId : Number(messageId);
+            // Fill in context where params don't specify (reply-to takes precedence for delete/pin)
+            if (action === "pin_message" && params.message_id == null) {
+              params.message_id = replyToMessageId ?? (typeof messageId === "number" ? messageId : messageId != null ? Number(messageId) : undefined);
             }
-            if (action === "timeout" && params.user_id == null && userId) {
-              params.user_id = userId;
+            if (action === "delete_message" && params.message_id == null) {
+              params.message_id = replyToMessageId ?? (typeof messageId === "number" ? messageId : messageId != null ? Number(messageId) : undefined);
             }
-            if (action === "delete_message" && params.message_id == null && messageId != null) {
-              params.message_id = typeof messageId === "number" ? messageId : Number(messageId);
+            if (action === "timeout" && params.user_id == null) {
+              params.user_id = replyToUserId ?? userId ?? undefined;
             }
-            if (action === "send_dm" && params.user_id == null && userId) {
-              params.user_id = userId;
+            if (action === "send_dm" && params.user_id == null) {
+              params.user_id = replyToUserId ?? userId ?? undefined;
             }
 
             actions.push({ action, params });

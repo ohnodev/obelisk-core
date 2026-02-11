@@ -5,15 +5,19 @@
  * Inputs:
  *   actions: Array of { action, params } from Action Router (required)
  *   chat_id, message_id, user_id: Context from listener
+ *   reply_to_message_id, reply_to_message_user_id: When user replied to another message
+ *   storage_instance: Optional; used to resolve username → user_id or message_id → author user_id
  *   bot_id / bot_token: Same resolution as TelegramBotNode
  *
  * Outputs:
  *   success: Boolean (true if all actions succeeded)
  *   results: Array of { action, success, response? } per action
+ *   debug_text: One-line summary string
  *
  * Supported actions: reply, send_dm, pin_message, timeout (max 60s), delete_message
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
+import { StorageInterface } from "../../types";
 import { getLogger } from "../../../utils/logger";
 import type { ActionItem } from "./actionRouter";
 
@@ -61,6 +65,10 @@ export class TelegramActionNode extends BaseNode {
           : Number(messageIdRaw)
         : undefined;
     const userId = (this.getInputValue("user_id", context, undefined) as string) ?? "";
+    const replyToMessageIdRaw = this.getInputValue("reply_to_message_id", context, undefined);
+    const replyToMessageId = replyToMessageIdRaw != null ? Number(replyToMessageIdRaw) : undefined;
+    const replyToUserId = (this.getInputValue("reply_to_message_user_id", context, undefined) as string) ?? "";
+    const storage = this.getInputValue("storage_instance", context, undefined) as StorageInterface | undefined;
 
     if (!botToken) {
       throw new Error(
@@ -89,7 +97,10 @@ export class TelegramActionNode extends BaseNode {
         params,
         chatId,
         messageId,
-        userId
+        userId,
+        replyToMessageId,
+        replyToUserId,
+        storage
       );
       results.push(result);
       if (!result.success) allSuccess = false;
@@ -115,7 +126,10 @@ export class TelegramActionNode extends BaseNode {
     params: Record<string, unknown>,
     chatId: string,
     messageId: number | undefined,
-    userId: string
+    userId: string,
+    replyToMessageId: number | undefined,
+    replyToUserId: string,
+    storage: StorageInterface | undefined
   ): Promise<ActionResult> {
     try {
       switch (action) {
@@ -141,7 +155,10 @@ export class TelegramActionNode extends BaseNode {
 
         case "send_dm": {
           const text = (params.text as string) ?? "";
-          const targetUserId = (params.user_id as string) ?? userId;
+          let targetUserId = (params.user_id as string) ?? userId;
+          if (!targetUserId && (params.username as string)) {
+            targetUserId = await this.resolveUserIdFromStorage(storage, chatId, params);
+          }
           if (!text || !targetUserId) {
             logger.warn("[TelegramAction] send_dm skipped: missing text or user_id");
             return { action: "send_dm", success: false };
@@ -161,7 +178,7 @@ export class TelegramActionNode extends BaseNode {
           const mid =
             params.message_id != null
               ? Number(params.message_id)
-              : messageId;
+              : replyToMessageId ?? messageId;
           if (chatId === "" || mid == null || !Number.isFinite(mid)) {
             logger.warn("[TelegramAction] pin_message skipped: missing chat_id or message_id");
             return { action: "pin_message", success: false };
@@ -174,7 +191,10 @@ export class TelegramActionNode extends BaseNode {
         }
 
         case "timeout": {
-          const targetUser = (params.user_id as string) ?? userId;
+          let targetUser = (params.user_id as string) ?? replyToUserId ?? userId;
+          if (!targetUser && (params.username as string)) {
+            targetUser = await this.resolveUserIdFromStorage(storage, chatId, params);
+          }
           const durationSeconds = Math.min(
             Number(params.duration_seconds ?? params.duration ?? 60) || 60,
             60
@@ -214,7 +234,7 @@ export class TelegramActionNode extends BaseNode {
           const mid =
             params.message_id != null
               ? Number(params.message_id)
-              : messageId;
+              : replyToMessageId ?? messageId;
           if (chatId === "" || mid == null || !Number.isFinite(mid)) {
             logger.warn("[TelegramAction] delete_message skipped: missing chat_id or message_id");
             return { action: "delete_message", success: false };
@@ -235,6 +255,39 @@ export class TelegramActionNode extends BaseNode {
       logger.error(`[TelegramAction] ${action} failed: ${msg}`);
       return { action, success: false, response: { error: msg } };
     }
+  }
+
+  /**
+   * Resolve user_id from storage by username or by message_id (author of that message).
+   * Returns empty string if not found.
+   */
+  private async resolveUserIdFromStorage(
+    storage: StorageInterface | undefined,
+    chatId: string,
+    params: Record<string, unknown>
+  ): Promise<string> {
+    if (!storage || !chatId) return "";
+    try {
+      const logs = await storage.getActivityLogs("telegram_message", 200);
+      const byChat = logs.filter((log) => String(log.metadata?.chat_id ?? "") === String(chatId));
+
+      const byMessageId = params.message_id != null
+        ? byChat.find((log) => Number(log.metadata?.message_id) === Number(params.message_id))
+        : null;
+      if (byMessageId?.metadata?.user_id) return String(byMessageId.metadata.user_id);
+
+      const usernameRaw = (params.username as string) ?? "";
+      const username = usernameRaw.replace(/^@/, "").toLowerCase();
+      if (!username) return "";
+      const byUsername = byChat.find((log) => {
+        const u = String(log.metadata?.username ?? "").toLowerCase();
+        return u === username || u === `@${username}`;
+      });
+      if (byUsername?.metadata?.user_id) return String(byUsername.metadata.user_id);
+    } catch (err) {
+      logger.warn(`[TelegramAction] resolveUserIdFromStorage failed: ${err}`);
+    }
+    return "";
   }
 
   private async post(
