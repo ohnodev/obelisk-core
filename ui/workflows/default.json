@@ -94,53 +94,6 @@
       }
     },
     {
-      "id": "25",
-      "type": "action_router",
-      "position": {
-        "x": 2130,
-        "y": 47
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "26",
-      "type": "telegram_action",
-      "position": {
-        "x": 2600,
-        "y": 75
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}"
-      }
-    },
-    {
-      "id": "27",
-      "type": "text",
-      "position": {
-        "x": 2850,
-        "y": 200
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "6",
-      "type": "inference",
-      "position": {
-        "x": 1938,
-        "y": 47
-      },
-      "inputs": {},
-      "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line.\n\nActions:\nYou may reply with plain text (treated as a single reply) OR output a JSON object with an \"actions\" array to perform one or more actions. Each action has \"action\" and \"params\".\n\nAvailable actions:\n- reply: Send a text reply. Params: { \"text\": \"your message\" }. Use for normal replies; plain text is also treated as reply.\n- send_dm: Send a private message. Params: { \"user_id\": \"<telegram_user_id>\", \"text\": \"message\" }.\n- pin_message: Pin a message. Params: { \"message_id\": <number> }.\n- timeout: Mute a user (max 1 min). Params: { \"user_id\": \"<id>\", \"duration_seconds\": <1-60> }.\n- delete_message: Delete a message. Params: { \"message_id\": <number> }.\n\nExample (reply only): Just write your reply. No JSON needed.\nExample (reply + pin): { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"Pinned.\" } }, { \"action\": \"pin_message\", \"params\": { \"message_id\": 12345 } } ] }",
-        "enable_thinking": true
-      }
-    },
-    {
       "id": "15",
       "type": "telegram_memory_creator",
       "position": {
@@ -214,6 +167,55 @@
       "metadata": {
         "operation": "OR"
       }
+    },
+    {
+      "id": "27",
+      "type": "text",
+      "position": {
+        "x": 3036,
+        "y": 269
+      },
+      "inputs": {},
+      "metadata": {
+        "text": ""
+      }
+    },
+    {
+      "id": "26",
+      "type": "telegram_action",
+      "position": {
+        "x": 2808,
+        "y": 68
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "25",
+      "type": "action_router",
+      "position": {
+        "x": 2356,
+        "y": 36
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 1943,
+        "y": 19
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line.\n\nActions:\nYou may reply with plain text (treated as a single reply) OR output a JSON object with an \"actions\" array to perform one or more actions. Each action has \"action\" and \"params\".\n\nAvailable actions:\n- reply: Send a text reply. Params: { \"text\": \"your message\" }. Use for normal replies; plain text is also treated as reply.\n- send_dm: Send a private message. Params: { \"user_id\": \"<telegram_user_id>\", \"text\": \"message\" }.\n- pin_message: Pin a message. Params: { \"message_id\": <number> }.\n- timeout: Mute a user (max 1 min). Params: { \"user_id\": \"<id>\", \"duration_seconds\": <1-60> }.\n- delete_message: Delete a message. Params: { \"message_id\": <number> }.\n\nExample (reply only): Just write your reply. No JSON needed.\nExample (reply + pin): { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"Pinned.\" } }, { \"action\": \"pin_message\", \"params\": { \"message_id\": 12345 } } ] }",
+        "enable_thinking": true
+      }
     }
   ],
   "connections": [
@@ -273,6 +275,18 @@
     },
     {
       "from": "12",
+      "from_output": "user_id",
+      "to": "25",
+      "to_input": "user_id"
+    },
+    {
+      "from": "12",
+      "from_output": "user_id",
+      "to": "26",
+      "to_input": "user_id"
+    },
+    {
+      "from": "12",
       "from_output": "username",
       "to": "15",
       "to_input": "username"
@@ -297,9 +311,21 @@
     },
     {
       "from": "12",
+      "from_output": "chat_id",
+      "to": "25",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
       "from_output": "message_id",
       "to": "21",
       "to_input": "in"
+    },
+    {
+      "from": "12",
+      "from_output": "message_id",
+      "to": "25",
+      "to_input": "message_id"
     },
     {
       "from": "12",
@@ -332,58 +358,16 @@
       "to_input": "in"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "25",
-      "to_input": "response"
-    },
-    {
-      "from": "12",
-      "from_output": "chat_id",
-      "to": "25",
-      "to_input": "chat_id"
-    },
-    {
-      "from": "12",
-      "from_output": "message_id",
-      "to": "25",
-      "to_input": "message_id"
-    },
-    {
-      "from": "12",
-      "from_output": "user_id",
-      "to": "25",
-      "to_input": "user_id"
-    },
-    {
-      "from": "25",
-      "from_output": "actions",
-      "to": "26",
-      "to_input": "actions"
-    },
-    {
-      "from": "22",
-      "from_output": "out",
-      "to": "26",
-      "to_input": "chat_id"
-    },
-    {
       "from": "23",
       "from_output": "out",
       "to": "26",
       "to_input": "message_id"
     },
     {
-      "from": "12",
-      "from_output": "user_id",
+      "from": "22",
+      "from_output": "out",
       "to": "26",
-      "to_input": "user_id"
-    },
-    {
-      "from": "26",
-      "from_output": "debug_text",
-      "to": "27",
-      "to_input": "text"
+      "to_input": "chat_id"
     },
     {
       "from": "14",
@@ -438,6 +422,24 @@
       "from_output": "pass",
       "to": "6",
       "to_input": "query"
+    },
+    {
+      "from": "26",
+      "from_output": "debug_text",
+      "to": "27",
+      "to_input": "text"
+    },
+    {
+      "from": "25",
+      "from_output": "actions",
+      "to": "26",
+      "to_input": "actions"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "25",
+      "to_input": "response"
     }
   ]
 }
