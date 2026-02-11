@@ -38,13 +38,15 @@ export interface ActionItem {
 }
 
 function isActionItem(raw: unknown): raw is ActionItem {
-  return (
-    typeof raw === "object" &&
-    raw !== null &&
-    typeof (raw as ActionItem).action === "string" &&
-    typeof (raw as ActionItem).params === "object" &&
-    (raw as ActionItem).params !== null
-  );
+  if (typeof raw !== "object" || raw === null || typeof (raw as ActionItem).action !== "string")
+    return false;
+  const p = (raw as ActionItem).params;
+  return p === undefined || p === null || (typeof p === "object" && p !== null);
+}
+
+function normalizeParams(item: ActionItem): Record<string, unknown> {
+  const p = item.params;
+  return p && typeof p === "object" && p !== null ? { ...p } : {};
 }
 
 export class ActionRouterNode extends BaseNode {
@@ -72,7 +74,7 @@ export class ActionRouterNode extends BaseNode {
               );
               continue;
             }
-            let params = { ...(item.params as Record<string, unknown>) };
+            let params = normalizeParams(item);
 
             // Cap duration for timeout_message_author and timeout_reply_to_author
             if (action === "timeout_message_author" || action === "timeout_reply_to_author") {
@@ -100,6 +102,11 @@ export class ActionRouterNode extends BaseNode {
           params: { text: responseStr },
         },
       ];
+    } else if (actions.length > 0) {
+      const hasReply = actions.some((a) => a.action === "reply");
+      if (!hasReply) {
+        actions.push({ action: "reply", params: { text: "Done." } });
+      }
     }
 
     logger.info(
