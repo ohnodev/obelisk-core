@@ -22,8 +22,9 @@ class TelegramListenerNode extends LGraphNode {
     this.addOutput("message_id", "number");
     this.addOutput("is_mention", "boolean");
     this.addOutput("is_reply_to_bot", "boolean");
+    this.addOutput("is_dm", "boolean");
     
-    this.size = [280, 200];
+    this.size = [280, 220];
     (this as any).type = "telegram_listener";
     (this as any).resizable = true;
     

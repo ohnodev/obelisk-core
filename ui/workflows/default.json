@@ -187,6 +187,18 @@
       }
     },
     {
+      "id": "24",
+      "type": "boolean_logic",
+      "position": {
+        "x": 1443,
+        "y": 93
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "OR"
+      }
+    },
+    {
       "id": "17",
       "type": "binary_intent",
       "position": {
@@ -323,11 +335,29 @@
     {
       "from": "18",
       "from_output": "result",
+      "to": "24",
+      "to_input": "a"
+    },
+    {
+      "from": "12",
+      "from_output": "is_dm",
+      "to": "24",
+      "to_input": "b"
+    },
+    {
+      "from": "14",
+      "from_output": "message",
+      "to": "24",
+      "to_input": "value"
+    },
+    {
+      "from": "24",
+      "from_output": "result",
       "to": "19",
       "to_input": "a"
     },
     {
-      "from": "18",
+      "from": "24",
       "from_output": "reject",
       "to": "17",
       "to_input": "message"

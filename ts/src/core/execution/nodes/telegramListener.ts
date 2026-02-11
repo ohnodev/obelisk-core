@@ -95,6 +95,7 @@ export class TelegramListenerNode extends BaseNode {
       message_id: 0,
       is_reply_to_bot: false,
       is_mention: false,
+      is_dm: false,
       raw_update: null,
     };
   }
@@ -201,6 +202,7 @@ export class TelegramListenerNode extends BaseNode {
       message_id: parsed.message_id,
       is_reply_to_bot: parsed.is_reply_to_bot,
       is_mention: parsed.is_mention,
+      is_dm: parsed.chat_type === "private",
       raw_update: parsed.raw_update,
     };
   }
