@@ -91,6 +91,14 @@ export class TelegramMemorySelectorNode extends BaseNode {
       String(chatId),
       this._recentCount
     );
+    const withId = messages.filter((m) => m.message_id != null && Number.isFinite(m.message_id)).length;
+    if (messages.length > 0 && withId === 0) {
+      logger.warning(
+        `[TelegramMemorySelector] None of ${messages.length} recent messages have message_id in storage — delete/pin/timeout by context will not work. Ensure telegram_memory_creator receives message_id and has been saving it.`
+      );
+    } else if (withId > 0) {
+      logger.debug(`[TelegramMemorySelector] ${withId}/${messages.length} recent messages have message_id for actions`);
+    }
     const recentMessagesText = this._formatMessages(messages);
 
     // Fetch summaries if enabled — with LLM-based selection when available
@@ -276,7 +284,12 @@ Example of correct JSON format:
       for (const log of logs) {
         const meta = (log.metadata ?? {}) as Record<string, unknown>;
         if (String(meta.chat_id ?? "") === chatId) {
-          const msgId = meta.message_id != null ? Number(meta.message_id) : undefined;
+          // message_id may be stored as number or string; normalize for display and actions
+          const rawMsgId = meta.message_id ?? meta.messageId;
+          const msgId =
+            rawMsgId != null && rawMsgId !== ""
+              ? Number(rawMsgId)
+              : undefined;
           chatMessages.push({
             message: String(meta.message ?? ""),
             user_id: String(meta.user_id ?? ""),
@@ -284,7 +297,7 @@ Example of correct JSON format:
             timestamp: Number(
               meta.timestamp ?? (log.created_at ? new Date(log.created_at).getTime() / 1000 : 0)
             ),
-            message_id: Number.isFinite(msgId) ? msgId : undefined,
+            message_id: typeof msgId === "number" && Number.isFinite(msgId) ? msgId : undefined,
           });
           if (chatMessages.length >= count) break;
         }
