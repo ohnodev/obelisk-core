@@ -34,6 +34,8 @@ export interface INodeSlot {
     shape?: SlotShape;
     locked?: boolean;
     nameLocked?: boolean;
+    /** Runtime slot index (used when connecting by name) */
+    slot?: number;
 }
 
 export interface INodeInputSlot extends INodeSlot {

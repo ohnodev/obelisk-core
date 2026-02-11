@@ -133,6 +133,14 @@ export abstract class BaseNode {
     context: ExecutionContext
   ): Promise<Record<string, unknown>> | Record<string, unknown>;
 
+  /**
+   * Clean up resources when the workflow is stopped (e.g. close HTTP server).
+   * Override in subclasses that acquire resources in initialize().
+   */
+  dispose(): void | Promise<void> {
+    // Default: no-op
+  }
+
   // ── Input resolution ────────────────────────────────────────────────
 
   /**
@@ -179,18 +187,6 @@ export abstract class BaseNode {
     }
 
     return defaultValue;
-  }
-
-  /**
-   * Get input value from connected node output.
-   * Mirrors Python `get_connected_input`.
-   */
-  getConnectedInput(
-    _inputName: string,
-    _context: ExecutionContext
-  ): unknown | null {
-    // This will be resolved by the engine based on connections
-    return null;
   }
 
   // ── Template / Env variable resolution ──────────────────────────────

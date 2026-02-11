@@ -85,11 +85,10 @@ export class HttpListenerNode extends BaseNode {
 
   private _port: number;
   private _path: string;
-  private _server: ReturnType<express.Application["listen"]> | null = null;
+  private _server: import("http").Server | null = null;
   private _app: express.Application | null = null;
   private _pendingMessages: QueuedRequest[] = [];
   private _messageCount = 0;
-  private _cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
@@ -265,5 +264,34 @@ export class HttpListenerNode extends BaseNode {
       headers: JSON.stringify(queued.headers),
       raw_body: queued.rawBody,
     };
+  }
+
+  override dispose(): void {
+    // Resolve all pending requests with 503 before closing so clients don't hang
+    const unavailableBody = {
+      error: "Service Unavailable",
+      message: "Listener shutting down",
+      node_id: this.nodeId,
+    };
+    for (const queued of this._pendingMessages) {
+      HttpRequestRegistry.resolve(queued.requestId, 503, unavailableBody);
+    }
+    this._pendingMessages = [];
+
+    if (this._server) {
+      this._server.close((err) => {
+        if (err) {
+          logger.warn(
+            `[HttpListener ${this.nodeId}] Error closing server: ${err.message}`
+          );
+        } else {
+          logger.info(
+            `[HttpListener ${this.nodeId}] HTTP server closed on port ${this._port}`
+          );
+        }
+      });
+      this._server = null;
+      this._app = null;
+    }
   }
 }

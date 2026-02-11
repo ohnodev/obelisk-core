@@ -310,6 +310,20 @@ export class WorkflowRunner {
     state.state = "stopped";
     logger.info(`Stopped workflow ${workflowId} after ${state.tickCount} ticks`);
 
+    // Dispose nodes that acquired resources (e.g. HttpListenerNode closes HTTP server)
+    for (const [, node] of state.nodes) {
+      try {
+        const maybePromise = node.dispose();
+        if (maybePromise && typeof (maybePromise as Promise<void>).then === "function") {
+          (maybePromise as Promise<void>).catch((err) => {
+            logger.warning(`Dispose failed for node: ${err}`);
+          });
+        }
+      } catch (err) {
+        logger.warning(`Dispose failed for node: ${err}`);
+      }
+    }
+
     // Remove from running workflows (matches Python: del self._running_workflows[workflow_id])
     this.workflows.delete(workflowId);
 
