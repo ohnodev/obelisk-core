@@ -19,6 +19,7 @@ import WalletButton from "./WalletButton";
 import { useNotifications } from "./Notification";
 
 // Workflow templates
+import clankerAutotraderV1Template from "@/workflows/clanker-autotrader-v1.json";
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
 import soraTemplate from "@/workflows/sora.json";
@@ -32,6 +33,12 @@ interface WorkflowTemplate {
 }
 
 const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: "clanker-autotrader-v1",
+    name: "Clanker Autotrader V1",
+    description: "Blockchain config, scheduler, Clanker new launches and token stats (default)",
+    data: clankerAutotraderV1Template,
+  },
   {
     id: "telegram-v1",
     name: "Telegram V1 Bot",

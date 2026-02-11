@@ -25,6 +25,9 @@ import { HttpListenerNode } from "./nodes/httpListener";
 import { HttpResponseNode } from "./nodes/httpResponse";
 import { ActionRouterNode } from "./nodes/actionRouter";
 import { TelegramActionNode } from "./nodes/telegramAction";
+import { BlockchainConfigNode } from "./nodes/blockchainConfig";
+import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
+import { ClankerNewLaunchesNode } from "./nodes/clankerNewLaunches";
 
 const logger = getLogger("nodeRegistry");
 
@@ -84,6 +87,9 @@ export function registerAllNodes(): void {
   registerNode("http_response", HttpResponseNode);
   registerNode("action_router", ActionRouterNode);
   registerNode("telegram_action", TelegramActionNode);
+  registerNode("blockchain_config", BlockchainConfigNode);
+  registerNode("clanker_token_stats", ClankerTokenStatsNode);
+  registerNode("clanker_new_launches", ClankerNewLaunchesNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

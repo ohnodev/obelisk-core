@@ -1,0 +1,70 @@
+{
+  "id": "clanker-autotrader-v1",
+  "name": "Clanker Autotrader V1",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "blockchain_config",
+      "position": { "x": 80, "y": 120 },
+      "inputs": {},
+      "metadata": {
+        "state_file_path": ""
+      }
+    },
+    {
+      "id": "2",
+      "type": "scheduler",
+      "position": { "x": 80, "y": 280 },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 60,
+        "max_seconds": 120,
+        "enabled": true
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_new_launches",
+      "position": { "x": 360, "y": 200 },
+      "inputs": {},
+      "metadata": {
+        "limit": 20
+      }
+    },
+    {
+      "id": "4",
+      "type": "text",
+      "position": { "x": 600, "y": 200 },
+      "inputs": {},
+      "metadata": {
+        "text": "Recent Clanker launches (see connected input)"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "3",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "3",
+      "to_input": "state_path"
+    },
+    {
+      "from": "2",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
+    },
+    {
+      "from": "3",
+      "from_output": "recent_launches",
+      "to": "4",
+      "to_input": "text"
+    }
+  ]
+}

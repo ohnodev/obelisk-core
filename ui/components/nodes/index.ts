@@ -19,3 +19,6 @@ import "./HttpListenerNode";
 import "./HttpResponseNode";
 import "./ActionRouterNode";
 import "./TelegramActionNode";
+import "./BlockchainConfigNode";
+import "./ClankerTokenStatsNode";
+import "./ClankerNewLaunchesNode";
