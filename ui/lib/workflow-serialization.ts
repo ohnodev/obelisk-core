@@ -228,26 +228,14 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
     const fromNode = nodeMap.get(fromId);
     const toNode = nodeMap.get(toId);
 
-    if (!fromNode) {
-      console.warn(`[deserializeGraph] From node not found: ${fromId}`);
-      return;
-    }
-    if (!toNode) {
-      console.warn(`[deserializeGraph] To node not found: ${toId}`);
-      return;
-    }
+    if (!fromNode) return;
+    if (!toNode) return;
 
     const fromOutput = fromNode.outputs?.find((out: any) => out.name === fromOutputName);
     const toInput = toNode.inputs?.find((inp: any) => inp.name === toInputName);
 
-    if (!fromOutput) {
-      console.warn(`[deserializeGraph] Output '${fromOutputName}' not found on node ${fromId} (${fromNode.type})`);
-      return;
-    }
-    if (!toInput) {
-      console.warn(`[deserializeGraph] Input '${toInputName}' not found on node ${toId} (${toNode.type})`);
-      return;
-    }
+    if (!fromOutput) return;
+    if (!toInput) return;
 
     const outputSlot = (fromOutput as any).slot ?? fromNode.outputs?.indexOf(fromOutput);
     const inputSlot = (toInput as any).slot ?? toNode.inputs?.indexOf(toInput);
@@ -258,14 +246,9 @@ export function deserializeGraph(graph: InstanceType<typeof LGraph>, workflow: W
       try {
         fromNode.connect(outputSlot, toNode, inputSlot);
         connectionCount++;
-        console.log(`[deserializeGraph] Connected: ${fromId}(${fromOutputName}) -> ${toId}(${toInputName})`);
       } catch (error) {
         console.error(`[deserializeGraph] Failed to connect ${fromId}(${fromOutputName}) -> ${toId}(${toInputName}):`, error);
       }
-    } else {
-      console.warn(`[deserializeGraph] Invalid slots: outputSlot=${outputSlot}, inputSlot=${inputSlot}`);
     }
   });
-  
-  console.log(`[deserializeGraph] Created ${connectionCount}/${workflow.connections.length} connections`);
 }
