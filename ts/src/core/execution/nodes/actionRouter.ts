@@ -1,16 +1,16 @@
 /**
- * ActionRouterNode – parses LLM response into a list of actions.
- * Abstract: outputs a single list; specific executors (e.g. Telegram Action) handle execution.
+ * ActionRouterNode – parses LLM response into a list of actions (abstract).
+ * Expects inference to return JSON (same "JSON mode" as BinaryIntent: no markdown, no extra text).
+ * Uses the same extractJsonFromLlmResponse() as binary intent: strips <think> blocks, code fences,
+ * and recovers JSON from messy or truncated output.
  *
  * Inputs:
- *   response: String from Inference node (required)
- *   chat_id, message_id, user_id: Optional context from listener for filling params
+ *   response: String from Inference node (required) – expected to be JSON with "actions" array
  *
  * Outputs:
- *   actions: Array of { action: string, params: Record<string, unknown> }
+ *   tg_actions: Array of { action: string, params: Record<string, unknown> }
  *
- * Allowed action types: reply, send_dm, pin_message, timeout, delete_message.
- * If parsing fails or no JSON actions array, fallback: entire response as one reply action.
+ * Allowed action types: reply, send_dm, pin_message, timeout_message_author, delete_message.
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
@@ -22,7 +22,7 @@ const ALLOWED_ACTIONS = new Set([
   "reply",
   "send_dm",
   "pin_message",
-  "timeout",
+  "timeout_message_author",
   "delete_message",
 ]);
 
@@ -46,22 +46,13 @@ function isActionItem(raw: unknown): raw is ActionItem {
 export class ActionRouterNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const response = this.getInputValue("response", context, "") as string;
-    const chatId = this.getInputValue("chat_id", context, "") as string;
-    const messageId = this.getInputValue("message_id", context, undefined) as
-      | number
-      | string
-      | undefined;
-    const userId = this.getInputValue("user_id", context, "") as string;
-    const replyToMessageIdRaw = this.getInputValue("reply_to_message_id", context, undefined);
-    const replyToMessageId = replyToMessageIdRaw != null ? Number(replyToMessageIdRaw) : undefined;
-    const replyToUserId = this.getInputValue("reply_to_message_user_id", context, undefined) as string | undefined;
-
     const responseStr = response != null ? String(response).trim() : "";
 
     let actions: ActionItem[] = [];
 
     if (responseStr) {
       try {
+        // Same JSON parser as BinaryIntent: handles <think>, markdown code blocks, truncated JSON
         const parsed = extractJsonFromLlmResponse(
           responseStr,
           "action_router"
@@ -79,26 +70,12 @@ export class ActionRouterNode extends BaseNode {
             }
             let params = { ...(item.params as Record<string, unknown>) };
 
-            // Cap timeout duration to MAX_TIMEOUT_SECONDS
-            if (action === "timeout") {
+            // Cap duration for timeout_message_author
+            if (action === "timeout_message_author") {
               let duration = Number(params.duration_seconds ?? params.duration ?? 60);
               if (!Number.isFinite(duration) || duration < 0) duration = 60;
               duration = Math.min(duration, MAX_TIMEOUT_SECONDS);
               params = { ...params, duration_seconds: duration };
-            }
-
-            // Fill in context where params don't specify (reply-to takes precedence for delete/pin)
-            if (action === "pin_message" && params.message_id == null) {
-              params.message_id = replyToMessageId ?? (typeof messageId === "number" ? messageId : messageId != null ? Number(messageId) : undefined);
-            }
-            if (action === "delete_message" && params.message_id == null) {
-              params.message_id = replyToMessageId ?? (typeof messageId === "number" ? messageId : messageId != null ? Number(messageId) : undefined);
-            }
-            if (action === "timeout" && params.user_id == null) {
-              params.user_id = replyToUserId ?? userId ?? undefined;
-            }
-            if (action === "send_dm" && params.user_id == null) {
-              params.user_id = replyToUserId ?? userId ?? undefined;
             }
 
             actions.push({ action, params });
@@ -125,6 +102,6 @@ export class ActionRouterNode extends BaseNode {
       `[ActionRouter ${this.nodeId}] Parsed ${actions.length} action(s): ${actions.map((a) => a.action).join(", ") || "none"}`
     );
 
-    return { actions };
+    return { tg_actions: actions };
   }
 }

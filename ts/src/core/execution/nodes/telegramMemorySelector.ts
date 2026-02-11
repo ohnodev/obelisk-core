@@ -34,6 +34,7 @@ interface ChatMessage {
   user_id: string;
   username: string;
   timestamp: number;
+  message_id?: number;
 }
 
 interface ChatSummary {
@@ -275,6 +276,7 @@ Example of correct JSON format:
       for (const log of logs) {
         const meta = (log.metadata ?? {}) as Record<string, unknown>;
         if (String(meta.chat_id ?? "") === chatId) {
+          const msgId = meta.message_id != null ? Number(meta.message_id) : undefined;
           chatMessages.push({
             message: String(meta.message ?? ""),
             user_id: String(meta.user_id ?? ""),
@@ -282,6 +284,7 @@ Example of correct JSON format:
             timestamp: Number(
               meta.timestamp ?? (log.created_at ? new Date(log.created_at).getTime() / 1000 : 0)
             ),
+            message_id: Number.isFinite(msgId) ? msgId : undefined,
           });
           if (chatMessages.length >= count) break;
         }
@@ -340,10 +343,16 @@ Example of correct JSON format:
 
   private _formatMessages(messages: ChatMessage[]): string {
     if (!messages.length) return "";
-    const lines = ["=== Recent Messages ==="];
+    const lines = [
+      "=== Recent Messages (each line includes message_id for delete/pin/timeout actions) ===",
+    ];
     for (const msg of messages) {
       const username = msg.username || msg.user_id || "Unknown";
-      lines.push(`[${username}]: ${msg.message}`);
+      const idPart =
+        msg.message_id != null && Number.isFinite(msg.message_id)
+          ? ` [message_id: ${msg.message_id}]`
+          : "";
+      lines.push(`[${username}]${idPart}: ${msg.message}`);
     }
     return lines.join("\n");
   }

@@ -5,8 +5,7 @@
  * Inputs:
  *   actions: Array of { action, params } from Action Router (required)
  *   chat_id, message_id, user_id: Context from listener
- *   reply_to_message_id, reply_to_message_user_id: When user replied to another message
- *   storage_instance: Optional; used to resolve username → user_id or message_id → author user_id
+ *   storage_instance: Used to resolve message_id → author user_id (e.g. timeout_message_author) or username → user_id
  *   bot_id / bot_token: Same resolution as TelegramBotNode
  *
  * Outputs:
@@ -14,7 +13,7 @@
  *   results: Array of { action, success, response? } per action
  *   debug_text: One-line summary string
  *
- * Supported actions: reply, send_dm, pin_message, timeout (max 60s), delete_message
+ * Supported actions: reply, send_dm, pin_message, timeout_message_author (message_id → resolve author from storage), delete_message
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
@@ -99,9 +98,6 @@ export class TelegramActionNode extends BaseNode {
           : Number(messageIdRaw)
         : undefined;
     const userId = (this.getInputValue("user_id", context, undefined) as string) ?? "";
-    const replyToMessageIdRaw = this.getInputValue("reply_to_message_id", context, undefined);
-    const replyToMessageId = replyToMessageIdRaw != null ? Number(replyToMessageIdRaw) : undefined;
-    const replyToUserId = (this.getInputValue("reply_to_message_user_id", context, undefined) as string) ?? "";
     const storage = this.getInputValue("storage_instance", context, undefined) as StorageInterface | undefined;
 
     if (!botToken) {
@@ -132,8 +128,6 @@ export class TelegramActionNode extends BaseNode {
         chatId,
         messageId,
         userId,
-        replyToMessageId,
-        replyToUserId,
         storage
       );
       results.push(result);
@@ -161,8 +155,6 @@ export class TelegramActionNode extends BaseNode {
     chatId: string,
     messageId: number | undefined,
     userId: string,
-    replyToMessageId: number | undefined,
-    replyToUserId: string,
     storage: StorageInterface | undefined
   ): Promise<ActionResult> {
     try {
@@ -209,34 +201,33 @@ export class TelegramActionNode extends BaseNode {
         }
 
         case "pin_message": {
-          const mid =
-            params.message_id != null
-              ? Number(params.message_id)
-              : replyToMessageId ?? messageId;
-          if (chatId === "" || mid == null || !Number.isFinite(mid)) {
-            logger.warn("[TelegramAction] pin_message skipped: missing chat_id or message_id");
+          const pinMid = params.message_id != null ? Number(params.message_id) : undefined;
+          if (chatId === "" || pinMid == null || !Number.isFinite(pinMid)) {
+            logger.warn("[TelegramAction] pin_message skipped: missing chat_id or message_id in params");
             return { action: "pin_message", success: false };
           }
           const url = `${API_BASE}${token}/pinChatMessage`;
-          const payload = { chat_id: chatId, message_id: mid };
+          const payload = { chat_id: chatId, message_id: pinMid };
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
           return { action: "pin_message", success: ok, response: data };
         }
 
-        case "timeout": {
-          let targetUser = (params.user_id as string) ?? replyToUserId ?? userId;
-          if (!targetUser && (params.username as string)) {
-            targetUser = await this.resolveUserIdFromStorage(storage, chatId, params);
+        case "timeout_message_author": {
+          const timeoutMsgId = params.message_id != null ? Number(params.message_id) : undefined;
+          if (chatId === "" || timeoutMsgId == null || !Number.isFinite(timeoutMsgId)) {
+            logger.warn("[TelegramAction] timeout_message_author skipped: missing chat_id or message_id in params");
+            return { action: "timeout_message_author", success: false };
+          }
+          const targetUser = await resolveUserIdFromStorage(storage, chatId, { message_id: timeoutMsgId });
+          if (!targetUser) {
+            logger.warn("[TelegramAction] timeout_message_author skipped: could not resolve user_id from storage for message_id");
+            return { action: "timeout_message_author", success: false };
           }
           const durationSeconds = Math.min(
             Number(params.duration_seconds ?? params.duration ?? 60) || 60,
             60
           );
-          if (chatId === "" || !targetUser) {
-            logger.warn("[TelegramAction] timeout skipped: missing chat_id or user_id");
-            return { action: "timeout", success: false };
-          }
           const untilDate = Math.floor(Date.now() / 1000) + durationSeconds;
           const url = `${API_BASE}${token}/restrictChatMember`;
           const payload = {
@@ -261,20 +252,17 @@ export class TelegramActionNode extends BaseNode {
           };
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
-          return { action: "timeout", success: ok, response: data };
+          return { action: "timeout_message_author", success: ok, response: data };
         }
 
         case "delete_message": {
-          const mid =
-            params.message_id != null
-              ? Number(params.message_id)
-              : replyToMessageId ?? messageId;
-          if (chatId === "" || mid == null || !Number.isFinite(mid)) {
-            logger.warn("[TelegramAction] delete_message skipped: missing chat_id or message_id");
+          const delMid = params.message_id != null ? Number(params.message_id) : undefined;
+          if (chatId === "" || delMid == null || !Number.isFinite(delMid)) {
+            logger.warn("[TelegramAction] delete_message skipped: missing chat_id or message_id in params");
             return { action: "delete_message", success: false };
           }
           const url = `${API_BASE}${token}/deleteMessage`;
-          const payload = { chat_id: chatId, message_id: mid };
+          const payload = { chat_id: chatId, message_id: delMid };
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
           return { action: "delete_message", success: ok, response: data };

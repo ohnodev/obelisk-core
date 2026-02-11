@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class ActionRouterNode extends LGraphNode {
   static title = "Action Router";
-  static desc = "Parses LLM response into a list of actions (reply, send_dm, pin_message, timeout, delete_message)";
+  static desc = "Parses LLM response into a list of actions (abstract). Output: tg_actions for TG Action node.";
   static title_color = "#6b4c9a";
 
   constructor() {
@@ -12,15 +12,10 @@ class ActionRouterNode extends LGraphNode {
     this.title = "Action Router";
 
     this.addInput("response", "string");
-    this.addInput("chat_id", "string");
-    this.addInput("message_id", "number");
-    this.addInput("user_id", "string");
-    this.addInput("reply_to_message_id", "number");
-    this.addInput("reply_to_message_user_id", "string");
 
-    this.addOutput("actions", "array");
+    this.addOutput("tg_actions", "array");
 
-    this.size = [240, 140];
+    this.size = [240, 100];
     (this as any).type = "action_router";
     (this as any).resizable = true;
   }

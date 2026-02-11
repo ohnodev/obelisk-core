@@ -213,7 +213,7 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use conversation history and memories to recall facts when relevant.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you don't know, say so in one line.\n\nActions:\nYou may reply with plain text (treated as a single reply) OR output a JSON object with an \"actions\" array to perform one or more actions. Each action has \"action\" and \"params\".\n\nAvailable actions:\n- reply: Send a text reply. Params: { \"text\": \"your message\" }. Use for normal replies; plain text is also treated as reply.\n- send_dm: Send a private message. Params: { \"user_id\": \"<telegram_user_id>\", \"text\": \"message\" }.\n- pin_message: Pin a message. Params: { \"message_id\": <number> }.\n- timeout: Mute a user (max 1 min). Params: { \"user_id\": \"<id>\", \"duration_seconds\": <1-60> }.\n- delete_message: Delete a message. Params: { \"message_id\": <number> }.\n\nWhen the user replies to a message and asks to delete/pin that message or timeout its author, you may omit message_id or user_id; the system will use the message they replied to.\n\nExample (reply only): Just write your reply. No JSON needed.\nExample (reply + pin): { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"Pinned.\" } }, { \"action\": \"pin_message\", \"params\": { \"message_id\": 12345 } } ] }",
+        "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use the context you receive (recent messages, chat summaries, memories) to answer. Never say you have no memories or no context when context was provided.\n- When the user asks what you remember, what memories you have, or what happened recently: use the provided context and reply with specific, concrete details from it (e.g. recent topics, who said what, summaries). Do NOT say \"nothing\" or \"I don't have memories\" if context is present.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you genuinely don't know, say so in one line.\n\nOutput format (JSON only):\nYou MUST respond ONLY with valid JSON. No markdown code blocks, no text before or after the JSON. Start with { and end with }.\nUse this format for every response: { \"actions\": [ { \"action\": \"...\", \"params\": { ... } }, ... ] }\nFor a simple text reply: { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"your message\" } } ] }\n\nAvailable actions:\n- reply: Params { \"text\": \"your message\" }.\n- send_dm: Params { \"user_id\": \"<telegram_user_id>\", \"text\": \"message\" }.\n- pin_message: Params { \"message_id\": <number> }.\n- timeout_message_author: Params { \"message_id\": <number>, \"duration_seconds\": <1-60> }. System resolves author from storage.\n- delete_message: Params { \"message_id\": <number> }.\n\nMessage IDs: Recent messages in your context are formatted with [message_id: <number>]. Use those numbers for delete_message, pin_message, or timeout_message_author when the user says e.g. \"delete that message\" or \"timeout the person who said Y\".\n\nExample: { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"Done.\" } }, { \"action\": \"delete_message\", \"params\": { \"message_id\": 12345 } } ] }",
         "enable_thinking": true
       }
     }
@@ -276,12 +276,6 @@
     {
       "from": "12",
       "from_output": "user_id",
-      "to": "25",
-      "to_input": "user_id"
-    },
-    {
-      "from": "12",
-      "from_output": "user_id",
       "to": "26",
       "to_input": "user_id"
     },
@@ -317,45 +311,9 @@
     },
     {
       "from": "12",
-      "from_output": "chat_id",
-      "to": "25",
-      "to_input": "chat_id"
-    },
-    {
-      "from": "12",
       "from_output": "message_id",
       "to": "21",
       "to_input": "in"
-    },
-    {
-      "from": "12",
-      "from_output": "message_id",
-      "to": "25",
-      "to_input": "message_id"
-    },
-    {
-      "from": "12",
-      "from_output": "reply_to_message_id",
-      "to": "25",
-      "to_input": "reply_to_message_id"
-    },
-    {
-      "from": "12",
-      "from_output": "reply_to_message_user_id",
-      "to": "25",
-      "to_input": "reply_to_message_user_id"
-    },
-    {
-      "from": "12",
-      "from_output": "reply_to_message_id",
-      "to": "26",
-      "to_input": "reply_to_message_id"
-    },
-    {
-      "from": "12",
-      "from_output": "reply_to_message_user_id",
-      "to": "26",
-      "to_input": "reply_to_message_user_id"
     },
     {
       "from": "16",
@@ -467,7 +425,7 @@
     },
     {
       "from": "25",
-      "from_output": "actions",
+      "from_output": "tg_actions",
       "to": "26",
       "to_input": "actions"
     },
