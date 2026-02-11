@@ -14,6 +14,7 @@ class TelegramActionNode extends LGraphNode {
     this.addInput("actions", "array");
     this.addInput("chat_id", "string");
     this.addInput("message_id", "number");
+    this.addInput("reply_to_message_id", "number");
     this.addInput("user_id", "string");
     this.addInput("storage_instance", "object");
     this.addInput("bot_id", "string");

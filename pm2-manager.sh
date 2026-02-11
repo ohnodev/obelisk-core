@@ -353,9 +353,8 @@ cmd_restart() {
     generate_ecosystem
 
     if [ -z "$target" ]; then
-        # Restart all — delete logs and start fresh
+        # Restart all — do not delete logs; pm2-logrotate rotates by size only
         echo -e "${BLUE}🔄 Restarting all services...${NC}"
-        delete_logs ""
 
         for svc in "${ALL_SERVICES[@]}"; do
             if service_exists "$svc"; then
@@ -365,9 +364,8 @@ cmd_restart() {
 
         cmd_start ""
     else
-        # Restart specific service
+        # Restart specific service — do not delete logs; pm2-logrotate rotates by size only
         echo -e "${BLUE}🔄 Restarting ${target}...${NC}"
-        delete_logs "$target"
 
         # Rebuild TypeScript core before restarting
         if [ "$target" = "$CORE_NAME" ]; then
@@ -463,7 +461,7 @@ cmd_help() {
     echo -e "${CYAN}Commands:${NC}"
     echo "  start [service]     Start service(s)"
     echo "  stop [service]      Stop service(s)"
-    echo "  restart [service]   Restart service(s) and delete logs"
+    echo "  restart [service]   Restart service(s) (logs kept; rotated by size only)"
     echo "  status [service]    Show service status and recent logs"
     echo "  logs [service]      Show live logs (Ctrl+C to exit)"
     echo "  log-files           List log files and sizes"

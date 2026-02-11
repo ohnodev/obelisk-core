@@ -6,6 +6,7 @@
  *   actions: Array of { action, params } from Action Router (required)
  *   chat_id, message_id, user_id: Context from listener
  *   storage_instance: Used to resolve message_id → author user_id (e.g. timeout_message_author) or username → user_id
+ *   reply_to_message_id: When the user replied to a message; used as fallback for delete_message/pin_message/timeout_message_author when model omits message_id
  *   bot_id / bot_token: Same resolution as TelegramBotNode
  *
  * Outputs:
@@ -13,7 +14,8 @@
  *   results: Array of { action, success, response? } per action
  *   debug_text: One-line summary string
  *
- * Supported actions: reply, send_dm, pin_message, timeout_message_author (message_id → resolve author from storage), delete_message
+ * Supported actions: reply, send_dm, pin_message, timeout_message_author, delete_message,
+ * delete_reply_to_message, pin_reply_to_message, timeout_reply_to_author (use reply_to_message_id; no message_id in params).
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
@@ -98,6 +100,11 @@ export class TelegramActionNode extends BaseNode {
           : Number(messageIdRaw)
         : undefined;
     const userId = (this.getInputValue("user_id", context, undefined) as string) ?? "";
+    const replyToMessageIdRaw = this.getInputValue("reply_to_message_id", context, undefined);
+    const replyToMessageId =
+      replyToMessageIdRaw != null && replyToMessageIdRaw !== ""
+        ? Number(replyToMessageIdRaw)
+        : undefined;
     const storage = this.getInputValue("storage_instance", context, undefined) as StorageInterface | undefined;
 
     if (!botToken) {
@@ -128,6 +135,7 @@ export class TelegramActionNode extends BaseNode {
         chatId,
         messageId,
         userId,
+        Number.isFinite(replyToMessageId) ? replyToMessageId : undefined,
         storage
       );
       results.push(result);
@@ -155,6 +163,7 @@ export class TelegramActionNode extends BaseNode {
     chatId: string,
     messageId: number | undefined,
     userId: string,
+    replyToMessageId: number | undefined,
     storage: StorageInterface | undefined
   ): Promise<ActionResult> {
     try {
@@ -201,9 +210,10 @@ export class TelegramActionNode extends BaseNode {
         }
 
         case "pin_message": {
-          const pinMid = params.message_id != null ? Number(params.message_id) : undefined;
+          const pinMid =
+            params.message_id != null ? Number(params.message_id) : replyToMessageId;
           if (chatId === "" || pinMid == null || !Number.isFinite(pinMid)) {
-            logger.warn("[TelegramAction] pin_message skipped: missing chat_id or message_id in params");
+            logger.warn("[TelegramAction] pin_message skipped: missing chat_id or message_id (use reply_to_message_id when user replies to a message)");
             return { action: "pin_message", success: false };
           }
           const url = `${API_BASE}${token}/pinChatMessage`;
@@ -214,9 +224,10 @@ export class TelegramActionNode extends BaseNode {
         }
 
         case "timeout_message_author": {
-          const timeoutMsgId = params.message_id != null ? Number(params.message_id) : undefined;
+          const timeoutMsgId =
+            params.message_id != null ? Number(params.message_id) : replyToMessageId;
           if (chatId === "" || timeoutMsgId == null || !Number.isFinite(timeoutMsgId)) {
-            logger.warn("[TelegramAction] timeout_message_author skipped: missing chat_id or message_id in params");
+            logger.warn("[TelegramAction] timeout_message_author skipped: missing chat_id or message_id (use reply_to_message_id when user replies to a message)");
             return { action: "timeout_message_author", success: false };
           }
           const targetUser = await resolveUserIdFromStorage(storage, chatId, { message_id: timeoutMsgId });
@@ -256,9 +267,10 @@ export class TelegramActionNode extends BaseNode {
         }
 
         case "delete_message": {
-          const delMid = params.message_id != null ? Number(params.message_id) : undefined;
+          const delMid =
+            params.message_id != null ? Number(params.message_id) : replyToMessageId;
           if (chatId === "" || delMid == null || !Number.isFinite(delMid)) {
-            logger.warn("[TelegramAction] delete_message skipped: missing chat_id or message_id in params");
+            logger.warn("[TelegramAction] delete_message skipped: missing chat_id or message_id (use reply_to_message_id when user replies to a message)");
             return { action: "delete_message", success: false };
           }
           const url = `${API_BASE}${token}/deleteMessage`;
@@ -266,6 +278,71 @@ export class TelegramActionNode extends BaseNode {
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
           return { action: "delete_message", success: ok, response: data };
+        }
+
+        case "delete_reply_to_message": {
+          if (chatId === "" || replyToMessageId == null || !Number.isFinite(replyToMessageId)) {
+            logger.warn("[TelegramAction] delete_reply_to_message skipped: no reply_to_message_id (user must reply to the message to delete)");
+            return { action: "delete_reply_to_message", success: false };
+          }
+          const url = `${API_BASE}${token}/deleteMessage`;
+          const payload = { chat_id: chatId, message_id: replyToMessageId };
+          const data = await this.post(url, payload);
+          const ok = (data?.ok as boolean) === true;
+          return { action: "delete_reply_to_message", success: ok, response: data };
+        }
+
+        case "pin_reply_to_message": {
+          if (chatId === "" || replyToMessageId == null || !Number.isFinite(replyToMessageId)) {
+            logger.warn("[TelegramAction] pin_reply_to_message skipped: no reply_to_message_id (user must reply to the message to pin)");
+            return { action: "pin_reply_to_message", success: false };
+          }
+          const url = `${API_BASE}${token}/pinChatMessage`;
+          const payload = { chat_id: chatId, message_id: replyToMessageId };
+          const data = await this.post(url, payload);
+          const ok = (data?.ok as boolean) === true;
+          return { action: "pin_reply_to_message", success: ok, response: data };
+        }
+
+        case "timeout_reply_to_author": {
+          if (chatId === "" || replyToMessageId == null || !Number.isFinite(replyToMessageId)) {
+            logger.warn("[TelegramAction] timeout_reply_to_author skipped: no reply_to_message_id (user must reply to the message)");
+            return { action: "timeout_reply_to_author", success: false };
+          }
+          const targetUser = await resolveUserIdFromStorage(storage, chatId, { message_id: replyToMessageId });
+          if (!targetUser) {
+            logger.warn("[TelegramAction] timeout_reply_to_author skipped: could not resolve user_id from storage for reply_to message");
+            return { action: "timeout_reply_to_author", success: false };
+          }
+          const durationSeconds = Math.min(
+            Number(params.duration_seconds ?? params.duration ?? 60) || 60,
+            60
+          );
+          const untilDate = Math.floor(Date.now() / 1000) + durationSeconds;
+          const url = `${API_BASE}${token}/restrictChatMember`;
+          const payload = {
+            chat_id: chatId,
+            user_id: targetUser,
+            permissions: {
+              can_send_messages: false,
+              can_send_audios: false,
+              can_send_documents: false,
+              can_send_photos: false,
+              can_send_videos: false,
+              can_send_video_notes: false,
+              can_send_voice_notes: false,
+              can_send_polls: false,
+              can_send_other_messages: false,
+              can_add_web_page_previews: false,
+              can_change_info: false,
+              can_invite_users: false,
+              can_pin_messages: false,
+            },
+            until_date: untilDate,
+          };
+          const data = await this.post(url, payload);
+          const ok = (data?.ok as boolean) === true;
+          return { action: "timeout_reply_to_author", success: ok, response: data };
         }
 
         default:

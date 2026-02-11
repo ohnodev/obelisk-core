@@ -10,7 +10,8 @@
  * Outputs:
  *   tg_actions: Array of { action: string, params: Record<string, unknown> }
  *
- * Allowed action types: reply, send_dm, pin_message, timeout_message_author, delete_message.
+ * Allowed action types: reply, send_dm, pin_message, timeout_message_author, delete_message,
+ * delete_reply_to_message, pin_reply_to_message, timeout_reply_to_author (no message_id — use listener reply_to_message_id).
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
@@ -24,6 +25,9 @@ const ALLOWED_ACTIONS = new Set([
   "pin_message",
   "timeout_message_author",
   "delete_message",
+  "delete_reply_to_message",
+  "pin_reply_to_message",
+  "timeout_reply_to_author",
 ]);
 
 const MAX_TIMEOUT_SECONDS = 60;
@@ -70,8 +74,8 @@ export class ActionRouterNode extends BaseNode {
             }
             let params = { ...(item.params as Record<string, unknown>) };
 
-            // Cap duration for timeout_message_author
-            if (action === "timeout_message_author") {
+            // Cap duration for timeout_message_author and timeout_reply_to_author
+            if (action === "timeout_message_author" || action === "timeout_reply_to_author") {
               let duration = Number(params.duration_seconds ?? params.duration ?? 60);
               if (!Number.isFinite(duration) || duration < 0) duration = 60;
               duration = Math.min(duration, MAX_TIMEOUT_SECONDS);
