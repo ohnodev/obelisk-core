@@ -267,6 +267,17 @@ export class HttpListenerNode extends BaseNode {
   }
 
   override dispose(): void {
+    // Resolve all pending requests with 503 before closing so clients don't hang
+    const unavailableBody = {
+      error: "Service Unavailable",
+      message: "Listener shutting down",
+      node_id: this.nodeId,
+    };
+    for (const queued of this._pendingMessages) {
+      HttpRequestRegistry.resolve(queued.requestId, 503, unavailableBody);
+    }
+    this._pendingMessages = [];
+
     if (this._server) {
       this._server.close((err) => {
         if (err) {
@@ -282,6 +293,5 @@ export class HttpListenerNode extends BaseNode {
       this._server = null;
       this._app = null;
     }
-    this._pendingMessages = [];
   }
 }

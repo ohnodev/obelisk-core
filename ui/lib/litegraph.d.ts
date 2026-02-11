@@ -40,8 +40,6 @@ export interface INodeSlot {
 
 export interface INodeInputSlot extends INodeSlot {
     link: LLink["id"] | null;
-    /** Default/value when unconnected (e.g. widget-linked) */
-    value?: unknown;
 }
 export interface INodeOutputSlot extends INodeSlot {
     links: LLink["id"][] | null;
@@ -377,8 +375,7 @@ export declare class LGraph {
     starttime: number;
     status: typeof LGraph.STATUS_RUNNING | typeof LGraph.STATUS_STOPPED;
 
-    /** Nodes in the graph (runtime array, used for iteration) */
-    _nodes: LGraphNode[];
+    private _nodes: LGraphNode[];
     private _groups: LGraphGroup[];
     private _nodes_by_id: Record<number, LGraphNode>;
     /** nodes that are executable sorted in execution order */
@@ -620,8 +617,6 @@ export declare class LGraphNode {
     //inputs available: array of inputs
     inputs: INodeInputSlot[];
     outputs: INodeOutputSlot[];
-    /** Widgets (text, number, combo, etc.) rendered on the node */
-    widgets?: IWidget[];
     connections: any[];
 
     //local data

@@ -44,14 +44,15 @@ export function serializeGraph(graph: LGraphType): WorkflowGraph {
   const nodes: WorkflowNode[] = [];
   const connections: WorkflowConnection[] = [];
 
-  // Serialize nodes - access nodes array directly
-  const graphNodes: LGraphNodeType[] = graph._nodes ?? [];
+  // Serialize nodes - _nodes is private in upstream types; runtime graph exposes it
+  const graphNodes: LGraphNodeType[] = (graph as unknown as { _nodes?: LGraphNodeType[] })._nodes ?? [];
   for (const node of graphNodes) {
     // Start with properties as base
     const metadata: Record<string, unknown> = { ...(node.properties || {}) };
     
     // Widget values are source of truth - always overwrite properties with widget values
-    const widgets: IWidget[] | undefined = node.widgets;
+    // widgets exists at runtime (LiteGraph.addWidget) but not in upstream .d.ts
+    const widgets: IWidget[] | undefined = (node as LGraphNodeType & { widgets?: IWidget[] }).widgets;
     if (widgets) {
       for (const widget of widgets) {
         const name = widget?.name;
@@ -76,12 +77,11 @@ export function serializeGraph(graph: LGraphType): WorkflowGraph {
       metadata,
     };
 
-    // Serialize input values
+    // Serialize input values; slot may have value at runtime when widget-linked (not in upstream types)
     if (node.inputs) {
       node.inputs.forEach((input: INodeInputSlot) => {
         if (input && input.name) {
-          // Store the input value if it exists
-          const inputValue = input.value;
+          const inputValue = (input as INodeInputSlot & { value?: unknown }).value;
           if (inputValue !== undefined) {
             nodeData.inputs![input.name] = inputValue;
           }
@@ -157,16 +157,16 @@ export function deserializeGraph(graph: LGraphType, workflow: WorkflowGraph): vo
         Object.entries(nodeData.inputs).forEach(([key, value]) => {
           const input = node.inputs?.find((inp: INodeInputSlot) => inp.name === key);
           if (input) {
-            // It's an actual input slot
-            input.value = value;
+            // It's an actual input slot; runtime slots may have value for widget-linked defaults
+            (input as INodeInputSlot & { value?: unknown }).value = value;
           } else {
             // It's a property, not an input slot
             if (!node.properties) {
               node.properties = {};
             }
             node.properties[key] = value;
-            // Also update widget if it exists
-            const widgets = node.widgets;
+            // Also update widget if it exists (widgets at runtime, not in upstream .d.ts)
+            const widgets = (node as LGraphNodeType & { widgets?: IWidget[] }).widgets;
             if (widgets) {
               const widget = widgets.find((w: IWidget) => w.name === key);
               if (widget) {
@@ -183,8 +183,8 @@ export function deserializeGraph(graph: LGraphType, workflow: WorkflowGraph): vo
           node.properties = {};
         }
         node.properties = { ...node.properties, ...nodeData.metadata };
-        // Update widgets for metadata properties
-        const widgets = node.widgets;
+        // Update widgets for metadata properties (widgets at runtime, not in upstream .d.ts)
+        const widgets = (node as LGraphNodeType & { widgets?: IWidget[] }).widgets;
         if (widgets) {
           Object.entries(nodeData.metadata).forEach(([key, value]) => {
             // Try exact match first
