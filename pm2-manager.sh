@@ -123,14 +123,14 @@ setup_logrotate() {
         echo -e "${YELLOW}⚠️  PM2 logrotate not found. Installing...${NC}"
         pm2 install pm2-logrotate
     fi
-    pm2 set pm2-logrotate:max_size 10M
+    # Rotate when log reaches 5MB; no compression; only size-based, not time-based wipe
+    pm2 set pm2-logrotate:max_size 5M
     pm2 set pm2-logrotate:retain 5
     pm2 set pm2-logrotate:compress false
     pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm-ss
     pm2 set pm2-logrotate:workerInterval 30
-    pm2 set pm2-logrotate:rotateInterval "0 0 * * *"
     pm2 set pm2-logrotate:rotateModule true
-    echo -e "${GREEN}✅ PM2 logrotate configured${NC}"
+    echo -e "${GREEN}✅ PM2 logrotate configured (rotate at 5MB, no compression)${NC}"
 }
 
 generate_ecosystem() {
@@ -353,8 +353,9 @@ cmd_restart() {
     generate_ecosystem
 
     if [ -z "$target" ]; then
-        # Restart all — do not delete logs; pm2-logrotate rotates by size only
+        # Restart all — delete logs so restart starts fresh
         echo -e "${BLUE}🔄 Restarting all services...${NC}"
+        delete_logs ""
 
         for svc in "${ALL_SERVICES[@]}"; do
             if service_exists "$svc"; then
@@ -364,8 +365,9 @@ cmd_restart() {
 
         cmd_start ""
     else
-        # Restart specific service — do not delete logs; pm2-logrotate rotates by size only
+        # Restart specific service — delete that service's logs
         echo -e "${BLUE}🔄 Restarting ${target}...${NC}"
+        delete_logs "$target"
 
         # Rebuild TypeScript core before restarting
         if [ "$target" = "$CORE_NAME" ]; then
@@ -461,7 +463,7 @@ cmd_help() {
     echo -e "${CYAN}Commands:${NC}"
     echo "  start [service]     Start service(s)"
     echo "  stop [service]      Stop service(s)"
-    echo "  restart [service]   Restart service(s) (logs kept; rotated by size only)"
+    echo "  restart [service]   Restart service(s) and delete logs"
     echo "  status [service]    Show service status and recent logs"
     echo "  logs [service]      Show live logs (Ctrl+C to exit)"
     echo "  log-files           List log files and sizes"
