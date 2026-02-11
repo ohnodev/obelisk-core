@@ -72,7 +72,11 @@ export class TelegramActionNode extends BaseNode {
       logger.debug(
         `[TelegramAction ${this.nodeId}] No actions to execute, skipping`
       );
-      return { success: true, results: [] };
+      return {
+        success: true,
+        results: [],
+        debug_text: "success: true, 0 actions",
+      };
     }
 
     const results: ActionResult[] = [];
@@ -91,9 +95,17 @@ export class TelegramActionNode extends BaseNode {
       if (!result.success) allSuccess = false;
     }
 
+    const debugParts = [
+      `success: ${allSuccess}`,
+      `${results.length} action(s)`,
+      ...results.map((r) => `${r.action}: ${r.success ? "ok" : "fail"}`),
+    ];
+    const debug_text = debugParts.join(" | ");
+
     return {
       success: allSuccess,
       results,
+      debug_text,
     };
   }
 

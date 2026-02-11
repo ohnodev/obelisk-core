@@ -19,6 +19,7 @@ class TelegramActionNode extends LGraphNode {
 
     this.addOutput("success", "boolean");
     this.addOutput("results", "object");
+    this.addOutput("debug_text", "string");
 
     this.size = [260, 160];
     (this as any).type = "telegram_action";
