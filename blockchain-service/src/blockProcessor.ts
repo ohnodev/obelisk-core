@@ -64,13 +64,11 @@ export class BlockProcessor {
   }
 
   private async processBlock(blockNumber: number): Promise<void> {
-    const block = await this.provider.getBlock(blockNumber);
-    if (!block || !block.transactions?.length) return;
-
-    const txHashes = block.transactions as string[];
-    const receipts = await Promise.all(
-      txHashes.map((hash) => this.provider.getTransactionReceipt(hash))
-    );
+    const blockHex = "0x" + blockNumber.toString(16);
+    const receipts = await this.provider.send("eth_getBlockReceipts", [
+      blockHex,
+    ] as [string]);
+    if (!Array.isArray(receipts) || receipts.length === 0) return;
 
     const trackedPoolIds = this.state.getTrackedPoolIds();
 
