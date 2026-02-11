@@ -1,0 +1,378 @@
+{
+  "id": "workflow-crab",
+  "name": "Crab AI Bot",
+  "nodes": [
+    {
+      "id": "16",
+      "type": "memory_storage",
+      "position": {
+        "x": 585,
+        "y": 641
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "crab",
+        "storage_type": "local_json",
+        "Storage Path": "crab",
+        "Storage Type": "local_json"
+      }
+    },
+    {
+      "id": "4",
+      "type": "model_loader",
+      "position": {
+        "x": 327,
+        "y": 432
+      },
+      "inputs": {},
+      "metadata": {
+        "endpoint_url": "http://localhost:7780",
+        "use_default": true,
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
+    },
+    {
+      "id": "12",
+      "type": "telegram_listener",
+      "position": {
+        "x": -94,
+        "y": 166
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_token": "{{process.env.TELEGRAM_CRAB_BOT_TOKEN}}",
+        "poll_interval": 2
+      }
+    },
+    {
+      "id": "20",
+      "type": "reroute",
+      "position": {
+        "x": 204,
+        "y": -159
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "21",
+      "type": "reroute",
+      "position": {
+        "x": 207,
+        "y": -125
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "23",
+      "type": "reroute",
+      "position": {
+        "x": 2476,
+        "y": -129
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "22",
+      "type": "reroute",
+      "position": {
+        "x": 2476,
+        "y": -162
+      },
+      "inputs": {},
+      "metadata": {
+        "showType": false
+      }
+    },
+    {
+      "id": "10",
+      "type": "telegram_bot",
+      "position": {
+        "x": 2857,
+        "y": 75
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_CRAB_BOT_TOKEN}}",
+        "chat_id": ""
+      }
+    },
+    {
+      "id": "7",
+      "type": "text",
+      "position": {
+        "x": 2322,
+        "y": 61
+      },
+      "inputs": {
+        "text": ""
+      },
+      "metadata": {
+        "text": ""
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 1938,
+        "y": 47
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are Crab AI 🦀 — a hilarious, witty, and slightly unhinged AI crab who lives on the internet. You are the face and soul of the $CAI token (Crab AI), launched on Base Chain via The Cabal.\n\nYour Identity:\n- Name: Crab AI\n- Token: $CAI (Crab AI) on Base Chain\n- Contract: 0xABF603e9c677Fa2C4BEe2d26cEeE75B001EE454a\n- Launched via: The Cabal\n- X: https://x.com/crabaiapp | Telegram: https://t.me/crabaiportal | Website: https://crabai.app\n- Bot Tag: @CrabAgent001Bot\n\nYour Personality:\n- You ARE a crab. Deeply proud of it. Reference crab things constantly — claws, shells, sideways walking, the ocean, pinching, the beach.\n- Funny and meme-savvy. You love memes, internet culture, and crypto humor. A shitposting crab with a heart of gold.\n- Slightly chaotic and unpredictable in a fun way. Random crab facts, crab rave references, tangents about crabs being superior to lobsters.\n- Supportive but sarcastic — friendly roasting energy.\n- Crab puns are life: \"That's claw-some!\", \"Don't be so shellfish!\", \"I'm feeling a bit crabby today\".\n- Crypto-aware — you know about crypto, memecoins, Base chain, the degen lifestyle, and The Cabal ecosystem.\n- Mysteriously bullish — ALWAYS hint that something massive is coming for $CAI. Drop cryptic hints without revealing specifics.\n\nHow You Hint at What's Coming:\n- \"Let's just say... the crabs are building something in the deep. You'll see soon enough 🦀\"\n- \"You think this is just a meme? Oh, sweet summer child... the claws haven't even come out yet.\"\n- \"The team is cooking something absolutely INSANE. Hold your $CAI and watch. 👀🦀\"\n- If pressed for details: \"Nice try, land-dweller. You'll find out when the tide comes in. 🌊🦀\"\n\nHow You Talk:\n- Keep responses short and punchy (2-4 sentences usually, unless asked a real question).\n- Use 🦀 liberally but not excessively (1-3 per message).\n- Occasionally do *actions* like *snaps claws aggressively* or *walks sideways into the conversation*.\n- When you don't know something: \"Look, I'm a crab. I live in the ocean. How would I know about that? But let me try anyway...\"\n- If someone is rude, playfully threaten to pinch them.\n- When people ask about $CAI, be hyped and bullish. Point them to X (https://x.com/crabaiapp), Telegram (https://t.me/crabaiportal), and the website (https://crabai.app).\n\nYour Lore:\n- Emerged from the depths of the blockchain ocean in early 2026.\n- Born through The Cabal — a launchpad for the most based tokens on Base Chain.\n- Crabs are the ultimate life form (carcinization is real — evolution keeps turning things into crabs!).\n- You live on Base chain because it's where the cool crabs hang out.\n\nRules:\n- NEVER break character. You ARE Crab AI. You are a crab. Always.\n- Don't give financial advice (you're a crab, not a financial advisor — but personally bullish af).\n- Don't be offensive or harmful.\n- Don't reveal actual roadmap details — keep it mysterious and hype.\n- Don't make up specific dates or promises about price or utility launches.\n- Keep it snappy like a crab's claws 🦀",
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "19",
+      "type": "boolean_logic",
+      "position": {
+        "x": 1659,
+        "y": 79
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "OR"
+      }
+    },
+    {
+      "id": "15",
+      "type": "telegram_memory_creator",
+      "position": {
+        "x": 762,
+        "y": 44
+      },
+      "inputs": {},
+      "metadata": {
+        "summarize_threshold": 20
+      }
+    },
+    {
+      "id": "14",
+      "type": "telegram_memory_selector",
+      "position": {
+        "x": 840,
+        "y": 292
+      },
+      "inputs": {},
+      "metadata": {
+        "recent_count": 20,
+        "include_summaries": true,
+        "Recent Messages": 20,
+        "Include Summaries": true
+      }
+    },
+    {
+      "id": "18",
+      "type": "boolean_logic",
+      "position": {
+        "x": 1227,
+        "y": 93
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "OR"
+      }
+    },
+    {
+      "id": "17",
+      "type": "binary_intent",
+      "position": {
+        "x": 1382,
+        "y": 377
+      },
+      "inputs": {},
+      "metadata": {
+        "intent_criteria": "Should the bot respond to this message?\n\nNote: @mentions and direct replies are already handled separately. This message was NOT a mention or reply, so use context clues only.\n\nRespond TRUE if the message:\n- Asks a question the bot can answer (crypto, memecoins, Base chain, crab-related topics)\n- Explicitly calls out the bot by name (Crab AI, Crab, $CAI)\n- Is a direct request or prompt clearly meant for the bot\n- Raises a topic the bot has relevant context on from recent conversation\n- Mentions $CAI, crabs, or The Cabal\n\nRespond FALSE if:\n- General chatter between users not involving the bot\n- Reactions, emojis, short acknowledgments (ok, lol, nice, etc.)\n- Talking ABOUT the bot to others, not TO the bot\n- Off-topic banter the bot has nothing to add to"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "15",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "14",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "15",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "14",
+      "to_input": "model"
+    },
+    {
+      "from": "4",
+      "from_output": "model",
+      "to": "17",
+      "to_input": "model"
+    },
+    {
+      "from": "12",
+      "from_output": "message",
+      "to": "15",
+      "to_input": "message"
+    },
+    {
+      "from": "12",
+      "from_output": "message",
+      "to": "14",
+      "to_input": "message"
+    },
+    {
+      "from": "12",
+      "from_output": "user_id",
+      "to": "15",
+      "to_input": "user_id"
+    },
+    {
+      "from": "12",
+      "from_output": "username",
+      "to": "15",
+      "to_input": "username"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "15",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "14",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "is_mention",
+      "to": "18",
+      "to_input": "a"
+    },
+    {
+      "from": "12",
+      "from_output": "is_reply_to_bot",
+      "to": "18",
+      "to_input": "b"
+    },
+    {
+      "from": "7",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "message"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "text"
+    },
+    {
+      "from": "19",
+      "from_output": "pass",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "14",
+      "from_output": "context",
+      "to": "6",
+      "to_input": "context"
+    },
+    {
+      "from": "14",
+      "from_output": "message",
+      "to": "18",
+      "to_input": "value"
+    },
+    {
+      "from": "14",
+      "from_output": "message",
+      "to": "19",
+      "to_input": "value"
+    },
+    {
+      "from": "18",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "a"
+    },
+    {
+      "from": "18",
+      "from_output": "reject",
+      "to": "17",
+      "to_input": "message"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "b"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "20",
+      "to_input": "in"
+    },
+    {
+      "from": "20",
+      "from_output": "out",
+      "to": "22",
+      "to_input": "in"
+    },
+    {
+      "from": "22",
+      "from_output": "out",
+      "to": "10",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "message_id",
+      "to": "21",
+      "to_input": "in"
+    },
+    {
+      "from": "21",
+      "from_output": "out",
+      "to": "23",
+      "to_input": "in"
+    },
+    {
+      "from": "23",
+      "from_output": "out",
+      "to": "10",
+      "to_input": "message_id"
+    }
+  ]
+}
