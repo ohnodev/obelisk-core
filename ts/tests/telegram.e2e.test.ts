@@ -268,6 +268,12 @@ describe("Telegram E2E workflow test", () => {
       const raw = JSON.parse(fs.readFileSync(workflowPath, "utf-8"));
       const workflow = convertFrontendWorkflow(raw);
 
+      // Sanity: ensure we're using the NEW default workflow (action_router → tg_actions, not old "actions")
+      const hasTgActionsConnection = (raw.connections as Array<{ from_output?: string }> ?? []).some(
+        (c) => c.from_output === "tg_actions"
+      );
+      expect(hasTgActionsConnection).toBe(true);
+
       console.log(
         `📋 Loaded default workflow: ${workflow.nodes.length} nodes, ${workflow.connections.length} connections`
       );
@@ -478,6 +484,8 @@ describe("Telegram E2E workflow test", () => {
       const raw = JSON.parse(fs.readFileSync(workflowPath, "utf-8"));
       const workflow = convertFrontendWorkflow(raw);
 
+      expect((raw.connections as Array<{ from_output?: string }> ?? []).some((c) => c.from_output === "tg_actions")).toBe(true);
+
       // Drain old updates
       const drain = await getUpdates(undefined, 1);
       let offset: number | undefined;
@@ -572,6 +580,8 @@ describe("Telegram E2E workflow test", () => {
       );
       const raw = JSON.parse(fs.readFileSync(workflowPath, "utf-8"));
       const workflow = convertFrontendWorkflow(raw);
+
+      expect((raw.connections as Array<{ from_output?: string }> ?? []).some((c) => c.from_output === "tg_actions")).toBe(true);
 
       const drain = await getUpdates(undefined, 1);
       let offset: number | undefined;

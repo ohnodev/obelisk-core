@@ -4,18 +4,19 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class TelegramMemoryCreatorNode extends LGraphNode {
   static title = "TG Memory Creator";
-  static desc = "Stores Telegram messages and creates summaries per chat";
+  static desc = "Stores Telegram messages (with message_id) and creates summaries per chat";
   static title_color = "#0088cc"; // Telegram blue
 
   constructor() {
     super();
     this.title = "TG Memory Creator";
-    
-    // Inputs
+
+    // Inputs (connect listener message_id so we store it for delete/pin/timeout by context)
     this.addInput("message", "string");
     this.addInput("user_id", "string");
     this.addInput("username", "string");
     this.addInput("chat_id", "string");
+    this.addInput("message_id", "number");
     this.addInput("storage_instance", "object");
     this.addInput("model", "object");
     
