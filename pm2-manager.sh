@@ -65,7 +65,9 @@ INFERENCE_NAME="obelisk-inference"
 INFERENCE_PORT="${INFERENCE_PORT:-7780}"
 INFERENCE_HOST="${INFERENCE_HOST:-127.0.0.1}"
 
-ALL_SERVICES=("$CORE_NAME" "$INFERENCE_NAME")
+BLOCKCHAIN_NAME="obelisk-blockchain"
+
+ALL_SERVICES=("$CORE_NAME" "$INFERENCE_NAME" "$BLOCKCHAIN_NAME")
 
 # Colors
 RED='\033[0;31m'
@@ -108,9 +110,12 @@ resolve_service() {
         inference|obelisk-inference|infer)
             echo "$INFERENCE_NAME"
             ;;
+        blockchain|obelisk-blockchain|blockchain-service)
+            echo "$BLOCKCHAIN_NAME"
+            ;;
         *)
             echo -e "${RED}❌ Unknown service: $input${NC}" >&2
-            echo -e "${YELLOW}   Valid services: core, inference, all${NC}" >&2
+            echo -e "${YELLOW}   Valid services: core, inference, blockchain, all${NC}" >&2
             exit 1
             ;;
     esac
@@ -194,6 +199,32 @@ module.exports = {
       max_memory_restart: '4G',
       min_uptime: '10s',
       max_restarts: 10,
+    },
+    {
+      name: '${BLOCKCHAIN_NAME}',
+      script: path.resolve(__dirname, 'blockchain-service/dist/index.js'),
+      args: '',
+      interpreter: 'node',
+      cwd: path.resolve(__dirname, 'blockchain-service'),
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        NODE_ENV: 'production',
+        RPC_URL: process.env.RPC_URL || '',
+        STATE_FILE_PATH: process.env.STATE_FILE_PATH || '',
+        CLANKER_HOOK_ADDRESS: process.env.CLANKER_HOOK_ADDRESS || '',
+      },
+      log_file: path.resolve(__dirname, 'logs', 'obelisk-blockchain.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
+      time: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      min_uptime: '10s',
+      max_restarts: 10,
     }
   ]
 };
@@ -257,15 +288,34 @@ check_venv() {
         echo -e "${YELLOW}ℹ️  Skipping TypeScript build (target=${_startup_target})${NC}"
     fi
 
-    # Python venv is needed for the inference service
-    if [ ! -d "$SCRIPT_DIR/venv" ]; then
-        echo -e "${RED}❌ Virtual environment not found at $SCRIPT_DIR/venv${NC}"
-        echo -e "${YELLOW}   Run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt${NC}"
-        return 1
+    # Build blockchain service when the target includes blockchain or is all services
+    if [ -z "$_startup_target" ] || [ "$_startup_target" = "$BLOCKCHAIN_NAME" ]; then
+        if [ -d "$SCRIPT_DIR/blockchain-service" ]; then
+            echo -e "${BLUE}🔨 Building blockchain service...${NC}"
+            (cd "$SCRIPT_DIR/blockchain-service" && npm run build) || {
+                echo -e "${RED}❌ Blockchain service build failed.${NC}"
+                echo -e "${YELLOW}   Run: cd blockchain-service && npm install && npm run build${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ Blockchain service build complete${NC}"
+        else
+            echo -e "${YELLOW}ℹ️  blockchain-service/ not found, skipping${NC}"
+        fi
+    else
+        echo -e "${YELLOW}ℹ️  Skipping blockchain build (target=${_startup_target})${NC}"
     fi
-    if [ ! -f "$SCRIPT_DIR/venv/bin/python" ]; then
-        echo -e "${RED}❌ Python interpreter not found in virtual environment.${NC}"
-        return 1
+
+    # Python venv is needed only when starting all services or inference
+    if [ -z "$_startup_target" ] || [ "$_startup_target" = "$INFERENCE_NAME" ]; then
+        if [ ! -d "$SCRIPT_DIR/venv" ]; then
+            echo -e "${RED}❌ Virtual environment not found at $SCRIPT_DIR/venv${NC}"
+            echo -e "${YELLOW}   Run: python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt${NC}"
+            return 1
+        fi
+        if [ ! -f "$SCRIPT_DIR/venv/bin/python" ]; then
+            echo -e "${RED}❌ Python interpreter not found in virtual environment.${NC}"
+            return 1
+        fi
     fi
     return 0
 }
@@ -379,6 +429,16 @@ cmd_restart() {
             echo -e "${GREEN}✅ TypeScript build complete${NC}"
         fi
 
+        # Rebuild blockchain service before restarting
+        if [ "$target" = "$BLOCKCHAIN_NAME" ] && [ -d "$SCRIPT_DIR/blockchain-service" ]; then
+            echo -e "${BLUE}🔨 Building blockchain service...${NC}"
+            (cd "$SCRIPT_DIR/blockchain-service" && npm run build) || {
+                echo -e "${RED}❌ Blockchain service build failed. Aborting restart.${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ Blockchain service build complete${NC}"
+        fi
+
         if service_exists "$target"; then
             if ! is_running "$target"; then
                 pm2 delete "$target" 2>/dev/null || true
@@ -472,15 +532,18 @@ cmd_help() {
     echo -e "${CYAN}Services:${NC}"
     echo "  core                Obelisk Core API (port ${CORE_PORT})"
     echo "  inference           Inference Service (port ${INFERENCE_PORT})"
+    echo "  blockchain          Clanker blockchain service (block scanner, state to JSON)"
     echo "  all                 All services (default when no service specified)"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
     echo "  $0 start              # Start all services"
     echo "  $0 start inference    # Start inference service only"
+    echo "  $0 start blockchain   # Start blockchain service only"
     echo "  $0 restart            # Restart all services"
     echo "  $0 restart core       # Restart obelisk-core only"
+    echo "  $0 restart blockchain # Restart blockchain service only"
     echo "  $0 stop inference     # Stop inference service"
-    echo "  $0 logs inference     # Tail inference logs"
+    echo "  $0 logs blockchain   # Tail blockchain logs"
     echo "  $0 status             # Status of all services"
     echo ""
     echo -e "${CYAN}Environment:${NC}"
@@ -491,6 +554,8 @@ cmd_help() {
     echo "  INFERENCE_HOST       Inference service host (default: 127.0.0.1, set 0.0.0.0 for public)"
     echo "  INFERENCE_SERVICE_URL Inference endpoint URL (default: http://localhost:7780)"
     echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
+    echo "  RPC_URL              Base RPC URL for blockchain service (or set in blockchain-service/.env)"
+    echo "  STATE_FILE_PATH      Clanker state JSON path (optional; default ~/.obelisk-core/data/clanker_state.json)"
     echo ""
 }
 
