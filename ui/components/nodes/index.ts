@@ -17,3 +17,5 @@ import "./BooleanLogicNode";
 import "./RerouteNode";
 import "./HttpListenerNode";
 import "./HttpResponseNode";
+import "./ActionRouterNode";
+import "./TelegramActionNode";

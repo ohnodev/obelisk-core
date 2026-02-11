@@ -123,14 +123,14 @@ setup_logrotate() {
         echo -e "${YELLOW}⚠️  PM2 logrotate not found. Installing...${NC}"
         pm2 install pm2-logrotate
     fi
-    pm2 set pm2-logrotate:max_size 10M
+    # Rotate when log reaches 5MB; no compression; only size-based, not time-based wipe
+    pm2 set pm2-logrotate:max_size 5M
     pm2 set pm2-logrotate:retain 5
     pm2 set pm2-logrotate:compress false
     pm2 set pm2-logrotate:dateFormat YYYY-MM-DD_HH-mm-ss
     pm2 set pm2-logrotate:workerInterval 30
-    pm2 set pm2-logrotate:rotateInterval "0 0 * * *"
     pm2 set pm2-logrotate:rotateModule true
-    echo -e "${GREEN}✅ PM2 logrotate configured${NC}"
+    echo -e "${GREEN}✅ PM2 logrotate configured (rotate at 5MB, no compression)${NC}"
 }
 
 generate_ecosystem() {
@@ -353,7 +353,7 @@ cmd_restart() {
     generate_ecosystem
 
     if [ -z "$target" ]; then
-        # Restart all — delete logs and start fresh
+        # Restart all — delete logs so restart starts fresh
         echo -e "${BLUE}🔄 Restarting all services...${NC}"
         delete_logs ""
 
@@ -365,7 +365,7 @@ cmd_restart() {
 
         cmd_start ""
     else
-        # Restart specific service
+        # Restart specific service — delete that service's logs
         echo -e "${BLUE}🔄 Restarting ${target}...${NC}"
         delete_logs "$target"
 

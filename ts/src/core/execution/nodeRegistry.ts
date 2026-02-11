@@ -23,6 +23,8 @@ import { BooleanLogicNode } from "./nodes/booleanLogic";
 import { RerouteNode } from "./nodes/reroute";
 import { HttpListenerNode } from "./nodes/httpListener";
 import { HttpResponseNode } from "./nodes/httpResponse";
+import { ActionRouterNode } from "./nodes/actionRouter";
+import { TelegramActionNode } from "./nodes/telegramAction";
 
 const logger = getLogger("nodeRegistry");
 
@@ -80,6 +82,8 @@ export function registerAllNodes(): void {
   registerNode("reroute", RerouteNode);
   registerNode("http_listener", HttpListenerNode);
   registerNode("http_response", HttpResponseNode);
+  registerNode("action_router", ActionRouterNode);
+  registerNode("telegram_action", TelegramActionNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

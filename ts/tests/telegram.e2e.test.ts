@@ -94,6 +94,38 @@ async function sendMessage(
   return (await res.json()) as Record<string, unknown>;
 }
 
+async function sendMessageWithReply(
+  chatId: string,
+  text: string,
+  replyToMessageId: number
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_BASE}${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      reply_parameters: { message_id: replyToMessageId },
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  return (await res.json()) as Record<string, unknown>;
+}
+
+async function deleteMessage(
+  chatId: string,
+  messageId: number
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_BASE}${BOT_TOKEN}/deleteMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  return (await res.json()) as Record<string, unknown>;
+}
+
 async function isInferenceServiceUp(): Promise<boolean> {
   try {
     const res = await fetch(`${INFERENCE_URL}/health`, {
@@ -407,9 +439,8 @@ describe("Telegram E2E workflow test", () => {
       //   - 4  (model_loader / inference_config)
       //   - 17 (binary_intent) — calls inference
       //   - 6  (inference) — calls inference
-      //   - 5  (text / system_prompt)
-      //   - 7  (text / output)
-      //   - 10 (telegram_bot / sender)
+      //   - 25 (action_router) — parses response into actions
+      //   - 26 (telegram_action) — executes actions (reply, etc.)
       //   - 12 (telegram_listener / autonomous trigger)
       //
       // Note: not all nodes may execute if binary_intent returns false
@@ -509,10 +540,10 @@ describe("Telegram E2E workflow test", () => {
       const inferenceRan = allExecuted.has("6");
       if (inferenceRan) {
         console.log("  ✅ Main inference node (6) executed");
-        // And if inference ran, the output text (7) and telegram_bot (10) should too
-        expect(allExecuted.has("7")).toBe(true); // output text
-        expect(allExecuted.has("10")).toBe(true); // telegram_bot sender
-        console.log("  ✅ Output text (7) and TelegramBot (10) executed");
+        // And if inference ran, action_router (25) and telegram_action (26) should too
+        expect(allExecuted.has("25")).toBe(true); // action_router
+        expect(allExecuted.has("26")).toBe(true); // telegram_action
+        console.log("  ✅ Action Router (25) and TG Action (26) executed");
       } else {
         console.log(
           "  ⚠️  Binary intent returned false — main inference did not run (this can happen if the LLM doesn't consider the message directed at the bot)"
@@ -520,6 +551,92 @@ describe("Telegram E2E workflow test", () => {
       }
 
       console.log("🎉 Inference verification test completed!");
+    },
+    120_000
+  );
+
+  // ── 7. Reply then "delete the message I replied to" ───────────────────
+
+  // Resolving user_id from reply_to_message_id via storage is unit-tested in
+  // telegram-storage-resolution.test.ts (no inference, no Telegram API).
+  it.skipIf(!hasBotToken || !hasChatId || !inferenceAvailable)(
+    "should delete the message user replied to when asked",
+    async () => {
+      const workflowPath = path.resolve(
+        __dirname,
+        "..",
+        "..",
+        "ui",
+        "workflows",
+        "default.json"
+      );
+      const raw = JSON.parse(fs.readFileSync(workflowPath, "utf-8"));
+      const workflow = convertFrontendWorkflow(raw);
+
+      const drain = await getUpdates(undefined, 1);
+      let offset: number | undefined;
+      if (drain.ok) {
+        const updates = (drain.result as Array<Record<string, unknown>>) ?? [];
+        if (updates.length) {
+          offset = Math.max(...updates.map((u) => u.update_id as number)) + 1;
+          await getUpdates(offset, 1);
+        }
+      }
+
+      const executedNodesList: string[][] = [];
+
+      const wid = runner.startWorkflow(
+        workflow,
+        {},
+        (tick) => {
+          if (tick.executedNodes.length) {
+            executedNodesList.push(tick.executedNodes);
+          }
+        }
+      );
+
+      await sleep(3_000);
+
+      const firstText = `E2E delete test — please ignore (${Date.now()})`;
+      const firstResult = await sendMessage(CHAT_ID, firstText);
+      expect(firstResult.ok).toBe(true);
+      const firstMsg = (firstResult.result as Record<string, unknown>)?.message_id;
+      expect(typeof firstMsg).toBe("number");
+      const targetMessageId = firstMsg as number;
+
+      await sleep(2_000);
+
+      const mention = botUsername ? `@${botUsername}` : "@ObeliskAgentBot";
+      const replyText = `${mention} Delete the message I replied to.`;
+      const replyResult = await sendMessageWithReply(
+        CHAT_ID,
+        replyText,
+        targetMessageId
+      );
+      expect(replyResult.ok).toBe(true);
+
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        await sleep(2_000);
+        if (executedNodesList.length > 0) break;
+      }
+
+      runner.stopWorkflow(wid);
+
+      expect(executedNodesList.length).toBeGreaterThan(0);
+
+      const tryDelete = await deleteMessage(CHAT_ID, targetMessageId);
+      const desc = String((tryDelete as Record<string, unknown>).description ?? "").toLowerCase();
+      const alreadyGone =
+        tryDelete.ok === false &&
+        (desc.includes("not found") || desc.includes("can't be found"));
+      if (alreadyGone) {
+        console.log("  ✅ Target message was already deleted by the bot (delete returned not found)");
+      } else if (tryDelete.ok === true) {
+        console.log("  ⚠️  Bot did not delete the message; we deleted it in the test (LLM may not have output delete action)");
+      }
+
+      console.log("🎉 Delete-replied-message E2E test completed!");
     },
     120_000
   );

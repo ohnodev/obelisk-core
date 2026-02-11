@@ -103,6 +103,8 @@ class TelegramBotNode extends LGraphNode {
           widget.value = props.chat_id;
         }
       });
+      this.updateWidgetState("bot_id", "_bot_id_widget");
+      this.updateWidgetState("chat_id", "_chat_id_widget");
     }
   }
 

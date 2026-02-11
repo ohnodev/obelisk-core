@@ -97,6 +97,15 @@ export function extractJsonFromLlmResponse(
     // fall through to repair
   }
 
+  // Strategy 2b: Try to repair common LLM bracket mistakes (e.g. "}"]}} instead of "}}]}")
+  const malformedRepaired = tryRepairMalformedJson(text);
+  if (malformedRepaired !== null) {
+    logger.warning(
+      `Repaired malformed JSON from ${context} (bracket/order fix).`
+    );
+    return malformedRepaired;
+  }
+
   // Strategy 3: Try to repair truncated JSON (token limit may have cut off the response)
   const repaired = tryRepairTruncatedJson(text);
   if (repaired !== null) {
@@ -114,6 +123,58 @@ export function extractJsonFromLlmResponse(
   throw new Error(
     `Cannot extract valid JSON from ${context} response (text was ${text.length} chars)`
   );
+}
+
+/**
+ * Attempt to repair common LLM malformed JSON (wrong bracket order or extra braces).
+ * e.g. {"actions": [{"action": "reply", "params": {"text": "Hi 😂"}"]}} → fix "}"] to "}}]
+ *
+ * @returns Parsed object if repair succeeds, null otherwise
+ */
+function tryRepairMalformedJson(
+  text: string
+): Record<string, unknown> | null {
+  const jsonStart = text.indexOf("{");
+  if (jsonStart < 0) return null;
+  const fragment = text.slice(jsonStart);
+  const candidates: string[] = [];
+
+  // Fix: "}"]}} — model wrote } ] } } (missing } before ], extra } at end) → "}}]}
+  if (/"\s*}\s*\]\s*}\s*}\s*$/.test(fragment)) {
+    candidates.push(fragment.replace(/"\s*}\s*\]\s*}\s*}\s*$/, '"}}]}'));
+  }
+  // Fix: "}"]} — missing } before ] → "}}]}
+  if (/"\s*}\s*\]\s*}\s*$/.test(fragment)) {
+    candidates.push(fragment.replace(/"\s*}\s*\]\s*}\s*$/, '"}}]}'));
+  }
+  // Fix: one extra trailing } (e.g. ...}}]}} → ...}}]}
+  if (fragment.match(/}\s*]\s*}\s*}\s*$/)) {
+    candidates.push(fragment.replace(/\}\s*]\s*}\s*}\s*$/, "}]}"));
+  }
+
+  for (const repair of candidates) {
+    try {
+      return JSON.parse(sanitizeJsonString(repair)) as Record<string, unknown>;
+    } catch {
+      // continue
+    }
+  }
+
+  // Try inserting } before ] when we see "}"] (params closed, then ] too early)
+  const insertClose = fragment.replace(/"\s*\](\s*[\]}]*)\s*$/g, (_, rest) => {
+    const trailing = rest.replace(/\s/g, "");
+    if (trailing === "}" || trailing === "}}") return '"}}]' + trailing;
+    return '"}}]' + rest;
+  });
+  if (insertClose !== fragment) {
+    try {
+      return JSON.parse(sanitizeJsonString(insertClose)) as Record<string, unknown>;
+    } catch {
+      // continue
+    }
+  }
+
+  return null;
 }
 
 /**

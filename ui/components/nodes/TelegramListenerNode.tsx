@@ -20,6 +20,7 @@ class TelegramListenerNode extends LGraphNode {
     this.addOutput("username", "string");
     this.addOutput("chat_id", "string");
     this.addOutput("message_id", "number");
+    this.addOutput("reply_to_message_id", "number");
     this.addOutput("is_mention", "boolean");
     this.addOutput("is_reply_to_bot", "boolean");
     this.addOutput("is_dm", "boolean");

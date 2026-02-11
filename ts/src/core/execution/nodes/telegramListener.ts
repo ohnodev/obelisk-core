@@ -28,6 +28,10 @@ interface ParsedMessage {
   is_mention: boolean;
   timestamp: number;
   raw_update: Record<string, unknown>;
+  /** When the user replies to another message: that message's id and its author */
+  reply_to_message_id?: number;
+  reply_to_message_user_id?: string;
+  reply_to_message_username?: string;
 }
 
 export class TelegramListenerNode extends BaseNode {
@@ -97,6 +101,9 @@ export class TelegramListenerNode extends BaseNode {
       is_mention: false,
       is_dm: false,
       raw_update: null,
+      reply_to_message_id: undefined,
+      reply_to_message_user_id: undefined,
+      reply_to_message_username: undefined,
     };
   }
 
@@ -204,6 +211,9 @@ export class TelegramListenerNode extends BaseNode {
       is_mention: parsed.is_mention,
       is_dm: parsed.chat_type === "private",
       raw_update: parsed.raw_update,
+      reply_to_message_id: parsed.reply_to_message_id,
+      reply_to_message_user_id: parsed.reply_to_message_user_id,
+      reply_to_message_username: parsed.reply_to_message_username,
     };
   }
 
@@ -302,6 +312,14 @@ export class TelegramListenerNode extends BaseNode {
     const isReplyToBot =
       !!this._botInfo && replyFrom.id === (this._botInfo as any).id;
 
+    const rawReplyId = replyTo.message_id;
+    const replyToMessageId =
+      rawReplyId != null && Number.isFinite(Number(rawReplyId))
+        ? Number(rawReplyId)
+        : undefined;
+    const replyToUserId = replyFrom.id != null ? String(replyFrom.id) : undefined;
+    const replyToUsername = (replyFrom.username as string) ?? undefined;
+
     // Check if bot is @mentioned
     const botUsername = (this._botInfo as any)?.username ?? "";
     const isMention =
@@ -320,6 +338,9 @@ export class TelegramListenerNode extends BaseNode {
       is_mention: isMention,
       timestamp: (message.date as number) ?? 0,
       raw_update: update,
+      reply_to_message_id: replyToMessageId,
+      reply_to_message_user_id: replyToUserId,
+      reply_to_message_username: replyToUsername,
     };
   }
 }
