@@ -18,3 +18,5 @@ export { BooleanLogicNode } from "./booleanLogic";
 export { RerouteNode } from "./reroute";
 export { HttpListenerNode, HttpRequestRegistry } from "./httpListener";
 export { HttpResponseNode } from "./httpResponse";
+export { ActionRouterNode, type ActionItem } from "./actionRouter";
+export { TelegramActionNode } from "./telegramAction";

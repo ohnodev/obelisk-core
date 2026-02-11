@@ -407,9 +407,8 @@ describe("Telegram E2E workflow test", () => {
       //   - 4  (model_loader / inference_config)
       //   - 17 (binary_intent) — calls inference
       //   - 6  (inference) — calls inference
-      //   - 5  (text / system_prompt)
-      //   - 7  (text / output)
-      //   - 10 (telegram_bot / sender)
+      //   - 25 (action_router) — parses response into actions
+      //   - 26 (telegram_action) — executes actions (reply, etc.)
       //   - 12 (telegram_listener / autonomous trigger)
       //
       // Note: not all nodes may execute if binary_intent returns false
@@ -509,10 +508,10 @@ describe("Telegram E2E workflow test", () => {
       const inferenceRan = allExecuted.has("6");
       if (inferenceRan) {
         console.log("  ✅ Main inference node (6) executed");
-        // And if inference ran, the output text (7) and telegram_bot (10) should too
-        expect(allExecuted.has("7")).toBe(true); // output text
-        expect(allExecuted.has("10")).toBe(true); // telegram_bot sender
-        console.log("  ✅ Output text (7) and TelegramBot (10) executed");
+        // And if inference ran, action_router (25) and telegram_action (26) should too
+        expect(allExecuted.has("25")).toBe(true); // action_router
+        expect(allExecuted.has("26")).toBe(true); // telegram_action
+        console.log("  ✅ Action Router (25) and TG Action (26) executed");
       } else {
         console.log(
           "  ⚠️  Binary intent returned false — main inference did not run (this can happen if the LLM doesn't consider the message directed at the bot)"

@@ -128,6 +128,21 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
+    name: "Actions",
+    nodes: [
+      {
+        type: "action_router",
+        title: "Action Router",
+        description: "Parses LLM response into a list of actions (reply, send_dm, pin_message, timeout, delete_message)",
+      },
+      {
+        type: "telegram_action",
+        title: "TG Action",
+        description: "Executes action list for Telegram (reply, send_dm, pin_message, timeout, delete_message)",
+      },
+    ],
+  },
+  {
     name: "Integrations",
     nodes: [
       {

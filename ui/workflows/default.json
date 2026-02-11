@@ -94,30 +94,25 @@
       }
     },
     {
-      "id": "10",
-      "type": "telegram_bot",
+      "id": "25",
+      "type": "action_router",
       "position": {
-        "x": 2857,
+        "x": 2130,
+        "y": 47
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "26",
+      "type": "telegram_action",
+      "position": {
+        "x": 2600,
         "y": 75
       },
       "inputs": {},
       "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}",
-        "chat_id": ""
-      }
-    },
-    {
-      "id": "7",
-      "type": "text",
-      "position": {
-        "x": 2322,
-        "y": 61
-      },
-      "inputs": {
-        "text": ""
-      },
-      "metadata": {
-        "text": ""
+        "bot_id": "{{process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN}}"
       }
     },
     {
@@ -327,28 +322,52 @@
       "to_input": "in"
     },
     {
-      "from": "23",
-      "from_output": "out",
-      "to": "10",
+      "from": "6",
+      "from_output": "response",
+      "to": "25",
+      "to_input": "response"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "25",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "12",
+      "from_output": "message_id",
+      "to": "25",
       "to_input": "message_id"
+    },
+    {
+      "from": "12",
+      "from_output": "user_id",
+      "to": "25",
+      "to_input": "user_id"
+    },
+    {
+      "from": "25",
+      "from_output": "actions",
+      "to": "26",
+      "to_input": "actions"
     },
     {
       "from": "22",
       "from_output": "out",
-      "to": "10",
+      "to": "26",
       "to_input": "chat_id"
     },
     {
-      "from": "7",
-      "from_output": "text",
-      "to": "10",
-      "to_input": "message"
+      "from": "23",
+      "from_output": "out",
+      "to": "26",
+      "to_input": "message_id"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "7",
-      "to_input": "text"
+      "from": "12",
+      "from_output": "user_id",
+      "to": "26",
+      "to_input": "user_id"
     },
     {
       "from": "14",
