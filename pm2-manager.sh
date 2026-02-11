@@ -210,9 +210,6 @@ module.exports = {
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        RPC_URL: process.env.RPC_URL || '',
-        STATE_FILE_PATH: process.env.STATE_FILE_PATH || '',
-        CLANKER_HOOK_ADDRESS: process.env.CLANKER_HOOK_ADDRESS || '',
       },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-blockchain.log'),
       out_file: '/dev/null',
