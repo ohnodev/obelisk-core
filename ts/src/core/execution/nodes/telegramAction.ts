@@ -126,6 +126,7 @@ export class TelegramActionNode extends BaseNode {
 
     const results: ActionResult[] = [];
     let allSuccess = true;
+    const deletedInBatch = new Set<number>();
 
     for (const { action, params } of actions) {
       const result = await this.runAction(
@@ -136,7 +137,8 @@ export class TelegramActionNode extends BaseNode {
         messageId,
         userId,
         Number.isFinite(replyToMessageId) ? replyToMessageId : undefined,
-        storage
+        storage,
+        deletedInBatch
       );
       results.push(result);
       if (!result.success) allSuccess = false;
@@ -164,7 +166,8 @@ export class TelegramActionNode extends BaseNode {
     messageId: number | undefined,
     userId: string,
     replyToMessageId: number | undefined,
-    storage: StorageInterface | undefined
+    storage: StorageInterface | undefined,
+    deletedInBatch?: Set<number>
   ): Promise<ActionResult> {
     try {
       switch (action) {
@@ -180,11 +183,30 @@ export class TelegramActionNode extends BaseNode {
             text,
             parse_mode: "HTML",
           };
-          if (messageId != null && Number.isFinite(messageId)) {
-            payload.reply_parameters = { message_id: messageId };
+          // Prefer reply_to_message_id (message user replied to); skip if we already deleted it in this batch
+          const preferId =
+            replyToMessageId != null && Number.isFinite(replyToMessageId)
+              ? replyToMessageId
+              : messageId != null && Number.isFinite(messageId)
+                ? messageId
+                : undefined;
+          if (
+            preferId != null &&
+            !deletedInBatch?.has(preferId)
+          ) {
+            payload.reply_parameters = { message_id: preferId };
           }
-          const data = await this.post(url, payload);
-          const ok = (data?.ok as boolean) === true;
+          let data = await this.post(url, payload);
+          let ok = (data?.ok as boolean) === true;
+          // If reply failed (e.g. "message to be replied not found" — message was deleted), send without reply
+          if (!ok && payload.reply_parameters) {
+            logger.warn(
+              `[TelegramAction] Reply failed (message_id=${preferId}), sending without reply: ${(data?.description as string) ?? ""}`
+            );
+            delete payload.reply_parameters;
+            data = await this.post(url, payload);
+            ok = (data?.ok as boolean) === true;
+          }
           return { action: "reply", success: ok, response: data };
         }
 
@@ -277,6 +299,7 @@ export class TelegramActionNode extends BaseNode {
           const payload = { chat_id: chatId, message_id: delMid };
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
+          if (ok) deletedInBatch?.add(delMid);
           return { action: "delete_message", success: ok, response: data };
         }
 
@@ -289,6 +312,7 @@ export class TelegramActionNode extends BaseNode {
           const payload = { chat_id: chatId, message_id: replyToMessageId };
           const data = await this.post(url, payload);
           const ok = (data?.ok as boolean) === true;
+          if (ok) deletedInBatch?.add(replyToMessageId);
           return { action: "delete_reply_to_message", success: ok, response: data };
         }
 
