@@ -19,6 +19,44 @@ import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("actionRouter");
 
+/**
+ * When full JSON parse fails, try to extract the first "text" value from a reply action
+ * so we can still send that as the reply instead of raw JSON (handles emojis and escaped quotes).
+ */
+function extractReplyTextFromJsonLike(raw: string): string | null {
+  const textKey = '"text"';
+  const idx = raw.indexOf(textKey);
+  if (idx < 0) return null;
+  const afterKey = raw.slice(idx + textKey.length);
+  const colonQuote = afterKey.match(/\s*:\s*"/);
+  if (!colonQuote) return null;
+  const start = idx + textKey.length + (colonQuote.index ?? 0) + colonQuote[0].length;
+  let end = start;
+  let escaped = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      end = i;
+      break;
+    }
+  }
+  if (end <= start) return null;
+  const value = raw.slice(start, end);
+  try {
+    return JSON.parse('"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"') as string;
+  } catch {
+    return value;
+  }
+}
+
 const ALLOWED_ACTIONS = new Set([
   "reply",
   "send_dm",
@@ -88,10 +126,25 @@ export class ActionRouterNode extends BaseNode {
           }
         }
       } catch (_e) {
-        // Fallback: treat entire response as single reply
-        logger.debug(
-          `[ActionRouter ${this.nodeId}] No valid JSON actions, using full response as reply`
-        );
+        // Fallback: try to extract reply text from JSON-like string so we don't send raw JSON
+        const extracted = extractReplyTextFromJsonLike(responseStr);
+        if (extracted != null && extracted.length > 0) {
+          actions = [{ action: "reply", params: { text: extracted } }];
+          logger.debug(
+            `[ActionRouter ${this.nodeId}] Parse failed; extracted reply text (${extracted.length} chars)`
+          );
+        } else if (responseStr.trimStart().startsWith("{")) {
+          actions = [
+            { action: "reply", params: { text: "Sorry, I couldn't process that." } },
+          ];
+          logger.debug(
+            `[ActionRouter ${this.nodeId}] Parse failed and no text found; response looks like JSON, sending fallback message`
+          );
+        } else {
+          logger.debug(
+            `[ActionRouter ${this.nodeId}] No valid JSON actions, using full response as reply`
+          );
+        }
       }
     }
 
