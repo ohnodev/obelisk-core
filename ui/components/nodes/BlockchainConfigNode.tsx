@@ -2,7 +2,7 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
-const DEFAULT_STATE_PATH = "~/.obelisk-core/data/clanker_state.json";
+const DEFAULT_STATE_PATH = "blockchain-service/data/clanker_state.json";
 
 class BlockchainConfigNode extends LGraphNode {
   static title = "Blockchain Config";

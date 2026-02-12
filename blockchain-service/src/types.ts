@@ -32,9 +32,9 @@ export interface TokenState {
   symbol: string;
   tokenImage: string;
   tokenMetadata: string;
-  /** From GodMulticall batchGetCompleteV4PoolInfo (one RPC for all new pools) */
-  decimals?: number;
-  totalSupply?: string;
+  /** From GodMulticall — required; we only add tokens when we have valid pool + token info */
+  decimals: number;
+  totalSupply: string;
 }
 
 export interface LaunchEvent {
@@ -53,6 +53,9 @@ export interface LaunchEvent {
   symbol: string;
   tokenImage: string;
   tokenMetadata: string;
+  /** From GodMulticall — required; we only add launch when we have valid token info */
+  decimals: number;
+  totalSupply: string;
 }
 
 export interface ClankerState {

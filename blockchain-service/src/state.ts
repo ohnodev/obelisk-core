@@ -1,5 +1,5 @@
 /**
- * In-memory state and JSON persist/load (buybotv2-style).
+ * In-memory state and JSON persist/load.
  */
 import fs from "fs";
 import path from "path";
@@ -34,27 +34,10 @@ export class StateManager {
     try {
       const raw = fs.readFileSync(this.stateFilePath, "utf-8");
       const data = JSON.parse(raw) as ClankerState;
-      const tokens = data.tokens ?? {};
-      for (const key of Object.keys(tokens)) {
-        const t = tokens[key];
-        if (t.name === undefined) t.name = "";
-        if (t.symbol === undefined) t.symbol = "";
-        if (t.tokenImage === undefined) t.tokenImage = "";
-        if (t.tokenMetadata === undefined) t.tokenMetadata = "";
-        if (t.decimals === undefined) t.decimals = 0;
-        if (t.totalSupply === undefined) t.totalSupply = "0";
-      }
-      const recentLaunches = Array.isArray(data.recentLaunches) ? data.recentLaunches : [];
-      for (const r of recentLaunches) {
-        if (r.name === undefined) r.name = "";
-        if (r.symbol === undefined) r.symbol = "";
-        if (r.tokenImage === undefined) r.tokenImage = "";
-        if (r.tokenMetadata === undefined) r.tokenMetadata = "";
-      }
       this.state = {
         lastUpdated: data.lastUpdated ?? 0,
-        tokens,
-        recentLaunches,
+        tokens: data.tokens ?? {},
+        recentLaunches: Array.isArray(data.recentLaunches) ? data.recentLaunches : [],
       };
       console.log(
         `[Clanker] Loaded state: ${Object.keys(this.state.tokens).length} tokens, ${this.state.recentLaunches.length} recent launches`
@@ -106,15 +89,6 @@ export class StateManager {
     return set;
   }
 
-  /** Update token decimals and totalSupply from GodMulticall (batch resolution). */
-  updateTokenDetails(tokenAddress: string, decimals: number, totalSupply: string): void {
-    const t = this.state.tokens[tokenAddress.toLowerCase()];
-    if (t) {
-      t.decimals = decimals;
-      t.totalSupply = totalSupply;
-    }
-  }
-
   addLaunch(event: LaunchEvent): void {
     const tokenAddress = event.tokenAddress.toLowerCase();
     if (this.state.tokens[tokenAddress]) return; // already tracked
@@ -138,8 +112,8 @@ export class StateManager {
       symbol: event.symbol ?? "",
       tokenImage: event.tokenImage ?? "",
       tokenMetadata: event.tokenMetadata ?? "",
-      decimals: undefined,
-      totalSupply: undefined,
+      decimals: event.decimals,
+      totalSupply: event.totalSupply,
     };
     this.state.tokens[tokenAddress] = tokenState;
     this.state.recentLaunches.unshift({
@@ -157,6 +131,8 @@ export class StateManager {
       symbol: event.symbol ?? "",
       tokenImage: event.tokenImage ?? "",
       tokenMetadata: event.tokenMetadata ?? "",
+      decimals: event.decimals,
+      totalSupply: event.totalSupply,
     });
     if (this.state.recentLaunches.length > RECENT_LAUNCHES_MAX) {
       this.state.recentLaunches = this.state.recentLaunches.slice(0, RECENT_LAUNCHES_MAX);

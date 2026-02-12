@@ -46,7 +46,6 @@ ENV/
 
 # Storage (solo mode) - User data and local storage
 # Default storage location (in user's home directory)
-.obelisk-core/
 
 # Generic data directories
 data/

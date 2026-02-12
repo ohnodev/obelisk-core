@@ -7,7 +7,7 @@ Listens to Base for Uniswap V4 Pool Manager `Initialize` events with the Clanker
 Copy `env.example` to `.env` and set:
 
 - **RPC_URL** – Base RPC (default: `https://mainnet.base.org`)
-- **STATE_FILE_PATH** – Where to write/read `clanker_state.json` (default: `~/.obelisk-core/data/clanker_state.json`)
+- **STATE_FILE_PATH** – Where to write/read `clanker_state.json` (default: `data/clanker_state.json` inside this folder)
 - **CLANKER_HOOK_ADDRESS** – Only pool inits with this hook are tracked (default: `0xb429d62f8f3bFFb98CdB9569533eA23bF0Ba28CC`)
 - **PERSIST_INTERVAL_SEC** – How often to write state to disk (default: 30)
 - **BLOCK_POLL_MS** – Block polling interval (default: 1000)
@@ -20,4 +20,4 @@ npm run build
 npm start
 ```
 
-State file location: by default `~/.obelisk-core/data/clanker_state.json`. Obelisk nodes (BlockchainConfigNode, ClankerTokenStatsNode, ClankerNewLaunchesNode) read from this path.
+State file: by default `blockchain-service/data/clanker_state.json`. Obelisk nodes read from the same path (or set STATE_FILE_PATH in both so they match).

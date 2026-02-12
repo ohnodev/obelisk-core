@@ -3,7 +3,6 @@
  * Mirrors Python src/core/execution/nodes/memory_storage.py
  */
 import path from "path";
-import os from "os";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
 import { LocalJSONStorage } from "../../../storage/localJson";
@@ -29,21 +28,11 @@ export class MemoryStorageNode extends BaseNode {
       "local_json"
     ) as string | undefined) ?? "local_json";
 
-    // Default storage path
+    // Default storage path (in project folder)
     if (!storagePath) {
-      storagePath = path.join(
-        os.homedir(),
-        ".obelisk-core",
-        "data",
-        "default"
-      );
+      storagePath = path.join(process.cwd(), "data", "default");
     } else if (!path.isAbsolute(storagePath)) {
-      storagePath = path.join(
-        os.homedir(),
-        ".obelisk-core",
-        "data",
-        storagePath
-      );
+      storagePath = path.join(process.cwd(), "data", storagePath);
     }
 
     storagePath = path.resolve(storagePath);

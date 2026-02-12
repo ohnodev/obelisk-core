@@ -4,7 +4,6 @@
  */
 import dotenv from "dotenv";
 import path from "path";
-import os from "os";
 
 dotenv.config();
 
@@ -29,10 +28,10 @@ export const Config = {
   API_HOST: process.env.OBELISK_CORE_HOST || "0.0.0.0",
   API_PORT: envPort("OBELISK_CORE_PORT", 7779),
 
-  // Storage
+  // Storage (in project folder, not home dir)
   STORAGE_PATH:
     process.env.OBELISK_STORAGE_PATH ||
-    path.join(os.homedir(), ".obelisk-core", "data"),
+    path.join(process.cwd(), "data"),
 
   // Supabase (prod mode)
   SUPABASE_URL: process.env.SUPABASE_URL || "",

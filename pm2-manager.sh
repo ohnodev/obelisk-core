@@ -552,7 +552,7 @@ cmd_help() {
     echo "  INFERENCE_SERVICE_URL Inference endpoint URL (default: http://localhost:7780)"
     echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
     echo "  RPC_URL              Base RPC URL for blockchain service (or set in blockchain-service/.env)"
-    echo "  STATE_FILE_PATH      Clanker state JSON path (optional; default ~/.obelisk-core/data/clanker_state.json)"
+    echo "  STATE_FILE_PATH      Clanker state JSON path (optional; default blockchain-service/data/clanker_state.json)"
     echo ""
 }
 

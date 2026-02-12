@@ -3,16 +3,16 @@
  * Outputs state_path and state so downstream nodes (ClankerTokenStats, ClankerNewLaunches) can read.
  */
 import path from "path";
-import os from "os";
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("blockchainConfig");
 
+// Same as blockchain-service default: state lives in blockchain-service/data/
 const DEFAULT_STATE_PATH = path.join(
-  os.homedir(),
-  ".obelisk-core",
+  process.cwd(),
+  "blockchain-service",
   "data",
   "clanker_state.json"
 );

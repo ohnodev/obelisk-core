@@ -1,6 +1,5 @@
 /**
  * Poll Base for new blocks; scan receipts for V4 Initialize (Clanker hook) and V4 Swap (tracked pools only).
- * Mirrors base-swap-tracker BlockProcessor: same loop, retries, backfill queue, provider recreation.
  */
 import { ethers } from "ethers";
 import {
@@ -16,8 +15,13 @@ import {
 } from "./constants.js";
 import type { LaunchEvent } from "./types.js";
 
-/** Parsed Initialize event; we only promote to LaunchEvent when TokenCreated exists in same tx */
-type InitializeCandidate = Omit<LaunchEvent, "name" | "symbol" | "tokenImage" | "tokenMetadata">;
+/** Parsed Initialize event (no TokenCreated or GodMulticall fields). */
+type InitializeCandidate = Omit<
+  LaunchEvent,
+  "name" | "symbol" | "tokenImage" | "tokenMetadata" | "decimals" | "totalSupply"
+>;
+/** Launch with TokenCreated data; we only add to state after GodMulticall returns valid decimals/totalSupply */
+type PendingLaunch = Omit<LaunchEvent, "decimals" | "totalSupply">;
 import { StateManager } from "./state.js";
 
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
@@ -41,7 +45,6 @@ export class BlockProcessor {
   private isRunning = false;
   private consecutiveErrors = 0;
   private retryDelayMs = RETRY_DELAY_MS;
-  private backfillQueue: number[] = [];
 
   constructor(
     rpcUrl: string,
@@ -169,12 +172,7 @@ export class BlockProcessor {
         blockErrors++;
         this.consecutiveErrors++;
         console.warn(`[Clanker] Error processing block ${blockNumber} (${this.consecutiveErrors}):`, e);
-        if (blockErrors > 3) {
-          if (!this.backfillQueue.includes(blockNumber)) {
-            this.backfillQueue.push(blockNumber);
-          }
-          return;
-        }
+        if (blockErrors > 3) return;
         await this.sleep(this.retryDelayMs);
         this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
         if (this.consecutiveErrors % 5 === 0) {
@@ -188,30 +186,20 @@ export class BlockProcessor {
   private async handleMainLoopError(error: unknown): Promise<void> {
     this.consecutiveErrors++;
     console.warn(`[Clanker] Main loop error (${this.consecutiveErrors}):`, error);
-    if (this.backfillQueue.length > 0) {
-      const toBackfill = [...this.backfillQueue];
-      this.backfillQueue = [];
-      for (const blockNum of toBackfill) {
-        await this.processBlockWithRetry(blockNum);
-      }
-    }
     if (this.consecutiveErrors > 10) {
       try {
         const recent = await this.getCurrentBlockWithRetry();
         this.lastBlockNumber = Math.max(0, recent - 10);
-        console.warn(`[Clanker] Reset to block ${this.lastBlockNumber} (recent ${recent})`);
+        console.warn(`[Clanker] Reset to block ${this.lastBlockNumber}`);
         this.consecutiveErrors = 0;
         this.retryDelayMs = RETRY_DELAY_MS;
-      } catch (e) {
-        console.warn("[Clanker] Failed to reset to recent block:", e);
+      } catch {
+        // ignore
       }
     }
     await this.sleep(this.retryDelayMs);
     this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
-    if (this.consecutiveErrors % 5 === 0) {
-      console.warn("[Clanker] Recreating provider after persistent errors");
-      this.recreateProvider();
-    }
+    if (this.consecutiveErrors % 5 === 0) this.recreateProvider();
   }
 
   private async processBlock(blockNumber: number): Promise<void> {
@@ -220,8 +208,9 @@ export class BlockProcessor {
     if (!Array.isArray(receipts) || receipts.length === 0) return;
 
     const trackedPoolIds = this.state.getTrackedPoolIds();
-    const newPoolsThisBlock = new Set<string>();
-    const newLaunchesThisBlock: { poolId: string; tokenAddress: string }[] = [];
+    const pendingLaunches: PendingLaunch[] = [];
+    const pendingPoolIdKeys = new Set<string>();
+    const swapsToProcess: { log: any; receipt: any; blockNumber: number }[] = [];
 
     for (const receipt of receipts) {
       if (!receipt?.logs?.length) continue;
@@ -238,64 +227,91 @@ export class BlockProcessor {
           const poolIdKey = this.normalizePoolId(candidate.poolId);
           const tokenCreated = tokenCreatedByPoolId.get(poolIdKey);
           if (!tokenCreated) continue; // proper Clanker deployment always has TokenCreated in same tx — skip to avoid false positives
-          const launch: LaunchEvent = {
+          const pending: PendingLaunch = {
             ...candidate,
             name: tokenCreated.tokenName,
             symbol: tokenCreated.tokenSymbol,
             tokenImage: tokenCreated.tokenImage,
             tokenMetadata: tokenCreated.tokenMetadata,
           };
-          this.state.addLaunch(launch);
-          newPoolsThisBlock.add(poolIdKey);
-          newLaunchesThisBlock.push({ poolId: candidate.poolId, tokenAddress: launch.tokenAddress });
-          console.log(
-            `[Clanker] New pool: ${launch.tokenAddress} (${launch.symbol}) (poolId ${launch.poolId.slice(0, 18)}...)`
-          );
+          pendingLaunches.push(pending);
+          pendingPoolIdKeys.add(poolIdKey);
         } else if (topic0 === UNIV4_SWAP_TOPIC) {
           const poolId = (log as any).topics?.[1];
           const poolIdKey = poolId ? this.normalizePoolId(poolId) : "";
-          if (poolIdKey && (trackedPoolIds.has(poolIdKey) || newPoolsThisBlock.has(poolIdKey))) {
-            this.processV4Swap(log as any, receipt as any, blockNumber);
+          if (poolIdKey && (trackedPoolIds.has(poolIdKey) || pendingPoolIdKeys.has(poolIdKey))) {
+            swapsToProcess.push({ log, receipt, blockNumber });
           }
         }
       }
     }
 
-    if (newLaunchesThisBlock.length > 0) {
-      await this.enrichTokenDetailsViaGodMulticall(newLaunchesThisBlock);
+    // Only add launches when GodMulticall returns valid decimals + totalSupply (required; no partial state)
+    if (pendingLaunches.length > 0) {
+      const added = await this.resolvePendingLaunchesWithGodMulticall(pendingLaunches);
+      if (added > 0) {
+        this.state.persist();
+      }
+      if (added < pendingLaunches.length && pendingLaunches.length > 0) {
+        console.warn(
+          `[Clanker] GodMulticall: ${pendingLaunches.length - added} pool(s) skipped (no valid decimals/totalSupply)`
+        );
+      }
+    }
+
+    for (const { log, receipt, blockNumber: bn } of swapsToProcess) {
+      this.processV4Swap(log, receipt, bn);
+    }
+    if (swapsToProcess.length > 0 && pendingLaunches.length === 0) {
       this.state.persist();
     }
   }
 
-  /** One RPC call to GodMulticall (base-swap-tracker contract) to get decimals + totalSupply for all new pools. */
-  private async enrichTokenDetailsViaGodMulticall(
-    newLaunches: { poolId: string; tokenAddress: string }[]
-  ): Promise<void> {
-    if (newLaunches.length === 0) return;
+  /** One RPC: GodMulticall. Only addLaunch when we have valid decimals + totalSupply (required). */
+  private async resolvePendingLaunchesWithGodMulticall(pending: PendingLaunch[]): Promise<number> {
+    if (pending.length === 0) return 0;
     try {
       const godMulticall = new ethers.Contract(
         GOD_MULTICALL_ADDRESS,
         GOD_MULTICALL_V4_ABI,
         this.provider
       );
-      const poolIds = newLaunches.map((l) => l.poolId);
+      const poolIds = pending.map((l) => l.poolId);
       const results = await godMulticall.batchGetCompleteV4PoolInfo(poolIds);
+      let added = 0;
       for (let i = 0; i < results.length; i++) {
         const r = results[i];
         if (!r?.success) continue;
-        const tokenAddress = newLaunches[i].tokenAddress.toLowerCase();
+        const tokenAddress = pending[i].tokenAddress.toLowerCase();
         const token0Lower = String(r.token0 ?? "").toLowerCase();
         const token1Lower = String(r.token1 ?? "").toLowerCase();
         const isToken0 = token0Lower === tokenAddress;
         const details = isToken0 ? r.token0Details : r.token1Details;
-        if (details?.success && details.decimals !== undefined) {
-          const totalSupply = details.totalSupply != null ? String(details.totalSupply) : "0";
-          this.state.updateTokenDetails(tokenAddress, Number(details.decimals), totalSupply);
-        }
+        if (!details?.success) continue;
+        const decimals = Number(details.decimals);
+        if (Number.isNaN(decimals) || decimals < 0 || decimals > 255) continue;
+        const totalSupply =
+          details.totalSupply != null && details.totalSupply !== undefined
+            ? String(details.totalSupply)
+            : "0";
+        const launch: LaunchEvent = {
+          ...pending[i],
+          decimals,
+          totalSupply,
+        };
+        this.state.addLaunch(launch);
+        added++;
+        console.log(
+          `[Clanker] New pool: ${launch.tokenAddress} (${launch.symbol}) decimals=${decimals} (poolId ${launch.poolId.slice(0, 18)}...)`
+        );
       }
-      console.log(`[Clanker] GodMulticall: enriched ${newLaunches.length} new pool(s) in 1 RPC call`);
+      if (added > 0) {
+        console.log(`[Clanker] GodMulticall: ${added} new pool(s) with full token info in 1 RPC call`);
+      }
+      return added;
     } catch (e) {
       console.warn("[Clanker] GodMulticall batch failed:", e);
+      return 0;
     }
   }
 

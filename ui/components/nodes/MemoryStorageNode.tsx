@@ -21,13 +21,13 @@ class MemoryStorageNode extends LGraphNode {
     (this as any).resizable = true;
     
     // Add properties for default values
-    // Use "default" as the default folder name - backend will expand to ~/.obelisk-core/data/default/
+    // Use "default" as the default folder name - backend uses obelisk-core/data/default/
     this.addProperty("storage_path", "default", "string");
     this.addProperty("storage_type", "local_json", "string");
     
     // Add inline text input widget for storage_path
     // User can specify a folder name (e.g., "test", "production") or leave as "default"
-    // Backend will construct full path: ~/.obelisk-core/data/{folder_name}/
+    // Backend path: obelisk-core/data/{folder_name}/
     const initialPath = (this.properties as any)?.storage_path || "default";
     this.addWidget(
       "text" as any,
