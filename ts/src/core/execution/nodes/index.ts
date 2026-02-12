@@ -22,6 +22,6 @@ export { ActionRouterNode, type ActionItem } from "./actionRouter";
 export { TelegramActionNode } from "./telegramAction";
 export { BlockchainConfigNode } from "./blockchainConfig";
 export { ClankerTokenStatsNode } from "./clankerTokenStats";
-export { ClankerNewLaunchesNode } from "./clankerNewLaunches";
+export { ClankerLaunchSummaryNode } from "./clankerLaunchSummary";
 export { WalletNode } from "./wallet";
 export { ClankerBuyNode } from "./clankerBuy";

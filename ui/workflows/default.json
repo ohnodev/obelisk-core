@@ -218,10 +218,10 @@
     },
     {
       "id": "30",
-      "type": "clanker_new_launches",
+      "type": "clanker_launch_summary",
       "position": { "x": 80, "y": 460 },
       "inputs": {},
-      "metadata": { "limit": 20 }
+      "metadata": { "window_hours": 1, "limit": 20 }
     },
     {
       "id": "31",
@@ -503,7 +503,7 @@
     },
     {
       "from": "30",
-      "from_output": "recent_launches",
+      "from_output": "summary",
       "to": "31",
       "to_input": "text"
     },

@@ -7,64 +7,92 @@
       "type": "blockchain_config",
       "position": { "x": 80, "y": 120 },
       "inputs": {},
-      "metadata": {
-        "state_file_path": ""
-      }
+      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
+    },
+    {
+      "id": "10",
+      "type": "memory_storage",
+      "position": { "x": 80, "y": 40 },
+      "inputs": {},
+      "metadata": { "storage_path": "clanker", "storage_type": "local_json" }
     },
     {
       "id": "2",
       "type": "scheduler",
       "position": { "x": 80, "y": 280 },
       "inputs": {},
-      "metadata": {
-        "min_seconds": 60,
-        "max_seconds": 120,
-        "enabled": true
-      }
+      "metadata": { "min_seconds": 60, "max_seconds": 120, "enabled": true }
     },
     {
       "id": "3",
-      "type": "clanker_new_launches",
+      "type": "clanker_launch_summary",
       "position": { "x": 360, "y": 200 },
       "inputs": {},
-      "metadata": {
-        "limit": 20
-      }
+      "metadata": { "window_hours": 1, "limit": 20 }
     },
     {
       "id": "4",
       "type": "text",
       "position": { "x": 600, "y": 200 },
       "inputs": {},
+      "metadata": { "text": "Recent Clanker launches (see connected input)" }
+    },
+    {
+      "id": "5",
+      "type": "inference_config",
+      "position": { "x": 80, "y": 420 },
+      "inputs": {},
       "metadata": {
-        "text": "Recent Clanker launches (see connected input)"
+        "endpoint_url": "http://localhost:7780",
+        "use_default": true,
+        "model_path": "models/default_model",
+        "auto_load": true
       }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": { "x": 360, "y": 420 },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "enable_thinking": false,
+        "system_prompt": "You are a Clanker autotrader. Given recent token launches with stats (volume 5m/15m/30m/1h, total makers, price change), decide if we should buy any. Reply ONLY with valid JSON: { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"...\" } } ] } or optionally { \"action\": \"buy\", \"params\": { \"token_address\": \"0x...\", \"amount_wei\": \"...\", \"pool_fee\": 0, \"tick_spacing\": 0, \"hook_address\": \"0x...\" } }. Use pool_fee, tick_spacing, hook_address from the launch data. Always include a reply action."
+      }
+    },
+    {
+      "id": "7",
+      "type": "action_router",
+      "position": { "x": 600, "y": 420 },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "8",
+      "type": "wallet",
+      "position": { "x": 600, "y": 560 },
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "9",
+      "type": "clanker_buy",
+      "position": { "x": 840, "y": 560 },
+      "inputs": {},
+      "metadata": { "amount_wei": "0" }
     }
   ],
   "connections": [
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "3",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state_path",
-      "to": "3",
-      "to_input": "state_path"
-    },
-    {
-      "from": "2",
-      "from_output": "trigger",
-      "to": "3",
-      "to_input": "trigger"
-    },
-    {
-      "from": "3",
-      "from_output": "recent_launches",
-      "to": "4",
-      "to_input": "text"
-    }
+    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
+    { "from": "1", "from_output": "state_path", "to": "3", "to_input": "state_path" },
+    { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
+    { "from": "2", "from_output": "trigger", "to": "3", "to_input": "trigger" },
+    { "from": "3", "from_output": "summary", "to": "6", "to_input": "query" },
+    { "from": "3", "from_output": "summary", "to": "4", "to_input": "text" },
+    { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
+    { "from": "6", "from_output": "response", "to": "7", "to_input": "response" },
+    { "from": "7", "from_output": "tg_actions", "to": "9", "to_input": "tg_actions" },
+    { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" }
   ]
 }

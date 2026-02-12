@@ -10,6 +10,10 @@ import {
 } from "./constants.js";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const THIRTY_MIN_MS = 30 * 60 * 1000;
+const FIFTEEN_MIN_MS = 15 * 60 * 1000;
+const FIVE_MIN_MS = 5 * 60 * 1000;
 
 export class StateManager {
   private state: ClankerState = {
@@ -39,6 +43,13 @@ export class StateManager {
         tokens: data.tokens ?? {},
         recentLaunches: Array.isArray(data.recentLaunches) ? data.recentLaunches : [],
       };
+      for (const t of Object.values(this.state.tokens)) {
+        const senders = new Set<string>();
+        for (const swap of t.last20Swaps ?? []) {
+          if (swap.sender) senders.add(swap.sender.toLowerCase());
+        }
+        if (senders.size > 0) this.uniqueSenders.set(t.tokenAddress, senders);
+      }
       console.log(
         `[Clanker] Loaded state: ${Object.keys(this.state.tokens).length} tokens, ${this.state.recentLaunches.length} recent launches`
       );
@@ -143,7 +154,9 @@ export class StateManager {
     poolId: string,
     side: "buy" | "sell",
     volumeUsd: number,
-    timestamp: number
+    timestamp: number,
+    sender?: string,
+    priceUsd?: number
   ): void {
     const poolIdLower = poolId.toLowerCase();
     for (const t of Object.values(this.state.tokens)) {
@@ -152,16 +165,47 @@ export class StateManager {
         if (side === "buy") t.totalBuys += 1;
         else t.totalSells += 1;
         t.volume24h = this.trimAndSum24h(t, volumeUsd, timestamp);
-        t.last20Swaps.push({ timestamp, side, volumeUsd });
+        if (priceUsd != null && priceUsd > 0) t.lastPrice = priceUsd;
+        t.last20Swaps.push({ timestamp, side, volumeUsd, sender, priceUsd });
         if (t.last20Swaps.length > LAST_N_SWAPS) {
           t.last20Swaps = t.last20Swaps.slice(-LAST_N_SWAPS);
         }
+        if (sender) {
+          let set = this.uniqueSenders.get(t.tokenAddress);
+          if (!set) {
+            set = new Set<string>();
+            this.uniqueSenders.set(t.tokenAddress, set);
+          }
+          set.add(sender.toLowerCase());
+          t.totalMakers = set.size;
+        }
+        this.updateIntervalVolumes(t, timestamp);
         return;
       }
     }
   }
 
-  /** Per-token 24h volume: we don't store full event list in JSON for lean size; we keep a small in-memory list for 24h sum. */
+  private uniqueSenders: Map<string, Set<string>> = new Map();
+
+  private updateIntervalVolumes(token: TokenState, timestamp: number): void {
+    const events = this.volumeEvents.get(token.tokenAddress);
+    if (!events) return;
+    token.volume1h = this.sumInWindow(events, timestamp, ONE_HOUR_MS);
+    token.volume30m = this.sumInWindow(events, timestamp, THIRTY_MIN_MS);
+    token.volume15m = this.sumInWindow(events, timestamp, FIFTEEN_MIN_MS);
+    token.volume5m = this.sumInWindow(events, timestamp, FIVE_MIN_MS);
+  }
+
+  private sumInWindow(
+    events: Array<{ timestamp: number; volumeUsd: number }>,
+    now: number,
+    windowMs: number
+  ): number {
+    const cutoff = now - windowMs;
+    return events.filter((e) => e.timestamp >= cutoff).reduce((s, e) => s + e.volumeUsd, 0);
+  }
+
+  /** Per-token 24h volume: we keep in-memory list for 24h sum and interval stats (5m/15m/30m/1h). */
   private volumeEvents: Map<string, Array<{ timestamp: number; volumeUsd: number }>> = new Map();
 
   private trimAndSum24h(token: TokenState, newVolumeUsd: number, timestamp: number): number {
@@ -173,6 +217,8 @@ export class StateManager {
     events.push({ timestamp, volumeUsd: newVolumeUsd });
     const cutoff = timestamp - TWENTY_FOUR_HOURS_MS;
     while (events.length && events[0].timestamp < cutoff) events.shift();
-    return events.reduce((s, e) => s + e.volumeUsd, 0);
+    const sum = events.reduce((s, e) => s + e.volumeUsd, 0);
+    this.updateIntervalVolumes(token, timestamp);
+    return sum;
   }
 }

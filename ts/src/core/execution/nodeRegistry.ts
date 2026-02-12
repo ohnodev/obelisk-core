@@ -27,7 +27,7 @@ import { ActionRouterNode } from "./nodes/actionRouter";
 import { TelegramActionNode } from "./nodes/telegramAction";
 import { BlockchainConfigNode } from "./nodes/blockchainConfig";
 import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
-import { ClankerNewLaunchesNode } from "./nodes/clankerNewLaunches";
+import { ClankerLaunchSummaryNode } from "./nodes/clankerLaunchSummary";
 import { WalletNode } from "./nodes/wallet";
 import { ClankerBuyNode } from "./nodes/clankerBuy";
 
@@ -91,7 +91,7 @@ export function registerAllNodes(): void {
   registerNode("telegram_action", TelegramActionNode);
   registerNode("blockchain_config", BlockchainConfigNode);
   registerNode("clanker_token_stats", ClankerTokenStatsNode);
-  registerNode("clanker_new_launches", ClankerNewLaunchesNode);
+  registerNode("clanker_launch_summary", ClankerLaunchSummaryNode);
   registerNode("wallet", WalletNode);
   registerNode("clanker_buy", ClankerBuyNode);
 

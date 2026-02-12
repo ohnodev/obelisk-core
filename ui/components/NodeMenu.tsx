@@ -191,9 +191,9 @@ const NODE_CATEGORIES: NodeCategory[] = [
         description: "Path to Clanker state JSON; outputs state_path and state",
       },
       {
-        type: "clanker_new_launches",
-        title: "Clanker New Launches",
-        description: "List recent Clanker token launches from state (scheduler-driven)",
+        type: "clanker_launch_summary",
+        title: "Clanker Launch Summary",
+        description: "Recent launches in past 1h with full stats (volume, makers, price change) for LLM",
       },
       {
         type: "clanker_token_stats",

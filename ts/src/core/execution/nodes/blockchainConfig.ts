@@ -1,6 +1,6 @@
 /**
  * BlockchainConfigNode – resolves path to Clanker state JSON and optionally loads it.
- * Outputs state_path and state so downstream nodes (ClankerTokenStats, ClankerNewLaunches) can read.
+ * Outputs state_path and state so downstream nodes (ClankerTokenStats, ClankerLaunchSummary) can read.
  */
 import path from "path";
 import fs from "fs";
