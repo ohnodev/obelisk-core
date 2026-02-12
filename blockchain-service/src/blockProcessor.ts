@@ -6,11 +6,18 @@ import { ethers } from "ethers";
 import {
   POOL_MANAGER,
   WETH,
+  CLANKER_FACTORY,
   V4_INITIALIZE_TOPIC,
   UNIV4_SWAP_TOPIC,
+  TOKEN_CREATED_TOPIC,
+  GOD_MULTICALL_ADDRESS,
+  GOD_MULTICALL_V4_ABI,
   BLOCK_POLL_MS,
 } from "./constants.js";
 import type { LaunchEvent } from "./types.js";
+
+/** Parsed Initialize event; we only promote to LaunchEvent when TokenCreated exists in same tx */
+type InitializeCandidate = Omit<LaunchEvent, "name" | "symbol" | "tokenImage" | "tokenMetadata">;
 import { StateManager } from "./state.js";
 
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
@@ -213,34 +220,127 @@ export class BlockProcessor {
     if (!Array.isArray(receipts) || receipts.length === 0) return;
 
     const trackedPoolIds = this.state.getTrackedPoolIds();
+    const newPoolsThisBlock = new Set<string>();
+    const newLaunchesThisBlock: { poolId: string; tokenAddress: string }[] = [];
 
     for (const receipt of receipts) {
       if (!receipt?.logs?.length) continue;
+
+      const tokenCreatedByPoolId = this.collectTokenCreatedInReceipt(receipt);
+
       for (const log of receipt.logs) {
         const addr = (log as any).address?.toLowerCase?.() ?? String(log.address).toLowerCase();
         const topic0 = (log as any).topics?.[0] ?? (log as any).topics?.[0];
 
         if (addr === POOL_MANAGER && topic0 === V4_INITIALIZE_TOPIC) {
-          const launch = this.parseInitialize(log as any, receipt as any);
-          if (launch && launch.hookAddress.toLowerCase() === this.clankerHookAddress) {
-            this.state.addLaunch(launch);
-            this.state.persist();
-            console.log(`[Clanker] New pool: ${launch.tokenAddress} (poolId ${launch.poolId.slice(0, 18)}...)`);
-          }
+          const candidate = this.parseInitialize(log as any, receipt as any);
+          if (!candidate || candidate.hookAddress.toLowerCase() !== this.clankerHookAddress) continue;
+          const poolIdKey = this.normalizePoolId(candidate.poolId);
+          const tokenCreated = tokenCreatedByPoolId.get(poolIdKey);
+          if (!tokenCreated) continue; // proper Clanker deployment always has TokenCreated in same tx — skip to avoid false positives
+          const launch: LaunchEvent = {
+            ...candidate,
+            name: tokenCreated.tokenName,
+            symbol: tokenCreated.tokenSymbol,
+            tokenImage: tokenCreated.tokenImage,
+            tokenMetadata: tokenCreated.tokenMetadata,
+          };
+          this.state.addLaunch(launch);
+          newPoolsThisBlock.add(poolIdKey);
+          newLaunchesThisBlock.push({ poolId: candidate.poolId, tokenAddress: launch.tokenAddress });
+          console.log(
+            `[Clanker] New pool: ${launch.tokenAddress} (${launch.symbol}) (poolId ${launch.poolId.slice(0, 18)}...)`
+          );
         } else if (topic0 === UNIV4_SWAP_TOPIC) {
           const poolId = (log as any).topics?.[1];
-          if (poolId && trackedPoolIds.has(poolId.toLowerCase())) {
+          const poolIdKey = poolId ? this.normalizePoolId(poolId) : "";
+          if (poolIdKey && (trackedPoolIds.has(poolIdKey) || newPoolsThisBlock.has(poolIdKey))) {
             this.processV4Swap(log as any, receipt as any, blockNumber);
           }
         }
       }
     }
+
+    if (newLaunchesThisBlock.length > 0) {
+      await this.enrichTokenDetailsViaGodMulticall(newLaunchesThisBlock);
+      this.state.persist();
+    }
+  }
+
+  /** One RPC call to GodMulticall (base-swap-tracker contract) to get decimals + totalSupply for all new pools. */
+  private async enrichTokenDetailsViaGodMulticall(
+    newLaunches: { poolId: string; tokenAddress: string }[]
+  ): Promise<void> {
+    if (newLaunches.length === 0) return;
+    try {
+      const godMulticall = new ethers.Contract(
+        GOD_MULTICALL_ADDRESS,
+        GOD_MULTICALL_V4_ABI,
+        this.provider
+      );
+      const poolIds = newLaunches.map((l) => l.poolId);
+      const results = await godMulticall.batchGetCompleteV4PoolInfo(poolIds);
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        if (!r?.success) continue;
+        const tokenAddress = newLaunches[i].tokenAddress.toLowerCase();
+        const token0Lower = String(r.token0 ?? "").toLowerCase();
+        const token1Lower = String(r.token1 ?? "").toLowerCase();
+        const isToken0 = token0Lower === tokenAddress;
+        const details = isToken0 ? r.token0Details : r.token1Details;
+        if (details?.success && details.decimals !== undefined) {
+          const totalSupply = details.totalSupply != null ? String(details.totalSupply) : "0";
+          this.state.updateTokenDetails(tokenAddress, Number(details.decimals), totalSupply);
+        }
+      }
+      console.log(`[Clanker] GodMulticall: enriched ${newLaunches.length} new pool(s) in 1 RPC call`);
+    } catch (e) {
+      console.warn("[Clanker] GodMulticall batch failed:", e);
+    }
+  }
+
+  private normalizePoolId(poolId: string): string {
+    const hex = poolId.startsWith("0x") ? poolId.slice(2) : poolId;
+    return ("0x" + hex).toLowerCase();
+  }
+
+  /** TokenCreated data (non-indexed): msgSender, tokenImage, tokenName, tokenSymbol, tokenMetadata, tokenContext, startingTick, poolHook, poolId, pairedToken, locker, mevModule, extensionsSupply, extensions */
+  private static TOKEN_CREATED_DATA_TYPES = [
+    "address", "string", "string", "string", "string", "string",
+    "int24", "address", "bytes32", "address", "address", "address", "uint256", "address[]",
+  ] as const;
+
+  private collectTokenCreatedInReceipt(receipt: any): Map<string, { tokenName: string; tokenSymbol: string; tokenImage: string; tokenMetadata: string }> {
+    const out = new Map<string, { tokenName: string; tokenSymbol: string; tokenImage: string; tokenMetadata: string }>();
+    if (!receipt?.logs?.length) return out;
+    for (const log of receipt.logs) {
+      const addr = (log as any).address?.toLowerCase?.() ?? String(log.address).toLowerCase();
+      const topic0 = (log as any).topics?.[0];
+      if (addr !== CLANKER_FACTORY || topic0 !== TOKEN_CREATED_TOPIC) continue;
+      try {
+        const decoded = abiCoder.decode(
+          [...BlockProcessor.TOKEN_CREATED_DATA_TYPES],
+          (log as any).data ?? "0x"
+        );
+        const poolId = decoded[8]; // bytes32 poolId (ethers returns hex string)
+        const poolIdKey = this.normalizePoolId(String(poolId ?? ""));
+        out.set(poolIdKey, {
+          tokenName: String(decoded[2] ?? ""),
+          tokenSymbol: String(decoded[3] ?? ""),
+          tokenImage: String(decoded[1] ?? ""),
+          tokenMetadata: String(decoded[4] ?? ""),
+        });
+      } catch (e) {
+        console.warn("[Clanker] TokenCreated decode error:", e);
+      }
+    }
+    return out;
   }
 
   private parseInitialize(
     log: { topics: string[]; data: string },
     receipt: { blockNumber: number | bigint; transactionHash: string }
-  ): LaunchEvent | null {
+  ): InitializeCandidate | null {
     try {
       const poolId = log.topics[1];
       const t2 = log.topics[2];
@@ -297,6 +397,7 @@ export class BlockProcessor {
       const side = isBuy ? "buy" as const : "sell" as const;
       const volumeUsd = 0;
       this.state.recordSwap(poolId, side, volumeUsd, Date.now());
+      console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}...`);
     } catch (e) {
       console.warn("[Clanker] Process V4 swap error:", e);
     }

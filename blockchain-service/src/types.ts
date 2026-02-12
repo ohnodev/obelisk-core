@@ -27,6 +27,14 @@ export interface TokenState {
   /** Block number when pool was initialized */
   blockNumber: number;
   transactionHash: string;
+  /** From TokenCreated in same tx — required; we only track pools that have TokenCreated */
+  name: string;
+  symbol: string;
+  tokenImage: string;
+  tokenMetadata: string;
+  /** From GodMulticall batchGetCompleteV4PoolInfo (one RPC for all new pools) */
+  decimals?: number;
+  totalSupply?: string;
 }
 
 export interface LaunchEvent {
@@ -40,6 +48,11 @@ export interface LaunchEvent {
   launchTime: number;
   blockNumber: number;
   transactionHash: string;
+  /** From TokenCreated in same tx — required; we only add launches when TokenCreated is present */
+  name: string;
+  symbol: string;
+  tokenImage: string;
+  tokenMetadata: string;
 }
 
 export interface ClankerState {
