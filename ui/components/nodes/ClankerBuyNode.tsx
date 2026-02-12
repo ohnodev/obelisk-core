@@ -28,7 +28,7 @@ class ClankerBuyNode extends LGraphNode {
       this.setProperty("amount_wei", value);
     }, { serialize: true });
 
-    this.size = [280, 140];
+    this.size = [280, 192];
     (this as any).type = "clanker_buy";
     (this as any).resizable = true;
   }
