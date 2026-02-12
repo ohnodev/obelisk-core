@@ -182,6 +182,36 @@ const NODE_CATEGORIES: NodeCategory[] = [
       },
     ],
   },
+  {
+    name: "Clanker",
+    nodes: [
+      {
+        type: "blockchain_config",
+        title: "Blockchain Config",
+        description: "Path to Clanker state JSON; outputs state_path and state",
+      },
+      {
+        type: "clanker_new_launches",
+        title: "Clanker New Launches",
+        description: "List recent Clanker token launches from state (scheduler-driven)",
+      },
+      {
+        type: "clanker_token_stats",
+        title: "Clanker Token Stats",
+        description: "Look up token stats (volume, pool params) from state",
+      },
+      {
+        type: "wallet",
+        title: "Wallet",
+        description: "SWAP_PRIVATE_KEY from env; hook to Buy/Sell nodes",
+      },
+      {
+        type: "clanker_buy",
+        title: "Clanker Buy",
+        description: "Execute V4 buy via CabalSwapper; connect Wallet + Action Router or token params",
+      },
+    ],
+  },
 ];
 
 export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeMenuProps) {

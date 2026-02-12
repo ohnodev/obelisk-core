@@ -28,6 +28,8 @@ import { TelegramActionNode } from "./nodes/telegramAction";
 import { BlockchainConfigNode } from "./nodes/blockchainConfig";
 import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
 import { ClankerNewLaunchesNode } from "./nodes/clankerNewLaunches";
+import { WalletNode } from "./nodes/wallet";
+import { ClankerBuyNode } from "./nodes/clankerBuy";
 
 const logger = getLogger("nodeRegistry");
 
@@ -90,6 +92,8 @@ export function registerAllNodes(): void {
   registerNode("blockchain_config", BlockchainConfigNode);
   registerNode("clanker_token_stats", ClankerTokenStatsNode);
   registerNode("clanker_new_launches", ClankerNewLaunchesNode);
+  registerNode("wallet", WalletNode);
+  registerNode("clanker_buy", ClankerBuyNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

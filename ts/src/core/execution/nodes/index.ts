@@ -23,3 +23,5 @@ export { TelegramActionNode } from "./telegramAction";
 export { BlockchainConfigNode } from "./blockchainConfig";
 export { ClankerTokenStatsNode } from "./clankerTokenStats";
 export { ClankerNewLaunchesNode } from "./clankerNewLaunches";
+export { WalletNode } from "./wallet";
+export { ClankerBuyNode } from "./clankerBuy";

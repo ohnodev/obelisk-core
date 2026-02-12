@@ -66,6 +66,8 @@ const ALLOWED_ACTIONS = new Set([
   "delete_reply_to_message",
   "pin_reply_to_message",
   "timeout_reply_to_author",
+  "buy",
+  "sell",
 ]);
 
 const MAX_TIMEOUT_SECONDS = 60;

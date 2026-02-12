@@ -22,3 +22,5 @@ import "./TelegramActionNode";
 import "./BlockchainConfigNode";
 import "./ClankerTokenStatsNode";
 import "./ClankerNewLaunchesNode";
+import "./WalletNode";
+import "./ClankerBuyNode";
