@@ -1,5 +1,6 @@
 /**
  * Poll Base for new blocks; scan receipts for V4 Initialize (Clanker hook) and V4 Swap (tracked pools only).
+ * Uses static network (no detection retries), exponential backoff on 429, and throttled catch-up like base-swap-tracker.
  */
 import { ethers } from "ethers";
 import {
@@ -7,11 +8,16 @@ import {
   WETH,
   V4_INITIALIZE_TOPIC,
   UNIV4_SWAP_TOPIC,
+  BLOCK_POLL_MS,
 } from "./constants.js";
 import type { LaunchEvent } from "./types.js";
 import { StateManager } from "./state.js";
 
 const abiCoder = ethers.AbiCoder.defaultAbiCoder();
+const BASE_CHAIN_ID = 8453;
+const MAX_BLOCKS_PER_LOOP = 5;
+const RETRY_DELAY_MS = 2000;
+const MAX_RETRY_DELAY_MS = 30000;
 
 export class BlockProcessor {
   private provider: ethers.JsonRpcProvider;
@@ -19,13 +25,16 @@ export class BlockProcessor {
   private clankerHookAddress: string;
   private lastBlockNumber = 0;
   private isRunning = false;
+  private retryDelayMs = RETRY_DELAY_MS;
 
   constructor(
     rpcUrl: string,
     state: StateManager,
     clankerHookAddress: string
   ) {
-    this.provider = new ethers.JsonRpcProvider(rpcUrl);
+    this.provider = new ethers.JsonRpcProvider(rpcUrl, BASE_CHAIN_ID, {
+      staticNetwork: true,
+    });
     this.state = state;
     this.clankerHookAddress = clankerHookAddress.toLowerCase();
   }
@@ -33,12 +42,7 @@ export class BlockProcessor {
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
-    try {
-      this.lastBlockNumber = await this.provider.getBlockNumber();
-      console.log(`[Clanker] Starting from block ${this.lastBlockNumber}`);
-    } catch (e) {
-      console.error("[Clanker] Failed to get initial block:", e);
-    }
+    await this.initBlockWithRetry();
     this.runLoop();
   }
 
@@ -46,20 +50,55 @@ export class BlockProcessor {
     this.isRunning = false;
   }
 
+  private async initBlockWithRetry(): Promise<void> {
+    while (this.isRunning) {
+      try {
+        this.lastBlockNumber = await this.provider.getBlockNumber();
+        console.log(`[Clanker] Starting from block ${this.lastBlockNumber}`);
+        this.retryDelayMs = RETRY_DELAY_MS;
+        return;
+      } catch (e) {
+        console.warn("[Clanker] Failed to get initial block:", e);
+        await this.sleep(this.retryDelayMs);
+        this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
+      }
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  private isRateLimitError(e: unknown): boolean {
+    const err = e as { error?: { code?: number }; code?: string };
+    return err?.error?.code === 429 || err?.code === "UNKNOWN_ERROR";
+  }
+
   private async runLoop(): Promise<void> {
     while (this.isRunning) {
       try {
         const current = await this.provider.getBlockNumber();
         if (current > this.lastBlockNumber) {
-          for (let b = this.lastBlockNumber + 1; b <= current; b++) {
+          const from = this.lastBlockNumber + 1;
+          const to = Math.min(current, from + MAX_BLOCKS_PER_LOOP - 1);
+          for (let b = from; b <= to; b++) {
             await this.processBlock(b);
+            await this.sleep(100);
           }
-          this.lastBlockNumber = current;
+          this.lastBlockNumber = to;
+          this.retryDelayMs = RETRY_DELAY_MS;
+        } else {
+          await this.sleep(BLOCK_POLL_MS);
         }
       } catch (e) {
         console.warn("[Clanker] Block loop error:", e);
+        if (this.isRateLimitError(e)) {
+          await this.sleep(this.retryDelayMs);
+          this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
+        } else {
+          await this.sleep(BLOCK_POLL_MS);
+        }
       }
-      await new Promise((r) => setTimeout(r, 1000));
     }
   }
 
