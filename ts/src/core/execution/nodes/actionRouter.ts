@@ -106,9 +106,13 @@ export class ActionRouterNode extends BaseNode {
           "action_router"
         ) as Record<string, unknown> | unknown[];
         // Accept either { "actions": [ ... ] } or a top-level array [ { "action": "buy", ... }, ... ]
-        const rawList = Array.isArray(parsed)
+        // Or a single action object from repaired JSON: { "action": "buy", "params": { ... } }
+        let rawList = Array.isArray(parsed)
           ? parsed
           : (parsed as Record<string, unknown>)?.actions;
+        if (!Array.isArray(rawList) && parsed != null && typeof parsed === "object" && isActionItem(parsed)) {
+          rawList = [parsed];
+        }
         if (Array.isArray(rawList)) {
           parsedSuccessfully = true;
           for (const item of rawList) {
