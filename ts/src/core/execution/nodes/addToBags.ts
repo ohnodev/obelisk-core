@@ -7,7 +7,7 @@
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import type { ClankerBagState, BagHolding } from "./clankerBags";
 import { DEFAULT_PROFIT_TARGET_PERCENT, DEFAULT_STOP_LOSS_PERCENT } from "./clankerBags";
 
@@ -66,12 +66,16 @@ export class AddToBagsNode extends BaseNode {
       stopLossPercent,
     };
 
+    // Always try to load existing bags from storage first; only start fresh if file missing
     let bagState: ClankerBagState = { lastUpdated: 0, holdings: {} };
     if (fs.existsSync(resolvedBagPath)) {
       try {
         const raw = fs.readFileSync(resolvedBagPath, "utf-8");
         bagState = JSON.parse(raw) as ClankerBagState;
-      } catch (_) {}
+      } catch (e) {
+        logger.warn(`[AddToBags] Failed to load bag state from ${abbrevPathForLog(resolvedBagPath)}: ${e}. Not overwriting.`);
+        return { success: false, error: "Failed to load bag state from storage" };
+      }
     }
     if (!bagState.holdings) bagState.holdings = {};
     bagState.holdings[tokenAddress] = holding;
@@ -84,7 +88,7 @@ export class AddToBagsNode extends BaseNode {
       logger.info(`[AddToBags] Added ${tokenAddress} target=${profitTargetPercent}% stop=${stopLossPercent}%`);
       return { success: true, holding };
     } catch (e) {
-      logger.warn(`[AddToBags] Failed to write ${resolvedBagPath}: ${e}`);
+      logger.warn(`[AddToBags] Failed to write ${abbrevPathForLog(resolvedBagPath)}: ${e}`);
       return { success: false, error: String(e) };
     }
   }

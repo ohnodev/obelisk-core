@@ -2,6 +2,8 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
+const DEFAULT_SELL_TIMER_MINUTES = 5;
+
 class BagCheckerNode extends LGraphNode {
   static title = "Bag Checker";
   static desc = "On new swap: check if we hold that token; compare price to profit target / stop loss; output should_sell + sell_params.";
@@ -15,14 +17,72 @@ class BagCheckerNode extends LGraphNode {
     this.addInput("state", "object");
     this.addInput("state_path", "string");
     this.addInput("bag_state_path", "string");
+    this.addInput("sell_timer_minutes", "number");
 
     this.addOutput("should_sell", "boolean");
     this.addOutput("sell_params", "object");
     this.addOutput("holding", "object");
 
-    this.size = [240, 140];
+    this.addProperty("sell_timer_minutes", DEFAULT_SELL_TIMER_MINUTES, "number");
+    this.addWidget(
+      "number" as any,
+      "Sell timer (min)",
+      DEFAULT_SELL_TIMER_MINUTES,
+      (value: number) => {
+        const v = Math.max(0, Math.round(Number(value)) || 0);
+        this.setProperty("sell_timer_minutes", v);
+      },
+      {
+        min: 0,
+        max: 120,
+        step: 1,
+        precision: 0,
+        serialize: true,
+        property: "sell_timer_minutes",
+      } as any
+    );
+
+    this.size = [240, 160];
     (this as any).type = "bag_checker";
     (this as any).resizable = true;
+  }
+
+  onPropertyChanged(name: string, value: any) {
+    if (name === "sell_timer_minutes") {
+      const widgets = (this as any).widgets as any[];
+      const w = widgets?.find((x: any) => x.name === "Sell timer (min)");
+      if (w) w.value = value ?? DEFAULT_SELL_TIMER_MINUTES;
+    }
+  }
+
+  onConfigure(data: any) {
+    if (super.onConfigure) super.onConfigure(data);
+    const v = data.properties?.sell_timer_minutes ?? (this.properties as any)?.sell_timer_minutes ?? DEFAULT_SELL_TIMER_MINUTES;
+    const widgets = (this as any).widgets as any[];
+    const w = widgets?.find((x: any) => x.name === "Sell timer (min)");
+    if (w) w.value = Number(v);
+  }
+
+  onDrawForeground(ctx: CanvasRenderingContext2D) {
+    const isSelected = (this as any).is_selected || (this as any).isSelected;
+    if (isSelected) {
+      ctx.strokeStyle = "#d4af37";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
+    }
+  }
+
+  onDrawBackground(ctx: CanvasRenderingContext2D) {
+    if (this.flags.collapsed) return;
+    ctx.fillStyle = "rgba(80, 176, 80, 0.08)";
+    ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    if ((this as any).executing) {
+      ctx.fillStyle = "rgba(255, 200, 0, 0.3)";
+      ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    } else if ((this as any).executed) {
+      ctx.fillStyle = "rgba(0, 255, 0, 0.15)";
+      ctx.fillRect(0, 0, this.size[0], this.size[1]);
+    }
   }
 }
 

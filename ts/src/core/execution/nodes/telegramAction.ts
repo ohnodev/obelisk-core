@@ -21,10 +21,37 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
 import { getLogger } from "../../../utils/logger";
 import type { ActionItem } from "./actionRouter";
+import { Config } from "../../config";
 
 const logger = getLogger("telegramAction");
 
 const API_BASE = "https://api.telegram.org/bot";
+
+/** Token suffix (last 6 chars) we've already logged — avoid spamming getMe. */
+const loggedBotTokens = new Set<string>();
+
+/**
+ * Fetch bot username from Telegram getMe. Returns @username or null on failure.
+ * Used for logging which bot is in use.
+ */
+async function getBotUsername(token: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}${token}/getMe`);
+    const data = (await res.json()) as { ok?: boolean; result?: { username?: string } };
+    if (data?.ok && data?.result?.username) return data.result.username;
+  } catch (_) {
+    // ignore
+  }
+  return null;
+}
+
+function tokenSuffix(token: string, len = 6): string {
+  return token.length <= len ? token : token.slice(-len);
+}
+
+function tokenLastFour(token: string): string {
+  return token.length <= 4 ? token : token.slice(-4);
+}
 
 /**
  * Resolve user_id from storage by message_id (author of that message) or by username.
@@ -91,7 +118,10 @@ export class TelegramActionNode extends BaseNode {
       process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
       process.env.TELEGRAM_BOT_TOKEN ||
       "";
-    const chatId = (this.getInputValue("chat_id", context, undefined) as string) ?? "";
+    const chatId =
+      (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
+      Config.TELEGRAM_CHAT_ID ||
+      "";
     const messageIdRaw = this.getInputValue("message_id", context, undefined);
     const messageId =
       messageIdRaw != null
@@ -124,6 +154,16 @@ export class TelegramActionNode extends BaseNode {
       };
     }
 
+    // Log which bot we're using (once per token)
+    const suffix = tokenSuffix(botToken);
+    if (!loggedBotTokens.has(suffix)) {
+      const username = await getBotUsername(botToken);
+      const tag = username ? `@${username}` : "?";
+      const last4 = tokenLastFour(botToken);
+      logger.info(`[TelegramAction] Using Telegram bot ${tag} (token ...${last4})`);
+      loggedBotTokens.add(suffix);
+    }
+
     const results: ActionResult[] = [];
     let allSuccess = true;
     const deletedInBatch = new Set<number>();
@@ -141,7 +181,14 @@ export class TelegramActionNode extends BaseNode {
         deletedInBatch
       );
       results.push(result);
-      if (!result.success) allSuccess = false;
+      if (!result.success) {
+        allSuccess = false;
+        if (result.response != null) {
+          logger.warn(
+            `[TelegramAction] ${result.action} failed – Telegram API response: ${JSON.stringify(result.response)}`
+          );
+        }
+      }
     }
 
     const debugParts = [
@@ -171,38 +218,52 @@ export class TelegramActionNode extends BaseNode {
   ): Promise<ActionResult> {
     try {
       switch (action) {
+        case "send_message": {
+          const text = (params.text as string) ?? "";
+          if (!text) {
+            logger.debug("[TelegramAction] send_message skipped: no text");
+            return { action: "send_message", success: true };
+          }
+          const chatIdStr = String(chatId ?? "").trim();
+          if (!chatIdStr) {
+            logger.warn("[TelegramAction] send_message skipped: no chat_id");
+            return { action: "send_message", success: false, response: { error: "missing chat_id" } };
+          }
+          const url = `${API_BASE}${token}/sendMessage`;
+          const payload = { chat_id: chatIdStr, text, parse_mode: "HTML" as const };
+          const data = await this.post(url, payload);
+          return { action: "send_message", success: (data?.ok as boolean) === true, response: data };
+        }
+
         case "reply": {
           const text = (params.text as string) ?? "";
           if (!text) {
             logger.debug("[TelegramAction] reply skipped: no text");
             return { action: "reply", success: true };
           }
+          const chatIdStr = String(chatId ?? "").trim();
+          if (!chatIdStr) {
+            logger.warn("[TelegramAction] reply skipped: no chat_id (connect chat_id e.g. from Text node with TELEGRAM_CHAT_ID)");
+            return { action: "reply", success: false, response: { error: "missing chat_id" } };
+          }
           const url = `${API_BASE}${token}/sendMessage`;
           const payload: Record<string, unknown> = {
-            chat_id: chatId,
+            chat_id: chatIdStr,
             text,
             parse_mode: "HTML",
           };
-          // Prefer reply_to_message_id (message user replied to); skip if we already deleted it in this batch
+          // Only reply-to a specific message when the user explicitly replied (reply_to_message_id).
+          // When only chat_id + text are passed (e.g. buy_notify from scheduler), send a plain message — do not use message_id from context (can be stale and cause 404).
           const preferId =
-            replyToMessageId != null && Number.isFinite(replyToMessageId)
+            replyToMessageId != null && Number.isFinite(replyToMessageId) && replyToMessageId > 0
               ? replyToMessageId
-              : messageId != null && Number.isFinite(messageId)
-                ? messageId
-                : undefined;
-          if (
-            preferId != null &&
-            !deletedInBatch?.has(preferId)
-          ) {
+              : undefined;
+          if (preferId != null && !deletedInBatch?.has(preferId)) {
             payload.reply_parameters = { message_id: preferId };
           }
           let data = await this.post(url, payload);
           let ok = (data?.ok as boolean) === true;
-          // If reply failed (e.g. "message to be replied not found" — message was deleted), send without reply
           if (!ok && payload.reply_parameters) {
-            logger.warn(
-              `[TelegramAction] Reply failed (message_id=${preferId}), sending without reply: ${(data?.description as string) ?? ""}`
-            );
             delete payload.reply_parameters;
             data = await this.post(url, payload);
             ok = (data?.ok as boolean) === true;

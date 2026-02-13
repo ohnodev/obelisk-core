@@ -17,7 +17,7 @@ import {
 } from "../types";
 import { BaseNode, ExecutionContext } from "./nodeBase";
 import { getNodeClass, registerAllNodes } from "./nodeRegistry";
-import { getLogger } from "../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../utils/logger";
 
 const logger = getLogger("engine");
 
@@ -153,13 +153,16 @@ export class ExecutionEngine {
             executionTime: nodeExecTime,
           });
 
-          // Log per-node execution at INFO level (truncated summary)
+          // Log per-node execution at INFO level (truncated summary; paths abbreviated with ~)
           const outputKeys = Object.keys(outputs);
           const outputSummary = outputKeys
             .map((k) => {
               const v = outputs[k];
               if (v === null || v === undefined) return `${k}=null`;
-              if (typeof v === "string") return `${k}="${v.length > 60 ? v.slice(0, 60) + "..." : v}"`;
+              if (typeof v === "string") {
+                const s = abbrevPathForLog(v);
+                return `${k}="${s.length > 60 ? s.slice(0, 60) + "..." : s}"`;
+              }
               if (typeof v === "boolean" || typeof v === "number") return `${k}=${v}`;
               return `${k}=<${typeof v}>`;
             })
@@ -168,17 +171,38 @@ export class ExecutionEngine {
             `  Node ${nodeId} (${node.nodeType}) → ${nodeExecTime}ms [${outputSummary}]`
           );
 
-          // DEBUG: log full untruncated outputs (visible when OBELISK_CORE_DEBUG=true)
+          // DEBUG: log full outputs when OBELISK_CORE_DEBUG=true; cap size to avoid huge logs (e.g. full clanker state)
+          const MAX_DEBUG_PAYLOAD = 2000;
           for (const k of outputKeys) {
             const v = outputs[k];
-            if (typeof v === "string" && v.length > 60) {
-              logger.debug(`  [${nodeId}] FULL ${k} (${v.length} chars):\n${v}`);
+            if (typeof v === "string") {
+              const s = abbrevPathForLog(v);
+              if (s.length <= MAX_DEBUG_PAYLOAD) {
+                logger.debug(`  [${nodeId}] FULL ${k} (${s.length} chars):\n${s}`);
+              } else {
+                logger.debug(`  [${nodeId}] ${k}: string ${s.length} chars (truncated in debug)`);
+              }
             } else if (v !== null && v !== undefined && typeof v === "object") {
               try {
                 const json = JSON.stringify(v, null, 2);
-                logger.debug(`  [${nodeId}] FULL ${k}:\n${json}`);
+                if (json.length <= MAX_DEBUG_PAYLOAD) {
+                  logger.debug(`  [${nodeId}] FULL ${k}:\n${json}`);
+                } else {
+                  logger.debug(`  [${nodeId}] ${k}: object ${json.length} chars (truncated in debug)`);
+                }
               } catch { /* skip non-serialisable */ }
             }
+          }
+
+          // Always log model output at INFO so it's visible without DEBUG (for inference + debug Text node)
+          const MODEL_OUTPUT_MAX = 1200;
+          if (node.nodeType === "inference" && typeof outputs.response === "string") {
+            const s = outputs.response;
+            logger.info(`  [Model output] ${s.length <= MODEL_OUTPUT_MAX ? s : s.slice(0, MODEL_OUTPUT_MAX) + "..."}`);
+          }
+          if (node.nodeType === "text" && typeof outputs.text === "string" && outputs.text.length > 0) {
+            const s = outputs.text;
+            logger.info(`  [Debug text node ${nodeId}] ${s.length <= MODEL_OUTPUT_MAX ? s : s.slice(0, MODEL_OUTPUT_MAX) + "..."}`);
           }
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);

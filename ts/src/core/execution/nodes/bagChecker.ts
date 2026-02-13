@@ -1,15 +1,17 @@
 /**
  * BagCheckerNode – on scheduler trigger (e.g. every 10s), reads state + bag state from storage,
- * checks each holding against current price (from token stats); if any hits profit target or
- * stop loss, outputs should_sell and sell_params for ClankerSell.
+ * checks each holding against current price (from token stats); if any hits profit target,
+ * stop loss, or sell timer (held longer than N min without hitting target), outputs
+ * should_sell and sell_params for ClankerSell.
  *
- * Inputs: trigger (from scheduler), state (Clanker state), state_path (for bag file path)
+ * Inputs: trigger (from scheduler), state (Clanker state), state_path (for bag file path),
+ *         sell_timer_minutes (number, default 5; 0 = disabled)
  * Outputs: should_sell (boolean), sell_params (object when should_sell), holding
  */
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import type { ClankerBagState, BagHolding } from "./clankerBags";
 
 const logger = getLogger("bagChecker");
@@ -26,6 +28,10 @@ export class BagCheckerNode extends BaseNode {
     const statePath = (this.getInputValue("state_path", context, undefined) as string) ?? "";
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const bagStatePath = (this.getInputValue("bag_state_path", context, undefined) as string) ?? "";
+    const sellTimerMinutes = Math.max(
+      0,
+      getNum(this.getInputValue("sell_timer_minutes", context, this.metadata.sell_timer_minutes ?? 5))
+    );
 
     const resolvedBagPath = bagStatePath || (statePath ? path.join(path.dirname(statePath), "clanker_bags.json") : "");
 
@@ -33,13 +39,14 @@ export class BagCheckerNode extends BaseNode {
       return { should_sell: false, sell_params: null, holding: null };
     }
 
+    // On restart / each run: try to load bags from storage first; only use empty state if file missing or unreadable
     let bagState: ClankerBagState = { lastUpdated: 0, holdings: {} };
     if (resolvedBagPath && fs.existsSync(resolvedBagPath)) {
       try {
         const raw = fs.readFileSync(resolvedBagPath, "utf-8");
         bagState = JSON.parse(raw) as ClankerBagState;
       } catch (e) {
-        logger.warn(`[BagChecker] Failed to read bag state ${resolvedBagPath}: ${e}`);
+        logger.warn(`[BagChecker] Failed to read bag state ${abbrevPathForLog(resolvedBagPath)}: ${e}`);
         return { should_sell: false, sell_params: null, holding: null };
       }
     }
@@ -62,7 +69,12 @@ export class BagCheckerNode extends BaseNode {
       const hitTarget = profitPct >= (holding.profitTargetPercent ?? 50);
       const hitStop = profitPct <= -(holding.stopLossPercent ?? 20);
 
-      if (!hitTarget && !hitStop) continue;
+      const boughtAtTs = holding.boughtAtTimestamp ?? 0;
+      const heldMs = Date.now() - boughtAtTs;
+      const timerMinutes = sellTimerMinutes > 0 ? sellTimerMinutes : 0;
+      const hitTimer = timerMinutes > 0 && heldMs >= timerMinutes * 60 * 1000;
+
+      if (!hitTarget && !hitStop && !hitTimer) continue;
 
       const sell_params = {
         token_address: holding.tokenAddress,
@@ -74,7 +86,11 @@ export class BagCheckerNode extends BaseNode {
         currency1: holding.currency1,
       };
 
-      logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} profitPct=${profitPct.toFixed(1)}% (target=${holding.profitTargetPercent}% stop=${holding.stopLossPercent}%)`);
+      if (hitTimer && !hitTarget && !hitStop) {
+        logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} timeout (held ${(heldMs / 60000).toFixed(1)}m >= ${timerMinutes}m, no profit target)`);
+      } else {
+        logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} profitPct=${profitPct.toFixed(1)}% (target=${holding.profitTargetPercent}% stop=${holding.stopLossPercent}%)`);
+      }
       return { should_sell: true, sell_params, holding };
     }
 

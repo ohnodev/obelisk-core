@@ -1,6 +1,7 @@
 /**
- * ClankerSellNode – execute a V4 sell (token → ETH) using CabalSwapper.
+ * ClankerSellNode – execute a V4 sell (token → WETH) using CabalSwapper.
  * Hook up Wallet for private_key; get params from sell_params (e.g. from BagChecker) or direct inputs.
+ * Proceeds are WETH (Clanker pays WETH, not native ETH).
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
@@ -66,23 +67,26 @@ export class ClankerSellNode extends BaseNode {
       logger.warn(`[ClankerSell] Sell failed: ${result.error}`);
     }
 
-    const ethReceived = (result as { ethReceived?: string }).ethReceived;
+    const res = result as { wethReceived?: string; ethReceived?: string };
+    const wethReceived = res.wethReceived ?? res.ethReceived;
     return {
       success: result.success,
       txHash: result.txHash,
       error: result.error,
       token_address: tokenAddress,
       amount_wei: String(amountWei),
-      value_wei: ethReceived ?? undefined,
-      eth_received: ethReceived ?? undefined,
+      value_wei: wethReceived ?? undefined,
+      weth_received: wethReceived ?? undefined,
+      eth_received: wethReceived ?? undefined,
       result: {
         success: result.success,
         txHash: result.txHash,
         error: result.error,
         token_address: tokenAddress,
         amount_wei: amountWei,
-        value_wei: ethReceived,
-        eth_received: ethReceived,
+        value_wei: wethReceived,
+        weth_received: wethReceived,
+        eth_received: wethReceived,
       },
     };
   }

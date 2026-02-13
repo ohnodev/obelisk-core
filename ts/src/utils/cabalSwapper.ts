@@ -11,7 +11,11 @@ const POOL_MANAGER = "0x498581ff718922c3f8e6a244956af099b2652b2b".toLowerCase();
 const UNIV4_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006";
-const WETH_ABI = ["function withdraw(uint256 wad)"];
+const WETH_ABI = [
+  "function withdraw(uint256 wad)",
+  "function deposit() payable",
+  "function approve(address spender, uint256 amount) returns (bool)",
+];
 const GAS_RESERVE_ETH = "0.001";
 const UNWRAP_BUFFER_ETH = "0.0005";
 
@@ -86,10 +90,11 @@ export function parseSwapReceiptTokensReceived(
 }
 
 /**
- * Parse the first Uniswap V4 Swap log and return the ETH/WETH amount received (wei string).
+ * Parse the first Uniswap V4 Swap log and return the WETH amount received (wei string).
  * For a sell: we send token (negative delta) and receive WETH (positive delta).
+ * Clanker pays out WETH, not native ETH.
  */
-export function parseSwapReceiptEthReceived(
+export function parseSwapReceiptWethReceived(
   receipt: TransactionReceiptLike,
   tokenIn: string,
   currency0: string,
@@ -176,26 +181,6 @@ const CABAL_SWAPPER_ABI = [
   },
 ] as const;
 
-const WETH_ABI = [
-  {
-    inputs: [],
-    name: "deposit",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "spender", type: "address" },
-      { internalType: "uint256", name: "amount", type: "uint256" },
-    ],
-    name: "approve",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-] as const;
-
 const CABAL_SWAPPER_ADDRESS =
   "0xEa944F12Db53405fb9afd6D5b7878dcAfC97D46a" as const;
 export const WETH_BASE =
@@ -222,7 +207,9 @@ export interface SwapExecuteResult {
   error?: string;
   /** Parsed from Swap log: actual token amount received (wei string). Set only on successful buy. */
   tokensReceived?: string;
-  /** Parsed from Swap log: ETH/WETH received on sell (wei string). Set only on successful sell. */
+  /** Parsed from Swap log: WETH received on sell (wei string). Clanker pays WETH, not native ETH. Set only on successful sell. */
+  wethReceived?: string;
+  /** @deprecated Use wethReceived. Same value – Clanker gives WETH. */
   ethReceived?: string;
 }
 
@@ -364,11 +351,11 @@ export async function executeSwap(
         if (receipt?.status === 0) {
           return { success: false, error: "Sell reverted on-chain", txHash: receipt?.hash ?? sellTxHash };
         }
-        const ethReceived =
+        const wethReceived =
           receipt && currency0 && currency1
-            ? parseSwapReceiptEthReceived(receipt as TransactionReceiptLike, token, currency0, currency1)
+            ? parseSwapReceiptWethReceived(receipt as unknown as TransactionReceiptLike, token, currency0, currency1)
             : undefined;
-        return { success: true, txHash: receipt?.hash ?? sellTxHash, ethReceived };
+        return { success: true, txHash: receipt?.hash ?? sellTxHash, wethReceived, ethReceived: wethReceived };
       } catch (waitErr: unknown) {
         const waitMsg = waitErr instanceof Error ? waitErr.message : String(waitErr);
         if (isInsufficientFundsError(waitMsg)) {
@@ -379,11 +366,11 @@ export async function executeSwap(
             if (receipt2?.status === 0) {
               return { success: false, error: "Sell reverted on-chain (retry)", txHash: receipt2?.hash };
             }
-            const ethReceived =
+            const wethReceived =
               receipt2 && currency0 && currency1
-                ? parseSwapReceiptEthReceived(receipt2 as TransactionReceiptLike, token, currency0, currency1)
+                ? parseSwapReceiptWethReceived(receipt2 as unknown as TransactionReceiptLike, token, currency0, currency1)
                 : undefined;
-            return { success: true, txHash: receipt2?.hash, ethReceived };
+            return { success: true, txHash: receipt2?.hash, wethReceived, ethReceived: wethReceived };
           } catch (retryErr: unknown) {
             const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
             return { success: false, error: retryMsg, txHash: undefined };
@@ -428,11 +415,11 @@ export async function executeSwap(
         return { success: false, error: sellMsg, txHash };
       }
     }
-    const ethReceived =
+    const wethReceived =
       receipt && currency0 && currency1
-        ? parseSwapReceiptEthReceived(receipt as TransactionReceiptLike, token, currency0, currency1)
+        ? parseSwapReceiptWethReceived(receipt as unknown as TransactionReceiptLike, token, currency0, currency1)
         : undefined;
-    return { success: true, txHash: receipt?.hash ?? txHash, ethReceived };
+    return { success: true, txHash: receipt?.hash ?? txHash, wethReceived, ethReceived: wethReceived };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     let txHash: string | undefined;

@@ -5,7 +5,7 @@
 import path from "path";
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 
 const logger = getLogger("blockchainConfig");
 
@@ -39,7 +39,7 @@ export class BlockchainConfigNode extends BaseNode {
         state = JSON.parse(raw) as Record<string, unknown>;
       }
     } catch (e) {
-      logger.warn(`[BlockchainConfig] Failed to read state from ${statePath}: ${e}`);
+      logger.warn(`[BlockchainConfig] Failed to read state from ${abbrevPathForLog(statePath)}: ${e}`);
     }
 
     return { state_path: statePath, state };

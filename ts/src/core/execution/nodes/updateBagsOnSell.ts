@@ -25,13 +25,14 @@ export class UpdateBagsOnSellNode extends BaseNode {
     }
 
     const tokenAddress = String(sellResult.token_address).toLowerCase();
+    // Load existing bags from storage first; only start fresh if file missing
     let bagState: ClankerBagState = { lastUpdated: 0, holdings: {} };
     if (fs.existsSync(resolvedBagPath)) {
       try {
         const raw = fs.readFileSync(resolvedBagPath, "utf-8");
         bagState = JSON.parse(raw) as ClankerBagState;
       } catch (_) {
-        return { success: false, error: "Failed to read bag state" };
+        return { success: false, error: "Failed to load bag state from storage" };
       }
     }
     if (!bagState.holdings) bagState.holdings = {};

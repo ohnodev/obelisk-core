@@ -10,7 +10,7 @@ import { executeSwap } from "../../../utils/cabalSwapper";
 
 const logger = getLogger("clankerBuy");
 
-const DEFAULT_AMOUNT_WEI = "2000000000000000"; // 0.002 ETH
+const DEFAULT_AMOUNT_WEI = "1000000000000000"; // 0.001 ETH
 
 function getActions(value: unknown): Array<{ action: string; params: Record<string, unknown> }> {
   if (!Array.isArray(value)) return [];
@@ -172,7 +172,8 @@ export class ClankerBuyNode extends BaseNode {
       txHash: result.txHash,
       error: result.error,
       token_address: tokenAddress,
-      amount_wei: String(amountWei),
+      amount_wei: result.tokensReceived != null && result.tokensReceived !== "" ? String(result.tokensReceived) : String(amountWei),
+      value_wei: String(amountWei), // ETH spent (for notifications); amount_wei above is tokens received when swap succeeds
       pool_fee: poolFee,
       tick_spacing: tickSpacing,
       hook_address: hookAddress,

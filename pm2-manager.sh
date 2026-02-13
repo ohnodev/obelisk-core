@@ -19,38 +19,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 ECOSYSTEM_FILE="$SCRIPT_DIR/ecosystem.config.js"
 
-# ─── Load .env file ───────────────────────────────────────────────────
-# Read .env and export only variables that are NOT already set in the
-# shell environment. This ensures shell-provided values (e.g.,
-# INFERENCE_API_KEY=xxx ./pm2-manager.sh start) take precedence.
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    while IFS= read -r line || [ -n "$line" ]; do
-        # Skip empty lines and comments
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
-        # Parse KEY=VALUE (handles KEY=VALUE and KEY="VALUE" / KEY='VALUE')
-        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]]; then
-            key="${BASH_REMATCH[1]}"
-            val="${BASH_REMATCH[2]}"
-            # Strip surrounding quotes first, preserving # inside them
-            if [[ "$val" =~ ^\"(.*)\"(.*)$ ]]; then
-                val="${BASH_REMATCH[1]}"
-            elif [[ "$val" =~ ^\'(.*)\'(.*)$ ]]; then
-                val="${BASH_REMATCH[1]}"
-            else
-                # Unquoted value — strip inline comment (first #)
-                val="${val%%#*}"
-                # Trim trailing whitespace
-                val="${val%"${val##*[![:space:]]}"}"
-            fi
-            # Only export if not already set in the environment
-            if [ -z "${!key+x}" ]; then
-                export "$key=$val"
-            fi
-        fi
-    done < "$SCRIPT_DIR/.env"
-fi
-
 # ─── Service definitions ──────────────────────────────────────────────
+# Apps load their own .env from cwd (no env wiring in PM2; same as cabal-eco).
 # Each service: PM2_NAME  PORT  HOST  MODULE
 #
 # Core always runs the TypeScript build (ts/dist/index.js).
@@ -153,14 +123,7 @@ module.exports = {
       cwd: path.resolve(__dirname),
       instances: 1,
       exec_mode: 'fork',
-      env: {
-        NODE_ENV: 'production',
-        OBELISK_CORE_PORT: '${CORE_PORT}',
-        OBELISK_CORE_HOST: '${CORE_HOST}',
-        OBELISK_CORE_DEBUG: '${CORE_DEBUG}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
-        INFERENCE_SERVICE_URL: process.env.INFERENCE_SERVICE_URL || 'http://localhost:7780',
-      },
+      env: {},
       log_file: path.resolve(__dirname, 'logs', 'obelisk-core.log'),
       out_file: '/dev/null',
       error_file: '/dev/null',
@@ -181,13 +144,7 @@ module.exports = {
       cwd: path.resolve(__dirname),
       instances: 1,
       exec_mode: 'fork',
-      env: {
-        NODE_ENV: 'production',
-        PYTHONUNBUFFERED: '1',
-        INFERENCE_PORT: '${INFERENCE_PORT}',
-        INFERENCE_HOST: '${INFERENCE_HOST}',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY || '',
-      },
+      env: { PYTHONUNBUFFERED: '1' },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-inference.log'),
       out_file: '/dev/null',
       error_file: '/dev/null',
@@ -208,9 +165,7 @@ module.exports = {
       cwd: path.resolve(__dirname, 'blockchain-service'),
       instances: 1,
       exec_mode: 'fork',
-      env: {
-        NODE_ENV: 'production',
-      },
+      env: {},
       log_file: path.resolve(__dirname, 'logs', 'obelisk-blockchain.log'),
       out_file: '/dev/null',
       error_file: '/dev/null',
@@ -253,17 +208,16 @@ get_target_services() {
     fi
 }
 
-# Delete log files
+# Delete log files for a service (or all). Removes current log, rotated (e.g. name__date.log), and .gz.
 delete_logs() {
     local target="$1"
     if [ -d "$LOG_DIR" ]; then
         if [ -z "$target" ]; then
             echo -e "${YELLOW}🗑️  Deleting all logs...${NC}"
-            rm -f "$LOG_DIR"/*.log* 2>/dev/null || true
-            rm -f "$LOG_DIR"/*.gz 2>/dev/null || true
+            rm -f "$LOG_DIR"/*.log "$LOG_DIR"/*.log.* "$LOG_DIR"/*__*.log "$LOG_DIR"/*.gz 2>/dev/null || true
         else
             echo -e "${YELLOW}🗑️  Deleting logs for ${target}...${NC}"
-            rm -f "$LOG_DIR/${target}".log* 2>/dev/null || true
+            rm -f "$LOG_DIR/${target}".log "$LOG_DIR/${target}".log.* "$LOG_DIR/${target}"__*.log "$LOG_DIR/${target}"*.gz 2>/dev/null || true
         fi
         echo -e "${GREEN}✅ Logs deleted${NC}"
     fi
@@ -512,12 +466,23 @@ cmd_log_files() {
     fi
 }
 
+# Regenerate ecosystem.config.js from .env and script defaults (no start/stop).
+# Use after editing .env or when you want a fresh config before running start/restart.
+cmd_init() {
+    echo -e "${BLUE}📝 Regenerating ecosystem config from .env...${NC}"
+    generate_ecosystem
+    setup_logrotate
+    echo -e "${GREEN}✅ Ecosystem config written to $ECOSYSTEM_FILE${NC}"
+    echo -e "${CYAN}   Run: $0 start   to start services${NC}"
+}
+
 cmd_help() {
     echo -e "${BLUE}Obelisk Core PM2 Manager${NC}"
     echo ""
     echo "Usage: $0 <command> [service]"
     echo ""
     echo -e "${CYAN}Commands:${NC}"
+    echo "  init                Regenerate ecosystem.config.js from .env (no start/stop)"
     echo "  start [service]     Start service(s)"
     echo "  stop [service]      Stop service(s)"
     echo "  restart [service]   Restart service(s) and delete logs"
@@ -533,6 +498,7 @@ cmd_help() {
     echo "  all                 All services (default when no service specified)"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
+    echo "  $0 init               # Regenerate ecosystem.config.js from .env"
     echo "  $0 start              # Start all services"
     echo "  $0 start inference    # Start inference service only"
     echo "  $0 start blockchain   # Start blockchain service only"
@@ -586,6 +552,9 @@ case "$COMMAND" in
         ;;
     log-files)
         cmd_log_files
+        ;;
+    init|generate-config|config)
+        cmd_init
         ;;
     help|--help|-h)
         cmd_help

@@ -27,6 +27,19 @@ const logger = getLogger("inferenceNode");
 
 export class InferenceNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
+    const trigger = this.getInputValue("trigger", context, true);
+    if (trigger === false) {
+      logger.info(
+        `InferenceNode ${this.nodeId}: trigger=false (insufficient funds), skipping API call`
+      );
+      return {
+        query: "",
+        response: '{"actions":[]}',
+        result: { response: '{"actions":[]}', tokensUsed: 0 },
+        tokens_used: 0,
+      };
+    }
+
     // Resolve inputs – matching Python's input names exactly
     const model = this.getInputValue("model", context) as
       | InferenceClient

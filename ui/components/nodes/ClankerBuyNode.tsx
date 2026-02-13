@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class ClankerBuyNode extends LGraphNode {
   static title = "Clanker Buy";
-  static desc = "Execute V4 buy (ETH → token) via CabalSwapper. Connect Wallet (private_key) and Action Router (tg_actions) or token/pool params.";
+  static desc = "Execute V4 buy. Model outputs only token_address (or name/symbol) + optional amount_wei; pool params from state (connect Blockchain Config state).";
   static title_color = "#50b050";
 
   constructor() {
@@ -12,12 +12,10 @@ class ClankerBuyNode extends LGraphNode {
     this.title = "Clanker Buy";
 
     this.addInput("private_key", "string");
+    this.addInput("state", "object");
     this.addInput("tg_actions", "array");
     this.addInput("token_address", "string");
     this.addInput("amount_wei", "string");
-    this.addInput("pool_fee", "number");
-    this.addInput("tick_spacing", "number");
-    this.addInput("hook_address", "string");
 
     this.addOutput("success", "boolean");
     this.addOutput("txHash", "string");

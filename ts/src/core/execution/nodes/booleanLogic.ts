@@ -38,11 +38,15 @@ export class BooleanLogicNode extends BaseNode {
   }
 
   execute(context: ExecutionContext): Record<string, unknown> {
-    const rawA = this.getInputValue("a", context, false);
+    const rawA = this.getInputValue("a", context, undefined);
     const rawB = this.getInputValue("b", context, false);
     const value = this.getInputValue("value", context, null);
 
-    const a = Boolean(rawA);
+    // For AND: treat missing "a" as true so only "b" (e.g. has_sufficient_funds) gates the flow
+    const a =
+      this.operation === "AND" && (rawA === undefined || rawA === null)
+        ? true
+        : Boolean(rawA);
     const b = Boolean(rawB);
 
     let result: boolean;

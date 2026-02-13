@@ -39,13 +39,15 @@ class TextNode extends LGraphNode {
   }
   
   onPropertyChanged(name: string, value: any) {
-    // Sync widget value when property changes
+    // Sync widget value when property changes (including when updated from backend results)
     if (name === "text") {
+      const str = value != null ? String(value) : "";
       const widgets = (this as any).widgets as any[];
       if (widgets) {
         const widget = widgets.find((w: any) => w.name === "text");
         if (widget) {
-          widget.value = value || "";
+          widget.value = str;
+          if (widget.input) widget.input.value = str;
         }
       }
     }

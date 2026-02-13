@@ -36,7 +36,7 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     id: "clanker-autotrader-v1",
     name: "Clanker Autotrader V1",
-    description: "Blockchain config, scheduler, Clanker new launches and token stats (default)",
+    description: "Blockchain config, scheduler, new launches, Inference, Action Router, Wallet, Clanker Buy",
     data: clankerAutotraderV1Template,
   },
   {

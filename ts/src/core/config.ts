@@ -5,7 +5,8 @@
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config();
+// Load .env from obelisk-core only. Process must be run with cwd = obelisk-core (e.g. PM2, npm run from repo root).
+dotenv.config({ path: path.join(process.cwd(), ".env") });
 
 function envBool(key: string, fallback = false): boolean {
   const val = process.env[key]?.toLowerCase();

@@ -3,7 +3,7 @@
  */
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 
 const logger = getLogger("clankerTokenStats");
 
@@ -29,7 +29,7 @@ export class ClankerTokenStatsNode extends BaseNode {
           state = JSON.parse(raw) as Record<string, unknown>;
         }
       } catch (e) {
-        logger.warn(`[ClankerTokenStats] Failed to read state from ${statePath}: ${e}`);
+        logger.warn(`[ClankerTokenStats] Failed to read state from ${abbrevPathForLog(statePath)}: ${e}`);
       }
     }
 

@@ -15,6 +15,7 @@ class BalanceCheckerNode extends LGraphNode {
     super();
     this.title = "Balance Checker";
 
+    this.addInput("trigger", "boolean");
     this.addInput("private_key", "string");
     this.addInput("min_balance_wei", "string");
 

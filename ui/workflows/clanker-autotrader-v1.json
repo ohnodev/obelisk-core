@@ -3,122 +3,6 @@
   "name": "Obelisk Workflow",
   "nodes": [
     {
-      "id": "5",
-      "type": "inference_config",
-      "position": {
-        "x": 174,
-        "y": 99
-      },
-      "inputs": {},
-      "metadata": {
-        "endpoint_url": "http://localhost:7780",
-        "use_default": true,
-        "model_path": "models/default_model",
-        "auto_load": true
-      }
-    },
-    {
-      "id": "6",
-      "type": "inference",
-      "position": {
-        "x": 574,
-        "y": 36
-      },
-      "inputs": {},
-      "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. amount_eth optional: use ETH amounts like 0.0005, 0.001 (range 0.0005 to 0.001). Do not use wei. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. Output ONLY valid JSON. Example buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. Example no buy: {\"actions\":[]}.",
-        "enable_thinking": false
-      }
-    },
-    {
-      "id": "7",
-      "type": "action_router",
-      "position": {
-        "x": 1044,
-        "y": 65
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "9",
-      "type": "clanker_buy",
-      "position": {
-        "x": 1404,
-        "y": 42
-      },
-      "inputs": {},
-      "metadata": {
-        "amount_wei": "0"
-      }
-    },
-    {
-      "id": "12",
-      "type": "buy_notify",
-      "position": {
-        "x": 1865,
-        "y": 193
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "20",
-      "type": "add_to_bags",
-      "position": {
-        "x": 1843,
-        "y": -82
-      },
-      "inputs": {},
-      "metadata": {
-        "profit_target_percent": 50,
-        "stop_loss_percent": 20
-      }
-    },
-    {
-      "id": "13",
-      "type": "telegram_action",
-      "position": {
-        "x": 2231,
-        "y": 158
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
-      }
-    },
-    {
-      "id": "4",
-      "type": "text",
-      "position": {
-        "x": 806,
-        "y": 422
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
-      }
-    },
-    {
-      "id": "14",
-      "type": "scheduler",
-      "position": {
-        "x": -117,
-        "y": -568
-      },
-      "inputs": {},
-      "metadata": {
-        "min_seconds": 10,
-        "max_seconds": 10,
-        "enabled": true,
-        "Min Seconds": 10,
-        "Max Seconds": 10,
-        "Enabled": true
-      }
-    },
-    {
       "id": "17",
       "type": "clanker_sell",
       "position": {
@@ -147,54 +31,8 @@
       },
       "inputs": {},
       "metadata": {
-        "sell_timer_minutes": 5
-      }
-    },
-    {
-      "id": "19",
-      "type": "sell_notify",
-      "position": {
-        "x": 1842,
-        "y": -585
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "21",
-      "type": "telegram_action",
-      "position": {
-        "x": 2189,
-        "y": -587
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
-      }
-    },
-    {
-      "id": "11",
-      "type": "text",
-      "position": {
-        "x": 1319,
-        "y": -300
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
-      }
-    },
-    {
-      "id": "3",
-      "type": "clanker_launch_summary",
-      "position": {
-        "x": 413,
-        "y": 397
-      },
-      "inputs": {},
-      "metadata": {
-        "window_hours": 1,
-        "limit": 20
+        "sell_timer_minutes": 5,
+        "Sell timer (min)": 5
       }
     },
     {
@@ -222,48 +60,6 @@
       }
     },
     {
-      "id": "2",
-      "type": "scheduler",
-      "position": {
-        "x": -567,
-        "y": 380
-      },
-      "inputs": {},
-      "metadata": {
-        "min_seconds": 5,
-        "max_seconds": 5,
-        "enabled": true,
-        "Min Seconds": 5,
-        "Max Seconds": 5,
-        "Enabled": true
-      }
-    },
-    {
-      "id": "23",
-      "type": "boolean_logic",
-      "position": {
-        "x": 61,
-        "y": 526
-      },
-      "inputs": {},
-      "metadata": {
-        "operation": "AND"
-      }
-    },
-    {
-      "id": "22",
-      "type": "balance_checker",
-      "position": {
-        "x": -213,
-        "y": 323
-      },
-      "inputs": {},
-      "metadata": {
-        "min_balance_wei": "0.004",
-        "min ETH": "0.004"
-      }
-    },
-    {
       "id": "10",
       "type": "memory_storage",
       "position": {
@@ -279,21 +75,361 @@
       }
     },
     {
+      "id": "19",
+      "type": "sell_notify",
+      "position": {
+        "x": 1980,
+        "y": -599
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "14",
+      "type": "scheduler",
+      "position": {
+        "x": -548,
+        "y": 328
+      },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 10,
+        "max_seconds": 10,
+        "enabled": true,
+        "Min Seconds": 10,
+        "Max Seconds": 10,
+        "Enabled": true
+      }
+    },
+    {
+      "id": "2",
+      "type": "scheduler",
+      "position": {
+        "x": -51,
+        "y": -563
+      },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 5,
+        "max_seconds": 5,
+        "enabled": true,
+        "Min Seconds": 5,
+        "Max Seconds": 5,
+        "Enabled": true
+      }
+    },
+    {
+      "id": "23",
+      "type": "boolean_logic",
+      "position": {
+        "x": 127,
+        "y": 236
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
+      "id": "5",
+      "type": "inference_config",
+      "position": {
+        "x": 349,
+        "y": -117
+      },
+      "inputs": {},
+      "metadata": {
+        "endpoint_url": "http://localhost:7780",
+        "use_default": true,
+        "model_path": "models/default_model",
+        "auto_load": true
+      }
+    },
+    {
+      "id": "22",
+      "type": "balance_checker",
+      "position": {
+        "x": -205,
+        "y": 212
+      },
+      "inputs": {},
+      "metadata": {
+        "min_balance_wei": "0.004",
+        "min ETH": "0.004"
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_launch_summary",
+      "position": {
+        "x": 395,
+        "y": 113
+      },
+      "inputs": {},
+      "metadata": {
+        "window_hours": 1,
+        "limit": 20
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 810,
+        "y": -55
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. amount_eth optional: use ETH amounts like 0.0005, 0.001 (range 0.0005 to 0.001). Do not use wei. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. Output ONLY valid JSON. Example buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. Example no buy: {\"actions\":[]}.",
+        "enable_thinking": false
+      }
+    },
+    {
+      "id": "4",
+      "type": "text",
+      "position": {
+        "x": 785,
+        "y": 305
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
+      }
+    },
+    {
       "id": "24",
       "type": "text",
-      "position": { "x": 808, "y": 50 },
+      "position": {
+        "x": 1159,
+        "y": 81
+      },
       "inputs": {},
       "metadata": {
         "text": "Model output (reply + reasoning) — for debugging"
+      }
+    },
+    {
+      "id": "7",
+      "type": "action_router",
+      "position": {
+        "x": 1482,
+        "y": 35
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "13",
+      "type": "telegram_action",
+      "position": {
+        "x": 2606,
+        "y": 187
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "21",
+      "type": "telegram_action",
+      "position": {
+        "x": 2579,
+        "y": -597
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "20",
+      "type": "add_to_bags",
+      "position": {
+        "x": 2186,
+        "y": -423
+      },
+      "inputs": {},
+      "metadata": {
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
+      }
+    },
+    {
+      "id": "9",
+      "type": "clanker_buy",
+      "position": {
+        "x": 1806,
+        "y": -71
+      },
+      "inputs": {},
+      "metadata": {
+        "amount_wei": "0"
+      }
+    },
+    {
+      "id": "12",
+      "type": "buy_notify",
+      "position": {
+        "x": 2255,
+        "y": -107
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": {
+        "x": 1497,
+        "y": -321
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
       }
     }
   ],
   "connections": [
     {
+      "from": "17",
+      "from_output": "result",
+      "to": "18",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "16",
+      "from_output": "should_sell",
+      "to": "17",
+      "to_input": "should_sell"
+    },
+    {
+      "from": "16",
+      "from_output": "sell_params",
+      "to": "17",
+      "to_input": "sell_params"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "9",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "17",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "22",
+      "to_input": "private_key"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "3",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "20",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "16",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "18",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "9",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "3",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "20",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "16",
+      "to_input": "state"
+    },
+    {
+      "from": "10",
+      "from_output": "storage_instance",
+      "to": "3",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "14",
+      "from_output": "trigger",
+      "to": "22",
+      "to_input": "trigger"
+    },
+    {
+      "from": "2",
+      "from_output": "trigger",
+      "to": "16",
+      "to_input": "trigger"
+    },
+    {
+      "from": "23",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
+    },
+    {
       "from": "5",
       "from_output": "model",
       "to": "6",
       "to_input": "model"
+    },
+    {
+      "from": "22",
+      "from_output": "has_sufficient_funds",
+      "to": "23",
+      "to_input": "b"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "4",
+      "to_input": "text"
     },
     {
       "from": "6",
@@ -326,48 +462,6 @@
       "to_input": "buy_result"
     },
     {
-      "from": "14",
-      "from_output": "trigger",
-      "to": "22",
-      "to_input": "trigger"
-    },
-    {
-      "from": "2",
-      "from_output": "trigger",
-      "to": "16",
-      "to_input": "trigger"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "18",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "19",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "16",
-      "from_output": "holding",
-      "to": "19",
-      "to_input": "holding"
-    },
-    {
-      "from": "16",
-      "from_output": "should_sell",
-      "to": "17",
-      "to_input": "should_sell"
-    },
-    {
-      "from": "16",
-      "from_output": "sell_params",
-      "to": "17",
-      "to_input": "sell_params"
-    },
-    {
       "from": "11",
       "from_output": "text",
       "to": "12",
@@ -378,108 +472,6 @@
       "from_output": "text",
       "to": "19",
       "to_input": "chat_id"
-    },
-    {
-      "from": "3",
-      "from_output": "summary",
-      "to": "6",
-      "to_input": "query"
-    },
-    {
-      "from": "3",
-      "from_output": "summary",
-      "to": "4",
-      "to_input": "text"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "9",
-      "to_input": "state"
-    },
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "9",
-      "to_input": "private_key"
-    },
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "17",
-      "to_input": "private_key"
-    },
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "22",
-      "to_input": "private_key"
-    },
-    {
-      "from": "1",
-      "from_output": "state_path",
-      "to": "3",
-      "to_input": "state_path"
-    },
-    {
-      "from": "1",
-      "from_output": "state_path",
-      "to": "20",
-      "to_input": "state_path"
-    },
-    {
-      "from": "1",
-      "from_output": "state_path",
-      "to": "16",
-      "to_input": "state_path"
-    },
-    {
-      "from": "1",
-      "from_output": "state_path",
-      "to": "18",
-      "to_input": "state_path"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "3",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "20",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "16",
-      "to_input": "state"
-    },
-    {
-      "from": "23",
-      "from_output": "trigger",
-      "to": "3",
-      "to_input": "trigger"
-    },
-    {
-      "from": "23",
-      "from_output": "trigger",
-      "to": "6",
-      "to_input": "trigger"
-    },
-    {
-      "from": "22",
-      "from_output": "has_sufficient_funds",
-      "to": "23",
-      "to_input": "b"
-    },
-    {
-      "from": "10",
-      "from_output": "storage_instance",
-      "to": "3",
-      "to_input": "storage_instance"
     }
   ]
 }

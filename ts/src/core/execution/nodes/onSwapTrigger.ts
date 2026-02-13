@@ -9,7 +9,7 @@
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 
 const logger = getLogger("onSwapTrigger");
 
@@ -45,7 +45,7 @@ export class OnSwapTriggerNode extends BaseNode {
       const raw = fs.readFileSync(swapPath, "utf-8");
       swapPayload = JSON.parse(raw) as SwapPayload;
     } catch (e) {
-      logger.warn(`[OnSwapTrigger] Failed to read swap file ${swapPath}: ${e}`);
+      logger.warn(`[OnSwapTrigger] Failed to read swap file ${abbrevPathForLog(swapPath)}: ${e}`);
       return { trigger: false, swap: null };
     }
 

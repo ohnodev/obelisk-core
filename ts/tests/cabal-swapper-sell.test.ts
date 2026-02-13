@@ -170,5 +170,93 @@ describe("CabalSwapper buy then sell", () => {
     expect(sellResult.txHash).toBeDefined();
     expect(typeof sellResult.txHash).toBe("string");
     expect(sellResult.txHash!.length).toBeGreaterThan(0);
+    // Sell proceeds are WETH (Clanker pays WETH)
+    const wethReceived = (sellResult as { wethReceived?: string }).wethReceived;
+    expect(wethReceived).toBeDefined();
+    expect(BigInt(wethReceived!)).toBeGreaterThan(0n);
+  }, 90_000);
+
+  it("should buy, sell exact tokens from receipt, and leave zero balance", async () => {
+    const privateKey = process.env.SWAP_PRIVATE_KEY?.trim();
+    if (!privateKey || privateKey.length < 20) {
+      console.warn("Skipping: SWAP_PRIVATE_KEY not set");
+      return;
+    }
+
+    const statePath = findStatePath();
+    if (!statePath) {
+      console.warn("Skipping: no clanker_state.json found");
+      return;
+    }
+
+    const token = loadFirstToken(statePath);
+    if (!token) {
+      console.warn("Skipping: no tokens in state");
+      return;
+    }
+
+    const rpcUrl = process.env.RPC_URL || "https://mainnet.base.org";
+    const provider = new ethers.JsonRpcProvider(rpcUrl, BASE_CHAIN_ID, { staticNetwork: true });
+    const wallet = new ethers.Wallet(privateKey, provider);
+    const tokenContract = new ethers.Contract(token.tokenAddress, ERC20_ABI as any, provider);
+
+    // 1. Buy
+    const buyResult = await executeSwap(
+      privateKey,
+      {
+        tokenAddress: token.tokenAddress,
+        amountWei: SMALL_BUY_WEI,
+        isBuy: true,
+        poolFee: token.feeTier,
+        tickSpacing: token.tickSpacing,
+        hookAddress: token.hookAddress,
+        currency0: token.currency0,
+        currency1: token.currency1,
+      },
+      rpcUrl
+    );
+
+    expect(buyResult.success).toBe(true);
+    expect(buyResult.txHash).toBeDefined();
+    expect(buyResult.tokensReceived).toBeDefined();
+    expect(BigInt(buyResult.tokensReceived!)).toBeGreaterThan(0n);
+
+    // 2. Wait one block
+    const blockBefore = await provider.getBlockNumber();
+    await new Promise<void>((resolve) => {
+      const check = async () => {
+        const now = await provider.getBlockNumber();
+        if (now > blockBefore) return resolve();
+        setTimeout(check, 2000);
+      };
+      check();
+    });
+
+    // 3. Sell exactly the amount we received from the buy receipt (no balanceOf)
+    const tokensToSell = buyResult.tokensReceived!;
+    const sellResult = await executeSwap(
+      privateKey,
+      {
+        tokenAddress: token.tokenAddress,
+        amountWei: tokensToSell,
+        isBuy: false,
+        poolFee: token.feeTier,
+        tickSpacing: token.tickSpacing,
+        hookAddress: token.hookAddress,
+        currency0: token.currency0,
+        currency1: token.currency1,
+      },
+      rpcUrl
+    );
+
+    expect(sellResult.success, sellResult.error ?? "Sell failed").toBe(true);
+    expect(sellResult.txHash).toBeDefined();
+    const wethReceived = (sellResult as { wethReceived?: string }).wethReceived;
+    expect(wethReceived).toBeDefined();
+    expect(BigInt(wethReceived!)).toBeGreaterThan(0n);
+
+    // 4. Assert no tokens left
+    const balanceAfter = await tokenContract.balanceOf(wallet.address);
+    expect(balanceAfter).toBe(0n);
   }, 90_000);
 });
