@@ -120,7 +120,12 @@ export async function executeSwap(
   params: SwapExecuteParams
 ): Promise<SwapExecuteResult> {
   const token = params.tokenAddress;
-  const amount = BigInt(params.amountWei);
+  let amount: bigint;
+  try {
+    amount = BigInt(params.amountWei);
+  } catch {
+    return { success: false, error: "Invalid amount" };
+  }
   const fee = params.poolFee ?? 0;
   const tick = params.tickSpacing ?? 0;
   const hook =
