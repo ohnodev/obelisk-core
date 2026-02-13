@@ -33,6 +33,25 @@ function getNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Convert ETH amount (string or number) to wei as decimal string.
+ * Avoids IEEE-754 precision loss by doing string/decimal shift instead of float * 1e18.
+ * Null/empty/invalid → "0". Downstream expects wei as string (e.g. BigInt(wei)).
+ */
+function ethToWei(eth: unknown): string {
+  if (eth == null) return "0";
+  const s = String(eth).trim();
+  if (s === "" || s === "-") return "0";
+  const parts = s.replace(/,/g, "").split(".");
+  if (parts.length > 2) return "0";
+  const intPart = (parts[0] || "0").replace(/\D/g, "") || "0";
+  let fracPart = (parts[1] || "").replace(/\D/g, "").slice(0, 18);
+  fracPart = fracPart.padEnd(18, "0");
+  const combined = intPart + fracPart;
+  if (combined === "0" || /^0+$/.test(combined)) return "0";
+  return BigInt(combined).toString();
+}
+
 /** Find token in state by address, or by name/symbol (case-insensitive). */
 function findTokenInState(
   state: Record<string, unknown> | undefined,
@@ -102,8 +121,8 @@ export class ClankerBuyNode extends BaseNode {
         const amtEth = p.amount_eth ?? p.amountEth;
         if (amtWei) amountWei = amtWei;
         else if (amtEth !== undefined && amtEth !== null && amtEth !== "") {
-          const eth = getNum(amtEth);
-          if (eth > 0) amountWei = String(BigInt(Math.round(eth * 1e18)));
+          const weiStr = ethToWei(amtEth);
+          if (weiStr !== "0") amountWei = weiStr;
         }
       }
     }
