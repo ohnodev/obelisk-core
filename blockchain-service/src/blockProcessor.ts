@@ -45,6 +45,8 @@ export class BlockProcessor {
   private isRunning = false;
   private consecutiveErrors = 0;
   private retryDelayMs = RETRY_DELAY_MS;
+  /** Blocks currently being processed; concurrent attempts for the same block wait on this and then return. */
+  private readonly inFlightBlocks = new Map<number, { promise: Promise<void>; resolve: () => void }>();
 
   constructor(
     rpcUrl: string,
@@ -158,13 +160,30 @@ export class BlockProcessor {
   }
 
   private async processBlockWithRetry(blockNumber: number): Promise<void> {
+    const existing = this.inFlightBlocks.get(blockNumber);
+    if (existing) {
+      await existing.promise;
+      return;
+    }
+
     let blockErrors = 0;
     while (this.isRunning) {
+      let timerId: ReturnType<typeof setTimeout> | undefined;
+      let resolveInFlight: (() => void) | undefined;
+      const inFlightPromise = new Promise<void>((r) => {
+        resolveInFlight = r;
+      });
+      this.inFlightBlocks.set(blockNumber, { promise: inFlightPromise, resolve: resolveInFlight! });
+
+      const workPromise = this.processBlock(blockNumber);
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Block ${blockNumber} timeout after ${BLOCK_PROCESS_TIMEOUT_MS / 1000}s`)), BLOCK_PROCESS_TIMEOUT_MS);
+          timerId = setTimeout(
+            () => reject(new Error(`Block ${blockNumber} timeout after ${BLOCK_PROCESS_TIMEOUT_MS / 1000}s`)),
+            BLOCK_PROCESS_TIMEOUT_MS
+          );
         });
-        await Promise.race([this.processBlock(blockNumber), timeoutPromise]);
+        await Promise.race([workPromise, timeoutPromise]);
         this.consecutiveErrors = 0;
         this.retryDelayMs = RETRY_DELAY_MS;
         return;
@@ -173,12 +192,17 @@ export class BlockProcessor {
         this.consecutiveErrors++;
         console.warn(`[Clanker] Error processing block ${blockNumber} (${this.consecutiveErrors}):`, e);
         if (blockErrors > 3) return;
+        await workPromise.catch(() => {});
         await this.sleep(this.retryDelayMs);
         this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
         if (this.consecutiveErrors % 5 === 0) {
           console.warn("[Clanker] Recreating provider after persistent errors");
           this.recreateProvider();
         }
+      } finally {
+        if (timerId !== undefined) clearTimeout(timerId);
+        resolveInFlight?.();
+        this.inFlightBlocks.delete(blockNumber);
       }
     }
   }
