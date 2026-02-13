@@ -182,6 +182,76 @@ const NODE_CATEGORIES: NodeCategory[] = [
       },
     ],
   },
+  {
+    name: "Clanker",
+    nodes: [
+      {
+        type: "blockchain_config",
+        title: "Blockchain Config",
+        description: "Path to Clanker state JSON; outputs state_path and state",
+      },
+      {
+        type: "clanker_launch_summary",
+        title: "Clanker Launch Summary",
+        description: "Recent launches in past 1h with full stats (volume, makers, price change) for LLM",
+      },
+      {
+        type: "clanker_token_stats",
+        title: "Clanker Token Stats",
+        description: "Look up token stats (volume, pool params) from state",
+      },
+      {
+        type: "wallet",
+        title: "Wallet",
+        description: "SWAP_PRIVATE_KEY from env; hook to Buy/Sell nodes",
+      },
+      {
+        type: "balance_checker",
+        title: "Balance Checker",
+        description: "Check ETH balance; outputs has_sufficient_funds for Boolean Logic gating",
+      },
+      {
+        type: "clanker_buy",
+        title: "Clanker Buy",
+        description: "Execute V4 buy via CabalSwapper; connect Wallet + Action Router or token params",
+      },
+      {
+        type: "buy_notify",
+        title: "Buy Notify",
+        description: "Builds Telegram notification when buy succeeds; connect to TG Action with chat_id",
+      },
+      {
+        type: "on_swap_trigger",
+        title: "On Swap Trigger",
+        description: "Reads last_swap.json; outputs trigger + swap when new swap (for sell loop)",
+      },
+      {
+        type: "bag_checker",
+        title: "Bag Checker",
+        description: "Check if we hold swap token; hit profit target or stop loss → should_sell + sell_params",
+      },
+      {
+        type: "clanker_sell",
+        title: "Clanker Sell",
+        description: "Execute V4 sell via CabalSwapper; connect Wallet + sell_params from Bag Checker",
+      },
+      {
+        type: "add_to_bags",
+        title: "Add To Bags",
+        description: "After buy, add position to clanker_bags.json with profit/stop targets",
+      },
+      {
+        type: "update_bags_on_sell",
+        title: "Update Bags On Sell",
+        description: "After sell, remove token from clanker_bags.json",
+      },
+      {
+        type: "sell_notify",
+        title: "Sell Notify",
+        description: "Builds Telegram notification when sell succeeds; connect to TG Action with chat_id",
+      },
+    ],
+  },
 ];
 
 export default function NodeMenu({ visible, x, y, onClose, onNodeSelect }: NodeMenuProps) {

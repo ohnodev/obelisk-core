@@ -25,6 +25,19 @@ import { HttpListenerNode } from "./nodes/httpListener";
 import { HttpResponseNode } from "./nodes/httpResponse";
 import { ActionRouterNode } from "./nodes/actionRouter";
 import { TelegramActionNode } from "./nodes/telegramAction";
+import { BlockchainConfigNode } from "./nodes/blockchainConfig";
+import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
+import { ClankerLaunchSummaryNode } from "./nodes/clankerLaunchSummary";
+import { WalletNode } from "./nodes/wallet";
+import { ClankerBuyNode } from "./nodes/clankerBuy";
+import { ClankerSellNode } from "./nodes/clankerSell";
+import { BuyNotifyNode } from "./nodes/buyNotify";
+import { OnSwapTriggerNode } from "./nodes/onSwapTrigger";
+import { BagCheckerNode } from "./nodes/bagChecker";
+import { AddToBagsNode } from "./nodes/addToBags";
+import { UpdateBagsOnSellNode } from "./nodes/updateBagsOnSell";
+import { SellNotifyNode } from "./nodes/sellNotify";
+import { BalanceCheckerNode } from "./nodes/balanceChecker";
 
 const logger = getLogger("nodeRegistry");
 
@@ -84,6 +97,19 @@ export function registerAllNodes(): void {
   registerNode("http_response", HttpResponseNode);
   registerNode("action_router", ActionRouterNode);
   registerNode("telegram_action", TelegramActionNode);
+  registerNode("blockchain_config", BlockchainConfigNode);
+  registerNode("clanker_token_stats", ClankerTokenStatsNode);
+  registerNode("clanker_launch_summary", ClankerLaunchSummaryNode);
+  registerNode("wallet", WalletNode);
+  registerNode("clanker_buy", ClankerBuyNode);
+  registerNode("clanker_sell", ClankerSellNode);
+  registerNode("buy_notify", BuyNotifyNode);
+  registerNode("on_swap_trigger", OnSwapTriggerNode);
+  registerNode("bag_checker", BagCheckerNode);
+  registerNode("add_to_bags", AddToBagsNode);
+  registerNode("update_bags_on_sell", UpdateBagsOnSellNode);
+  registerNode("sell_notify", SellNotifyNode);
+  registerNode("balance_checker", BalanceCheckerNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

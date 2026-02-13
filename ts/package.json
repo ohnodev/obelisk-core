@@ -9,12 +9,16 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:sanity": "vitest run tests/clanker-autotrader-sanity.test.ts",
+    "sell-all-bags": "tsx scripts/sell-all-bags.ts",
+    "telegram-real-send": "tsx scripts/telegram-action-real-send.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "ethers": "^6.13.0",
     "express": "^4.21.0",
     "zod": "^3.23.8"
   },

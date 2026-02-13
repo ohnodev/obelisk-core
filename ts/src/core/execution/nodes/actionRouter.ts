@@ -59,6 +59,7 @@ function extractReplyTextFromJsonLike(raw: string): string | null {
 
 const ALLOWED_ACTIONS = new Set([
   "reply",
+  "send_message",
   "send_dm",
   "pin_message",
   "timeout_message_author",
@@ -66,6 +67,8 @@ const ALLOWED_ACTIONS = new Set([
   "delete_reply_to_message",
   "pin_reply_to_message",
   "timeout_reply_to_author",
+  "buy",
+  "sell",
 ]);
 
 const MAX_TIMEOUT_SECONDS = 60;
@@ -93,6 +96,7 @@ export class ActionRouterNode extends BaseNode {
     const responseStr = response != null ? String(response).trim() : "";
 
     let actions: ActionItem[] = [];
+    let parsedSuccessfully = false;
 
     if (responseStr) {
       try {
@@ -100,9 +104,13 @@ export class ActionRouterNode extends BaseNode {
         const parsed = extractJsonFromLlmResponse(
           responseStr,
           "action_router"
-        ) as Record<string, unknown>;
-        const rawList = parsed?.actions;
+        ) as Record<string, unknown> | unknown[];
+        // Accept either { "actions": [ ... ] } or a top-level array [ { "action": "buy", ... }, ... ]
+        const rawList = Array.isArray(parsed)
+          ? parsed
+          : (parsed as Record<string, unknown>)?.actions;
         if (Array.isArray(rawList)) {
+          parsedSuccessfully = true;
           for (const item of rawList) {
             if (!isActionItem(item)) continue;
             const action = String(item.action).toLowerCase();
@@ -124,41 +132,79 @@ export class ActionRouterNode extends BaseNode {
 
             actions.push({ action, params });
           }
+        } else {
+          parsedSuccessfully = true; // valid JSON but no actions array
         }
       } catch (_e) {
         // Fallback: try to extract reply text from JSON-like string so we don't send raw JSON
         const extracted = extractReplyTextFromJsonLike(responseStr);
         if (extracted != null && extracted.length > 0) {
-          actions = [{ action: "reply", params: { text: extracted } }];
+          actions = [{ action: "send_message", params: { text: extracted } }];
           logger.debug(
-            `[ActionRouter ${this.nodeId}] Parse failed; extracted reply text (${extracted.length} chars)`
+            `[ActionRouter ${this.nodeId}] Parse failed; extracted text (${extracted.length} chars), sending as send_message`
           );
         } else if (responseStr.trimStart().startsWith("{")) {
           actions = [
-            { action: "reply", params: { text: "Sorry, I couldn't process that." } },
+            { action: "send_message", params: { text: "Sorry, I couldn't process that." } },
           ];
           logger.debug(
-            `[ActionRouter ${this.nodeId}] Parse failed and no text found; response looks like JSON, sending fallback message`
+            `[ActionRouter ${this.nodeId}] Parse failed and no text found; response looks like JSON, sending fallback send_message`
           );
         } else {
           logger.debug(
-            `[ActionRouter ${this.nodeId}] No valid JSON actions, using full response as reply`
+            `[ActionRouter ${this.nodeId}] No valid JSON actions, using full response as send_message`
           );
         }
       }
     }
 
-    if (actions.length === 0 && responseStr) {
-      actions = [
-        {
-          action: "reply",
-          params: { text: responseStr },
-        },
-      ];
-    } else if (actions.length > 0) {
+// Only send raw response as message when parsing failed. When we parsed successfully
+// and got empty actions (e.g. no buy), do not send the raw JSON to the user.
+if (actions.length === 0 && responseStr && !parsedSuccessfully) {
+  actions = [
+    {
+      action: "send_message",
+      params: { text: responseStr },
+    },
+  ];
+} else if (actions.length > 0) {
+      const hasSendMessage = actions.some((a) => a.action === "send_message");
       const hasReply = actions.some((a) => a.action === "reply");
-      if (!hasReply) {
-        actions.push({ action: "reply", params: { text: "Done." } });
+      const onlyTradingActions = actions.every(
+        (a) => a.action === "buy" || a.action === "sell"
+      );
+      // Don't add default message when only buy/sell — buy_notify/sell_notify send the message
+      if (!hasSendMessage && !hasReply && !onlyTradingActions) {
+        actions.push({ action: "send_message", params: { text: "Done." } });
+      }
+      // Clanker autotrader: at most one buy and one send_message per run (normalize reply → send_message)
+      const buys = actions.filter((a) => a.action === "buy");
+      const messages = actions.filter(
+        (a) => a.action === "send_message" || a.action === "reply"
+      );
+      if (buys.length > 1 || messages.length > 1) {
+        const oneMessage =
+          messages.length > 0
+            ? { action: "send_message" as const, params: messages[0].params }
+            : null;
+        const others = actions.filter(
+          (a) =>
+            a.action !== "buy" &&
+            a.action !== "send_message" &&
+            a.action !== "reply"
+        );
+        actions = [
+          ...(buys.length > 0 ? [buys[0]] : []),
+          ...others,
+          ...(oneMessage ? [oneMessage] : []),
+        ];
+        logger.info(
+          `[ActionRouter ${this.nodeId}] Capped to 1 buy + 1 send_message (had ${buys.length} buys, ${messages.length} message(s))`
+        );
+      } else if (messages.length === 1 && messages[0].action === "reply") {
+        // Normalize reply to send_message so we never quote-reply
+        const idx = actions.findIndex((a) => a === messages[0]);
+        if (idx >= 0) actions[idx] = { action: "send_message", params: messages[0].params };
       }
     }
 

@@ -1,11 +1,9 @@
 /**
  * Local JSON storage for solo mode.
- * Stores data in ~/.obelisk-core/data/ as JSON files.
- * Mirrors Python src/storage/local_json.py
+ * Stores data in obelisk-core/data/ (or OBELISK_STORAGE_PATH) as JSON files.
  */
 import fs from "fs";
 import path from "path";
-import os from "os";
 import crypto from "crypto";
 import {
   StorageInterface,
@@ -35,7 +33,7 @@ export class LocalJSONStorage implements StorageInterface {
     if (storagePath) {
       this.basePath = storagePath;
     } else {
-      this.basePath = path.join(os.homedir(), ".obelisk-core", "data");
+      this.basePath = path.join(process.cwd(), "data");
     }
 
     this.memoryPath = path.join(this.basePath, "memory");

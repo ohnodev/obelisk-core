@@ -126,10 +126,8 @@ Example of correct JSON format:
       );
 
       const summaryText = (result.response ?? "").trim();
-      const summaryData = extractJsonFromLlmResponse(
-        summaryText,
-        "summary"
-      );
+      const raw = extractJsonFromLlmResponse(summaryText, "summary");
+      const summaryData = Array.isArray(raw) ? null : (raw as Record<string, unknown>);
       return summaryData;
     } catch (err) {
       logger.error(`[MemoryCreator] Error summarizing with LLM: ${err}`);

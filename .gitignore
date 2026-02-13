@@ -46,7 +46,6 @@ ENV/
 
 # Storage (solo mode) - User data and local storage
 # Default storage location (in user's home directory)
-.obelisk-core/
 
 # Generic data directories
 data/
@@ -141,5 +140,7 @@ ui/.vercel
 !ui/package.json
 !ui/package-lock.json
 !ui/tsconfig.json
+# Allow workflow definitions
+!ui/workflows/*.json
 ui/.env*.local
 ui/*.tsbuildinfo

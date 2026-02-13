@@ -3,7 +3,19 @@
  * Mirrors Python src/utils/logger.py
  */
 
+import os from "os";
+
 type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
+
+/** Replace home directory with ~ in paths so logs don't expose full user path. */
+export function abbrevPathForLog(pathOrMessage: string): string {
+  const home = os.homedir();
+  if (!home || pathOrMessage.length < home.length) return pathOrMessage;
+  if (pathOrMessage === home) return "~";
+  if (pathOrMessage.startsWith(home + "/") || pathOrMessage.startsWith(home + "\\"))
+    return "~" + pathOrMessage.slice(home.length);
+  return pathOrMessage;
+}
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
   DEBUG: 0,

@@ -34,21 +34,21 @@ Obelisk Core has three components that work together:
 
 ```text
 ┌──────────────────────────────────┐
-│         Visual Workflow Editor   │  ← Browser UI (Next.js)
-│   Design agent workflows with   │    Build, test, and deploy
-│   drag-and-drop nodes           │    workflows visually
+│         Visual Workflow Editor   │     ← Browser UI (Next.js)
+│   Design agent workflows with    │     Build, test, and deploy
+│   drag-and-drop nodes            │     workflows visually
 └──────────────┬───────────────────┘
                │ executes
 ┌──────────────▼───────────────────┐
-│      TypeScript Execution Engine │  ← Agent Runtime (Node.js)
-│   Runs workflows as autonomous   │    Nodes: inference, Telegram,
-│   agents in Docker containers    │    memory, scheduling, etc.
+│      TypeScript Execution Engine │     ← Agent Runtime (Node.js)
+│   Runs workflows as autonomous   │     Nodes: inference, Telegram,
+│   agents in Docker containers    │     memory, scheduling, Clanker, etc.
 └──────────────┬───────────────────┘
                │ calls
 ┌──────────────▼───────────────────┐
-│      Python Inference Service    │  ← LLM Server (FastAPI + PyTorch)
-│   Self-hosted Qwen3 model with   │    Runs on GPU, serves via
-│   thinking mode and API auth     │    REST API with auth
+│      Python Inference Service    │     ← LLM Server (FastAPI + PyTorch)
+│   Self-hosted Qwen3 model with   │     Runs on GPU, serves via
+│   thinking mode and API auth     │     REST API with auth
 └──────────────────────────────────┘
 ```
 
@@ -65,6 +65,7 @@ Obelisk Core has three components that work together:
 - **Conversation Memory** — Persistent memory with automatic summarization
 - **Binary Intent** — Yes/no decision nodes for conditional workflow logic
 - **Wallet Authentication** — Privy-based wallet connect for managing deployed agents
+- **Clanker / Blockchain** — Blockchain Config, Clanker Launch Summary (recent launches + stats for LLM), Wallet node, Clanker Buy/Sell (V4 swaps via CabalSwapper), Action Router; **onSwap trigger** (last_swap.json) for a second loop: On Swap Trigger → Bag Checker (profit/stop-loss) → Clanker Sell; bag state (clanker_bags.json) for holdings and targets
 - **Scheduling** — Cron-like scheduling nodes for periodic tasks
 - **One-Click Deploy** — Deploy agents from the UI with environment variable injection
 

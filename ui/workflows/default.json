@@ -203,6 +203,48 @@
       "metadata": {}
     },
     {
+      "id": "28",
+      "type": "blockchain_config",
+      "position": { "x": -200, "y": 400 },
+      "inputs": {},
+      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
+    },
+    {
+      "id": "29",
+      "type": "scheduler",
+      "position": { "x": -200, "y": 520 },
+      "inputs": {},
+      "metadata": { "min_seconds": 60, "max_seconds": 120, "enabled": true }
+    },
+    {
+      "id": "30",
+      "type": "clanker_launch_summary",
+      "position": { "x": 80, "y": 460 },
+      "inputs": {},
+      "metadata": { "window_hours": 1, "limit": 20 }
+    },
+    {
+      "id": "31",
+      "type": "text",
+      "position": { "x": 380, "y": 460 },
+      "inputs": {},
+      "metadata": { "text": "Recent Clanker launches (see connected input)" }
+    },
+    {
+      "id": "32",
+      "type": "wallet",
+      "position": { "x": 2356, "y": 220 },
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "33",
+      "type": "clanker_buy",
+      "position": { "x": 2600, "y": 220 },
+      "inputs": {},
+      "metadata": { "amount_wei": "0" }
+    },
+    {
       "id": "6",
       "type": "inference",
       "position": {
@@ -440,6 +482,42 @@
       "from_output": "response",
       "to": "25",
       "to_input": "response"
+    },
+    {
+      "from": "28",
+      "from_output": "state_path",
+      "to": "30",
+      "to_input": "state_path"
+    },
+    {
+      "from": "28",
+      "from_output": "state",
+      "to": "30",
+      "to_input": "state"
+    },
+    {
+      "from": "29",
+      "from_output": "trigger",
+      "to": "30",
+      "to_input": "trigger"
+    },
+    {
+      "from": "30",
+      "from_output": "summary",
+      "to": "31",
+      "to_input": "text"
+    },
+    {
+      "from": "32",
+      "from_output": "private_key",
+      "to": "33",
+      "to_input": "private_key"
+    },
+    {
+      "from": "25",
+      "from_output": "tg_actions",
+      "to": "33",
+      "to_input": "tg_actions"
     }
   ]
 }
