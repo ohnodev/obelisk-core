@@ -125,7 +125,7 @@ async function main(): Promise<void> {
 
   for (const { tokenAddress, balanceWei, t } of toSell) {
     const poolFee = Number(t.feeTier) || 0;
-    const tickSpacing = Number(t.tickSpacing) ?? 0;
+    const tickSpacing = Number(t.tickSpacing) || 0;
     const hookAddress = String(t.hookAddress ?? "").trim();
     const currency0 = String(t.currency0 ?? "").trim();
     const currency1 = String(t.currency1 ?? "").trim();

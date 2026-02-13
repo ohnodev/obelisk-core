@@ -163,7 +163,7 @@ async function main(): Promise<void> {
     }
 
     const poolFee = Number(t.feeTier) || 0;
-    const tickSpacing = Number(t.tickSpacing) ?? 0;
+    const tickSpacing = Number(t.tickSpacing) || 0;
     const hookAddress = String(t.hookAddress ?? "").trim();
 
     console.log(`  Selling ${tokenAddress} (${balanceWei} wei)...`);
