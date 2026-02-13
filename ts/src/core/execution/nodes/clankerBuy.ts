@@ -137,7 +137,7 @@ export class ClankerBuyNode extends BaseNode {
     }
 
     let poolFee = Number(this.getInputValue("pool_fee", context, undefined)) || 0;
-    let tickSpacing = Number(this.getInputValue("tick_spacing", context, undefined)) ?? 0;
+    let tickSpacing = getNum(this.getInputValue("tick_spacing", context, undefined));
     let hookAddress = getStr(this.getInputValue("hook_address", context, undefined)) || "0x0000000000000000000000000000000000000000";
     let currency0 = getStr(this.getInputValue("currency0", context, undefined));
     let currency1 = getStr(this.getInputValue("currency1", context, undefined));
