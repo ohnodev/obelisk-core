@@ -129,10 +129,12 @@ export class BinaryIntentNode extends BaseNode {
     }
 
     try {
-      const parsed = extractJsonFromLlmResponse(
+      const parsedRaw = extractJsonFromLlmResponse(
         genResult.response,
         "binary_intent"
       );
+      const parsed =
+        Array.isArray(parsedRaw) ? ({} as Record<string, unknown>) : parsedRaw;
       let intentResult: boolean;
       const raw = parsed.result;
       if (typeof raw === "boolean") {

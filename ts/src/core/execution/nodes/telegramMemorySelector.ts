@@ -236,10 +236,11 @@ Example of correct JSON format:
       );
 
       const selectionText = (result.response ?? "").trim();
-      const selectionData = extractJsonFromLlmResponse(
+      const raw = extractJsonFromLlmResponse(
         selectionText,
         "telegram_memory_selection"
       );
+      const selectionData = Array.isArray(raw) ? ({} as Record<string, unknown>) : raw;
 
       const selectedIndices =
         (selectionData.selected_indices as number[]) ?? [];

@@ -158,10 +158,8 @@ Example of correct JSON format:
       );
 
       const summaryText = (result.response ?? "").trim();
-      const summaryData = extractJsonFromLlmResponse(
-        summaryText,
-        "telegram_summary"
-      );
+      const raw = extractJsonFromLlmResponse(summaryText, "telegram_summary");
+      const summaryData = Array.isArray(raw) ? null : (raw as Record<string, unknown>);
       return summaryData;
     } catch (err) {
       logger.error(`Error summarizing Telegram messages: ${err}`);
