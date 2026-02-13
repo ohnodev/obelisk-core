@@ -121,7 +121,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         poolId: getStr(launch.poolId) || getStr(t.poolId),
         hookAddress: getStr(launch.hookAddress) || getStr(t.hookAddress),
         feeTier: getNum(launch.feeTier) || getNum(t.feeTier),
-        tickSpacing: getNum(launch.tickSpacing) ?? getNum(t.tickSpacing),
+        tickSpacing: getNum(launch.tickSpacing) || getNum(t.tickSpacing) || 200,
         launchTime: launch.launchTime,
         totalSwaps: getNum(t.totalSwaps),
         totalBuys: getNum(t.totalBuys),
