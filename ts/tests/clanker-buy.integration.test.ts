@@ -2,12 +2,19 @@
  * Integration test: run a minimal workflow that performs a tiny Clanker buy (0.000001 ETH)
  * using SWAP_PRIVATE_KEY and a token from the cached blockchain state.
  *
- * Run with: SWAP_PRIVATE_KEY=0x... npm test -- clanker-buy
+ * Run with: npm test -- clanker-buy (loads .env from obelisk-core root if present)
  * Skips if SWAP_PRIVATE_KEY is unset or state file has no tokens.
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
+
+// Load .env from obelisk-core root and blockchain-service so SWAP_PRIVATE_KEY is available
+for (const rel of [path.join("..", "..", ".env"), path.join("..", "..", "blockchain-service", ".env")]) {
+  const envPath = path.resolve(__dirname, rel);
+  if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
+}
 import { ExecutionEngine } from "../src/core/execution/engine";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
 import type { WorkflowData } from "../src/core/types";
@@ -25,10 +32,10 @@ function findStatePath(): string | null {
   return null;
 }
 
-function loadFirstToken(statePath: string): { tokenAddress: string; feeTier: number; tickSpacing: number; hookAddress: string } | null {
+function loadFirstToken(statePath: string): { tokenAddress: string; feeTier: number; tickSpacing: number; hookAddress: string; currency0: string; currency1: string } | null {
   try {
     const raw = fs.readFileSync(statePath, "utf-8");
-    const state = JSON.parse(raw) as { tokens?: Record<string, { tokenAddress?: string; feeTier?: number; tickSpacing?: number; hookAddress?: string }> };
+    const state = JSON.parse(raw) as { tokens?: Record<string, { tokenAddress?: string; feeTier?: number; tickSpacing?: number; hookAddress?: string; currency0?: string; currency1?: string }> };
     const tokens = state.tokens && typeof state.tokens === "object" ? state.tokens : {};
     const first = Object.values(tokens)[0];
     if (!first?.tokenAddress) return null;
@@ -37,6 +44,8 @@ function loadFirstToken(statePath: string): { tokenAddress: string; feeTier: num
       feeTier: Number(first.feeTier) || 0,
       tickSpacing: Number(first.tickSpacing) ?? 0,
       hookAddress: first.hookAddress && first.hookAddress !== "0x0000000000000000000000000000000000000000" ? String(first.hookAddress) : "0x0000000000000000000000000000000000000000",
+      currency0: first.currency0 ? String(first.currency0) : "",
+      currency1: first.currency1 ? String(first.currency1) : "",
     };
   } catch {
     return null;
@@ -89,6 +98,8 @@ describe("Clanker buy integration", () => {
             pool_fee: token.feeTier,
             tick_spacing: token.tickSpacing,
             hook_address: token.hookAddress,
+            currency0: token.currency0,
+            currency1: token.currency1,
           },
         },
       ],
@@ -108,11 +119,12 @@ describe("Clanker buy integration", () => {
     const txHash = buyResult?.outputs?.txHash as string | undefined;
     const error = buyResult?.outputs?.error as string | undefined;
 
-    if (success && txHash) {
-      expect(typeof txHash).toBe("string");
-      expect(txHash.length).toBeGreaterThan(0);
-    } else {
-      expect(typeof (txHash ?? error) === "string").toBe(true);
+    // Require an actual on-chain tx: workflow ran and ClankerBuy returned success + txHash
+    expect(success).toBe(true);
+    expect(typeof txHash).toBe("string");
+    expect(txHash.length).toBeGreaterThan(0);
+    if (error) {
+      expect(error).toBe(""); // no error when we expect success
     }
   }, 60_000);
 });

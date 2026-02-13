@@ -31,6 +31,8 @@ export class ClankerBuyNode extends BaseNode {
     let poolFee = Number(this.getInputValue("pool_fee", context, undefined)) || 0;
     let tickSpacing = Number(this.getInputValue("tick_spacing", context, undefined)) ?? 0;
     let hookAddress = (this.getInputValue("hook_address", context, undefined) as string) ?? "";
+    let currency0 = (this.getInputValue("currency0", context, undefined) as string) ?? "";
+    let currency1 = (this.getInputValue("currency1", context, undefined) as string) ?? "";
 
     if (!tokenAddress && tgActions.length > 0) {
       const buyAction = tgActions.find((a) => String(a.action).toLowerCase() === "buy");
@@ -40,6 +42,8 @@ export class ClankerBuyNode extends BaseNode {
         poolFee = Number(buyAction.params.pool_fee ?? buyAction.params.poolFee ?? 0) || 0;
         tickSpacing = Number(buyAction.params.tick_spacing ?? buyAction.params.tickSpacing ?? 0) ?? 0;
         hookAddress = String(buyAction.params.hook_address ?? buyAction.params.hookAddress ?? "").trim();
+        currency0 = String(buyAction.params.currency0 ?? "").trim();
+        currency1 = String(buyAction.params.currency1 ?? "").trim();
       }
     }
 
@@ -61,6 +65,8 @@ export class ClankerBuyNode extends BaseNode {
         poolFee,
         tickSpacing,
         hookAddress: hookAddress || undefined,
+        currency0: currency0 || undefined,
+        currency1: currency1 || undefined,
       },
       process.env.RPC_URL
     );
