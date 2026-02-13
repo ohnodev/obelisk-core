@@ -3,20 +3,6 @@
   "name": "Clanker Autotrader V1",
   "nodes": [
     {
-      "id": "11",
-      "type": "text",
-      "position": { "x": 1203, "y": 343 },
-      "inputs": {},
-      "metadata": { "text": "{{process.env.TELEGRAM_CHAT_ID}}" }
-    },
-    {
-      "id": "19",
-      "type": "sell_notify",
-      "position": { "x": 1768, "y": 509 },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "5",
       "type": "inference_config",
       "position": { "x": 174, "y": 99 },
@@ -46,13 +32,6 @@
       "position": { "x": -347, "y": -286 },
       "inputs": {},
       "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
-    },
-    {
-      "id": "1",
-      "type": "blockchain_config",
-      "position": { "x": -375, "y": -129 },
-      "inputs": {},
-      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
     },
     {
       "id": "10",
@@ -101,13 +80,6 @@
       "id": "13",
       "type": "telegram_action",
       "position": { "x": 2231, "y": 158 },
-      "inputs": {},
-      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
-    },
-    {
-      "id": "21",
-      "type": "telegram_action",
-      "position": { "x": 2226, "y": 472 },
       "inputs": {},
       "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
     },
@@ -161,36 +133,53 @@
       "metadata": {}
     },
     {
-      "id": "16",
-      "type": "bag_checker",
-      "position": { "x": 538, "y": -463 },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "18",
       "type": "update_bags_on_sell",
       "position": { "x": 1418, "y": -492 },
       "inputs": {},
       "metadata": {}
+    },
+    {
+      "id": "16",
+      "type": "bag_checker",
+      "position": { "x": 514, "y": -473 },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "1",
+      "type": "blockchain_config",
+      "position": { "x": -399, "y": -107 },
+      "inputs": {},
+      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
+    },
+    {
+      "id": "19",
+      "type": "sell_notify",
+      "position": { "x": 1842, "y": -585 },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "21",
+      "type": "telegram_action",
+      "position": { "x": 2189, "y": -587 },
+      "inputs": {},
+      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": { "x": 1319, "y": -300 },
+      "inputs": {},
+      "metadata": { "text": "{{process.env.TELEGRAM_CHAT_ID}}" }
     }
   ],
   "connections": [
-    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
-    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" },
-    { "from": "19", "from_output": "actions", "to": "21", "to_input": "actions" },
-    { "from": "19", "from_output": "chat_id", "to": "21", "to_input": "chat_id" },
     { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
     { "from": "6", "from_output": "response", "to": "7", "to_input": "response" },
     { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
     { "from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key" },
-    { "from": "1", "from_output": "state_path", "to": "3", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "20", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "16", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "18", "to_input": "state_path" },
-    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "20", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "16", "to_input": "state" },
     { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
     { "from": "7", "from_output": "tg_actions", "to": "9", "to_input": "tg_actions" },
     { "from": "9", "from_output": "result", "to": "12", "to_input": "buy_result" },
@@ -204,6 +193,17 @@
     { "from": "17", "from_output": "result", "to": "18", "to_input": "sell_result" },
     { "from": "17", "from_output": "result", "to": "19", "to_input": "sell_result" },
     { "from": "16", "from_output": "should_sell", "to": "17", "to_input": "should_sell" },
-    { "from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params" }
+    { "from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params" },
+    { "from": "1", "from_output": "state_path", "to": "3", "to_input": "state_path" },
+    { "from": "1", "from_output": "state_path", "to": "20", "to_input": "state_path" },
+    { "from": "1", "from_output": "state_path", "to": "16", "to_input": "state_path" },
+    { "from": "1", "from_output": "state_path", "to": "18", "to_input": "state_path" },
+    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
+    { "from": "1", "from_output": "state", "to": "20", "to_input": "state" },
+    { "from": "1", "from_output": "state", "to": "16", "to_input": "state" },
+    { "from": "19", "from_output": "actions", "to": "21", "to_input": "actions" },
+    { "from": "19", "from_output": "chat_id", "to": "21", "to_input": "chat_id" },
+    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
+    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" }
   ]
 }
