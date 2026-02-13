@@ -82,7 +82,7 @@ const WETH_ABI = [
 ] as const;
 
 const CABAL_SWAPPER_ADDRESS =
-  "0x5e89Fb6079a7Aa593c9152fa28BCfe034D5cBb00" as const;
+  "0xEa944F12Db53405fb9afd6D5b7878dcAfC97D46a" as const;
 export const WETH_BASE =
   "0x4200000000000000000000000000000000000006" as const;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -200,7 +200,8 @@ export async function executeSwap(
       );
       const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, amount);
       await txApprove.wait();
-      const txSell = await contract.cabalSellV4WithPool(
+      // Send sell tx with fixed gas so it's broadcast even if estimateGas would revert (so you can trace the revert)
+      const populated = await contract.cabalSellV4WithPool.populateTransaction(
         currency0!,
         currency1!,
         amount,
@@ -208,8 +209,22 @@ export async function executeSwap(
         tick,
         hook
       );
-      const receipt = await txSell.wait();
-      return { success: true, txHash: receipt?.hash ?? undefined };
+      const txSell = await wallet.sendTransaction({
+        to: CABAL_SWAPPER_ADDRESS,
+        data: populated.data,
+        gasLimit: 3_000_000n,
+      });
+      const sellTxHash = txSell?.hash ?? undefined;
+      try {
+        const receipt = await txSell.wait();
+        if (receipt?.status === 0) {
+          return { success: false, error: "Sell reverted on-chain", txHash: receipt?.hash ?? sellTxHash };
+        }
+        return { success: true, txHash: receipt?.hash ?? sellTxHash };
+      } catch (waitErr: unknown) {
+        const waitMsg = waitErr instanceof Error ? waitErr.message : String(waitErr);
+        return { success: false, error: waitMsg, txHash: sellTxHash };
+      }
     }
     const tokenContract = new ethers.Contract(
       token,
@@ -223,6 +238,11 @@ export async function executeSwap(
     return { success: true, txHash: receipt?.hash ?? undefined };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { success: false, error: msg };
+    let txHash: string | undefined;
+    const err = e as { transaction?: { hash?: string }; receipt?: { hash?: string }; hash?: string };
+    if (err?.transaction?.hash) txHash = err.transaction.hash;
+    else if (err?.receipt?.hash) txHash = err.receipt.hash;
+    else if (err?.hash && typeof err.hash === "string") txHash = err.hash;
+    return { success: false, error: msg, txHash };
   }
 }
