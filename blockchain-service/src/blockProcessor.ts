@@ -246,7 +246,7 @@ export class BlockProcessor {
 
       for (const log of receipt.logs) {
         const addr = (log as any).address?.toLowerCase?.() ?? String(log.address).toLowerCase();
-        const topic0 = (log as any).topics?.[0] ?? (log as any).topics?.[0];
+        const topic0 = (log as any).topics?.[0];
 
         if (addr === POOL_MANAGER && topic0 === V4_INITIALIZE_TOPIC) {
           const candidate = this.parseInitialize(log as any, receipt as any);
