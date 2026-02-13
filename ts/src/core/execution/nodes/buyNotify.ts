@@ -34,6 +34,16 @@ function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+function safeErrorMessage(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try {
+    return String(e);
+  } catch {
+    return "unknown error";
+  }
+}
+
 async function sendTelegramMessage(
   botToken: string,
   chatId: string,
@@ -43,16 +53,30 @@ async function sendTelegramMessage(
     return { ok: false, error: "missing bot_token or chat_id" };
   }
   const url = `${TELEGRAM_API}${botToken}/sendMessage`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId.trim(), text }),
-  });
-  const data = (await res.json()) as { ok?: boolean; description?: string };
-  if (data?.ok) return { ok: true };
-  const err = data?.description ?? `HTTP ${res.status}`;
-  logger.warn(`[BuyNotify] Telegram send failed: ${err}`);
-  return { ok: false, error: err };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId.trim(), text }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    let data: { ok?: boolean; description?: string };
+    try {
+      data = (await res.json()) as { ok?: boolean; description?: string };
+    } catch (parseErr) {
+      const msg = safeErrorMessage(parseErr);
+      logger.warn(`[BuyNotify] Telegram response not JSON: ${msg}`);
+      return { ok: false, error: `invalid response: ${msg}` };
+    }
+    if (data?.ok) return { ok: true };
+    const err = data?.description ?? `HTTP ${res.status}`;
+    logger.warn(`[BuyNotify] Telegram send failed: ${err}`);
+    return { ok: false, error: err };
+  } catch (e) {
+    const msg = safeErrorMessage(e);
+    logger.error(`[BuyNotify] Telegram fetch failed: ${msg}`);
+    return { ok: false, error: msg };
+  }
 }
 
 export class BuyNotifyNode extends BaseNode {
