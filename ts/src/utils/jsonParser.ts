@@ -82,6 +82,29 @@ export function extractJsonFromLlmResponse(
       try {
         return JSON.parse(jsonStr);
       } catch (e) {
+        // Often the response is truncated (e.g. 80 chars) so extracted string ends with }} or }}]
+        const trimmed = jsonStr.trim();
+        if (trimmed.endsWith("}}") && !trimmed.endsWith("}}]")) {
+          try {
+            const repaired = JSON.parse(trimmed + "]}");
+            logger.warning(
+              `Repaired truncated JSON from ${context} (extracted ended with }}; appended ]})`
+            );
+            return repaired;
+          } catch {
+            // fall through to error
+          }
+        } else if (trimmed.endsWith("}}]")) {
+          try {
+            const repaired = JSON.parse(trimmed + "}");
+            logger.warning(
+              `Repaired truncated JSON from ${context} (extracted ended with }}]; appended })`
+            );
+            return repaired;
+          } catch {
+            // fall through to error
+          }
+        }
         logger.error(
           `Failed to parse JSON from ${context} (extracted from braces): ${jsonStr.slice(0, 200)}`
         );

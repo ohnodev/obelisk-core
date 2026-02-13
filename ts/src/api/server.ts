@@ -74,54 +74,6 @@ export function createApp(): express.Application {
   return app;
 }
 
-const TELEGRAM_API = "https://api.telegram.org/bot";
-
-/**
- * On startup: if Telegram is configured, verify the bot can send to the group.
- * Sends "Obelisk Core starting in this group." and logs clearly on failure.
- */
-async function verifyTelegramStartup(): Promise<void> {
-  const token = Config.TELEGRAM_BOT_TOKEN?.trim();
-  const chatId = Config.TELEGRAM_CHAT_ID?.trim();
-  if (!token || !chatId) {
-    logger.info("Telegram not configured (TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing); skipping startup check.");
-    return;
-  }
-
-  try {
-    const getMeRes = await fetch(`${TELEGRAM_API}${token}/getMe`);
-    const getMeData = (await getMeRes.json()) as { ok?: boolean; result?: { username?: string }; description?: string };
-    if (!getMeData?.ok) {
-      logger.error(
-        `Telegram startup check failed: bot token invalid or getMe failed. ${getMeData?.description || getMeRes.statusText}`
-      );
-      return;
-    }
-    const username = getMeData.result?.username ?? "?";
-
-    const sendRes = await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: "Obelisk Core starting in this group.",
-        parse_mode: "HTML",
-      }),
-    });
-    const sendData = (await sendRes.json()) as { ok?: boolean; description?: string; error_code?: number };
-    if (!sendData?.ok) {
-      logger.error(
-        `Telegram startup check failed: bot @${username} cannot send to chat ${chatId}. ` +
-          `Add the bot to the group or check TELEGRAM_CHAT_ID. API: ${sendData?.description || sendRes.statusText} (${sendData?.error_code ?? ""})`
-      );
-      return;
-    }
-    logger.info(`Telegram startup check OK: bot @${username} can send to chat ${chatId}.`);
-  } catch (e) {
-    logger.error(`Telegram startup check failed: ${e}`);
-  }
-}
-
 /**
  * Start the server. Called from index.ts or directly.
  */
@@ -136,8 +88,5 @@ export function startServer(): void {
     logger.info(`  CORS:   ${Config.CORS_ORIGINS.join(", ")}`);
     logger.info(`  Debug:  ${Config.DEBUG}`);
     logger.info("=".repeat(60));
-    void verifyTelegramStartup().catch((e) =>
-      logger.error(`Telegram startup check failed: ${e}`)
-    );
   });
 }
