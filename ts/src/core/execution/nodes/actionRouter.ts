@@ -187,8 +187,15 @@ if (actions.length === 0 && responseStr && !parsedSuccessfully) {
           messages.length > 0
             ? { action: "send_message" as const, params: messages[0].params }
             : null;
+        const others = actions.filter(
+          (a) =>
+            a.action !== "buy" &&
+            a.action !== "send_message" &&
+            a.action !== "reply"
+        );
         actions = [
           ...(buys.length > 0 ? [buys[0]] : []),
+          ...others,
           ...(oneMessage ? [oneMessage] : []),
         ];
         logger.info(
