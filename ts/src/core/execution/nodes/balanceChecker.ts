@@ -46,6 +46,15 @@ function parseWei(value: unknown): bigint {
       return 0n;
     }
   }
+  // Pure integer string = wei (do not treat as ETH)
+  if (/^\d+$/.test(s)) {
+    try {
+      return BigInt(s);
+    } catch {
+      return 0n;
+    }
+  }
+  // Decimal or other ETH-like format = parse as ETH
   if (/^\d*\.?\d+$/.test(s)) {
     try {
       return ethers.parseEther(s);
