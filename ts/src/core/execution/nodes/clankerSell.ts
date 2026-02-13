@@ -1,7 +1,7 @@
 /**
  * ClankerSellNode – execute a V4 sell (token → WETH) using CabalSwapper.
- * Hook up Wallet for private_key; get params from sell_params (e.g. from BagChecker) or direct inputs.
- * Proceeds are WETH (Clanker pays WETH, not native ETH).
+ * Private key from metadata.private_key or SWAP_PRIVATE_KEY (Wallet node no longer passes it).
+ * Get params from sell_params (e.g. from BagChecker) or direct inputs. Proceeds are WETH.
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
@@ -11,7 +11,11 @@ const logger = getLogger("clankerSell");
 
 export class ClankerSellNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
-    const privateKey = (this.getInputValue("private_key", context, undefined) as string) ?? "";
+    const privateKey =
+      (this.getInputValue("private_key", context, undefined) as string) ??
+      this.resolveEnvVar(this.metadata.private_key) ??
+      process.env.SWAP_PRIVATE_KEY ??
+      "";
     const shouldSell = this.getInputValue("should_sell", context, false) as boolean;
     const sellParams = this.getInputValue("sell_params", context, undefined) as Record<string, unknown> | undefined;
 
@@ -38,7 +42,7 @@ export class ClankerSellNode extends BaseNode {
     }
 
     if (!privateKey || privateKey.length < 20) {
-      logger.warn("[ClankerSell] No private_key (connect Wallet node)");
+      logger.warn("[ClankerSell] No private_key (set metadata.private_key or SWAP_PRIVATE_KEY)");
       return { success: false, error: "Wallet not configured", txHash: undefined };
     }
 

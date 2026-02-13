@@ -5,7 +5,7 @@
  * so the wallet has enough native ETH for gas.
  *
  * Inputs:
- *   private_key: From Wallet node or env (required for address + RPC)
+ *   private_key: From metadata.private_key or SWAP_PRIVATE_KEY (Wallet node no longer exposes it; required for address + RPC)
  *   min_balance_wei: Minimum required combined (ETH+WETH) balance in wei (optional; default 0.004 ETH)
  *
  * Outputs:

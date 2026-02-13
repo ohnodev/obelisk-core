@@ -77,7 +77,11 @@ function findTokenInState(
 
 export class ClankerBuyNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
-    const privateKey = (this.getInputValue("private_key", context, undefined) as string) ?? "";
+    const privateKey =
+      (this.getInputValue("private_key", context, undefined) as string) ??
+      this.resolveEnvVar(this.metadata.private_key) ??
+      process.env.SWAP_PRIVATE_KEY ??
+      "";
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const tgActions = getActions(this.getInputValue("tg_actions", context, undefined));
 

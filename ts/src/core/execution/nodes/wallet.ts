@@ -1,6 +1,8 @@
 /**
- * WalletNode – reads SWAP_PRIVATE_KEY from process.env and passes it downstream.
- * Hook up to Buy (or Sell) node so the swap uses this wallet.
+ * WalletNode – resolves private key from inputs, metadata.private_key, or SWAP_PRIVATE_KEY env
+ * for internal checks. Does not expose private_key in output; downstream nodes (ClankerBuy,
+ * ClankerSell, BalanceChecker) must read the key from metadata.private_key or SWAP_PRIVATE_KEY.
+ * Hook up to Buy/Sell so the graph knows wallet is required; they read the key themselves.
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
@@ -21,9 +23,6 @@ export class WalletNode extends BaseNode {
       logger.debug("[Wallet] SWAP_PRIVATE_KEY not set or too short");
     }
 
-    return {
-      private_key: privateKey,
-      wallet_ready: walletReady,
-    };
+    return { wallet_ready: walletReady };
   }
 }
