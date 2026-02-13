@@ -166,15 +166,15 @@ export class BlockProcessor {
       return;
     }
 
+    let resolveInFlight: (() => void) | undefined;
+    const inFlightPromise = new Promise<void>((r) => {
+      resolveInFlight = r;
+    });
+    this.inFlightBlocks.set(blockNumber, { promise: inFlightPromise, resolve: resolveInFlight! });
+
     let blockErrors = 0;
     while (this.isRunning) {
       let timerId: ReturnType<typeof setTimeout> | undefined;
-      let resolveInFlight: (() => void) | undefined;
-      const inFlightPromise = new Promise<void>((r) => {
-        resolveInFlight = r;
-      });
-      this.inFlightBlocks.set(blockNumber, { promise: inFlightPromise, resolve: resolveInFlight! });
-
       const workPromise = this.processBlock(blockNumber);
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
@@ -186,12 +186,12 @@ export class BlockProcessor {
         await Promise.race([workPromise, timeoutPromise]);
         this.consecutiveErrors = 0;
         this.retryDelayMs = RETRY_DELAY_MS;
-        return;
+        break;
       } catch (e) {
         blockErrors++;
         this.consecutiveErrors++;
         console.warn(`[Clanker] Error processing block ${blockNumber} (${this.consecutiveErrors}):`, e);
-        if (blockErrors > 3) return;
+        if (blockErrors > 3) break;
         await workPromise.catch(() => {});
         await this.sleep(this.retryDelayMs);
         this.retryDelayMs = Math.min(this.retryDelayMs * 2, MAX_RETRY_DELAY_MS);
@@ -201,10 +201,13 @@ export class BlockProcessor {
         }
       } finally {
         if (timerId !== undefined) clearTimeout(timerId);
-        resolveInFlight?.();
-        this.inFlightBlocks.delete(blockNumber);
       }
     }
+
+    if (resolveInFlight) {
+      resolveInFlight();
+    }
+    this.inFlightBlocks.delete(blockNumber);
   }
 
   private async handleMainLoopError(error: unknown): Promise<void> {
