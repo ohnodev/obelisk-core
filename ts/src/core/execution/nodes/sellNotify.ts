@@ -1,13 +1,18 @@
 /**
- * SellNotifyNode – when Clanker Sell succeeds, builds a single Telegram "reply" action
- * with a sell notification message. Connect to TelegramAction with chat_id.
+ * SellNotifyNode – when Clanker Sell succeeds, sends a sell notification to Telegram.
+ * Includes Basescan tx link and PnL (received ETH vs cost from holding).
  *
- * Inputs: sell_result (from Clanker Sell: success, txHash, token_address, amount_wei), chat_id
- * Outputs: actions (for TelegramAction), chat_id
+ * Inputs: sell_result (success, txHash, token_address, amount_wei, value_wei/eth_received), holding (from BagChecker: boughtAtPriceEth, amountWei), chat_id
+ * Outputs: sent (boolean), chat_id, error (if send failed)
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
+import { Config } from "../../config";
+import { getLogger } from "../../../utils/logger";
 
+const logger = getLogger("sellNotify");
 const ETH_WEI = 1e18;
+const BASESCAN_TX = "https://basescan.org/tx";
+const TELEGRAM_API = "https://api.telegram.org/bot";
 
 function weiToEth(wei: string | number): string {
   const n = typeof wei === "string" ? Number(wei) : wei;
@@ -15,26 +20,79 @@ function weiToEth(wei: string | number): string {
   return (n / ETH_WEI).toFixed(4);
 }
 
+function formatEth(wei: string | number): string {
+  const n = typeof wei === "string" ? Number(wei) : wei;
+  if (!Number.isFinite(n)) return "0";
+  const eth = n / ETH_WEI;
+  if (eth === 0) return "0";
+  const s = eth.toFixed(8);
+  return String(parseFloat(s));
+}
+
+async function sendTelegramMessage(
+  botToken: string,
+  chatId: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!botToken || !chatId.trim()) {
+    return { ok: false, error: "missing bot_token or chat_id" };
+  }
+  const url = `${TELEGRAM_API}${botToken}/sendMessage`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId.trim(), text }),
+  });
+  const data = (await res.json()) as { ok?: boolean; description?: string };
+  if (data?.ok) return { ok: true };
+  const err = data?.description ?? `HTTP ${res.status}`;
+  logger.warn(`[SellNotify] Telegram send failed: ${err}`);
+  return { ok: false, error: err };
+}
+
 export class SellNotifyNode extends BaseNode {
-  execute(context: ExecutionContext): Record<string, unknown> {
+  async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
-    const chatId = (this.getInputValue("chat_id", context, undefined) as string) ?? "";
+    const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;
+    const chatId =
+      (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
+      Config.TELEGRAM_CHAT_ID ||
+      "";
 
     const success = sellResult?.success === true;
     const txHash = sellResult?.txHash as string | undefined;
     const tokenAddress = (sellResult?.token_address as string) ?? "";
     const amountWei = (sellResult?.amount_wei as string) ?? "0";
+    const receivedWei =
+      (sellResult?.value_wei as string) ?? (sellResult?.eth_received as string) ?? "0";
 
-    const actions: Array<{ action: string; params: Record<string, unknown> }> = [];
+    let sent = false;
+    let error: string | undefined;
     if (success && txHash) {
-      const ethAmount = weiToEth(amountWei);
-      const text = `Sold token ${tokenAddress} (${ethAmount} tokens). Tx: ${txHash}`;
-      actions.push({ action: "reply", params: { text } });
+      const txUrl = `${BASESCAN_TX}/${txHash}`;
+      const tokenAmount = weiToEth(amountWei);
+      const receivedEth = formatEth(receivedWei);
+      let pnlPart = "";
+      if (holding && typeof holding.boughtAtPriceEth === "number" && holding.amountWei) {
+        const costEth = holding.boughtAtPriceEth * (Number(holding.amountWei) / ETH_WEI);
+        const receivedEthNum = Number(receivedWei) / ETH_WEI;
+        const pnlEth = receivedEthNum - costEth;
+        const pnlPct = costEth > 0 ? (pnlEth / costEth) * 100 : 0;
+        pnlPart = ` Received ${receivedEth} ETH. PnL: ${pnlEth >= 0 ? "+" : ""}${pnlEth.toFixed(6)} ETH (${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%).`;
+      } else {
+        pnlPart = ` Received ${receivedEth} ETH.`;
+      }
+      const text = `Sold token ${tokenAddress} (${tokenAmount} tokens).${pnlPart} Tx: ${txUrl}`;
+      const botToken = Config.TELEGRAM_BOT_TOKEN || "";
+      const result = await sendTelegramMessage(botToken, chatId, text);
+      sent = result.ok;
+      error = result.error;
     }
 
     return {
-      actions,
+      sent,
       chat_id: chatId,
+      ...(error && { error }),
     };
   }
 }

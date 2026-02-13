@@ -28,7 +28,7 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. amount_eth optional: use ETH amounts like 0.001, 0.002, 0.004 (range 0.001 to 0.004). Do not use wei. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. Output ONLY valid JSON. Example buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.002}}]}. Example no buy: {\"actions\":[]}.",
+        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. amount_eth optional: use ETH amounts like 0.0005, 0.001 (range 0.0005 to 0.001). Do not use wei. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. Output ONLY valid JSON. Example buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. Example no buy: {\"actions\":[]}.",
         "enable_thinking": false
       }
     },
@@ -146,7 +146,9 @@
         "y": -473
       },
       "inputs": {},
-      "metadata": {}
+      "metadata": {
+        "sell_timer_minutes": 5
+      }
     },
     {
       "id": "19",
@@ -324,18 +326,6 @@
       "to_input": "buy_result"
     },
     {
-      "from": "12",
-      "from_output": "actions",
-      "to": "13",
-      "to_input": "actions"
-    },
-    {
-      "from": "12",
-      "from_output": "chat_id",
-      "to": "13",
-      "to_input": "chat_id"
-    },
-    {
       "from": "14",
       "from_output": "trigger",
       "to": "22",
@@ -361,6 +351,12 @@
     },
     {
       "from": "16",
+      "from_output": "holding",
+      "to": "19",
+      "to_input": "holding"
+    },
+    {
+      "from": "16",
       "from_output": "should_sell",
       "to": "17",
       "to_input": "should_sell"
@@ -370,18 +366,6 @@
       "from_output": "sell_params",
       "to": "17",
       "to_input": "sell_params"
-    },
-    {
-      "from": "19",
-      "from_output": "actions",
-      "to": "21",
-      "to_input": "actions"
-    },
-    {
-      "from": "19",
-      "from_output": "chat_id",
-      "to": "21",
-      "to_input": "chat_id"
     },
     {
       "from": "11",
@@ -477,6 +461,12 @@
       "from": "23",
       "from_output": "trigger",
       "to": "3",
+      "to_input": "trigger"
+    },
+    {
+      "from": "23",
+      "from_output": "trigger",
+      "to": "6",
       "to_input": "trigger"
     },
     {

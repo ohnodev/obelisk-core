@@ -66,13 +66,24 @@ export class ClankerSellNode extends BaseNode {
       logger.warn(`[ClankerSell] Sell failed: ${result.error}`);
     }
 
+    const ethReceived = (result as { ethReceived?: string }).ethReceived;
     return {
       success: result.success,
       txHash: result.txHash,
       error: result.error,
       token_address: tokenAddress,
       amount_wei: String(amountWei),
-      result: { success: result.success, txHash: result.txHash, error: result.error, token_address: tokenAddress, amount_wei: amountWei },
+      value_wei: ethReceived ?? undefined,
+      eth_received: ethReceived ?? undefined,
+      result: {
+        success: result.success,
+        txHash: result.txHash,
+        error: result.error,
+        token_address: tokenAddress,
+        amount_wei: amountWei,
+        value_wei: ethReceived,
+        eth_received: ethReceived,
+      },
     };
   }
 }
