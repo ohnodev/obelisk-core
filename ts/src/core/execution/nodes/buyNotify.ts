@@ -5,23 +5,28 @@
  * Inputs: buy_result (from Clanker Buy: success, txHash, token_address, amount_wei, symbol?), chat_id
  * Outputs: sent (boolean), chat_id, error (if send failed)
  */
+import { formatEther } from "ethers";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { Config } from "../../config";
 import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("buyNotify");
-const ETH_WEI = 1e18;
 const BASESCAN_TX = "https://basescan.org/tx";
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
-/** Format wei as human-readable ETH (e.g. "0.002", "0.00001") with no trailing zeros. */
-function formatEth(wei: string | number): string {
-  const n = typeof wei === "string" ? Number(wei) : wei;
-  if (!Number.isFinite(n)) return "0";
-  const eth = n / ETH_WEI;
-  if (eth === 0) return "0";
-  const s = eth.toFixed(8);
-  return String(parseFloat(s));
+/** Format wei as human-readable ETH (e.g. "0", "0.002", "0.00001") with no trailing zeros. */
+function formatEth(wei: string | bigint): string {
+  try {
+    const weiValue = typeof wei === "bigint" ? wei : BigInt(wei);
+    let s = formatEther(weiValue);
+    if (s.includes(".")) {
+      s = s.replace(/0+$/, "");
+      if (s.endsWith(".")) s = s.slice(0, -1);
+    }
+    return s;
+  } catch {
+    return "0";
+  }
 }
 
 function shortAddress(addr: string): string {
