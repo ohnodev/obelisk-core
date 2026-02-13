@@ -58,9 +58,21 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const now = Date.now();
     const cutoff = now - windowHours * ONE_HOUR_MS;
     const inWindow = recentLaunches.filter((l) => (getNum(l.launchTime) || 0) >= cutoff);
-    const slice = inWindow.slice(0, limit);
+    // Enrich with token stats so we can sort by volume
+    const withStats = inWindow.map((launch) => {
+      const addr = getStr(launch.tokenAddress).toLowerCase();
+      const t = tokens[addr] ?? {};
+      return {
+        launch,
+        volume1h: getNum(t.volume1h),
+        volume24h: getNum(t.volume24h),
+      };
+    });
+    // Sort by top volume (1h then 24h), take limit
+    withStats.sort((a, b) => (b.volume1h || 0) - (a.volume1h || 0) || (b.volume24h || 0) - (a.volume24h || 0));
+    const slice = withStats.slice(0, limit);
 
-    const enriched = slice.map((launch) => {
+    const enriched = slice.map(({ launch }) => {
       const addr = getStr(launch.tokenAddress).toLowerCase();
       const t = tokens[addr] ?? {};
       return {
@@ -77,12 +89,14 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         totalBuys: getNum(t.totalBuys),
         totalSells: getNum(t.totalSells),
         volume24h: getNum(t.volume24h),
-        volume1h: getNum(t.volume1h),
-        volume30m: getNum(t.volume30m),
-        volume15m: getNum(t.volume15m),
+        volume1m: getNum(t.volume1m),
         volume5m: getNum(t.volume5m),
+        volume15m: getNum(t.volume15m),
+        volume30m: getNum(t.volume30m),
+        volume1h: getNum(t.volume1h),
         totalMakers: getNum(t.totalMakers),
         lastPrice: getNum(t.lastPrice),
+        priceChange1m: getNum(t.priceChange1m),
         priceChange5m: getNum(t.priceChange5m),
         priceChange15m: getNum(t.priceChange15m),
         priceChange30m: getNum(t.priceChange30m),
@@ -92,10 +106,10 @@ export class ClankerLaunchSummaryNode extends BaseNode {
 
     const lines = enriched.map(
       (e) =>
-        `- ${e.symbol || e.tokenAddress} (${e.tokenAddress}): vol24h=$${getNum(e.volume24h).toFixed(0)} vol1h=$${getNum(e.volume1h).toFixed(0)} vol5m=$${getNum(e.volume5m).toFixed(0)} makers=${getNum(e.totalMakers)} swaps=${getNum(e.totalSwaps)} priceChange1h=${getNum(e.priceChange1h)}% poolFee=${getNum(e.feeTier)} tickSpacing=${getNum(e.tickSpacing)} hook=${getStr(e.hookAddress).slice(0, 10)}...`
+        `- ${e.symbol || e.tokenAddress} (${e.tokenAddress}): vol24h=${getNum(e.volume24h).toFixed(4)}ETH vol1h=${getNum(e.volume1h).toFixed(4)}ETH vol5m=${getNum(e.volume5m).toFixed(4)}ETH vol1m=${getNum(e.volume1m).toFixed(4)}ETH makers=${getNum(e.totalMakers)} swaps=${getNum(e.totalSwaps)} priceChange1m=${getNum(e.priceChange1m)}% priceChange5m=${getNum(e.priceChange5m)}% priceChange1h=${getNum(e.priceChange1h)}% poolFee=${getNum(e.feeTier)} tickSpacing=${getNum(e.tickSpacing)} hook=${getStr(e.hookAddress).slice(0, 10)}...`
     );
     const summary =
-      `Recent Clanker launches (past ${windowHours}h) with stats:\n` + (lines.length ? lines.join("\n") : "(none)");
+      `Recent Clanker launches (past ${windowHours}h). All volumes and price in ETH. Price/volume deltas: 1m, 5m, 15m, 30m, 1h.\n` + (lines.length ? lines.join("\n") : "(none)");
 
     return {
       recent_launches: enriched,

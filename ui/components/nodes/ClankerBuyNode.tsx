@@ -22,6 +22,7 @@ class ClankerBuyNode extends LGraphNode {
     this.addOutput("success", "boolean");
     this.addOutput("txHash", "string");
     this.addOutput("error", "string");
+    this.addOutput("result", "object");
 
     this.addProperty("amount_wei", "0", "string");
     this.addWidget("string", "amount_wei", "0", (value: string) => {

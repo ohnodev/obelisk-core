@@ -30,6 +30,7 @@ import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
 import { ClankerLaunchSummaryNode } from "./nodes/clankerLaunchSummary";
 import { WalletNode } from "./nodes/wallet";
 import { ClankerBuyNode } from "./nodes/clankerBuy";
+import { BuyNotifyNode } from "./nodes/buyNotify";
 
 const logger = getLogger("nodeRegistry");
 
@@ -94,6 +95,7 @@ export function registerAllNodes(): void {
   registerNode("clanker_launch_summary", ClankerLaunchSummaryNode);
   registerNode("wallet", WalletNode);
   registerNode("clanker_buy", ClankerBuyNode);
+  registerNode("buy_notify", BuyNotifyNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);

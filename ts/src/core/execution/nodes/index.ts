@@ -25,3 +25,4 @@ export { ClankerTokenStatsNode } from "./clankerTokenStats";
 export { ClankerLaunchSummaryNode } from "./clankerLaunchSummary";
 export { WalletNode } from "./wallet";
 export { ClankerBuyNode } from "./clankerBuy";
+export { BuyNotifyNode } from "./buyNotify";

@@ -14,6 +14,7 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 const THIRTY_MIN_MS = 30 * 60 * 1000;
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;
 const FIVE_MIN_MS = 5 * 60 * 1000;
+const ONE_MIN_MS = 60 * 1000;
 
 export class StateManager {
   private state: ClankerState = {
@@ -153,10 +154,10 @@ export class StateManager {
   recordSwap(
     poolId: string,
     side: "buy" | "sell",
-    volumeUsd: number,
+    volumeEth: number,
     timestamp: number,
     sender?: string,
-    priceUsd?: number
+    priceEth?: number
   ): void {
     const poolIdLower = poolId.toLowerCase();
     for (const t of Object.values(this.state.tokens)) {
@@ -164,9 +165,9 @@ export class StateManager {
         t.totalSwaps += 1;
         if (side === "buy") t.totalBuys += 1;
         else t.totalSells += 1;
-        t.volume24h = this.trimAndSum24h(t, volumeUsd, timestamp);
-        if (priceUsd != null && priceUsd > 0) t.lastPrice = priceUsd;
-        t.last20Swaps.push({ timestamp, side, volumeUsd, sender, priceUsd });
+        t.volume24h = this.trimAndSum24h(t, volumeEth, timestamp);
+        if (priceEth != null && priceEth > 0) t.lastPrice = priceEth;
+        t.last20Swaps.push({ timestamp, side, volumeEth, sender, priceEth });
         if (t.last20Swaps.length > LAST_N_SWAPS) {
           t.last20Swaps = t.last20Swaps.slice(-LAST_N_SWAPS);
         }
@@ -194,30 +195,59 @@ export class StateManager {
     token.volume30m = this.sumInWindow(events, timestamp, THIRTY_MIN_MS);
     token.volume15m = this.sumInWindow(events, timestamp, FIFTEEN_MIN_MS);
     token.volume5m = this.sumInWindow(events, timestamp, FIVE_MIN_MS);
+    token.volume1m = this.sumInWindow(events, timestamp, ONE_MIN_MS);
+    this.updatePriceChanges(token, timestamp);
+  }
+
+  /** Compute price change % for 1m, 5m, 15m, 30m, 1h from last20Swaps (priceEth or legacy priceUsd). */
+  private updatePriceChanges(token: TokenState, now: number): void {
+    const swaps = token.last20Swaps ?? [];
+    const current = token.lastPrice;
+    if (current == null || current <= 0) return;
+    const intervals = [
+      { key: "priceChange1m" as const, ms: ONE_MIN_MS },
+      { key: "priceChange5m" as const, ms: FIVE_MIN_MS },
+      { key: "priceChange15m" as const, ms: FIFTEEN_MIN_MS },
+      { key: "priceChange30m" as const, ms: THIRTY_MIN_MS },
+      { key: "priceChange1h" as const, ms: ONE_HOUR_MS },
+    ];
+    for (const { key, ms } of intervals) {
+      const cutoff = now - ms;
+      const inWindow = swaps
+        .filter((s) => {
+          const p = s.priceEth ?? s.priceUsd;
+          return s.timestamp >= cutoff && p != null && p > 0;
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+      const pastPrice = inWindow.length ? (inWindow[0].priceEth ?? inWindow[0].priceUsd)! : undefined;
+      if (pastPrice != null && pastPrice > 0) {
+        token[key] = ((current - pastPrice) / pastPrice) * 100;
+      }
+    }
   }
 
   private sumInWindow(
-    events: Array<{ timestamp: number; volumeUsd: number }>,
+    events: Array<{ timestamp: number; volumeEth: number }>,
     now: number,
     windowMs: number
   ): number {
     const cutoff = now - windowMs;
-    return events.filter((e) => e.timestamp >= cutoff).reduce((s, e) => s + e.volumeUsd, 0);
+    return events.filter((e) => e.timestamp >= cutoff).reduce((s, e) => s + e.volumeEth, 0);
   }
 
-  /** Per-token 24h volume: we keep in-memory list for 24h sum and interval stats (5m/15m/30m/1h). */
-  private volumeEvents: Map<string, Array<{ timestamp: number; volumeUsd: number }>> = new Map();
+  /** Per-token 24h volume (ETH): in-memory list for 24h sum and interval stats. */
+  private volumeEvents: Map<string, Array<{ timestamp: number; volumeEth: number }>> = new Map();
 
-  private trimAndSum24h(token: TokenState, newVolumeUsd: number, timestamp: number): number {
+  private trimAndSum24h(token: TokenState, newVolumeEth: number, timestamp: number): number {
     let events = this.volumeEvents.get(token.tokenAddress);
     if (!events) {
       events = [];
       this.volumeEvents.set(token.tokenAddress, events);
     }
-    events.push({ timestamp, volumeUsd: newVolumeUsd });
+    events.push({ timestamp, volumeEth: newVolumeEth });
     const cutoff = timestamp - TWENTY_FOUR_HOURS_MS;
     while (events.length && events[0].timestamp < cutoff) events.shift();
-    const sum = events.reduce((s, e) => s + e.volumeUsd, 0);
+    const sum = events.reduce((s, e) => s + e.volumeEth, 0);
     this.updateIntervalVolumes(token, timestamp);
     return sum;
   }

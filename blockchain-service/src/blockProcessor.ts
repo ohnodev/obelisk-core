@@ -404,16 +404,30 @@ export class BlockProcessor {
       const amount0 = BigInt(decoded[0].toString());
       const amount1 = BigInt(decoded[1].toString());
 
-      const token = this.getTokenByPoolId(poolId);
-      if (!token) return;
+      const tokenInfo = this.getTokenByPoolId(poolId);
+      if (!tokenInfo) return;
 
       const isBuy =
-        (token.currency0 === WETH && amount0 < 0n) ||
-        (token.currency1 === WETH && amount1 < 0n);
+        (tokenInfo.currency0 === WETH && amount0 < 0n) ||
+        (tokenInfo.currency1 === WETH && amount1 < 0n);
       const side = isBuy ? "buy" as const : "sell" as const;
-      const volumeUsd = 0;
-      this.state.recordSwap(poolId, side, volumeUsd, Date.now());
-      console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}...`);
+
+      const wethAmount = tokenInfo.currency0 === WETH ? amount0 : amount1;
+      const tokenAmount = tokenInfo.currency0 === WETH ? amount1 : amount0;
+      const wethAbs = wethAmount < 0n ? -wethAmount : wethAmount;
+      const volumeEth = Number(wethAbs) / 1e18;
+
+      const tokenAddress = tokenInfo.currency0 === WETH ? tokenInfo.currency1 : tokenInfo.currency0;
+      const tokenState = this.state.getToken(tokenAddress);
+      const decimals = tokenState?.decimals ?? 18;
+      const tokenAmountAbs = tokenAmount < 0n ? -tokenAmount : tokenAmount;
+      const priceEth =
+        tokenAmountAbs > 0n && volumeEth > 0
+          ? volumeEth / (Number(tokenAmountAbs) / Math.pow(10, decimals))
+          : undefined;
+
+      this.state.recordSwap(poolId, side, volumeEth, Date.now(), undefined, priceEth);
+      console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}... volEth=${volumeEth.toFixed(6)}`);
     } catch (e) {
       console.warn("[Clanker] Process V4 swap error:", e);
     }

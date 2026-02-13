@@ -77,10 +77,13 @@ export class ClankerBuyNode extends BaseNode {
       logger.warn(`[ClankerBuy] Swap failed: ${result.error}`);
     }
 
-    return {
+    const out = {
       success: result.success,
       txHash: result.txHash,
       error: result.error,
+      token_address: tokenAddress,
+      amount_wei: String(amountWei),
     };
+    return { ...out, result: out };
   }
 }

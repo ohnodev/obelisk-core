@@ -210,6 +210,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Clanker Buy",
         description: "Execute V4 buy via CabalSwapper; connect Wallet + Action Router or token params",
       },
+      {
+        type: "buy_notify",
+        title: "Buy Notify",
+        description: "Builds Telegram notification when buy succeeds; connect to TG Action with chat_id",
+      },
     ],
   },
 ];

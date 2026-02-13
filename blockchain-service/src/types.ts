@@ -5,10 +5,15 @@
 export interface LastSwapItem {
   timestamp: number;
   side: "buy" | "sell";
-  volumeUsd: number;
+  /** Volume in ETH (WETH) for this swap */
+  volumeEth: number;
   /** Sender address for unique maker count */
   sender?: string;
-  /** Approx price USD at swap time (optional) */
+  /** Price in ETH (per token) at swap time (optional) */
+  priceEth?: number;
+  /** @deprecated use volumeEth */
+  volumeUsd?: number;
+  /** @deprecated use priceEth */
   priceUsd?: number;
 }
 
@@ -24,20 +29,22 @@ export interface TokenState {
   totalSwaps: number;
   totalBuys: number;
   totalSells: number;
-  /** Rolling 24h volume in USD (approximate from swap amounts) */
+  /** Rolling 24h volume in ETH */
   volume24h: number;
   /** Last N swaps for context */
   last20Swaps: LastSwapItem[];
-  /** Volume in last 5m / 15m / 30m / 1h (USD), computed from swap history */
+  /** Volume in last 1m / 5m / 15m / 30m / 1h (ETH), computed from swap history */
+  volume1m?: number;
   volume5m?: number;
   volume15m?: number;
   volume30m?: number;
   volume1h?: number;
   /** Unique buyers (makers) from swap history */
   totalMakers?: number;
-  /** Last known price (USD) from latest swap */
+  /** Last known price in ETH (per token) from latest swap */
   lastPrice?: number;
-  /** Price change % over interval (optional; requires price history) */
+  /** Price change % over interval (from swap price history in ETH) */
+  priceChange1m?: number;
   priceChange5m?: number;
   priceChange15m?: number;
   priceChange30m?: number;

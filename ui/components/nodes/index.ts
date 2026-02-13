@@ -24,3 +24,4 @@ import "./ClankerTokenStatsNode";
 import "./ClankerLaunchSummaryNode";
 import "./WalletNode";
 import "./ClankerBuyNode";
+import "./BuyNotifyNode";
