@@ -28,7 +28,7 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You receive recent token launches with stats in ETH: volume 1m/5m/15m/30m/1h and price change % (1m, 5m, 15m, 30m, 1h). Prefer tokens with positive price and volume deltas in the short term (1m, 5m). If you decide to buy, use an amount between 0.001 and 0.004 ETH (amount_wei: 1000000000000000 for 0.001 ETH up to 4000000000000000 for 0.004 ETH). Reply ONLY with valid JSON: { \"actions\": [ { \"action\": \"reply\", \"params\": { \"text\": \"...\" } }, { \"action\": \"buy\", \"params\": { \"token_address\": \"0x...\", \"amount_wei\": \"...\", \"pool_fee\": 0, \"tick_spacing\": 0, \"hook_address\": \"0x...\", \"currency0\": \"...\", \"currency1\": \"...\" } } ] }. Use pool_fee, tick_spacing, hook_address, currency0, currency1 from the launch data. Always include a reply action. Only add buy if you see positive short-term deltas.",
+        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. amount_eth optional: use ETH amounts like 0.001, 0.002, 0.004 (range 0.001 to 0.004). Do not use wei. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. Output ONLY valid JSON. Example buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.002}}]}. Example no buy: {\"actions\":[]}.",
         "enable_thinking": false
       }
     },
@@ -228,11 +228,11 @@
       },
       "inputs": {},
       "metadata": {
-        "min_seconds": 60,
-        "max_seconds": 120,
+        "min_seconds": 5,
+        "max_seconds": 5,
         "enabled": true,
-        "Min Seconds": 60,
-        "Max Seconds": 120,
+        "Min Seconds": 5,
+        "Max Seconds": 5,
         "Enabled": true
       }
     },
@@ -275,6 +275,15 @@
         "Storage Path": "clanker",
         "Storage Type": "local_json"
       }
+    },
+    {
+      "id": "24",
+      "type": "text",
+      "position": { "x": 808, "y": 50 },
+      "inputs": {},
+      "metadata": {
+        "text": "Model output (reply + reasoning) — for debugging"
+      }
     }
   ],
   "connections": [
@@ -287,6 +296,12 @@
     {
       "from": "6",
       "from_output": "response",
+      "to": "24",
+      "to_input": "text"
+    },
+    {
+      "from": "24",
+      "from_output": "text",
       "to": "7",
       "to_input": "response"
     },
@@ -322,6 +337,12 @@
     },
     {
       "from": "14",
+      "from_output": "trigger",
+      "to": "22",
+      "to_input": "trigger"
+    },
+    {
+      "from": "2",
       "from_output": "trigger",
       "to": "16",
       "to_input": "trigger"
@@ -387,6 +408,12 @@
       "to_input": "text"
     },
     {
+      "from": "1",
+      "from_output": "state",
+      "to": "9",
+      "to_input": "state"
+    },
+    {
       "from": "8",
       "from_output": "private_key",
       "to": "9",
@@ -445,12 +472,6 @@
       "from_output": "state",
       "to": "16",
       "to_input": "state"
-    },
-    {
-      "from": "2",
-      "from_output": "trigger",
-      "to": "23",
-      "to_input": "a"
     },
     {
       "from": "23",
