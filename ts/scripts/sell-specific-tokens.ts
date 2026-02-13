@@ -167,23 +167,30 @@ async function main(): Promise<void> {
     const hookAddress = String(t.hookAddress ?? "").trim();
 
     console.log(`  Selling ${tokenAddress} (${balanceWei} wei)...`);
-    const result = await executeSwap(privateKey, {
-      tokenAddress,
-      amountWei: String(balanceWei),
-      isBuy: false,
-      poolFee,
-      tickSpacing,
-      hookAddress: hookAddress || undefined,
-      currency0,
-      currency1,
-    }, rpcUrl);
+    try {
+      const result = await executeSwap(privateKey, {
+        tokenAddress,
+        amountWei: String(balanceWei),
+        isBuy: false,
+        poolFee,
+        tickSpacing,
+        hookAddress: hookAddress || undefined,
+        currency0,
+        currency1,
+      }, rpcUrl);
 
-    if (result.success) {
-      sold++;
-      console.log(`    Sold. Tx: ${result.txHash}`);
-    } else {
+      if (result.success) {
+        sold++;
+        console.log(`    Sold. Tx: ${result.txHash}`);
+      } else {
+        failed++;
+        console.warn(`    Failed: ${result.error}${result.txHash ? ` (tx: ${result.txHash})` : ""}`);
+      }
+    } catch (e) {
       failed++;
-      console.warn(`    Failed: ${result.error}${result.txHash ? ` (tx: ${result.txHash})` : ""}`);
+      const err = e as { txHash?: string };
+      const txPart = err?.txHash ? ` (txHash: ${err.txHash})` : "";
+      console.warn(`    Exception: ${e}${txPart}`);
     }
   }
 
