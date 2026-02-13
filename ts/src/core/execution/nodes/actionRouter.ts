@@ -96,6 +96,7 @@ export class ActionRouterNode extends BaseNode {
     const responseStr = response != null ? String(response).trim() : "";
 
     let actions: ActionItem[] = [];
+    let parsedSuccessfully = false;
 
     if (responseStr) {
       try {
@@ -109,6 +110,7 @@ export class ActionRouterNode extends BaseNode {
           ? parsed
           : (parsed as Record<string, unknown>)?.actions;
         if (Array.isArray(rawList)) {
+          parsedSuccessfully = true;
           for (const item of rawList) {
             if (!isActionItem(item)) continue;
             const action = String(item.action).toLowerCase();
@@ -130,6 +132,8 @@ export class ActionRouterNode extends BaseNode {
 
             actions.push({ action, params });
           }
+        } else {
+          parsedSuccessfully = true; // valid JSON but no actions array
         }
       } catch (_e) {
         // Fallback: try to extract reply text from JSON-like string so we don't send raw JSON
@@ -154,14 +158,16 @@ export class ActionRouterNode extends BaseNode {
       }
     }
 
-    if (actions.length === 0 && responseStr) {
-      actions = [
-        {
-          action: "send_message",
-          params: { text: responseStr },
-        },
-      ];
-    } else if (actions.length > 0) {
+// Only send raw response as message when parsing failed. When we parsed successfully
+// and got empty actions (e.g. no buy), do not send the raw JSON to the user.
+if (actions.length === 0 && responseStr && !parsedSuccessfully) {
+  actions = [
+    {
+      action: "send_message",
+      params: { text: responseStr },
+    },
+  ];
+} else if (actions.length > 0) {
       const hasSendMessage = actions.some((a) => a.action === "send_message");
       const hasReply = actions.some((a) => a.action === "reply");
       const onlyTradingActions = actions.every(

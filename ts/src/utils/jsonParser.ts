@@ -20,7 +20,7 @@ const logger = getLogger("jsonParser");
 export function extractJsonFromLlmResponse(
   response: string,
   context = "response"
-): Record<string, unknown> {
+): Record<string, unknown> | unknown[] {
   if (!response || !response.trim()) {
     throw new Error(`Cannot extract JSON from empty ${context} response`);
   }
@@ -35,7 +35,48 @@ export function extractJsonFromLlmResponse(
   text = text.replace(/\n?```\s*$/gim, "");
   text = text.trim();
 
-  // Strategy 1: Find complete JSON object by matching braces.
+  const idxBrace = text.indexOf("{");
+  const idxBracket = text.indexOf("[");
+
+  // Strategy 1a: Top-level array [ { "action": "buy", ... }, ... ] (e.g. action_router LLM output)
+  const arrayFirst = idxBracket >= 0 && (idxBrace < 0 || idxBracket < idxBrace);
+  if (arrayFirst && idxBracket >= 0) {
+    let bracketCount = 0;
+    let jsonEnd = idxBracket;
+    let inString = false;
+    let escaped = false;
+    for (let i = idxBracket; i < text.length; i++) {
+      const ch = text[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (inString) {
+        if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "[") bracketCount++;
+      else if (ch === "]") {
+        bracketCount--;
+        if (bracketCount === 0) {
+          jsonEnd = i + 1;
+          break;
+        }
+      }
+    }
+    if (jsonEnd > idxBracket) {
+      const jsonStr = sanitizeJsonString(text.slice(idxBracket, jsonEnd));
+      try {
+        return JSON.parse(jsonStr) as unknown[];
+      } catch {
+        // fall through to other strategies
+      }
+    }
+  }
+
+  // Strategy 1b: Find complete JSON object by matching braces.
   // Track whether we're inside a JSON string to avoid miscounting
   // braces that appear as string values (e.g. {"key": "a { b }"}).
   const jsonStart = text.indexOf("{");
@@ -82,8 +123,20 @@ export function extractJsonFromLlmResponse(
       try {
         return JSON.parse(jsonStr);
       } catch (e) {
-        // Often the response is truncated (e.g. 80 chars) so extracted string ends with }} or }}]
+        // Often the response is truncated or LLM omits the array close: }} (truncated), }}} (missing ]), or }}]
         const trimmed = jsonStr.trim();
+        if (trimmed.endsWith("}}}") && !trimmed.endsWith("}}]")) {
+          // e.g. {"actions": [{"action":"buy","params":{...}}}  → missing ] before final }
+          try {
+            const repaired = JSON.parse(trimmed.slice(0, -1) + "]}");
+            logger.warning(
+              `Repaired JSON from ${context} (ended with }}}; inserted ] before final })`
+            );
+            return repaired;
+          } catch {
+            // fall through to error
+          }
+        }
         if (trimmed.endsWith("}}") && !trimmed.endsWith("}}]")) {
           try {
             const repaired = JSON.parse(trimmed + "]}");

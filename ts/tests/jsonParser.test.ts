@@ -383,6 +383,119 @@ describe("Repair brace-depth fix", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 9b. Action-router style: LLM omits closing ] for actions array (ends with }}}
+// ---------------------------------------------------------------------------
+
+describe("Action router JSON (missing ] for actions array)", () => {
+  it("parses real log output: ends with }}} → repair inserts ] before final }", () => {
+    // Exact output from obelisk-core.log: model returned valid intent but invalid JSON
+    const raw = '{"actions": [{"action":"buy","params":{"symbol":"SPIRIT","amount_eth":0.001}}}';
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(r).toHaveProperty("actions");
+    expect(Array.isArray(r.actions)).toBe(true);
+    expect(r.actions).toHaveLength(1);
+    expect(r.actions[0]).toEqual({
+      action: "buy",
+      params: { symbol: "SPIRIT", amount_eth: 0.001 },
+    });
+  });
+
+  it("parses similar malformed actions with token_address", () => {
+    const raw =
+      '{"actions": [{"action":"buy","params":{"token_address":"0xabc","amount_wei":"1000000000000000"}';
+    const truncated = raw + "}}"; // ends with }} (truncated)
+    const r = extractJsonFromLlmResponse(truncated + "}", "action_router") as Record<string, unknown>;
+    expect(r.actions).toHaveLength(1);
+    expect((r.actions as unknown[])[0]).toHaveProperty("params");
+    expect((r.actions as unknown[])[0]).toMatchObject({ params: { token_address: "0xabc" } });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9c. Top-level array [ { "action": "buy", ... }, ... ] (action_router)
+// ---------------------------------------------------------------------------
+
+describe("Action router: top-level array", () => {
+  it("parses ```json + array of action objects", () => {
+    const raw = `\`\`\`json
+[
+  {
+ "action": "buy",
+ "params": {
+ "symbol": "CEREBRO",
+ "amount_eth": "0.001"
+ }
+  }
+]
+\`\`\``;
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(Array.isArray(r)).toBe(true);
+    expect(r).toHaveLength(1);
+    expect((r as unknown[])[0]).toEqual({
+      action: "buy",
+      params: { symbol: "CEREBRO", amount_eth: "0.001" },
+    });
+  });
+
+  it("parses array with multiple actions", () => {
+    const raw =
+      '[{"action":"buy","params":{"symbol":"A","amount_eth":0.001}},{"action":"reply","params":{"text":"Done."}}]';
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(Array.isArray(r)).toBe(true);
+    expect(r).toHaveLength(2);
+    expect((r as unknown[])[0]).toMatchObject({ action: "buy", params: { symbol: "A" } });
+    expect((r as unknown[])[1]).toMatchObject({ action: "reply", params: { text: "Done." } });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9d. Weird model outputs (compound robustness)
+// We add real broken/odd outputs from the logs as we hit them; the parser
+// should either parse them (return array or object) or fail predictably, so
+// downstream (e.g. action_router) can handle "we got an array of non-objects"
+// without crashing. More of these over time = more robust parser.
+// ---------------------------------------------------------------------------
+
+describe("Weird model outputs", () => {
+  it("parses array of strings (model garbage) without throwing", () => {
+    // Real log: model sometimes returned ["Buy", ""] instead of action objects
+    const raw = '["Buy", ""]';
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(Array.isArray(r)).toBe(true);
+    expect(r).toHaveLength(2);
+    expect((r as unknown[])[0]).toBe("Buy");
+    expect((r as unknown[])[1]).toBe("");
+  });
+
+  it("parses top-level array with symbol typo (CEREbro)", () => {
+    // Model returned correct structure but typo in symbol; we still extract the array
+    const raw = `\`\`\`json
+[
+  { "action": "buy", "params": { "symbol": "CEREbro", "amount_eth": "0.001" } }
+]
+\`\`\``;
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(Array.isArray(r)).toBe(true);
+    expect(r).toHaveLength(1);
+    expect((r as unknown[])[0]).toMatchObject({
+      action: "buy",
+      params: { symbol: "CEREbro", amount_eth: "0.001" },
+    });
+  });
+
+  it("parses nested actions inside array (one element with actions key)", () => {
+    // Some models wrap as [ { "actions": [ {...} ] } ]
+    const raw =
+      '[{"actions":[{"action":"buy","params":{"symbol":"X","amount_eth":0.001}}]}]';
+    const r = extractJsonFromLlmResponse(raw, "action_router");
+    expect(Array.isArray(r)).toBe(true);
+    expect(r).toHaveLength(1);
+    expect((r as unknown[])[0]).toHaveProperty("actions");
+    expect(((r as unknown[])[0] as Record<string, unknown>).actions).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 10. Simulated binary intent e2e
 // ---------------------------------------------------------------------------
 
