@@ -139,7 +139,10 @@ async function main(): Promise<void> {
   if (updated) {
     try {
       fs.writeFileSync(bagPath, JSON.stringify(bagState, null, 2), "utf-8");
-    } catch (_) {}
+    } catch (err) {
+      console.error("Failed to persist bagState", err);
+      process.exit(1);
+    }
   }
 
   console.log(`Done. Sold ${sold}, failed ${failed}.`);
