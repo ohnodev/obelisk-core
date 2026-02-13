@@ -12,7 +12,6 @@ class BagCheckerNode extends LGraphNode {
     this.title = "Bag Checker";
 
     this.addInput("trigger", "boolean");
-    this.addInput("swap", "object");
     this.addInput("state", "object");
     this.addInput("state_path", "string");
     this.addInput("bag_state_path", "string");

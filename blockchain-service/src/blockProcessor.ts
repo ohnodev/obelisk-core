@@ -1,9 +1,6 @@
 /**
  * Poll Base for new blocks; scan receipts for V4 Initialize (Clanker hook) and V4 Swap (tracked pools only).
- * When onSwapFilePath is set, writes last swap payload to that file on each swap (for workflow onSwap trigger).
  */
-import fs from "fs";
-import path from "path";
 import { ethers } from "ethers";
 import {
   POOL_MANAGER,
@@ -39,22 +36,11 @@ function createProvider(rpcUrl: string): ethers.JsonRpcProvider {
   });
 }
 
-/** Payload written to onSwap file for workflow trigger */
-export interface OnSwapPayload {
-  poolId: string;
-  tokenAddress: string;
-  side: "buy" | "sell";
-  volumeEth: number;
-  priceEth?: number;
-  timestamp: number;
-}
-
 export class BlockProcessor {
   private provider: ethers.JsonRpcProvider;
   private readonly rpcUrl: string;
   private readonly state: StateManager;
   private readonly clankerHookAddress: string;
-  private readonly onSwapFilePath: string | null;
   private lastBlockNumber = 0;
   private isRunning = false;
   private consecutiveErrors = 0;
@@ -63,14 +49,12 @@ export class BlockProcessor {
   constructor(
     rpcUrl: string,
     state: StateManager,
-    clankerHookAddress: string,
-    onSwapFilePath?: string | null
+    clankerHookAddress: string
   ) {
     this.rpcUrl = rpcUrl;
     this.provider = createProvider(rpcUrl);
     this.state = state;
     this.clankerHookAddress = clankerHookAddress.toLowerCase();
-    this.onSwapFilePath = onSwapFilePath ?? null;
   }
 
   async start(): Promise<void> {
@@ -442,27 +426,8 @@ export class BlockProcessor {
           ? volumeEth / (Number(tokenAmountAbs) / Math.pow(10, decimals))
           : undefined;
 
-      const timestamp = Date.now();
-      this.state.recordSwap(poolId, side, volumeEth, timestamp, undefined, priceEth);
+      this.state.recordSwap(poolId, side, volumeEth, Date.now(), undefined, priceEth);
       console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}... volEth=${volumeEth.toFixed(6)}`);
-
-      if (this.onSwapFilePath) {
-        try {
-          const dir = path.dirname(this.onSwapFilePath);
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          const payload: OnSwapPayload = {
-            poolId,
-            tokenAddress: tokenAddress.toLowerCase(),
-            side,
-            volumeEth,
-            priceEth,
-            timestamp,
-          };
-          fs.writeFileSync(this.onSwapFilePath, JSON.stringify(payload, null, 2), "utf-8");
-        } catch (e) {
-          console.warn("[Clanker] Failed to write onSwap file:", e);
-        }
-      }
     } catch (e) {
       console.warn("[Clanker] Process V4 swap error:", e);
     }

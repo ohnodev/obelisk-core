@@ -240,6 +240,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Update Bags On Sell",
         description: "After sell, remove token from clanker_bags.json",
       },
+      {
+        type: "sell_notify",
+        title: "Sell Notify",
+        description: "Builds Telegram notification when sell succeeds; connect to TG Action with chat_id",
+      },
     ],
   },
 ];

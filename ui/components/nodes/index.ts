@@ -30,3 +30,4 @@ import "./OnSwapTriggerNode";
 import "./BagCheckerNode";
 import "./AddToBagsNode";
 import "./UpdateBagsOnSellNode";
+import "./SellNotifyNode";

@@ -31,4 +31,5 @@ export { OnSwapTriggerNode } from "./onSwapTrigger";
 export { BagCheckerNode } from "./bagChecker";
 export { AddToBagsNode } from "./addToBags";
 export { UpdateBagsOnSellNode } from "./updateBagsOnSell";
+export { SellNotifyNode } from "./sellNotify";
 export type { ClankerBagState, BagHolding } from "./clankerBags";

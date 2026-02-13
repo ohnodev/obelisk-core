@@ -36,6 +36,7 @@ import { OnSwapTriggerNode } from "./nodes/onSwapTrigger";
 import { BagCheckerNode } from "./nodes/bagChecker";
 import { AddToBagsNode } from "./nodes/addToBags";
 import { UpdateBagsOnSellNode } from "./nodes/updateBagsOnSell";
+import { SellNotifyNode } from "./nodes/sellNotify";
 
 const logger = getLogger("nodeRegistry");
 
@@ -106,6 +107,7 @@ export function registerAllNodes(): void {
   registerNode("bag_checker", BagCheckerNode);
   registerNode("add_to_bags", AddToBagsNode);
   registerNode("update_bags_on_sell", UpdateBagsOnSellNode);
+  registerNode("sell_notify", SellNotifyNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);
