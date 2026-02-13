@@ -1,11 +1,14 @@
 {
-  "id": "clanker-autotrader-v1",
-  "name": "Clanker Autotrader V1",
+  "id": "workflow-1",
+  "name": "Obelisk Workflow",
   "nodes": [
     {
       "id": "5",
       "type": "inference_config",
-      "position": { "x": 174, "y": 99 },
+      "position": {
+        "x": 174,
+        "y": 99
+      },
       "inputs": {},
       "metadata": {
         "endpoint_url": "http://localhost:7780",
@@ -17,7 +20,10 @@
     {
       "id": "6",
       "type": "inference",
-      "position": { "x": 574, "y": 36 },
+      "position": {
+        "x": 574,
+        "y": 36
+      },
       "inputs": {},
       "metadata": {
         "quantum_influence": 0.7,
@@ -27,49 +33,44 @@
       }
     },
     {
-      "id": "8",
-      "type": "wallet",
-      "position": { "x": -347, "y": -286 },
-      "inputs": {},
-      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
-    },
-    {
-      "id": "10",
-      "type": "memory_storage",
-      "position": { "x": -487, "y": 135 },
-      "inputs": {},
-      "metadata": {
-        "storage_path": "clanker",
-        "storage_type": "local_json",
-        "Storage Path": "clanker",
-        "Storage Type": "local_json"
-      }
-    },
-    {
       "id": "7",
       "type": "action_router",
-      "position": { "x": 1044, "y": 65 },
+      "position": {
+        "x": 1044,
+        "y": 65
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "9",
       "type": "clanker_buy",
-      "position": { "x": 1404, "y": 42 },
+      "position": {
+        "x": 1404,
+        "y": 42
+      },
       "inputs": {},
-      "metadata": { "amount_wei": "0" }
+      "metadata": {
+        "amount_wei": "0"
+      }
     },
     {
       "id": "12",
       "type": "buy_notify",
-      "position": { "x": 1865, "y": 193 },
+      "position": {
+        "x": 1865,
+        "y": 193
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "20",
       "type": "add_to_bags",
-      "position": { "x": 1843, "y": -82 },
+      "position": {
+        "x": 1843,
+        "y": -82
+      },
       "inputs": {},
       "metadata": {
         "profit_target_percent": 50,
@@ -79,42 +80,34 @@
     {
       "id": "13",
       "type": "telegram_action",
-      "position": { "x": 2231, "y": 158 },
+      "position": {
+        "x": 2231,
+        "y": 158
+      },
       "inputs": {},
-      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
     },
     {
       "id": "4",
       "type": "text",
-      "position": { "x": 806, "y": 422 },
-      "inputs": {},
-      "metadata": { "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):" }
-    },
-    {
-      "id": "3",
-      "type": "clanker_launch_summary",
-      "position": { "x": 145, "y": 403 },
-      "inputs": {},
-      "metadata": { "window_hours": 1, "limit": 20 }
-    },
-    {
-      "id": "2",
-      "type": "scheduler",
-      "position": { "x": -273, "y": 426 },
+      "position": {
+        "x": 806,
+        "y": 422
+      },
       "inputs": {},
       "metadata": {
-        "min_seconds": 60,
-        "max_seconds": 120,
-        "enabled": true,
-        "Min Seconds": 60,
-        "Max Seconds": 120,
-        "Enabled": true
+        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
       }
     },
     {
       "id": "14",
       "type": "scheduler",
-      "position": { "x": -117, "y": -568 },
+      "position": {
+        "x": -117,
+        "y": -568
+      },
       "inputs": {},
       "metadata": {
         "min_seconds": 10,
@@ -128,82 +121,354 @@
     {
       "id": "17",
       "type": "clanker_sell",
-      "position": { "x": 943, "y": -644 },
+      "position": {
+        "x": 943,
+        "y": -644
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "18",
       "type": "update_bags_on_sell",
-      "position": { "x": 1418, "y": -492 },
+      "position": {
+        "x": 1418,
+        "y": -492
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "16",
       "type": "bag_checker",
-      "position": { "x": 514, "y": -473 },
+      "position": {
+        "x": 514,
+        "y": -473
+      },
       "inputs": {},
       "metadata": {}
     },
     {
-      "id": "1",
-      "type": "blockchain_config",
-      "position": { "x": -399, "y": -107 },
-      "inputs": {},
-      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
-    },
-    {
       "id": "19",
       "type": "sell_notify",
-      "position": { "x": 1842, "y": -585 },
+      "position": {
+        "x": 1842,
+        "y": -585
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "21",
       "type": "telegram_action",
-      "position": { "x": 2189, "y": -587 },
+      "position": {
+        "x": 2189,
+        "y": -587
+      },
       "inputs": {},
-      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
     },
     {
       "id": "11",
       "type": "text",
-      "position": { "x": 1319, "y": -300 },
+      "position": {
+        "x": 1319,
+        "y": -300
+      },
       "inputs": {},
-      "metadata": { "text": "{{process.env.TELEGRAM_CHAT_ID}}" }
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_launch_summary",
+      "position": {
+        "x": 413,
+        "y": 397
+      },
+      "inputs": {},
+      "metadata": {
+        "window_hours": 1,
+        "limit": 20
+      }
+    },
+    {
+      "id": "8",
+      "type": "wallet",
+      "position": {
+        "x": -407,
+        "y": -71
+      },
+      "inputs": {},
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
+    },
+    {
+      "id": "1",
+      "type": "blockchain_config",
+      "position": {
+        "x": -381,
+        "y": -246
+      },
+      "inputs": {},
+      "metadata": {
+        "state_file_path": "blockchain-service/data/clanker_state.json"
+      }
+    },
+    {
+      "id": "2",
+      "type": "scheduler",
+      "position": {
+        "x": -567,
+        "y": 380
+      },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 60,
+        "max_seconds": 120,
+        "enabled": true,
+        "Min Seconds": 60,
+        "Max Seconds": 120,
+        "Enabled": true
+      }
+    },
+    {
+      "id": "23",
+      "type": "boolean_logic",
+      "position": {
+        "x": 61,
+        "y": 526
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
+      "id": "22",
+      "type": "balance_checker",
+      "position": {
+        "x": -213,
+        "y": 323
+      },
+      "inputs": {},
+      "metadata": {
+        "min_balance_wei": "0.004",
+        "min ETH": "0.004"
+      }
+    },
+    {
+      "id": "10",
+      "type": "memory_storage",
+      "position": {
+        "x": -521,
+        "y": 95
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
+      }
     }
   ],
   "connections": [
-    { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
-    { "from": "6", "from_output": "response", "to": "7", "to_input": "response" },
-    { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
-    { "from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key" },
-    { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
-    { "from": "7", "from_output": "tg_actions", "to": "9", "to_input": "tg_actions" },
-    { "from": "9", "from_output": "result", "to": "12", "to_input": "buy_result" },
-    { "from": "9", "from_output": "result", "to": "20", "to_input": "buy_result" },
-    { "from": "12", "from_output": "actions", "to": "13", "to_input": "actions" },
-    { "from": "12", "from_output": "chat_id", "to": "13", "to_input": "chat_id" },
-    { "from": "3", "from_output": "summary", "to": "6", "to_input": "query" },
-    { "from": "3", "from_output": "summary", "to": "4", "to_input": "text" },
-    { "from": "2", "from_output": "trigger", "to": "3", "to_input": "trigger" },
-    { "from": "14", "from_output": "trigger", "to": "16", "to_input": "trigger" },
-    { "from": "17", "from_output": "result", "to": "18", "to_input": "sell_result" },
-    { "from": "17", "from_output": "result", "to": "19", "to_input": "sell_result" },
-    { "from": "16", "from_output": "should_sell", "to": "17", "to_input": "should_sell" },
-    { "from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params" },
-    { "from": "1", "from_output": "state_path", "to": "3", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "20", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "16", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "18", "to_input": "state_path" },
-    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "20", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "16", "to_input": "state" },
-    { "from": "19", "from_output": "actions", "to": "21", "to_input": "actions" },
-    { "from": "19", "from_output": "chat_id", "to": "21", "to_input": "chat_id" },
-    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
-    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" }
+    {
+      "from": "5",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "7",
+      "to_input": "response"
+    },
+    {
+      "from": "7",
+      "from_output": "tg_actions",
+      "to": "9",
+      "to_input": "tg_actions"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "12",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "20",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "12",
+      "from_output": "actions",
+      "to": "13",
+      "to_input": "actions"
+    },
+    {
+      "from": "12",
+      "from_output": "chat_id",
+      "to": "13",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "14",
+      "from_output": "trigger",
+      "to": "16",
+      "to_input": "trigger"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "18",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "16",
+      "from_output": "should_sell",
+      "to": "17",
+      "to_input": "should_sell"
+    },
+    {
+      "from": "16",
+      "from_output": "sell_params",
+      "to": "17",
+      "to_input": "sell_params"
+    },
+    {
+      "from": "19",
+      "from_output": "actions",
+      "to": "21",
+      "to_input": "actions"
+    },
+    {
+      "from": "19",
+      "from_output": "chat_id",
+      "to": "21",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "4",
+      "to_input": "text"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "9",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "17",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "22",
+      "to_input": "private_key"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "3",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "20",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "16",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "18",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "3",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "20",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "16",
+      "to_input": "state"
+    },
+    {
+      "from": "2",
+      "from_output": "trigger",
+      "to": "23",
+      "to_input": "a"
+    },
+    {
+      "from": "23",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
+    },
+    {
+      "from": "22",
+      "from_output": "has_sufficient_funds",
+      "to": "23",
+      "to_input": "b"
+    },
+    {
+      "from": "10",
+      "from_output": "storage_instance",
+      "to": "3",
+      "to_input": "storage_instance"
+    }
   ]
 }

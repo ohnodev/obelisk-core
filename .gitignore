@@ -140,5 +140,7 @@ ui/.vercel
 !ui/package.json
 !ui/package-lock.json
 !ui/tsconfig.json
+# Allow workflow definitions
+!ui/workflows/*.json
 ui/.env*.local
 ui/*.tsbuildinfo

@@ -6,14 +6,15 @@
  * the boolean result.
  *
  * Inputs:
- *   a:     First boolean operand (required)
- *   b:     Second boolean operand (optional, unused for NOT)
+ *   a:     First boolean operand (e.g. trigger from scheduler)
+ *   b:     Second boolean operand (e.g. has_sufficient_funds from balance check)
  *   value: Any value to pass through based on the result (optional)
  *
  * Outputs:
- *   result: Boolean result of the operation
- *   pass:   Value when result is true, null when false
- *   reject: Value when result is false, null when true
+ *   result:  Boolean result of the operation
+ *   trigger: Same as result – use to gate downstream nodes (e.g. Launch Summary)
+ *   pass:    Value when result is true, null when false
+ *   reject:  Value when result is false, null when true
  *
  * Operations: OR, AND, NOT (inverts `a` only)
  */
@@ -66,6 +67,7 @@ export class BooleanLogicNode extends BaseNode {
 
     return {
       result,
+      trigger: result,
       pass: result ? value : null,
       reject: result ? null : value,
     };

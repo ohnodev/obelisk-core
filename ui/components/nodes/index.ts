@@ -23,6 +23,7 @@ import "./BlockchainConfigNode";
 import "./ClankerTokenStatsNode";
 import "./ClankerLaunchSummaryNode";
 import "./WalletNode";
+import "./BalanceCheckerNode";
 import "./ClankerBuyNode";
 import "./ClankerSellNode";
 import "./BuyNotifyNode";

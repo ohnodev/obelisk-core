@@ -206,6 +206,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         description: "SWAP_PRIVATE_KEY from env; hook to Buy/Sell nodes",
       },
       {
+        type: "balance_checker",
+        title: "Balance Checker",
+        description: "Check ETH balance; outputs has_sufficient_funds for Boolean Logic gating",
+      },
+      {
         type: "clanker_buy",
         title: "Clanker Buy",
         description: "Execute V4 buy via CabalSwapper; connect Wallet + Action Router or token params",

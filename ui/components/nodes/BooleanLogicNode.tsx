@@ -22,6 +22,7 @@ class BooleanLogicNode extends LGraphNode {
 
     // Outputs
     this.addOutput("result", "boolean");
+    this.addOutput("trigger", "boolean"); // same as result, for gating downstream (e.g. Launch Summary)
     this.addOutput("pass", "*");   // value when result=true
     this.addOutput("reject", "*"); // value when result=false
 
