@@ -215,6 +215,31 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Buy Notify",
         description: "Builds Telegram notification when buy succeeds; connect to TG Action with chat_id",
       },
+      {
+        type: "on_swap_trigger",
+        title: "On Swap Trigger",
+        description: "Reads last_swap.json; outputs trigger + swap when new swap (for sell loop)",
+      },
+      {
+        type: "bag_checker",
+        title: "Bag Checker",
+        description: "Check if we hold swap token; hit profit target or stop loss → should_sell + sell_params",
+      },
+      {
+        type: "clanker_sell",
+        title: "Clanker Sell",
+        description: "Execute V4 sell via CabalSwapper; connect Wallet + sell_params from Bag Checker",
+      },
+      {
+        type: "add_to_bags",
+        title: "Add To Bags",
+        description: "After buy, add position to clanker_bags.json with profit/stop targets",
+      },
+      {
+        type: "update_bags_on_sell",
+        title: "Update Bags On Sell",
+        description: "After sell, remove token from clanker_bags.json",
+      },
     ],
   },
 ];

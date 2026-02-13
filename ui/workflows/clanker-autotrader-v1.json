@@ -14,7 +14,13 @@
     {"id": "9", "type": "clanker_buy", "position": {"x": 840, "y": 560}, "inputs": {}, "metadata": {"amount_wei": "0"}},
     {"id": "11", "type": "text", "position": {"x": 840, "y": 380}, "inputs": {}, "metadata": {"text": "{{process.env.TELEGRAM_CHAT_ID}}"}},
     {"id": "12", "type": "buy_notify", "position": {"x": 1080, "y": 560}, "inputs": {}, "metadata": {}},
-    {"id": "13", "type": "telegram_action", "position": {"x": 1320, "y": 560}, "inputs": {}, "metadata": {"bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"}}
+    {"id": "13", "type": "telegram_action", "position": {"x": 1320, "y": 560}, "inputs": {}, "metadata": {"bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"}},
+    {"id": "14", "type": "scheduler", "position": {"x": 80, "y": 720}, "inputs": {}, "metadata": {"min_seconds": 10, "max_seconds": 15, "enabled": true}},
+    {"id": "15", "type": "on_swap_trigger", "position": {"x": 320, "y": 720}, "inputs": {}, "metadata": {}},
+    {"id": "16", "type": "bag_checker", "position": {"x": 560, "y": 720}, "inputs": {}, "metadata": {}},
+    {"id": "17", "type": "clanker_sell", "position": {"x": 800, "y": 720}, "inputs": {}, "metadata": {}},
+    {"id": "18", "type": "update_bags_on_sell", "position": {"x": 1040, "y": 720}, "inputs": {}, "metadata": {}},
+    {"id": "20", "type": "add_to_bags", "position": {"x": 1080, "y": 400}, "inputs": {}, "metadata": {"profit_target_percent": 50, "stop_loss_percent": 20}}
   ],
   "connections": [
     {"from": "1", "from_output": "state", "to": "3", "to_input": "state"},
@@ -30,6 +36,20 @@
     {"from": "9", "from_output": "result", "to": "12", "to_input": "buy_result"},
     {"from": "11", "from_output": "text", "to": "12", "to_input": "chat_id"},
     {"from": "12", "from_output": "actions", "to": "13", "to_input": "actions"},
-    {"from": "12", "from_output": "chat_id", "to": "13", "to_input": "chat_id"}
+    {"from": "12", "from_output": "chat_id", "to": "13", "to_input": "chat_id"},
+    {"from": "9", "from_output": "result", "to": "20", "to_input": "buy_result"},
+    {"from": "1", "from_output": "state", "to": "20", "to_input": "state"},
+    {"from": "1", "from_output": "state_path", "to": "20", "to_input": "state_path"},
+    {"from": "14", "from_output": "trigger", "to": "15", "to_input": "trigger"},
+    {"from": "1", "from_output": "state_path", "to": "15", "to_input": "state_path"},
+    {"from": "15", "from_output": "trigger", "to": "16", "to_input": "trigger"},
+    {"from": "15", "from_output": "swap", "to": "16", "to_input": "swap"},
+    {"from": "1", "from_output": "state", "to": "16", "to_input": "state"},
+    {"from": "1", "from_output": "state_path", "to": "16", "to_input": "state_path"},
+    {"from": "16", "from_output": "should_sell", "to": "17", "to_input": "should_sell"},
+    {"from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params"},
+    {"from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key"},
+    {"from": "17", "from_output": "result", "to": "18", "to_input": "sell_result"},
+    {"from": "1", "from_output": "state_path", "to": "18", "to_input": "state_path"}
   ]
 }

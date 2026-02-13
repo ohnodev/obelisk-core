@@ -83,6 +83,11 @@ export class ClankerBuyNode extends BaseNode {
       error: result.error,
       token_address: tokenAddress,
       amount_wei: String(amountWei),
+      pool_fee: poolFee,
+      tick_spacing: tickSpacing,
+      hook_address: hookAddress,
+      currency0,
+      currency1,
     };
     return { ...out, result: out };
   }

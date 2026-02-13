@@ -30,7 +30,12 @@ import { ClankerTokenStatsNode } from "./nodes/clankerTokenStats";
 import { ClankerLaunchSummaryNode } from "./nodes/clankerLaunchSummary";
 import { WalletNode } from "./nodes/wallet";
 import { ClankerBuyNode } from "./nodes/clankerBuy";
+import { ClankerSellNode } from "./nodes/clankerSell";
 import { BuyNotifyNode } from "./nodes/buyNotify";
+import { OnSwapTriggerNode } from "./nodes/onSwapTrigger";
+import { BagCheckerNode } from "./nodes/bagChecker";
+import { AddToBagsNode } from "./nodes/addToBags";
+import { UpdateBagsOnSellNode } from "./nodes/updateBagsOnSell";
 
 const logger = getLogger("nodeRegistry");
 
@@ -95,7 +100,12 @@ export function registerAllNodes(): void {
   registerNode("clanker_launch_summary", ClankerLaunchSummaryNode);
   registerNode("wallet", WalletNode);
   registerNode("clanker_buy", ClankerBuyNode);
+  registerNode("clanker_sell", ClankerSellNode);
   registerNode("buy_notify", BuyNotifyNode);
+  registerNode("on_swap_trigger", OnSwapTriggerNode);
+  registerNode("bag_checker", BagCheckerNode);
+  registerNode("add_to_bags", AddToBagsNode);
+  registerNode("update_bags_on_sell", UpdateBagsOnSellNode);
 
   // LoRA stub for backward compatibility
   registerNode("lora_loader", LoRALoaderStub);
