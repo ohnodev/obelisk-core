@@ -22,7 +22,7 @@ export class ClankerSellNode extends BaseNode {
     let tokenAddress = (this.getInputValue("token_address", context, undefined) as string) ?? "";
     let amountWei = (this.getInputValue("amount_wei", context, undefined) as string) ?? "0";
     let poolFee = Number(this.getInputValue("pool_fee", context, undefined)) || 0;
-    let tickSpacing = Number(this.getInputValue("tick_spacing", context, undefined)) ?? 0;
+    let tickSpacing = Number(this.getInputValue("tick_spacing", context, undefined)) || 0;
     let hookAddress = (this.getInputValue("hook_address", context, undefined) as string) ?? "";
     let currency0 = (this.getInputValue("currency0", context, undefined) as string) ?? "";
     let currency1 = (this.getInputValue("currency1", context, undefined) as string) ?? "";
@@ -31,7 +31,7 @@ export class ClankerSellNode extends BaseNode {
       tokenAddress = String(sellParams.token_address ?? tokenAddress).trim();
       amountWei = String(sellParams.amount_wei ?? amountWei).trim();
       poolFee = Number(sellParams.pool_fee ?? poolFee) || 0;
-      tickSpacing = Number(sellParams.tick_spacing ?? tickSpacing) ?? 0;
+      tickSpacing = Number(sellParams.tick_spacing ?? tickSpacing) || 0;
       hookAddress = String(sellParams.hook_address ?? hookAddress).trim();
       currency0 = String(sellParams.currency0 ?? currency0).trim();
       currency1 = String(sellParams.currency1 ?? currency1).trim();
