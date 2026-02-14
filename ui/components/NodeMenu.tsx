@@ -151,6 +151,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         description: "Starts an HTTP server and listens for POST requests (autonomous)",
       },
       {
+        type: "autotrader_stats_listener",
+        title: "Autotrader Stats Listener",
+        description: "GET /stats for dashboard (bags, actions). Connect to Clanker Autotrader Stats + HTTP Response",
+      },
+      {
         type: "http_response",
         title: "HTTP Response",
         description: "Sends a response back to the waiting HTTP client",
@@ -244,6 +249,16 @@ const NODE_CATEGORIES: NodeCategory[] = [
         type: "update_bags_on_sell",
         title: "Update Bags On Sell",
         description: "After sell, remove token from clanker_bags.json",
+      },
+      {
+        type: "clanker_autotrader_stats",
+        title: "Clanker Autotrader Stats",
+        description: "Read bags + actions, format JSON for dashboard. Hook to Stats Listener + Blockchain Config + HTTP Response",
+      },
+      {
+        type: "action_logger",
+        title: "Action Logger",
+        description: "Appends buy/sell results to clanker_actions.json. Keeps last N actions (default 100). Connect buy_result, sell_result, state_path",
       },
       {
         type: "sell_notify",

@@ -5,61 +5,77 @@
     {
       "id": "17",
       "type": "clanker_sell",
-      "position": { "x": 943, "y": -644 },
+      "position": {
+        "x": 943,
+        "y": -644
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "18",
       "type": "update_bags_on_sell",
-      "position": { "x": 1418, "y": -492 },
+      "position": {
+        "x": 1418,
+        "y": -492
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "16",
       "type": "bag_checker",
-      "position": { "x": 514, "y": -473 },
+      "position": {
+        "x": 514,
+        "y": -473
+      },
       "inputs": {},
-      "metadata": { "sell_timer_minutes": 5, "Sell timer (min)": 5 }
+      "metadata": {
+        "sell_timer_minutes": 5,
+        "Sell timer (min)": 5
+      }
     },
     {
       "id": "8",
       "type": "wallet",
-      "position": { "x": -407, "y": -71 },
+      "position": {
+        "x": -407,
+        "y": -71
+      },
       "inputs": {},
-      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
     },
     {
       "id": "1",
       "type": "blockchain_config",
-      "position": { "x": -381, "y": -246 },
-      "inputs": {},
-      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
-    },
-    {
-      "id": "10",
-      "type": "memory_storage",
-      "position": { "x": -521, "y": 95 },
+      "position": {
+        "x": -381,
+        "y": -246
+      },
       "inputs": {},
       "metadata": {
-        "storage_path": "clanker",
-        "storage_type": "local_json",
-        "Storage Path": "clanker",
-        "Storage Type": "local_json"
+        "state_file_path": "blockchain-service/data/clanker_state.json"
       }
     },
     {
       "id": "19",
       "type": "sell_notify",
-      "position": { "x": 1980, "y": -599 },
+      "position": {
+        "x": 1980,
+        "y": -599
+      },
       "inputs": {},
       "metadata": {}
     },
     {
       "id": "14",
       "type": "scheduler",
-      "position": { "x": -548, "y": 328 },
+      "position": {
+        "x": -548,
+        "y": 328
+      },
       "inputs": {},
       "metadata": {
         "min_seconds": 10,
@@ -73,7 +89,10 @@
     {
       "id": "2",
       "type": "scheduler",
-      "position": { "x": -51, "y": -563 },
+      "position": {
+        "x": -51,
+        "y": -563
+      },
       "inputs": {},
       "metadata": {
         "min_seconds": 5,
@@ -85,9 +104,185 @@
       }
     },
     {
+      "id": "13",
+      "type": "telegram_action",
+      "position": {
+        "x": 2606,
+        "y": 187
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "21",
+      "type": "telegram_action",
+      "position": {
+        "x": 2579,
+        "y": -597
+      },
+      "inputs": {},
+      "metadata": {
+        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": {
+        "x": 1497,
+        "y": -321
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
+    },
+    {
+      "id": "12",
+      "type": "buy_notify",
+      "position": {
+        "x": 2411,
+        "y": -59
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "9",
+      "type": "clanker_buy",
+      "position": {
+        "x": 1968,
+        "y": -97
+      },
+      "inputs": {},
+      "metadata": {
+        "amount_wei": "0"
+      }
+    },
+    {
+      "id": "20",
+      "type": "add_to_bags",
+      "position": {
+        "x": 2287,
+        "y": -402
+      },
+      "inputs": {},
+      "metadata": {
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_launch_summary",
+      "position": {
+        "x": 336,
+        "y": 234
+      },
+      "inputs": {},
+      "metadata": {
+        "window_hours": 1,
+        "limit": 20
+      }
+    },
+    {
+      "id": "7",
+      "type": "action_router",
+      "position": {
+        "x": 1756,
+        "y": 170
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "24",
+      "type": "text",
+      "position": {
+        "x": 1443,
+        "y": -23
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Model output (reply + reasoning) — for debugging"
+      }
+    },
+    {
+      "id": "4",
+      "type": "text",
+      "position": {
+        "x": 773,
+        "y": 49
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 1119,
+        "y": -74
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "22",
+      "type": "balance_checker",
+      "position": {
+        "x": -63,
+        "y": 238
+      },
+      "inputs": {},
+      "metadata": {
+        "min_balance_wei": "0.004",
+        "min ETH": "0.004"
+      }
+    },
+    {
+      "id": "10",
+      "type": "memory_storage",
+      "position": {
+        "x": -750,
+        "y": 15
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
+      }
+    },
+    {
+      "id": "23",
+      "type": "boolean_logic",
+      "position": {
+        "x": 140,
+        "y": -271
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
       "id": "5",
       "type": "inference_config",
-      "position": { "x": 349, "y": -117 },
+      "position": {
+        "x": 526,
+        "y": -209
+      },
       "inputs": {},
       "metadata": {
         "endpoint_url": "http://localhost:7780",
@@ -97,144 +292,305 @@
       }
     },
     {
-      "id": "13",
-      "type": "telegram_action",
-      "position": { "x": 2606, "y": 187 },
-      "inputs": {},
-      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
-    },
-    {
-      "id": "21",
-      "type": "telegram_action",
-      "position": { "x": 2579, "y": -597 },
-      "inputs": {},
-      "metadata": { "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}" }
-    },
-    {
-      "id": "11",
-      "type": "text",
-      "position": { "x": 1497, "y": -321 },
-      "inputs": {},
-      "metadata": { "text": "{{process.env.TELEGRAM_CHAT_ID}}" }
-    },
-    {
-      "id": "23",
-      "type": "boolean_logic",
-      "position": { "x": 134, "y": 58 },
-      "inputs": {},
-      "metadata": { "operation": "AND" }
-    },
-    {
-      "id": "22",
-      "type": "balance_checker",
-      "position": { "x": -184, "y": 125 },
-      "inputs": {},
-      "metadata": { "min_balance_wei": "0.004", "min ETH": "0.004" }
-    },
-    {
-      "id": "12",
-      "type": "buy_notify",
-      "position": { "x": 2411, "y": -59 },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "9",
-      "type": "clanker_buy",
-      "position": { "x": 1968, "y": -97 },
-      "inputs": {},
-      "metadata": { "amount_wei": "0" }
-    },
-    {
-      "id": "20",
-      "type": "add_to_bags",
-      "position": { "x": 2287, "y": -402 },
-      "inputs": {},
-      "metadata": { "profit_target_percent": 50, "stop_loss_percent": 20 }
-    },
-    {
-      "id": "3",
-      "type": "clanker_launch_summary",
-      "position": { "x": 336, "y": 234 },
-      "inputs": {},
-      "metadata": { "window_hours": 1, "limit": 20 }
-    },
-    {
-      "id": "7",
-      "type": "action_router",
-      "position": { "x": 1756, "y": 170 },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "24",
-      "type": "text",
-      "position": { "x": 1443, "y": -23 },
-      "inputs": {},
-      "metadata": { "text": "Model output (reply + reasoning) — for debugging" }
-    },
-    {
       "id": "34",
       "type": "boolean_logic",
-      "position": { "x": 506, "y": 50 },
-      "inputs": {},
-      "metadata": { "operation": "AND" }
-    },
-    {
-      "id": "4",
-      "type": "text",
-      "position": { "x": 773, "y": 49 },
+      "position": {
+        "x": 585,
+        "y": -24
+      },
       "inputs": {},
       "metadata": {
-        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
+        "operation": "AND"
       }
     },
     {
-      "id": "6",
-      "type": "inference",
-      "position": { "x": 1119, "y": -74 },
+      "id": "27",
+      "type": "http_response",
+      "position": {
+        "x": 1086,
+        "y": -905
+      },
       "inputs": {},
       "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
-        "enable_thinking": true
+        "status_code": 200
+      }
+    },
+    {
+      "id": "26",
+      "type": "clanker_autotrader_stats",
+      "position": {
+        "x": 539,
+        "y": -895
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "25",
+      "type": "autotrader_stats_listener",
+      "position": {
+        "x": -3,
+        "y": -911
+      },
+      "inputs": {},
+      "metadata": {
+        "port": 8081,
+        "path": "/stats"
+      }
+    },
+    {
+      "id": "28",
+      "type": "action_logger",
+      "position": {
+        "x": 2287,
+        "y": -200
+      },
+      "inputs": {},
+      "metadata": {
+        "max_actions": 100
       }
     }
   ],
   "connections": [
-    { "from": "17", "from_output": "result", "to": "18", "to_input": "sell_result" },
-    { "from": "17", "from_output": "result", "to": "19", "to_input": "sell_result" },
-    { "from": "16", "from_output": "should_sell", "to": "17", "to_input": "should_sell" },
-    { "from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params" },
-    { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
-    { "from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key" },
-    { "from": "8", "from_output": "private_key", "to": "22", "to_input": "private_key" },
-    { "from": "1", "from_output": "state_path", "to": "3", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "20", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "16", "to_input": "state_path" },
-    { "from": "1", "from_output": "state_path", "to": "18", "to_input": "state_path" },
-    { "from": "1", "from_output": "state", "to": "9", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "20", "to_input": "state" },
-    { "from": "1", "from_output": "state", "to": "16", "to_input": "state" },
-    { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
-    { "from": "14", "from_output": "trigger", "to": "22", "to_input": "trigger" },
-    { "from": "2", "from_output": "trigger", "to": "16", "to_input": "trigger" },
-    { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
-    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
-    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" },
-    { "from": "23", "from_output": "result", "to": "34", "to_input": "a" },
-    { "from": "23", "from_output": "trigger", "to": "3", "to_input": "trigger" },
-    { "from": "22", "from_output": "has_sufficient_funds", "to": "23", "to_input": "b" },
-    { "from": "9", "from_output": "result", "to": "12", "to_input": "buy_result" },
-    { "from": "9", "from_output": "result", "to": "20", "to_input": "buy_result" },
-    { "from": "3", "from_output": "summary", "to": "34", "to_input": "value" },
-    { "from": "3", "from_output": "has_tokens", "to": "34", "to_input": "b" },
-    { "from": "7", "from_output": "tg_actions", "to": "9", "to_input": "tg_actions" },
-    { "from": "24", "from_output": "text", "to": "7", "to_input": "response" },
-    { "from": "34", "from_output": "pass", "to": "4", "to_input": "text" },
-    { "from": "4", "from_output": "text", "to": "6", "to_input": "query" },
-    { "from": "6", "from_output": "response", "to": "24", "to_input": "text" }
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "18",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "28",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "16",
+      "from_output": "should_sell",
+      "to": "17",
+      "to_input": "should_sell"
+    },
+    {
+      "from": "16",
+      "from_output": "sell_params",
+      "to": "17",
+      "to_input": "sell_params"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "9",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "17",
+      "to_input": "private_key"
+    },
+    {
+      "from": "8",
+      "from_output": "private_key",
+      "to": "22",
+      "to_input": "private_key"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "3",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "20",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "16",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "18",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "26",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state_path",
+      "to": "28",
+      "to_input": "state_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "9",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "3",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "20",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "16",
+      "to_input": "state"
+    },
+    {
+      "from": "14",
+      "from_output": "trigger",
+      "to": "22",
+      "to_input": "trigger"
+    },
+    {
+      "from": "2",
+      "from_output": "trigger",
+      "to": "16",
+      "to_input": "trigger"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "12",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "20",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "28",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "34",
+      "to_input": "value"
+    },
+    {
+      "from": "3",
+      "from_output": "has_tokens",
+      "to": "34",
+      "to_input": "b"
+    },
+    {
+      "from": "7",
+      "from_output": "tg_actions",
+      "to": "9",
+      "to_input": "tg_actions"
+    },
+    {
+      "from": "24",
+      "from_output": "text",
+      "to": "7",
+      "to_input": "response"
+    },
+    {
+      "from": "4",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "6",
+      "from_output": "response",
+      "to": "24",
+      "to_input": "text"
+    },
+    {
+      "from": "22",
+      "from_output": "has_sufficient_funds",
+      "to": "23",
+      "to_input": "b"
+    },
+    {
+      "from": "10",
+      "from_output": "storage_instance",
+      "to": "3",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "23",
+      "from_output": "result",
+      "to": "34",
+      "to_input": "a"
+    },
+    {
+      "from": "23",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
+    },
+    {
+      "from": "5",
+      "from_output": "model",
+      "to": "6",
+      "to_input": "model"
+    },
+    {
+      "from": "34",
+      "from_output": "pass",
+      "to": "4",
+      "to_input": "text"
+    },
+    {
+      "from": "26",
+      "from_output": "stats",
+      "to": "27",
+      "to_input": "response"
+    },
+    {
+      "from": "26",
+      "from_output": "request_id",
+      "to": "27",
+      "to_input": "request_id"
+    },
+    {
+      "from": "25",
+      "from_output": "request_id",
+      "to": "26",
+      "to_input": "request_id"
+    }
   ]
 }
