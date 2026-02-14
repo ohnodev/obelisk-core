@@ -150,5 +150,4 @@ blockchain-service/node_modules/
 blockchain-service/dist/
 # Allow package and config (overrides *.json above)
 !blockchain-service/package.json
-!blockchain-service/package-lock.json
 !blockchain-service/tsconfig.json
