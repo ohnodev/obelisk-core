@@ -129,6 +129,8 @@ export class AutotraderStatsListenerNode extends BaseNode {
       );
 
       setTimeout(() => {
+        const idx = this._pending.findIndex((q) => q.requestId === requestId);
+        if (idx !== -1) this._pending.splice(idx, 1);
         if (!res.headersSent) {
           HttpRequestRegistry.resolve(requestId, 504, { error: "Stats request timed out" });
         }
