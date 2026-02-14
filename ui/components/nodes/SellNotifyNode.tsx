@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class SellNotifyNode extends LGraphNode {
   static title = "Sell Notify";
-  static desc = "When Clanker Sell succeeds, builds a Telegram reply with sell message. Connect to TG Action with chat_id.";
+  static desc = "When Clanker Sell succeeds, sends a Telegram sell notification. Connect chat_id and optionally bot_token (e.g. from Text node with {{process.env.TELEGRAM_BOT_TOKEN}}).";
   static title_color = "#c05050";
 
   constructor() {
@@ -13,6 +13,7 @@ class SellNotifyNode extends LGraphNode {
 
     this.addInput("sell_result", "object");
     this.addInput("chat_id", "string");
+    this.addInput("bot_token", "string");
 
     this.addOutput("actions", "array");
     this.addOutput("chat_id", "string");

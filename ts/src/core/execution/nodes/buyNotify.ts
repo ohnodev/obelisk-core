@@ -2,7 +2,7 @@
  * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification directly to Telegram
  * (amount, token, Basescan tx link). Uses TELEGRAM_BOT_TOKEN and chat_id; no TelegramAction node.
  *
- * Inputs: buy_result (from Clanker Buy: success, txHash, token_address, amount_wei, symbol?), chat_id
+ * Inputs: buy_result (from Clanker Buy), chat_id, bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
  * Outputs: sent (boolean), chat_id, error (if send failed)
  */
 import { formatEther } from "ethers";
@@ -87,6 +87,15 @@ export class BuyNotifyNode extends BaseNode {
       Config.TELEGRAM_CHAT_ID ||
       "";
 
+    const rawBotToken =
+      (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||
+      (this.metadata.bot_token as string)?.trim() ||
+      "";
+    const botToken =
+      (rawBotToken ? (this.resolveEnvVar(rawBotToken) as string)?.trim() : "") ||
+      Config.TELEGRAM_BOT_TOKEN ||
+      "";
+
     const success = buyResult?.success === true;
     const txHash = buyResult?.txHash as string | undefined;
     const tokenAddress = (buyResult?.token_address as string) ?? "";
@@ -100,7 +109,6 @@ export class BuyNotifyNode extends BaseNode {
       const tokenLabel = symbol || (tokenAddress ? shortAddress(tokenAddress) : "token");
       const txUrl = `${BASESCAN_TX}/${txHash}`;
       const text = `Bought ${tokenLabel} for ${ethAmount} ETH. Tx: ${txUrl}`;
-      const botToken = Config.TELEGRAM_BOT_TOKEN || "";
       const result = await sendTelegramMessage(botToken, chatId, text);
       sent = result.ok;
       error = result.error;
