@@ -52,7 +52,7 @@ export const Config = {
   // CORS
   CORS_ORIGINS: (
     process.env.OBELISK_CORS_ORIGINS ||
-    "https://build.theobelisk.ai,http://localhost:3000,http://127.0.0.1:3000"
+    "https://build.theobelisk.ai,https://trade.deepentryai.com,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:3003"
   )
     .split(",")
     .map((o) => o.trim())
