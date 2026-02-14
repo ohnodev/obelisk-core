@@ -14,8 +14,8 @@ class MemoryStorageNode extends LGraphNode {
     // Optional input endpoint for storage_path (can be connected or use inline widget)
     this.addInput("storage_path", "string");
     
-    // Storage type selector - no input endpoint, only widget
     this.addOutput("storage_instance", "object");
+    this.addOutput("base_path", "string");
     this.size = [280, 150];
     (this as any).type = "memory_storage";
     (this as any).resizable = true;

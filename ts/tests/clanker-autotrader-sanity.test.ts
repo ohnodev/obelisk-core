@@ -52,6 +52,23 @@ describe("Clanker autotrader workflow sanity", () => {
     expect(workflow.nodes.length).toBeGreaterThan(0);
     expect(workflow.connections.length).toBeGreaterThan(0);
 
+    // Mock fetch only for blockchain service API (no real base.theobelisk.ai required)
+    const mockState = { lastUpdated: Date.now(), tokens: {}, recentLaunches: [] };
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string | URL) => {
+        const u = typeof url === "string" ? url : url.toString();
+        if (u.includes("/clanker/state")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockState),
+          } as Response);
+        }
+        return realFetch(url as string);
+      })
+    );
+
     // Mock inference so we don't require a running inference server for sanity
     vi.spyOn(InferenceClient.prototype, "generate").mockResolvedValue({
       response: JSON.stringify({
@@ -80,6 +97,7 @@ describe("Clanker autotrader workflow sanity", () => {
     expect(executedIds.has("3")).toBe(true); // clanker_launch_summary
 
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   }, 30_000);
 
   it("should have env loaded when .env is present (optional)", () => {

@@ -1,14 +1,12 @@
 /**
- * ClankerLaunchSummaryNode – reads Clanker state from Blockchain Config (or state_path),
- * filters to recent launches in the past 1 hour, enriches with full token stats
- * (volume 5m/15m/30m/1h, total volume, total makers, price change, etc.) and outputs
- * data formatted for the LLM. Excludes tokens we already hold (from clanker_bags.json)
- * so the model does not try to buy the same token twice.
+ * ClankerLaunchSummaryNode – reads Clanker state from Blockchain Config,
+ * filters to recent launches, enriches with token stats. Excludes tokens we hold
+ * (from clanker_bags.json at clanker_storage_path / base_path / storage_instance).
  */
 import fs from "fs";
-import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger, abbrevPathForLog } from "../../../utils/logger";
+import { getLogger } from "../../../utils/logger";
+import { resolveBagsPath } from "./clankerStoragePath";
 
 const logger = getLogger("clankerLaunchSummary");
 
@@ -27,21 +25,17 @@ function getStr(v: unknown): string {
   return String(v).trim();
 }
 
-/** Load set of token addresses we already hold (lowercased) from clanker_bags.json. */
-function loadHeldTokenAddresses(statePath: string | undefined): Set<string> {
+function loadHeldTokenAddresses(bagsPath: string): Set<string> {
   const set = new Set<string>();
-  if (!statePath || typeof statePath !== "string") return set;
-  const bagsPath = path.join(path.dirname(statePath), "clanker_bags.json");
+  if (!bagsPath) return set;
   try {
     if (!fs.existsSync(bagsPath)) return set;
     const raw = fs.readFileSync(bagsPath, "utf-8");
     const bagState = JSON.parse(raw) as { holdings?: Record<string, unknown> };
     const holdings = bagState?.holdings ?? {};
-    for (const addr of Object.keys(holdings)) {
-      set.add(addr.toLowerCase());
-    }
+    for (const addr of Object.keys(holdings)) set.add(addr.toLowerCase());
   } catch {
-    // ignore missing or invalid bags file
+    // ignore
   }
   return set;
 }
@@ -71,26 +65,13 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         ? Math.max(1, Math.min(100, Number(limitRaw)))
         : 20;
 
-    let state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const statePath = this.getInputValue("state_path", context, undefined) as string | undefined;
-
-    if (!state && statePath) {
-      try {
-        if (fs.existsSync(statePath)) {
-          const raw = fs.readFileSync(statePath, "utf-8");
-          state = JSON.parse(raw) as Record<string, unknown>;
-        }
-      } catch (e) {
-        logger.warn(`[ClankerLaunchSummary] Failed to read state from ${abbrevPathForLog(statePath)}: ${e}`);
-      }
-    }
-
+    const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
+    const bagsPath = resolveBagsPath(this, context);
     const tokens = (state?.tokens as Record<string, Record<string, unknown>>) ?? {};
     const recentLaunches = Array.isArray(state?.recentLaunches)
       ? (state.recentLaunches as Record<string, unknown>[])
       : [];
-
-    const heldAddresses = loadHeldTokenAddresses(statePath);
+    const heldAddresses = loadHeldTokenAddresses(bagsPath);
 
     const now = Date.now();
     const cutoff = now - windowHours * ONE_HOUR_MS;

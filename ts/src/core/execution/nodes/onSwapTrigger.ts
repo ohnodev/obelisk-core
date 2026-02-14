@@ -1,19 +1,18 @@
 /**
- * OnSwapTriggerNode – reads the last-swap file written by the blockchain service on each swap.
- * When a new swap is detected (timestamp > last processed), outputs trigger and swap payload
- * so a downstream loop can check our bags and optionally sell.
- *
- * Inputs: trigger (from scheduler – run on tick), swap_file_path, state_path (dir used for last_swap.json + listener state)
- * Outputs: trigger (boolean), swap (object)
+ * OnSwapTriggerNode – reads last_swap.json; when a new swap is detected, outputs trigger and swap payload.
+ * Uses clanker_storage_path / base_path / storage_instance for last_swap.json and listener state.
+ * Optional swap_file_path overrides the path to last_swap.json.
  */
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
+import { resolveClankerStorageBase } from "./clankerStoragePath";
 
 const logger = getLogger("onSwapTrigger");
 
 const LISTENER_STATE_FILENAME = "swap_listener_state.json";
+const LAST_SWAP_FILENAME = "last_swap.json";
 
 function getNum(v: unknown): number {
   if (v == null) return 0;
@@ -24,16 +23,15 @@ function getNum(v: unknown): number {
 export class OnSwapTriggerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const swapFilePath = (this.getInputValue("swap_file_path", context, undefined) as string) ?? "";
-    const statePathFromConfig = (this.getInputValue("state_path", context, undefined) as string) ?? "";
+    const storageBase = resolveClankerStorageBase(this, context);
 
-    const swapPath = swapFilePath
-      ? swapFilePath
-      : statePathFromConfig
-        ? path.join(path.dirname(statePathFromConfig), "last_swap.json")
+    const swapPath = swapFilePath.trim()
+      ? path.resolve(swapFilePath.trim())
+      : storageBase
+        ? path.join(storageBase, LAST_SWAP_FILENAME)
         : "";
-
     const dataDir = swapPath ? path.dirname(swapPath) : "";
-    const listenerStatePath = dataDir ? path.join(dataDir, LISTENER_STATE_FILENAME) : "";
+    const listenerStatePath = storageBase ? path.join(storageBase, LISTENER_STATE_FILENAME) : (dataDir ? path.join(dataDir, LISTENER_STATE_FILENAME) : "");
 
     if (!swapPath || !fs.existsSync(swapPath)) {
       return { trigger: false, swap: null };

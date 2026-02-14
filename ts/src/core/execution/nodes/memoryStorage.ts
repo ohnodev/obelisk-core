@@ -59,7 +59,12 @@ export class MemoryStorageNode extends BaseNode {
     // Check cache
     if (storageCache[cacheKey]) {
       logger.debug(`[MemoryStorage] Using cached storage for ${cacheKey}`);
-      return { storage_instance: storageCache[cacheKey] };
+      const instance = storageCache[cacheKey];
+      const basePath =
+        storageType === "local_json" && "basePath" in instance
+          ? (instance as { basePath: string }).basePath
+          : storagePath;
+      return { storage_instance: instance, base_path: basePath };
     }
 
     // Create new storage instance
@@ -77,6 +82,10 @@ export class MemoryStorageNode extends BaseNode {
     }
 
     storageCache[cacheKey] = instance;
-    return { storage_instance: instance };
+    const basePath =
+      storageType === "local_json" && "basePath" in instance
+        ? (instance as { basePath: string }).basePath
+        : storagePath;
+    return { storage_instance: instance, base_path: basePath };
   }
 }

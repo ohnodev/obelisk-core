@@ -1,8 +1,8 @@
 /**
  * AddToBagsNode – after a successful Clanker buy, add the position to bag state (clanker_bags.json)
- * with profit target and stop loss. Same storage location as blockchain service (e.g. data/clanker_bags.json).
+ * with profit target and stop loss. Storage from clanker_storage_path / base_path / storage_instance.
  *
- * Inputs: buy_result (from Clanker Buy), bag_state_path or state_path, state (for boughtAtPriceEth), profit_target_percent, stop_loss_percent
+ * Inputs: buy_result, state (for boughtAtPriceEth), clanker_storage_path / base_path / storage_instance, profit_target_percent, stop_loss_percent
  */
 import fs from "fs";
 import path from "path";
@@ -10,6 +10,7 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import type { ClankerBagState, BagHolding } from "./clankerBags";
 import { DEFAULT_PROFIT_TARGET_PERCENT, DEFAULT_STOP_LOSS_PERCENT } from "./clankerBags";
+import { resolveBagsPath } from "./clankerStoragePath";
 
 const logger = getLogger("addToBags");
 
@@ -23,12 +24,9 @@ export class AddToBagsNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const buyResult = this.getInputValue("buy_result", context, undefined) as Record<string, unknown> | undefined;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const statePath = (this.getInputValue("state_path", context, undefined) as string) ?? "";
-    const bagStatePath = (this.getInputValue("bag_state_path", context, undefined) as string) ?? "";
-
-    const resolvedBagPath = bagStatePath || (statePath ? path.join(path.dirname(statePath), "clanker_bags.json") : "");
+    const resolvedBagPath = resolveBagsPath(this, context);
     if (!resolvedBagPath) {
-      return { success: false, error: "bag_state_path or state_path required" };
+      return { success: false, error: "clanker_storage_path or base_path or storage_instance required" };
     }
 
     if (!buyResult?.success || !buyResult?.token_address) {

@@ -1,24 +1,21 @@
 /**
  * UpdateBagsOnSellNode – after a successful Clanker sell, remove that token from bag state.
  *
- * Inputs: sell_result (from Clanker Sell), bag_state_path or state_path
+ * Inputs: sell_result (from Clanker Sell), clanker_storage_path / base_path / storage_instance
  */
 import fs from "fs";
-import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
 import type { ClankerBagState } from "./clankerBags";
+import { resolveBagsPath } from "./clankerStoragePath";
 
 const logger = getLogger("updateBagsOnSell");
 
 export class UpdateBagsOnSellNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
-    const statePath = (this.getInputValue("state_path", context, undefined) as string) ?? "";
-    const bagStatePath = (this.getInputValue("bag_state_path", context, undefined) as string) ?? "";
-
-    const resolvedBagPath = bagStatePath || (statePath ? path.join(path.dirname(statePath), "clanker_bags.json") : "");
-    if (!resolvedBagPath) return { success: false, error: "bag_state_path or state_path required" };
+    const resolvedBagPath = resolveBagsPath(this, context);
+    if (!resolvedBagPath) return { success: false, error: "clanker_storage_path or base_path or storage_instance required" };
 
     if (!sellResult?.success || !sellResult?.token_address) {
       return { success: true };
