@@ -56,7 +56,7 @@
       },
       "inputs": {},
       "metadata": {
-        "blockchain_service_url": "http://localhost:8888",
+        "blockchain_service_url": "{{process.env.BLOCKCHAIN_SERVICE_URL}}",
         "api_key": "{{process.env.BLOCKCHAIN_SERVICE_API_KEY}}"
       }
     },
