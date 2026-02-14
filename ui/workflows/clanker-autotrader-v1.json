@@ -60,16 +60,6 @@
       }
     },
     {
-      "id": "19",
-      "type": "sell_notify",
-      "position": {
-        "x": 1980,
-        "y": -599
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "14",
       "type": "scheduler",
       "position": {
@@ -104,30 +94,6 @@
       }
     },
     {
-      "id": "13",
-      "type": "telegram_action",
-      "position": {
-        "x": 2606,
-        "y": 187
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
-      }
-    },
-    {
-      "id": "21",
-      "type": "telegram_action",
-      "position": {
-        "x": 2579,
-        "y": -597
-      },
-      "inputs": {},
-      "metadata": {
-        "bot_id": "{{process.env.TELEGRAM_BOT_TOKEN}}"
-      }
-    },
-    {
       "id": "11",
       "type": "text",
       "position": {
@@ -140,16 +106,6 @@
       }
     },
     {
-      "id": "12",
-      "type": "buy_notify",
-      "position": {
-        "x": 2411,
-        "y": -59
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "9",
       "type": "clanker_buy",
       "position": {
@@ -159,19 +115,6 @@
       "inputs": {},
       "metadata": {
         "amount_wei": "0"
-      }
-    },
-    {
-      "id": "20",
-      "type": "add_to_bags",
-      "position": {
-        "x": 2287,
-        "y": -402
-      },
-      "inputs": {},
-      "metadata": {
-        "profit_target_percent": 50,
-        "stop_loss_percent": 20
       }
     },
     {
@@ -339,16 +282,50 @@
       }
     },
     {
-      "id": "28",
-      "type": "action_logger",
+      "id": "19",
+      "type": "sell_notify",
       "position": {
-        "x": 2287,
-        "y": -200
+        "x": 1895,
+        "y": -722
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "20",
+      "type": "add_to_bags",
+      "position": {
+        "x": 2238,
+        "y": -536
       },
       "inputs": {},
       "metadata": {
-        "max_actions": 100
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
       }
+    },
+    {
+      "id": "28",
+      "type": "action_logger",
+      "position": {
+        "x": 2363,
+        "y": -261
+      },
+      "inputs": {},
+      "metadata": {
+        "max_actions": 100,
+        "Max actions (keep last N)": 100
+      }
+    },
+    {
+      "id": "12",
+      "type": "buy_notify",
+      "position": {
+        "x": 2359,
+        "y": 93
+      },
+      "inputs": {},
+      "metadata": {}
     }
   ],
   "connections": [
