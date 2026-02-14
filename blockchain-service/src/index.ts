@@ -12,7 +12,7 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
 import { StateManager } from "./state.js";
 import { BlockProcessor } from "./blockProcessor.js";
-import { PERSIST_INTERVAL_MS, BLOCK_POLL_MS } from "./constants.js";
+import { PERSIST_INTERVAL_MS, BLOCK_POLL_MS, CLEANUP_INTERVAL_MS, CLEANUP_MIN_VOLUME_ETH } from "./constants.js";
 
 const RPC_URL = process.env.RPC_URL || "https://mainnet.base.org";
 // Store in blockchain-service/data/ (same pattern as obelisk-service); __dirname at runtime is dist/
@@ -29,10 +29,15 @@ console.log(`[Clanker] State file: ${STATE_FILE_PATH}`);
 state.load();
 state.startPersistInterval(PERSIST_INTERVAL_SEC * 1000);
 
+const cleanupIntervalId = setInterval(() => {
+  state.cleanupDeadTokens(CLEANUP_MIN_VOLUME_ETH);
+}, CLEANUP_INTERVAL_MS);
+
 const processor = new BlockProcessor(RPC_URL, state, CLANKER_HOOK_ADDRESS);
 
 function shutdown(): void {
   console.log("[Clanker] Shutting down...");
+  clearInterval(cleanupIntervalId);
   processor.stop();
   state.stopPersistInterval();
   state.persist();
