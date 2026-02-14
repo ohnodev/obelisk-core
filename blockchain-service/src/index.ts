@@ -39,7 +39,25 @@ const cleanupIntervalId = setInterval(() => {
 
 const processor = new BlockProcessor(RPC_URL, state, CLANKER_HOOK_ADDRESS);
 
+const CORS_ORIGINS = (process.env.BLOCKCHAIN_CORS_ORIGINS ?? "https://trade.deepentryai.com")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 const app = express();
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && CORS_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 function verifyApiKey(req: express.Request, res: express.Response, next: express.NextFunction): void {
   if (!API_KEY) {

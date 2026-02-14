@@ -38,7 +38,7 @@ class InferenceConfig:
     CORS_ORIGINS: List[str] = [
         o.strip() for o in os.getenv(
             "INFERENCE_CORS_ORIGINS",
-            "https://build.theobelisk.ai,http://localhost:3000,http://localhost:7779,http://127.0.0.1:3000,http://127.0.0.1:7779"
+            "https://build.theobelisk.ai,https://trade.deepentryai.com,http://localhost:3000,http://localhost:7779,http://127.0.0.1:3000,http://127.0.0.1:7779"
         ).split(",") if o.strip()
     ]
     
