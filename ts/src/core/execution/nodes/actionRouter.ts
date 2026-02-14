@@ -106,9 +106,13 @@ export class ActionRouterNode extends BaseNode {
           "action_router"
         ) as Record<string, unknown> | unknown[];
         // Accept either { "actions": [ ... ] } or a top-level array [ { "action": "buy", ... }, ... ]
-        const rawList = Array.isArray(parsed)
+        // Or a single action object from repaired JSON: { "action": "buy", "params": { ... } }
+        let rawList = Array.isArray(parsed)
           ? parsed
           : (parsed as Record<string, unknown>)?.actions;
+        if (!Array.isArray(rawList) && parsed != null && typeof parsed === "object" && isActionItem(parsed)) {
+          rawList = [parsed];
+        }
         if (Array.isArray(rawList)) {
           parsedSuccessfully = true;
           for (const item of rawList) {
@@ -136,38 +140,14 @@ export class ActionRouterNode extends BaseNode {
           parsedSuccessfully = true; // valid JSON but no actions array
         }
       } catch (_e) {
-        // Fallback: try to extract reply text from JSON-like string so we don't send raw JSON
-        const extracted = extractReplyTextFromJsonLike(responseStr);
-        if (extracted != null && extracted.length > 0) {
-          actions = [{ action: "send_message", params: { text: extracted } }];
-          logger.debug(
-            `[ActionRouter ${this.nodeId}] Parse failed; extracted text (${extracted.length} chars), sending as send_message`
-          );
-        } else if (responseStr.trimStart().startsWith("{")) {
-          actions = [
-            { action: "send_message", params: { text: "Sorry, I couldn't process that." } },
-          ];
-          logger.debug(
-            `[ActionRouter ${this.nodeId}] Parse failed and no text found; response looks like JSON, sending fallback send_message`
-          );
-        } else {
-          logger.debug(
-            `[ActionRouter ${this.nodeId}] No valid JSON actions, using full response as send_message`
-          );
-        }
+        // Parse failure → treat as no action (do not send raw/garbage to user)
+        logger.debug(
+          `[ActionRouter ${this.nodeId}] Parse failed, treating as no action`
+        );
       }
     }
 
-// Only send raw response as message when parsing failed. When we parsed successfully
-// and got empty actions (e.g. no buy), do not send the raw JSON to the user.
-if (actions.length === 0 && responseStr && !parsedSuccessfully) {
-  actions = [
-    {
-      action: "send_message",
-      params: { text: responseStr },
-    },
-  ];
-} else if (actions.length > 0) {
+    if (actions.length > 0) {
       const hasSendMessage = actions.some((a) => a.action === "send_message");
       const hasReply = actions.some((a) => a.action === "reply");
       const onlyTradingActions = actions.every(

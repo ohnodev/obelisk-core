@@ -32,3 +32,7 @@ export const RECENT_LAUNCHES_MAX = 50;
 export const LAST_N_SWAPS = 20;
 export const PERSIST_INTERVAL_MS = 30_000;
 export const BLOCK_POLL_MS = 1000;
+
+/** Cleanup: remove dead tokens (low volume) every minute */
+export const CLEANUP_INTERVAL_MS = 60_000;
+export const CLEANUP_MIN_VOLUME_ETH = 0.01;

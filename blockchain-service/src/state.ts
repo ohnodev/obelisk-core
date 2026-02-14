@@ -101,6 +101,44 @@ export class StateManager {
     return set;
   }
 
+  /**
+   * Remove tokens where both volume1h and volume5m are below minVolumeEth.
+   * Skips tokens we hold (in clanker_bags.json). Returns count removed.
+   */
+  cleanupDeadTokens(minVolumeEth: number): number {
+    const bagsPath = path.join(path.dirname(this.stateFilePath), "clanker_bags.json");
+    const held = new Set<string>();
+    if (fs.existsSync(bagsPath)) {
+      try {
+        const raw = fs.readFileSync(bagsPath, "utf-8");
+        const data = JSON.parse(raw) as { holdings?: Record<string, unknown> };
+        const holdings = data.holdings ?? {};
+        for (const addr of Object.keys(holdings)) held.add(addr.toLowerCase());
+      } catch {
+        // ignore; treat as no holdings
+      }
+    }
+    const toRemove: string[] = [];
+    for (const [addr, t] of Object.entries(this.state.tokens)) {
+      if (held.has(addr.toLowerCase())) continue;
+      const v1h = t.volume1h ?? 0;
+      const v5m = t.volume5m ?? 0;
+      if (v1h < minVolumeEth && v5m < minVolumeEth) toRemove.push(addr);
+    }
+    for (const addr of toRemove) {
+      delete this.state.tokens[addr];
+    }
+    const removedSet = new Set(toRemove);
+    this.state.recentLaunches = this.state.recentLaunches.filter(
+      (e) => !removedSet.has(e.tokenAddress.toLowerCase())
+    );
+    if (toRemove.length > 0) {
+      this.persist();
+      console.log(`[Clanker] Cleanup removed ${toRemove.length} dead token(s): ${toRemove.join(", ")}`);
+    }
+    return toRemove.length;
+  }
+
   addLaunch(event: LaunchEvent): void {
     const tokenAddress = event.tokenAddress.toLowerCase();
     if (this.state.tokens[tokenAddress]) return; // already tracked

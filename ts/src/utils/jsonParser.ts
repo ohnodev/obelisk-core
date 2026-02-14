@@ -67,7 +67,7 @@ export function extractJsonFromLlmResponse(
       }
     }
     if (jsonEnd > idxBracket) {
-      const jsonStr = sanitizeJsonString(text.slice(idxBracket, jsonEnd));
+      const jsonStr = sanitizeJsonString(text.slice(idxBracket, jsonEnd)).trim();
       try {
         return JSON.parse(jsonStr) as unknown[];
       } catch {
