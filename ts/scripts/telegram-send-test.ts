@@ -12,7 +12,7 @@ import path from "path";
 import dotenv from "dotenv";
 
 const root = path.resolve(__dirname, "..", "..");
-dotenv.config({ path: path.join(root, ".env"), override: true });
+dotenv.config({ path: path.join(root, ".env") });
 
 const API_BASE = "https://api.telegram.org/bot";
 
