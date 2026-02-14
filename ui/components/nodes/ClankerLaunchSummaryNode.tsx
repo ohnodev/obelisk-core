@@ -20,6 +20,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addOutput("summary", "string");
     this.addOutput("text", "string");
     this.addOutput("count", "number");
+    this.addOutput("has_tokens", "boolean");
 
     this.addProperty("window_hours", 1, "number");
     this.addProperty("limit", 20, "number");

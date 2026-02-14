@@ -13,6 +13,8 @@ import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 const logger = getLogger("clankerLaunchSummary");
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+/** Minimum volume (ETH) in the past hour to include a token in the summary. */
+const MIN_VOLUME_1H_ETH = 0.01;
 
 function getNum(v: unknown): number {
   if (v == null) return 0;
@@ -54,6 +56,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         summary: "Insufficient funds.",
         count: 0,
         text: "Insufficient funds.",
+        has_tokens: false,
       };
     }
 
@@ -106,9 +109,10 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         volume24h: getNum(t.volume24h),
       };
     });
-    // Sort by top volume (1h then 24h), take limit
-    withStats.sort((a, b) => (b.volume1h || 0) - (a.volume1h || 0) || (b.volume24h || 0) - (a.volume24h || 0));
-    const slice = withStats.slice(0, limit);
+    // Only include tokens with at least MIN_VOLUME_1H_ETH in the past hour
+    const meetsMinVolume = withStats.filter((x) => (x.volume1h ?? 0) >= MIN_VOLUME_1H_ETH);
+    meetsMinVolume.sort((a, b) => (b.volume1h || 0) - (a.volume1h || 0) || (b.volume24h || 0) - (a.volume24h || 0));
+    const slice = meetsMinVolume.slice(0, limit);
 
     const enriched = slice.map(({ launch }) => {
       const addr = getStr(launch.tokenAddress).toLowerCase();
@@ -152,11 +156,13 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const summary =
       `Recent Clanker launches (past ${windowHours}h). Volumes in ETH; price deltas: 1m, 5m, 1h.\n` + (lines.length ? lines.join("\n") : "(none)");
 
+    const hasTokens = enriched.length > 0;
     return {
       recent_launches: enriched,
       summary,
       count: enriched.length,
       text: summary,
+      has_tokens: hasTokens,
     };
   }
 }
