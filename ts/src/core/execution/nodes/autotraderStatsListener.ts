@@ -15,6 +15,9 @@ import { HttpRequestRegistry } from "./httpListener";
 
 const logger = getLogger("autotraderStatsListener");
 
+/** Max number of queued GET /stats requests; excess receive 429. Prevents unbounded memory under load. */
+const MAX_QUEUE_SIZE = 100;
+
 interface QueuedStatsRequest {
   requestId: string;
   method: string;
@@ -70,6 +73,12 @@ export class AutotraderStatsListenerNode extends BaseNode {
     });
 
     this._app.get(this._path, (req, res) => {
+      if (this._pending.length >= MAX_QUEUE_SIZE) {
+        res.status(429).json({ error: "Too many requests", message: "Stats queue full" });
+        logger.warn(`[AutotraderStatsListener ${this.nodeId}] Rejected GET (queue full, size=${this._pending.length})`);
+        return;
+      }
+
       const requestId = randomUUID();
       const query = (req.query as Record<string, string>) ?? {};
       const queued: QueuedStatsRequest = {

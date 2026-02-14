@@ -24,12 +24,17 @@ class AutotraderStatsListenerNode extends LGraphNode {
     this.addProperty("port", 8081, "number");
     this.addProperty("path", "/stats", "string");
 
+    const safePortDefault = 8081;
     this.addWidget(
       "number" as any,
       "port",
-      8081,
+      safePortDefault,
       (value: number) => {
-        this.setProperty("port", Math.max(1, Math.min(65535, Math.floor(value))));
+        const num = Number(value);
+        const current = (this.properties as any)?.port;
+        const fallback = Number.isFinite(Number(current)) ? Math.max(1, Math.min(65535, Math.floor(Number(current)))) : safePortDefault;
+        const port = Number.isFinite(num) ? Math.max(1, Math.min(65535, Math.floor(num))) : fallback;
+        this.setProperty("port", port);
       },
       { min: 1, max: 65535, step: 1, serialize: true, property: "port" } as any
     );

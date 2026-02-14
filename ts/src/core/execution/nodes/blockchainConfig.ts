@@ -7,13 +7,18 @@ import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("blockchainConfig");
 
-const DEFAULT_STATE: Record<string, unknown> = {
-  lastUpdated: 0,
-  tokens: {},
-  recentLaunches: [],
-};
+function getDefaultState(): Record<string, unknown> {
+  return {
+    lastUpdated: 0,
+    tokens: {},
+    recentLaunches: [],
+  };
+}
 
 const DEFAULT_BLOCKCHAIN_SERVICE_URL = "http://localhost:8888";
+
+/** Timeout for fetch to blockchain service (ms). Same pattern as telegramListener/buyNotify. */
+const FETCH_TIMEOUT_MS = 10_000;
 
 function getStr(v: unknown): string {
   if (v == null) return "";
@@ -41,7 +46,7 @@ export class BlockchainConfigNode extends BaseNode {
 
     if (!baseUrlNorm) {
       logger.warn("[BlockchainConfig] No blockchain_service_url; returning empty state");
-      return { state: DEFAULT_STATE };
+      return { state: getDefaultState() };
     }
 
     const stateUrl = `${baseUrlNorm}/clanker/state`;
@@ -50,15 +55,16 @@ export class BlockchainConfigNode extends BaseNode {
       headers["Authorization"] = `Bearer ${apiKey}`;
       headers["X-API-Key"] = apiKey;
     }
+    const abortSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(stateUrl, { headers });
+      const res = await fetch(stateUrl, { headers, signal: abortSignal });
       if (!res.ok) {
         logger.warn(`[BlockchainConfig] GET ${stateUrl} returned ${res.status}`);
-        return { state: DEFAULT_STATE };
+        return { state: getDefaultState() };
       }
       const state = (await res.json()) as Record<string, unknown>;
       if (!state || typeof state !== "object") {
-        return { state: DEFAULT_STATE };
+        return { state: getDefaultState() };
       }
       return {
         state: {
@@ -68,8 +74,10 @@ export class BlockchainConfigNode extends BaseNode {
         },
       };
     } catch (e) {
-      logger.warn(`[BlockchainConfig] Failed to fetch state from ${stateUrl}: ${e}`);
-      return { state: DEFAULT_STATE };
+      const msg = e instanceof Error ? e.message : String(e);
+      const isAbort = e instanceof Error && e.name === "AbortError";
+      logger.warn(`[BlockchainConfig] Failed to fetch state from ${stateUrl}${isAbort ? " (timeout)" : ""}: ${msg}`);
+      return { state: getDefaultState() };
     }
   }
 }
