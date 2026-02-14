@@ -119,18 +119,6 @@
       }
     },
     {
-      "id": "23",
-      "type": "boolean_logic",
-      "position": {
-        "x": 127,
-        "y": 236
-      },
-      "inputs": {},
-      "metadata": {
-        "operation": "AND"
-      }
-    },
-    {
       "id": "5",
       "type": "inference_config",
       "position": {
@@ -144,81 +132,6 @@
         "model_path": "models/default_model",
         "auto_load": true
       }
-    },
-    {
-      "id": "22",
-      "type": "balance_checker",
-      "position": {
-        "x": -205,
-        "y": 212
-      },
-      "inputs": {},
-      "metadata": {
-        "min_balance_wei": "0.004",
-        "min ETH": "0.004"
-      }
-    },
-    {
-      "id": "3",
-      "type": "clanker_launch_summary",
-      "position": {
-        "x": 395,
-        "y": 113
-      },
-      "inputs": {},
-      "metadata": {
-        "window_hours": 1,
-        "limit": 20
-      }
-    },
-    {
-      "id": "6",
-      "type": "inference",
-      "position": {
-        "x": 810,
-        "y": -55
-      },
-      "inputs": {},
-      "metadata": {
-        "quantum_influence": 0.7,
-        "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
-        "enable_thinking": true
-      }
-    },
-    {
-      "id": "4",
-      "type": "text",
-      "position": {
-        "x": 785,
-        "y": 305
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
-      }
-    },
-    {
-      "id": "24",
-      "type": "text",
-      "position": {
-        "x": 1159,
-        "y": 81
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "Model output (reply + reasoning) — for debugging"
-      }
-    },
-    {
-      "id": "7",
-      "type": "action_router",
-      "position": {
-        "x": 1482,
-        "y": 35
-      },
-      "inputs": {},
-      "metadata": {}
     },
     {
       "id": "13",
@@ -245,41 +158,6 @@
       }
     },
     {
-      "id": "20",
-      "type": "add_to_bags",
-      "position": {
-        "x": 2186,
-        "y": -423
-      },
-      "inputs": {},
-      "metadata": {
-        "profit_target_percent": 50,
-        "stop_loss_percent": 20
-      }
-    },
-    {
-      "id": "9",
-      "type": "clanker_buy",
-      "position": {
-        "x": 1806,
-        "y": -71
-      },
-      "inputs": {},
-      "metadata": {
-        "amount_wei": "0"
-      }
-    },
-    {
-      "id": "12",
-      "type": "buy_notify",
-      "position": {
-        "x": 2255,
-        "y": -107
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "11",
       "type": "text",
       "position": {
@@ -289,6 +167,140 @@
       "inputs": {},
       "metadata": {
         "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
+    },
+    {
+      "id": "34",
+      "type": "boolean_logic",
+      "position": {
+        "x": 661,
+        "y": 71
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
+      "id": "23",
+      "type": "boolean_logic",
+      "position": {
+        "x": 134,
+        "y": 58
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
+      "id": "22",
+      "type": "balance_checker",
+      "position": {
+        "x": -184,
+        "y": 125
+      },
+      "inputs": {},
+      "metadata": {
+        "min_balance_wei": "0.004",
+        "min ETH": "0.004"
+      }
+    },
+    {
+      "id": "24",
+      "type": "text",
+      "position": {
+        "x": 1307,
+        "y": 30
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Model output (reply + reasoning) — for debugging"
+      }
+    },
+    {
+      "id": "7",
+      "type": "action_router",
+      "position": {
+        "x": 1656,
+        "y": 58
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "12",
+      "type": "buy_notify",
+      "position": {
+        "x": 2411,
+        "y": -59
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "9",
+      "type": "clanker_buy",
+      "position": {
+        "x": 1968,
+        "y": -97
+      },
+      "inputs": {},
+      "metadata": {
+        "amount_wei": "0"
+      }
+    },
+    {
+      "id": "20",
+      "type": "add_to_bags",
+      "position": {
+        "x": 2287,
+        "y": -402
+      },
+      "inputs": {},
+      "metadata": {
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
+      }
+    },
+    {
+      "id": "6",
+      "type": "inference",
+      "position": {
+        "x": 950,
+        "y": -81
+      },
+      "inputs": {},
+      "metadata": {
+        "quantum_influence": 0.7,
+        "max_length": 1024,
+        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
+        "enable_thinking": true
+      }
+    },
+    {
+      "id": "4",
+      "type": "text",
+      "position": {
+        "x": 764,
+        "y": 278
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_launch_summary",
+      "position": {
+        "x": 336,
+        "y": 234
+      },
+      "inputs": {},
+      "metadata": {
+        "window_hours": 1,
+        "limit": 20
       }
     }
   ],
@@ -402,40 +414,46 @@
       "to_input": "trigger"
     },
     {
-      "from": "23",
-      "from_output": "trigger",
-      "to": "3",
-      "to_input": "trigger"
-    },
-    {
       "from": "5",
       "from_output": "model",
       "to": "6",
       "to_input": "model"
     },
     {
-      "from": "22",
-      "from_output": "has_sufficient_funds",
-      "to": "23",
-      "to_input": "b"
+      "from": "11",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "chat_id"
     },
     {
-      "from": "3",
-      "from_output": "summary",
+      "from": "11",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "34",
+      "from_output": "pass",
       "to": "6",
       "to_input": "query"
     },
     {
-      "from": "3",
-      "from_output": "summary",
-      "to": "4",
-      "to_input": "text"
+      "from": "23",
+      "from_output": "result",
+      "to": "34",
+      "to_input": "a"
     },
     {
-      "from": "6",
-      "from_output": "response",
-      "to": "24",
-      "to_input": "text"
+      "from": "23",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
+    },
+    {
+      "from": "22",
+      "from_output": "has_sufficient_funds",
+      "to": "23",
+      "to_input": "b"
     },
     {
       "from": "24",
@@ -462,16 +480,22 @@
       "to_input": "buy_result"
     },
     {
-      "from": "11",
-      "from_output": "text",
-      "to": "12",
-      "to_input": "chat_id"
+      "from": "6",
+      "from_output": "response",
+      "to": "24",
+      "to_input": "text"
     },
     {
-      "from": "11",
-      "from_output": "text",
-      "to": "19",
-      "to_input": "chat_id"
+      "from": "3",
+      "from_output": "summary",
+      "to": "34",
+      "to_input": "value"
+    },
+    {
+      "from": "3",
+      "from_output": "has_tokens",
+      "to": "34",
+      "to_input": "b"
     }
   ]
 }
