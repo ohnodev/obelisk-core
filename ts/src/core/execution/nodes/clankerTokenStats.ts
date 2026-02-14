@@ -1,11 +1,7 @@
 /**
- * ClankerTokenStatsNode – looks up token stats from Clanker state (from BlockchainConfigNode or state_path).
+ * ClankerTokenStatsNode – looks up token stats from Clanker state (from Blockchain Config).
  */
-import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger, abbrevPathForLog } from "../../../utils/logger";
-
-const logger = getLogger("clankerTokenStats");
 
 export class ClankerTokenStatsNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
@@ -19,19 +15,7 @@ export class ClankerTokenStatsNode extends BaseNode {
         ? String(tokenAddressRaw).toLowerCase().trim()
         : undefined;
 
-    let state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const statePath = this.getInputValue("state_path", context, undefined) as string | undefined;
-
-    if (!state && statePath) {
-      try {
-        if (fs.existsSync(statePath)) {
-          const raw = fs.readFileSync(statePath, "utf-8");
-          state = JSON.parse(raw) as Record<string, unknown>;
-        }
-      } catch (e) {
-        logger.warn(`[ClankerTokenStats] Failed to read state from ${abbrevPathForLog(statePath)}: ${e}`);
-      }
-    }
+    const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
 
     const empty = {
       token_address: tokenAddress ?? "",

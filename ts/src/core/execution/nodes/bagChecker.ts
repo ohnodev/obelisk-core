@@ -1,18 +1,16 @@
 /**
- * BagCheckerNode – on scheduler trigger (e.g. every 10s), reads state + bag state from storage,
- * checks each holding against current price (from token stats); if any hits profit target,
- * stop loss, or sell timer (held longer than N min without hitting target), outputs
- * should_sell and sell_params for ClankerSell.
+ * BagCheckerNode – on scheduler trigger, reads state + bag state from storage,
+ * checks each holding against current price; if any hits profit target, stop loss,
+ * or sell timer, outputs should_sell and sell_params.
  *
- * Inputs: trigger (from scheduler), state (Clanker state), state_path (for bag file path),
- *         sell_timer_minutes (number, default 5; 0 = disabled)
- * Outputs: should_sell (boolean), sell_params (object when should_sell), holding
+ * Inputs: trigger, state (from Blockchain Config), clanker_storage_path / base_path / storage_instance (for bags),
+ *         sell_timer_minutes (default 5; 0 = disabled)
  */
 import fs from "fs";
-import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import type { ClankerBagState, BagHolding } from "./clankerBags";
+import { resolveBagsPath } from "./clankerStoragePath";
 
 const logger = getLogger("bagChecker");
 
@@ -25,15 +23,12 @@ function getNum(v: unknown): number {
 export class BagCheckerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const trigger = this.getInputValue("trigger", context, false) as boolean;
-    const statePath = (this.getInputValue("state_path", context, undefined) as string) ?? "";
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const bagStatePath = (this.getInputValue("bag_state_path", context, undefined) as string) ?? "";
     const sellTimerMinutes = Math.max(
       0,
       getNum(this.getInputValue("sell_timer_minutes", context, this.metadata.sell_timer_minutes ?? 5))
     );
-
-    const resolvedBagPath = bagStatePath || (statePath ? path.join(path.dirname(statePath), "clanker_bags.json") : "");
+    const resolvedBagPath = resolveBagsPath(this, context);
 
     if (!trigger) {
       return { should_sell: false, sell_params: null, holding: null };

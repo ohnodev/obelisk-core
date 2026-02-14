@@ -12,7 +12,6 @@ class ClankerTokenStatsNode extends LGraphNode {
     this.title = "Clanker Token Stats";
     this.addInput("token_address", "string");
     this.addInput("state", "object");
-    this.addInput("state_path", "string");
     this.addOutput("stats", "object");
 
     this.addProperty("token_address", "", "string");
@@ -36,7 +35,7 @@ class ClankerTokenStatsNode extends LGraphNode {
   }
 
   onExecute() {
-    // Backend resolves from state / state_path
+    // Backend uses state from Blockchain Config
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {

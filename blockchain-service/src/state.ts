@@ -103,24 +103,11 @@ export class StateManager {
 
   /**
    * Remove tokens where both volume1h and volume5m are below minVolumeEth.
-   * Skips tokens we hold (in clanker_bags.json). Returns count removed.
+   * Bags live on the workflow host only; no cross-host dependency.
    */
   cleanupDeadTokens(minVolumeEth: number): number {
-    const bagsPath = path.join(path.dirname(this.stateFilePath), "clanker_bags.json");
-    const held = new Set<string>();
-    if (fs.existsSync(bagsPath)) {
-      try {
-        const raw = fs.readFileSync(bagsPath, "utf-8");
-        const data = JSON.parse(raw) as { holdings?: Record<string, unknown> };
-        const holdings = data.holdings ?? {};
-        for (const addr of Object.keys(holdings)) held.add(addr.toLowerCase());
-      } catch {
-        // ignore; treat as no holdings
-      }
-    }
     const toRemove: string[] = [];
     for (const [addr, t] of Object.entries(this.state.tokens)) {
-      if (held.has(addr.toLowerCase())) continue;
       const v1h = t.volume1h ?? 0;
       const v5m = t.volume5m ?? 0;
       if (v1h < minVolumeEth && v5m < minVolumeEth) toRemove.push(addr);

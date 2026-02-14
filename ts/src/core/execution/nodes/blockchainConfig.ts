@@ -1,47 +1,83 @@
 /**
- * BlockchainConfigNode – resolves path to Clanker state JSON and optionally loads it.
- * Outputs state_path and state so downstream nodes (ClankerTokenStats, ClankerLaunchSummary) can read.
+ * BlockchainConfigNode – fetches Clanker state from the blockchain service HTTP API.
+ * Outputs state only; downstream nodes get bags/actions paths from a storage node.
  */
-import path from "path";
-import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { getLogger, abbrevPathForLog } from "../../../utils/logger";
+import { getLogger } from "../../../utils/logger";
 
 const logger = getLogger("blockchainConfig");
 
-// Same as blockchain-service default: state lives in blockchain-service/data/
-const DEFAULT_STATE_PATH = path.join(
-  process.cwd(),
-  "blockchain-service",
-  "data",
-  "clanker_state.json"
-);
+function getDefaultState(): Record<string, unknown> {
+  return {
+    lastUpdated: 0,
+    tokens: {},
+    recentLaunches: [],
+  };
+}
+
+const DEFAULT_BLOCKCHAIN_SERVICE_URL = "http://localhost:8888";
+
+/** Timeout for fetch to blockchain service (ms). Same pattern as telegramListener/buyNotify. */
+const FETCH_TIMEOUT_MS = 10_000;
+
+function getStr(v: unknown): string {
+  if (v == null) return "";
+  return String(v).trim();
+}
 
 export class BlockchainConfigNode extends BaseNode {
-  execute(context: ExecutionContext): Record<string, unknown> {
-    const overridePath = this.getInputValue(
-      "state_file_path",
+  async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
+    const urlFromInput = this.getInputValue(
+      "blockchain_service_url",
       context,
       undefined
     ) as string | undefined;
-    const statePath = overridePath
-      ? path.resolve(overridePath)
-      : (this.metadata.state_file_path as string) || DEFAULT_STATE_PATH;
+    const baseUrl =
+      getStr(urlFromInput) ||
+      getStr(this.metadata.blockchain_service_url) ||
+      getStr(process.env.BLOCKCHAIN_SERVICE_URL) ||
+      DEFAULT_BLOCKCHAIN_SERVICE_URL;
+    const baseUrlNorm = baseUrl.replace(/\/$/, "");
 
-    let state: Record<string, unknown> = {
-      lastUpdated: 0,
-      tokens: {},
-      recentLaunches: [],
-    };
-    try {
-      if (fs.existsSync(statePath)) {
-        const raw = fs.readFileSync(statePath, "utf-8");
-        state = JSON.parse(raw) as Record<string, unknown>;
-      }
-    } catch (e) {
-      logger.warn(`[BlockchainConfig] Failed to read state from ${abbrevPathForLog(statePath)}: ${e}`);
+    const apiKey =
+      getStr(this.getInputValue("api_key", context, undefined)) ||
+      getStr(this.resolveEnvVar(this.metadata.api_key)) ||
+      getStr(process.env.BLOCKCHAIN_SERVICE_API_KEY);
+
+    if (!baseUrlNorm) {
+      logger.warn("[BlockchainConfig] No blockchain_service_url; returning empty state");
+      return { state: getDefaultState() };
     }
 
-    return { state_path: statePath, state };
+    const stateUrl = `${baseUrlNorm}/clanker/state`;
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+      headers["X-API-Key"] = apiKey;
+    }
+    const abortSignal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(stateUrl, { headers, signal: abortSignal });
+      if (!res.ok) {
+        logger.warn(`[BlockchainConfig] GET ${stateUrl} returned ${res.status}`);
+        return { state: getDefaultState() };
+      }
+      const state = (await res.json()) as Record<string, unknown>;
+      if (!state || typeof state !== "object") {
+        return { state: getDefaultState() };
+      }
+      return {
+        state: {
+          lastUpdated: state.lastUpdated ?? 0,
+          tokens: state.tokens ?? {},
+          recentLaunches: Array.isArray(state.recentLaunches) ? state.recentLaunches : [],
+        },
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const isAbort = e instanceof Error && e.name === "AbortError";
+      logger.warn(`[BlockchainConfig] Failed to fetch state from ${stateUrl}${isAbort ? " (timeout)" : ""}: ${msg}`);
+      return { state: getDefaultState() };
+    }
   }
 }

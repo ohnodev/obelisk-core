@@ -56,7 +56,8 @@
       },
       "inputs": {},
       "metadata": {
-        "state_file_path": "blockchain-service/data/clanker_state.json"
+        "blockchain_service_url": "http://localhost:8888",
+        "api_key": "{{process.env.BLOCKCHAIN_SERVICE_API_KEY}}"
       }
     },
     {
@@ -378,40 +379,40 @@
       "to_input": "private_key"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "3",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "20",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "16",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "18",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "26",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
-      "from": "1",
-      "from_output": "state_path",
+      "from": "10",
+      "from_output": "base_path",
       "to": "28",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
       "from": "1",

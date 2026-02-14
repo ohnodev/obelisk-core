@@ -207,7 +207,7 @@
       "type": "blockchain_config",
       "position": { "x": -200, "y": 400 },
       "inputs": {},
-      "metadata": { "state_file_path": "blockchain-service/data/clanker_state.json" }
+      "metadata": { "blockchain_service_url": "http://localhost:8888" }
     },
     {
       "id": "29",
@@ -484,10 +484,10 @@
       "to_input": "response"
     },
     {
-      "from": "28",
-      "from_output": "state_path",
+      "from": "16",
+      "from_output": "base_path",
       "to": "30",
-      "to_input": "state_path"
+      "to_input": "base_path"
     },
     {
       "from": "28",

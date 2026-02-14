@@ -12,8 +12,8 @@ class UpdateBagsOnSellNode extends LGraphNode {
     this.title = "Update Bags On Sell";
 
     this.addInput("sell_result", "object");
-    this.addInput("state_path", "string");
-    this.addInput("bag_state_path", "string");
+    this.addInput("base_path", "string");
+    this.addInput("storage_instance", "object");
 
     this.addOutput("success", "boolean");
 

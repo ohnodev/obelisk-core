@@ -32,6 +32,23 @@ describe("Workflow serialization format (UI → backend)", () => {
     expect(workflow.nodes.length).toBeGreaterThan(0);
     expect(workflow.connections.length).toBeGreaterThan(0);
 
+    // Mock fetch only for blockchain service URLs (default.json has blockchain_config)
+    const mockState = { lastUpdated: 0, tokens: {}, recentLaunches: [] };
+    const realFetch = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string | URL, init?: unknown) => {
+        const u = typeof url === "string" ? url : url.toString();
+        if (u.includes("/clanker/state")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockState),
+          } as Response);
+        }
+        return realFetch(url as string, init as RequestInit);
+      })
+    );
+
     // Mock inference for nodes that need it
     vi.spyOn(InferenceClient.prototype, "generate").mockResolvedValue({
       response: "Test response",
@@ -48,6 +65,7 @@ describe("Workflow serialization format (UI → backend)", () => {
     expect(result.nodeResults.length).toBeGreaterThan(0);
 
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("should convert girlfriend.json (Aria HTTP workflow) and run engine", async () => {

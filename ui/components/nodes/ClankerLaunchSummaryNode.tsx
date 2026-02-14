@@ -12,7 +12,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.title = "Clanker Launch Summary";
     this.addInput("trigger", "boolean");
     this.addInput("state", "object");
-    this.addInput("state_path", "string");
+    this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
     this.addInput("limit", "number");
     this.addInput("window_hours", "number");

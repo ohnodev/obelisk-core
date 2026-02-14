@@ -1,20 +1,17 @@
 /**
- * ActionLoggerNode – appends buy/sell results to clanker_actions.json (same dir as state).
- * Keeps only the last N actions (default 100) to avoid unbounded growth.
+ * ActionLoggerNode – appends buy/sell results to clanker_actions.json.
+ * Storage from clanker_storage_path / base_path / storage_instance.
  *
- * Inputs: buy_result (from Clanker Buy), sell_result (from Clanker Sell), state_path (from Blockchain Config),
- *         optional storage_instance (if provided, use basePath for actions file; else use state_path dir),
- *         max_actions (number, default 100)
- * Outputs: success, logged_count (1 if one action logged, 0 if none)
+ * Inputs: buy_result, sell_result, clanker_storage_path / base_path / storage_instance, max_actions (default 100)
  */
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
+import { resolveActionsPath } from "./clankerStoragePath";
 
 const logger = getLogger("actionLogger");
 
-const ACTIONS_FILE_NAME = "clanker_actions.json";
 const DEFAULT_MAX_ACTIONS = 100;
 
 function getNum(v: unknown): number {
@@ -32,21 +29,15 @@ export class ActionLoggerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const buyResult = this.getInputValue("buy_result", context, undefined) as Record<string, unknown> | undefined;
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
-    const statePath = (this.getInputValue("state_path", context, undefined) as string) ?? "";
-    const storageInstance = this.getInputValue("storage_instance", context, undefined) as Record<string, unknown> | undefined;
+    const actionsPath = resolveActionsPath(this, context);
     const maxActions = Math.min(
       1000,
       Math.max(1, getNum(this.getInputValue("max_actions", context, this.metadata.max_actions ?? DEFAULT_MAX_ACTIONS)) || DEFAULT_MAX_ACTIONS)
     );
 
-    let actionsPath: string;
-    if (storageInstance?.basePath) {
-      actionsPath = path.join(String(storageInstance.basePath), ACTIONS_FILE_NAME);
-    } else if (statePath) {
-      actionsPath = path.join(path.dirname(statePath), ACTIONS_FILE_NAME);
-    } else {
-      logger.warn("[ActionLogger] No state_path or storage_instance.basePath, skipping");
-      return { success: false, logged_count: 0, error: "state_path or storage_instance required" };
+    if (!actionsPath) {
+      logger.warn("[ActionLogger] No clanker_storage_path or base_path or storage_instance, skipping");
+      return { success: false, logged_count: 0, error: "clanker_storage_path or base_path or storage_instance required" };
     }
 
     const entries: Array<{

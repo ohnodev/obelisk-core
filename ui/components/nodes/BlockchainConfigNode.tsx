@@ -2,22 +2,27 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
-const DEFAULT_STATE_PATH = "blockchain-service/data/clanker_state.json";
+const DEFAULT_BLOCKCHAIN_SERVICE_URL = "http://localhost:8888";
 
 class BlockchainConfigNode extends LGraphNode {
   static title = "Blockchain Config";
-  static desc = "Path to Clanker state JSON; outputs state_path and state for downstream nodes";
+  static desc = "Blockchain service URL; fetches Clanker state from GET /clanker/state";
   static title_color = "#50b050";
 
   constructor() {
     super();
     this.title = "Blockchain Config";
-    this.addOutput("state_path", "string");
+    this.addInput("blockchain_service_url", "string");
+    this.addInput("api_key", "string");
     this.addOutput("state", "object");
 
-    this.addProperty("state_file_path", DEFAULT_STATE_PATH, "string");
-    this.addWidget("string", "state_file_path", DEFAULT_STATE_PATH, (value: string) => {
-      this.setProperty("state_file_path", value);
+    this.addProperty("blockchain_service_url", DEFAULT_BLOCKCHAIN_SERVICE_URL, "string");
+    this.addProperty("api_key", "", "string");
+    this.addWidget("string", "blockchain_service_url", DEFAULT_BLOCKCHAIN_SERVICE_URL, (value: string) => {
+      this.setProperty("blockchain_service_url", value);
+    }, { serialize: true });
+    this.addWidget("string", "api_key", "", (value: string) => {
+      this.setProperty("api_key", value);
     }, { serialize: true });
 
     this.size = [280, 80];
@@ -26,20 +31,21 @@ class BlockchainConfigNode extends LGraphNode {
   }
 
   onPropertyChanged(name: string, value: any) {
-    if (name === "state_file_path") {
-      const widgets = (this as any).widgets as any[];
-      if (widgets) {
-        const w = widgets.find((x: any) => x.name === "state_file_path");
-        if (w) w.value = value;
-      }
+    const widgets = (this as any).widgets as any[];
+    if (!widgets) return;
+    if (name === "blockchain_service_url") {
+      const w = widgets.find((x: any) => x.name === "blockchain_service_url");
+      if (w) w.value = value;
+    }
+    if (name === "api_key") {
+      const w = widgets.find((x: any) => x.name === "api_key");
+      if (w) w.value = value ?? "";
     }
   }
 
   onExecute() {
-    const path = (this.properties as any)?.state_file_path || DEFAULT_STATE_PATH;
-    this.setOutputData(0, path);
-    // state object is resolved by backend when reading the file
-    this.setOutputData(1, { state_file_path: path });
+    // state object is resolved by backend from GET {url}/clanker/state
+    this.setOutputData(0, null);
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {

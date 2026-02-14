@@ -13,7 +13,8 @@ class OnSwapTriggerNode extends LGraphNode {
 
     this.addInput("trigger", "boolean");
     this.addInput("swap_file_path", "string");
-    this.addInput("state_path", "string");
+    this.addInput("base_path", "string");
+    this.addInput("storage_instance", "object");
 
     this.addOutput("trigger", "boolean");
     this.addOutput("swap", "object");
