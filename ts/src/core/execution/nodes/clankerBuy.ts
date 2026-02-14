@@ -11,6 +11,7 @@ import { executeSwap } from "../../../utils/cabalSwapper";
 const logger = getLogger("clankerBuy");
 
 const DEFAULT_AMOUNT_WEI = "1000000000000000"; // 0.001 ETH
+const DEFAULT_RPC_URL = "https://mainnet.base.org";
 
 function getActions(value: unknown): Array<{ action: string; params: Record<string, unknown> }> {
   if (!Array.isArray(value)) return [];
@@ -127,6 +128,12 @@ export class ClankerBuyNode extends BaseNode {
       }
     }
 
+    const rpcUrl =
+      getStr(this.getInputValue("rpc_url", context, undefined)) ||
+      getStr(this.resolveEnvVar(this.metadata.rpc_url)) ||
+      process.env.RPC_URL ||
+      DEFAULT_RPC_URL;
+
     if (!privateKey || privateKey.length < 20) {
       logger.warn("[ClankerBuy] No private_key (connect Wallet node or set SWAP_PRIVATE_KEY)");
       return { success: false, error: "Wallet not configured", txHash: undefined };
@@ -181,7 +188,7 @@ export class ClankerBuyNode extends BaseNode {
         currency0: currency0 || undefined,
         currency1: currency1 || undefined,
       },
-      process.env.RPC_URL
+      rpcUrl
     );
 
     if (result.success) {

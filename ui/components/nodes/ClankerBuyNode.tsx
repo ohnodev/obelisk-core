@@ -16,6 +16,7 @@ class ClankerBuyNode extends LGraphNode {
     this.addInput("tg_actions", "array");
     this.addInput("token_address", "string");
     this.addInput("amount_wei", "string");
+    this.addInput("rpc_url", "string");
 
     this.addOutput("success", "boolean");
     this.addOutput("txHash", "string");
@@ -23,8 +24,12 @@ class ClankerBuyNode extends LGraphNode {
     this.addOutput("result", "object");
 
     this.addProperty("amount_wei", "0", "string");
+    this.addProperty("rpc_url", "", "string");
     this.addWidget("string", "amount_wei", "0", (value: string) => {
       this.setProperty("amount_wei", value);
+    }, { serialize: true });
+    this.addWidget("string", "rpc_url", "", (value: string) => {
+      this.setProperty("rpc_url", value);
     }, { serialize: true });
 
     this.size = [280, 192];
@@ -33,12 +38,15 @@ class ClankerBuyNode extends LGraphNode {
   }
 
   onPropertyChanged(name: string, value: any) {
+    const widgets = (this as any).widgets as any[];
+    if (!widgets) return;
     if (name === "amount_wei") {
-      const widgets = (this as any).widgets as any[];
-      if (widgets) {
-        const w = widgets.find((x: any) => x.name === "amount_wei");
-        if (w) w.value = value;
-      }
+      const w = widgets.find((x: any) => x.name === "amount_wei");
+      if (w) w.value = value;
+    }
+    if (name === "rpc_url") {
+      const w = widgets.find((x: any) => x.name === "rpc_url");
+      if (w) w.value = value ?? "";
     }
   }
 

@@ -1,13 +1,14 @@
 /**
  * ClankerSellNode – execute a V4 sell (token → WETH) using CabalSwapper.
- * Private key from metadata.private_key or SWAP_PRIVATE_KEY (Wallet node no longer passes it).
- * Get params from sell_params (e.g. from BagChecker) or direct inputs. Proceeds are WETH.
+ * Private key from metadata.private_key or SWAP_PRIVATE_KEY.
+ * RPC URL from input rpc_url, metadata.rpc_url, or process.env.RPC_URL (default: mainnet Base).
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
 import { executeSwap } from "../../../utils/cabalSwapper";
 
 const logger = getLogger("clankerSell");
+const DEFAULT_RPC_URL = "https://mainnet.base.org";
 
 export class ClankerSellNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
@@ -41,6 +42,14 @@ export class ClankerSellNode extends BaseNode {
       currency1 = String(sellParams.currency1 ?? currency1).trim();
     }
 
+    const fromInput = String(this.getInputValue("rpc_url", context, undefined) ?? "").trim();
+    const fromMeta = this.resolveEnvVar(this.metadata.rpc_url);
+    const rpcUrl =
+      fromInput ||
+      (typeof fromMeta === "string" && fromMeta.trim() ? fromMeta.trim() : "") ||
+      process.env.RPC_URL ||
+      DEFAULT_RPC_URL;
+
     if (!privateKey || privateKey.length < 20) {
       logger.warn("[ClankerSell] No private_key (set metadata.private_key or SWAP_PRIVATE_KEY)");
       return { success: false, error: "Wallet not configured", txHash: undefined };
@@ -62,7 +71,7 @@ export class ClankerSellNode extends BaseNode {
         currency0: currency0 || undefined,
         currency1: currency1 || undefined,
       },
-      process.env.RPC_URL
+      rpcUrl
     );
 
     if (result.success) {

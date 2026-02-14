@@ -19,6 +19,7 @@ class ClankerSellNode extends LGraphNode {
     this.addInput("pool_fee", "number");
     this.addInput("tick_spacing", "number");
     this.addInput("hook_address", "string");
+    this.addInput("rpc_url", "string");
 
     this.addOutput("success", "boolean");
     this.addOutput("txHash", "string");
