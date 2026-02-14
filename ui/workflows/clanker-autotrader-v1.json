@@ -327,6 +327,18 @@
       },
       "inputs": {},
       "metadata": {}
+    },
+    {
+      "id": "29",
+      "type": "text",
+      "position": {
+        "x": 1497,
+        "y": -420
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
     }
   ],
   "connections": [
@@ -461,6 +473,18 @@
       "from_output": "text",
       "to": "19",
       "to_input": "chat_id"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "bot_token"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "bot_token"
     },
     {
       "from": "9",
