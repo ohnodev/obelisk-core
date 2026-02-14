@@ -41,7 +41,22 @@ export class AutotraderStatsListenerNode extends BaseNode {
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
     const meta = this.metadata;
-    this._port = Number(meta.port ?? process.env.AUTOTRADER_STATS_PORT ?? 8081);
+    const defaultPort = 8081;
+    const rawPort = meta.port ?? process.env.AUTOTRADER_STATS_PORT ?? defaultPort;
+    const numPort = Number(rawPort);
+    const valid =
+      Number.isFinite(numPort) &&
+      Number.isInteger(numPort) &&
+      numPort >= 1 &&
+      numPort <= 65535;
+    if (valid) {
+      this._port = numPort;
+    } else {
+      this._port = defaultPort;
+      logger.warn(
+        `[AutotraderStatsListener ${nodeId}] Invalid port (metadata.port=${meta.port}, AUTOTRADER_STATS_PORT=${process.env.AUTOTRADER_STATS_PORT ?? "(unset)"}, raw=${rawPort}); using default ${defaultPort}`
+      );
+    }
     this._path = String(meta.path ?? "/stats");
     logger.debug(
       `[AutotraderStatsListener ${nodeId}] Initialized: port=${this._port}, path=${this._path}`
