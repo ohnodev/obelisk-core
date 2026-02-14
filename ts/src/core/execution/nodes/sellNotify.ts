@@ -2,7 +2,7 @@
  * SellNotifyNode – when Clanker Sell succeeds, sends a sell notification to Telegram.
  * Includes Basescan tx link and PnL (received ETH vs cost from holding).
  *
- * Inputs: sell_result (success, txHash, token_address, amount_wei, value_wei/eth_received), holding (from BagChecker: boughtAtPriceEth, amountWei), chat_id
+ * Inputs: sell_result, holding (from BagChecker), chat_id, bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
  * Outputs: sent (boolean), chat_id, error (if send failed)
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
@@ -59,6 +59,15 @@ export class SellNotifyNode extends BaseNode {
       Config.TELEGRAM_CHAT_ID ||
       "";
 
+    const rawBotToken =
+      (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||
+      (this.metadata.bot_token as string)?.trim() ||
+      "";
+    const botToken =
+      (rawBotToken ? (this.resolveEnvVar(rawBotToken) as string)?.trim() : "") ||
+      Config.TELEGRAM_BOT_TOKEN ||
+      "";
+
     const success = sellResult?.success === true;
     const txHash = sellResult?.txHash as string | undefined;
     const tokenAddress = (sellResult?.token_address as string) ?? "";
@@ -83,7 +92,6 @@ export class SellNotifyNode extends BaseNode {
         pnlPart = ` Received ${receivedEth} ETH.`;
       }
       const text = `Sold token ${tokenAddress} (${tokenAmount} tokens).${pnlPart} Tx: ${txUrl}`;
-      const botToken = Config.TELEGRAM_BOT_TOKEN || "";
       const result = await sendTelegramMessage(botToken, chatId, text);
       sent = result.ok;
       error = result.error;

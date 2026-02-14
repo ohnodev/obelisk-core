@@ -95,18 +95,6 @@
       }
     },
     {
-      "id": "11",
-      "type": "text",
-      "position": {
-        "x": 1497,
-        "y": -321
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
-      }
-    },
-    {
       "id": "9",
       "type": "clanker_buy",
       "position": {
@@ -115,7 +103,8 @@
       },
       "inputs": {},
       "metadata": {
-        "amount_wei": "0"
+        "amount_wei": "0",
+        "rpc_url": ""
       }
     },
     {
@@ -327,6 +316,30 @@
       },
       "inputs": {},
       "metadata": {}
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": {
+        "x": 1391,
+        "y": -328
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
+    },
+    {
+      "id": "29",
+      "type": "text",
+      "position": {
+        "x": 1762,
+        "y": -484
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
     }
   ],
   "connections": [
@@ -379,42 +392,6 @@
       "to_input": "private_key"
     },
     {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "3",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "20",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "16",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "18",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "26",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "28",
-      "to_input": "base_path"
-    },
-    {
       "from": "1",
       "from_output": "state",
       "to": "9",
@@ -449,18 +426,6 @@
       "from_output": "trigger",
       "to": "16",
       "to_input": "trigger"
-    },
-    {
-      "from": "11",
-      "from_output": "text",
-      "to": "12",
-      "to_input": "chat_id"
-    },
-    {
-      "from": "11",
-      "from_output": "text",
-      "to": "19",
-      "to_input": "chat_id"
     },
     {
       "from": "9",
@@ -529,6 +494,42 @@
       "to_input": "storage_instance"
     },
     {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "3",
+      "to_input": "base_path"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "20",
+      "to_input": "base_path"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "16",
+      "to_input": "base_path"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "18",
+      "to_input": "base_path"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "26",
+      "to_input": "base_path"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "28",
+      "to_input": "base_path"
+    },
+    {
       "from": "23",
       "from_output": "result",
       "to": "34",
@@ -569,6 +570,30 @@
       "from_output": "request_id",
       "to": "26",
       "to_input": "request_id"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "11",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "chat_id"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "bot_token"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "bot_token"
     }
   ]
 }
