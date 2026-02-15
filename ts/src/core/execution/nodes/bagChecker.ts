@@ -33,8 +33,10 @@ export class BagCheckerNode extends BaseNode {
       0,
       timerFromInput > 0 ? timerFromInput : timerFromMeta
     );
-    const inputProfitTarget = getNum(this.getInputValue("profit_target_percent", context, this.metadata.profit_target_percent));
-    const inputStopLoss = getNum(this.getInputValue("stop_loss_percent", context, this.metadata.stop_loss_percent));
+    const profitFromInput = getNum(this.getInputValue("profit_target_percent", context, undefined));
+    const stopFromInput = getNum(this.getInputValue("stop_loss_percent", context, undefined));
+    const profitFromMeta = getNum(this.metadata.profit_target_percent ?? DEFAULT_PROFIT_TARGET_PERCENT);
+    const stopFromMeta = getNum(this.metadata.stop_loss_percent ?? DEFAULT_STOP_LOSS_PERCENT);
     const resolvedBagPath = resolveBagsPath(this, context);
 
     if (!trigger) {
@@ -68,8 +70,8 @@ export class BagCheckerNode extends BaseNode {
       if (boughtAt <= 0) continue;
 
       const profitPct = ((currentPriceEth - boughtAt) / boughtAt) * 100;
-      const profitTarget = inputProfitTarget > 0 ? inputProfitTarget : (holding.profitTargetPercent ?? DEFAULT_PROFIT_TARGET_PERCENT);
-      const stopLoss = inputStopLoss > 0 ? inputStopLoss : (holding.stopLossPercent ?? DEFAULT_STOP_LOSS_PERCENT);
+      const profitTarget = profitFromInput > 0 ? profitFromInput : (holding.profitTargetPercent ?? profitFromMeta);
+      const stopLoss = stopFromInput > 0 ? stopFromInput : (holding.stopLossPercent ?? stopFromMeta);
       const hitTarget = profitPct >= profitTarget;
       const hitStop = profitPct <= -stopLoss;
 
