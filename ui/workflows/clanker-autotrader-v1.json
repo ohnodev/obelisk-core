@@ -340,6 +340,30 @@
       "metadata": {
         "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
       }
+    },
+    {
+      "id": "30",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -520
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.PROFIT_TARGET_PERCENT}}"
+      }
+    },
+    {
+      "id": "31",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -440
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.STOP_LOSS_PERCENT}}"
+      }
     }
   ],
   "connections": [
@@ -366,6 +390,30 @@
       "from_output": "holding",
       "to": "28",
       "to_input": "holding"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "stop_loss_percent"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "stop_loss_percent"
     },
     {
       "from": "16",
