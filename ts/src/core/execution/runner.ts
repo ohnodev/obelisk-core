@@ -139,6 +139,8 @@ export class WorkflowRunner {
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   /** Dedicated stats tick interval (only ticks autotrader_stats_listener; runs independently of main tick). */
   private statsTickTimer: ReturnType<typeof setInterval> | null = null;
+  /** Guard: true while a stats tick is processing (prevents overlapping stats ticks). */
+  private statsTickInFlight = false;
   /** Guard: true while a tick is processing (prevents overlapping ticks). */
   private tickInFlight = false;
 
@@ -439,34 +441,48 @@ export class WorkflowRunner {
   }
 
   private async globalStatsTick(): Promise<void> {
-    const running = Array.from(this.workflows.values()).filter(
-      (s) => s.state === "running"
-    );
-    for (const state of running) {
-      const statsListenerId = this.getStatsListenerNodeId(state);
-      if (statsListenerId === null) continue;
+    if (this.statsTickInFlight) return;
+    this.statsTickInFlight = true;
+    try {
+      const running = Array.from(this.workflows.values()).filter(
+        (s) => s.state === "running"
+      );
+      for (const state of running) {
+        try {
+          const statsListenerId = this.getStatsListenerNodeId(state);
+          if (statsListenerId === null) continue;
 
-      const node = state.nodes.get(statsListenerId);
-      if (!node || !node.isAutonomous()) continue;
+          const node = state.nodes.get(statsListenerId);
+          if (!node || !node.isAutonomous()) continue;
 
-      const result = await node.onTick(state.context);
-      if (result === null) continue;
+          const result = await node.onTick(state.context);
+          if (result === null) continue;
 
-      const workflowId = state.workflowId;
-      const previous = this.statsSubgraphLocks.get(workflowId);
-      if (previous) await previous;
-      const promise = this.executeSubgraphResponseOnly(
-        state,
-        statsListenerId,
-        result
-      ).catch((err) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`Stats subgraph failed: ${msg}`);
-        state.onError?.(msg);
-      }).finally(() => {
-        this.statsSubgraphLocks.delete(workflowId);
-      });
-      this.statsSubgraphLocks.set(workflowId, promise);
+          const workflowId = state.workflowId;
+          const previous = this.statsSubgraphLocks.get(workflowId);
+          if (previous) await previous;
+          const promise = this.executeSubgraphResponseOnly(
+            state,
+            statsListenerId,
+            result
+          )
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.error(`Stats subgraph failed: ${msg}`);
+              state.onError?.(msg);
+            })
+            .finally(() => {
+              this.statsSubgraphLocks.delete(workflowId);
+            });
+          this.statsSubgraphLocks.set(workflowId, promise);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error(`Stats tick error for workflow ${state.workflowId}: ${msg}`);
+          state.onError?.(msg);
+        }
+      }
+    } finally {
+      this.statsTickInFlight = false;
     }
   }
 
