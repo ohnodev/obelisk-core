@@ -26,9 +26,12 @@ export class BagCheckerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const trigger = this.getInputValue("trigger", context, false) as boolean;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
+    const rawTimer = this.getInputValue("sell_timer_minutes", context, undefined);
+    const timerFromInput = getNum(rawTimer);
+    const timerFromMeta = getNum(this.metadata.sell_timer_minutes ?? 5);
     const sellTimerMinutes = Math.max(
       0,
-      getNum(this.getInputValue("sell_timer_minutes", context, this.metadata.sell_timer_minutes ?? 5))
+      timerFromInput > 0 ? timerFromInput : timerFromMeta
     );
     const inputProfitTarget = getNum(this.getInputValue("profit_target_percent", context, this.metadata.profit_target_percent));
     const inputStopLoss = getNum(this.getInputValue("stop_loss_percent", context, this.metadata.stop_loss_percent));

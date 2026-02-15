@@ -32,7 +32,9 @@
       "inputs": {},
       "metadata": {
         "sell_timer_minutes": 5,
-        "Sell timer (min)": 5
+        "Sell timer (min)": 5,
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
       }
     },
     {
@@ -364,6 +366,18 @@
       "metadata": {
         "text": "{{process.env.STOP_LOSS_PERCENT}}"
       }
+    },
+    {
+      "id": "32",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -360
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.SELL_TIMER_MINUTES}}"
+      }
     }
   ],
   "connections": [
@@ -402,6 +416,12 @@
       "from_output": "text",
       "to": "16",
       "to_input": "stop_loss_percent"
+    },
+    {
+      "from": "32",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "sell_timer_minutes"
     },
     {
       "from": "30",
