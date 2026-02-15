@@ -658,6 +658,12 @@
     },
     {
       "from": "34",
+      "from_output": "result",
+      "to": "6",
+      "to_input": "trigger"
+    },
+    {
+      "from": "34",
       "from_output": "pass",
       "to": "4",
       "to_input": "text"
