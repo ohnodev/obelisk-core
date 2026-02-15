@@ -214,7 +214,7 @@
       "type": "scheduler",
       "position": { "x": -200, "y": 520 },
       "inputs": {},
-      "metadata": { "min_seconds": 60, "max_seconds": 120, "enabled": true }
+      "metadata": { "min_seconds": 60, "max_seconds": 60, "enabled": true }
     },
     {
       "id": "30",
