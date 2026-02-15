@@ -2,7 +2,11 @@
  * ActionLoggerNode – appends buy/sell results to clanker_actions.json.
  * Storage from clanker_storage_path / base_path / storage_instance.
  *
- * Inputs: buy_result, sell_result, clanker_storage_path / base_path / storage_instance, max_actions (default 100)
+ * Inputs: buy_result, sell_result, holding (optional; from bag_checker when selling),
+ *         clanker_storage_path / base_path / storage_instance, max_actions (default 100)
+ *
+ * Logs cost basis and PnL: on buy, costWei = valueWei (ETH spent). On sell, when holding
+ * is provided, costEth from holding and pnlEth = valueEth - costEth.
  */
 import fs from "fs";
 import path from "path";
@@ -13,6 +17,7 @@ import { resolveActionsPath } from "./clankerStoragePath";
 const logger = getLogger("actionLogger");
 
 const DEFAULT_MAX_ACTIONS = 100;
+const ETH_WEI = 1e18;
 
 function getNum(v: unknown): number {
   if (v == null) return 0;
@@ -40,34 +45,52 @@ export class ActionLoggerNode extends BaseNode {
       return { success: false, logged_count: 0, error: "clanker_storage_path or base_path or storage_instance required" };
     }
 
+    const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;
     const entries: Array<{
       type: string;
       tokenAddress?: string;
       amountWei?: string;
       valueWei?: string;
+      costWei?: string;
+      costEth?: number;
+      pnlEth?: number;
       txHash?: string;
       timestamp: number;
     }> = [];
 
     if (buyResult?.success && buyResult?.token_address) {
+      const valueWei = String(buyResult.value_wei ?? "0");
       entries.push({
         type: "buy",
         tokenAddress: String(buyResult.token_address).toLowerCase(),
         amountWei: String(buyResult.amount_wei ?? "0"),
-        valueWei: String(buyResult.value_wei ?? "0"),
+        valueWei,
+        costWei: valueWei,
         txHash: buyResult.txHash != null ? String(buyResult.txHash) : undefined,
         timestamp: Date.now(),
       });
     }
     if (sellResult?.success && sellResult?.token_address) {
-      entries.push({
+      const valueWei = String(sellResult.value_wei ?? sellResult.eth_received ?? "0");
+      const amountWeiSold = String(sellResult.amount_wei ?? "0");
+      const sellEntry: (typeof entries)[0] = {
         type: "sell",
         tokenAddress: String(sellResult.token_address).toLowerCase(),
-        amountWei: String(sellResult.amount_wei ?? "0"),
-        valueWei: String(sellResult.value_wei ?? sellResult.eth_received ?? "0"),
+        amountWei: amountWeiSold,
+        valueWei,
         txHash: sellResult.txHash != null ? String(sellResult.txHash) : undefined,
         timestamp: Date.now(),
-      });
+      };
+      const boughtAtPriceEth = holding && typeof holding.boughtAtPriceEth === "number" ? holding.boughtAtPriceEth : undefined;
+      if (boughtAtPriceEth != null && Number(amountWeiSold) > 0) {
+        const costEth = boughtAtPriceEth * (Number(amountWeiSold) / ETH_WEI);
+        const valueEth = Number(valueWei) / ETH_WEI;
+        const pnlEth = valueEth - costEth;
+        sellEntry.costWei = String(BigInt(Math.round(costEth * ETH_WEI)));
+        sellEntry.costEth = costEth;
+        sellEntry.pnlEth = pnlEth;
+      }
+      entries.push(sellEntry);
     }
 
     if (entries.length === 0) {

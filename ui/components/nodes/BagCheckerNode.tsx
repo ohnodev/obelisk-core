@@ -3,10 +3,12 @@
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 const DEFAULT_SELL_TIMER_MINUTES = 5;
+const DEFAULT_PROFIT_TARGET_PERCENT = 50;
+const DEFAULT_STOP_LOSS_PERCENT = 20;
 
 class BagCheckerNode extends LGraphNode {
   static title = "Bag Checker";
-  static desc = "On new swap: check if we hold that token; compare price to profit target / stop loss; output should_sell + sell_params.";
+  static desc = "Each iteration: (1) above profit target → sell, (2) below stop loss → sell, (3) held ≥ X minutes → sell. Connected inputs override node values.";
   static title_color = "#50b050";
 
   constructor() {
@@ -17,13 +19,17 @@ class BagCheckerNode extends LGraphNode {
     this.addInput("state", "object");
     this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
-    this.addInput("sell_timer_minutes", "number");
+    this.addInput("sell_timer_minutes", "string");
+    this.addInput("profit_target_percent", "string");
+    this.addInput("stop_loss_percent", "string");
 
     this.addOutput("should_sell", "boolean");
     this.addOutput("sell_params", "object");
     this.addOutput("holding", "object");
 
     this.addProperty("sell_timer_minutes", DEFAULT_SELL_TIMER_MINUTES, "number");
+    this.addProperty("profit_target_percent", DEFAULT_PROFIT_TARGET_PERCENT, "number");
+    this.addProperty("stop_loss_percent", DEFAULT_STOP_LOSS_PERCENT, "number");
     this.addWidget(
       "number" as any,
       "Sell timer (min)",
@@ -41,26 +47,73 @@ class BagCheckerNode extends LGraphNode {
         property: "sell_timer_minutes",
       } as any
     );
+    this.addWidget(
+      "number" as any,
+      "Profit target %",
+      DEFAULT_PROFIT_TARGET_PERCENT,
+      (value: number) => {
+        const v = Math.max(0, Math.round(Number(value)) || 0);
+        this.setProperty("profit_target_percent", v);
+      },
+      {
+        min: 0,
+        max: 500,
+        step: 5,
+        precision: 0,
+        serialize: true,
+        property: "profit_target_percent",
+      } as any
+    );
+    this.addWidget(
+      "number" as any,
+      "Stop loss %",
+      DEFAULT_STOP_LOSS_PERCENT,
+      (value: number) => {
+        const v = Math.max(0, Math.round(Number(value)) || 0);
+        this.setProperty("stop_loss_percent", v);
+      },
+      {
+        min: 0,
+        max: 100,
+        step: 5,
+        precision: 0,
+        serialize: true,
+        property: "stop_loss_percent",
+      } as any
+    );
 
-    this.size = [240, 160];
+    this.size = [260, 220];
     (this as any).type = "bag_checker";
     (this as any).resizable = true;
   }
 
   onPropertyChanged(name: string, value: any) {
+    const widgets = (this as any).widgets as any[];
     if (name === "sell_timer_minutes") {
-      const widgets = (this as any).widgets as any[];
       const w = widgets?.find((x: any) => x.name === "Sell timer (min)");
       if (w) w.value = value ?? DEFAULT_SELL_TIMER_MINUTES;
+    } else if (name === "profit_target_percent") {
+      const w = widgets?.find((x: any) => x.name === "Profit target %");
+      if (w) w.value = value ?? DEFAULT_PROFIT_TARGET_PERCENT;
+    } else if (name === "stop_loss_percent") {
+      const w = widgets?.find((x: any) => x.name === "Stop loss %");
+      if (w) w.value = value ?? DEFAULT_STOP_LOSS_PERCENT;
     }
   }
 
   onConfigure(data: any) {
     if (super.onConfigure) super.onConfigure(data);
-    const v = data.properties?.sell_timer_minutes ?? (this.properties as any)?.sell_timer_minutes ?? DEFAULT_SELL_TIMER_MINUTES;
+    const props = data?.properties ?? (this.properties as any) ?? {};
     const widgets = (this as any).widgets as any[];
-    const w = widgets?.find((x: any) => x.name === "Sell timer (min)");
-    if (w) w.value = Number(v);
+    const sellTimer = props.sell_timer_minutes ?? DEFAULT_SELL_TIMER_MINUTES;
+    const profitTarget = props.profit_target_percent ?? DEFAULT_PROFIT_TARGET_PERCENT;
+    const stopLoss = props.stop_loss_percent ?? DEFAULT_STOP_LOSS_PERCENT;
+    const wTimer = widgets?.find((x: any) => x.name === "Sell timer (min)");
+    if (wTimer) wTimer.value = Number(sellTimer);
+    const wProfit = widgets?.find((x: any) => x.name === "Profit target %");
+    if (wProfit) wProfit.value = Number(profitTarget);
+    const wStop = widgets?.find((x: any) => x.name === "Stop loss %");
+    if (wStop) wStop.value = Number(stopLoss);
   }
 
   onDrawForeground(ctx: CanvasRenderingContext2D) {

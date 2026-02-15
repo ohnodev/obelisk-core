@@ -4,12 +4,14 @@
  * or sell timer, outputs should_sell and sell_params.
  *
  * Inputs: trigger, state (from Blockchain Config), clanker_storage_path / base_path / storage_instance (for bags),
- *         sell_timer_minutes (default 5; 0 = disabled)
+ *         sell_timer_minutes (default 5; 0 = disabled),
+ *         profit_target_percent (default 50), stop_loss_percent (default 20) – e.g. from env via text nodes
  */
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import type { ClankerBagState, BagHolding } from "./clankerBags";
+import { DEFAULT_PROFIT_TARGET_PERCENT, DEFAULT_STOP_LOSS_PERCENT } from "./clankerBags";
 import { resolveBagsPath } from "./clankerStoragePath";
 
 const logger = getLogger("bagChecker");
@@ -24,10 +26,17 @@ export class BagCheckerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const trigger = this.getInputValue("trigger", context, false) as boolean;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
+    const rawTimer = this.getInputValue("sell_timer_minutes", context, undefined);
+    const timerFromInput = getNum(rawTimer);
+    const timerFromMeta = getNum(this.metadata.sell_timer_minutes ?? 5);
     const sellTimerMinutes = Math.max(
       0,
-      getNum(this.getInputValue("sell_timer_minutes", context, this.metadata.sell_timer_minutes ?? 5))
+      timerFromInput > 0 ? timerFromInput : timerFromMeta
     );
+    const profitFromInput = getNum(this.getInputValue("profit_target_percent", context, undefined));
+    const stopFromInput = getNum(this.getInputValue("stop_loss_percent", context, undefined));
+    const profitFromMeta = getNum(this.metadata.profit_target_percent ?? DEFAULT_PROFIT_TARGET_PERCENT);
+    const stopFromMeta = getNum(this.metadata.stop_loss_percent ?? DEFAULT_STOP_LOSS_PERCENT);
     const resolvedBagPath = resolveBagsPath(this, context);
 
     if (!trigger) {
@@ -61,8 +70,10 @@ export class BagCheckerNode extends BaseNode {
       if (boughtAt <= 0) continue;
 
       const profitPct = ((currentPriceEth - boughtAt) / boughtAt) * 100;
-      const hitTarget = profitPct >= (holding.profitTargetPercent ?? 50);
-      const hitStop = profitPct <= -(holding.stopLossPercent ?? 20);
+      const profitTarget = profitFromInput > 0 ? profitFromInput : (holding.profitTargetPercent ?? profitFromMeta);
+      const stopLoss = stopFromInput > 0 ? stopFromInput : (holding.stopLossPercent ?? stopFromMeta);
+      const hitTarget = profitPct >= profitTarget;
+      const hitStop = profitPct <= -stopLoss;
 
       const boughtAtTs = holding.boughtAtTimestamp ?? 0;
       const heldMs = Date.now() - boughtAtTs;
@@ -84,7 +95,7 @@ export class BagCheckerNode extends BaseNode {
       if (hitTimer && !hitTarget && !hitStop) {
         logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} timeout (held ${(heldMs / 60000).toFixed(1)}m >= ${timerMinutes}m, no profit target)`);
       } else {
-        logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} profitPct=${profitPct.toFixed(1)}% (target=${holding.profitTargetPercent}% stop=${holding.stopLossPercent}%)`);
+        logger.info(`[BagChecker] Sell signal: token ${holding.tokenAddress} profitPct=${profitPct.toFixed(1)}% (target=${profitTarget}% stop=${stopLoss}%)`);
       }
       return { should_sell: true, sell_params, holding };
     }

@@ -472,8 +472,34 @@ export class WorkflowRunner {
       logger.info(
         `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
       );
-      // Stats-only subgraph (autotrader_stats_listener → read files → http_response) is fast.
-      // Serialize per workflow so we don't interleave writes to state.context, state.latestResults, or resultsVersion.
+
+      const statsListenerId = this.getStatsListenerNodeId(state);
+      const hasStatsTrigger = statsListenerId && firedAutonomousNodes.has(statsListenerId);
+      const statsTriggeredIds = hasStatsTrigger
+        ? this.getTriggeredIdsFromSource(state.workflow, statsListenerId)
+        : new Set<NodeID>();
+      const statsDownstream =
+        statsTriggeredIds.size > 0
+          ? this.getAllDownstream(state.workflow, statsTriggeredIds, state.nodes)
+          : new Set<NodeID>();
+
+      // When stats listener and others (e.g. scheduler) fire together, run stats subgraph first
+      // so the client gets a response before the 30s timeout; then run the long scheduler/inference path.
+      if (hasStatsTrigger && statsDownstream.size > 0 && firedAutonomousNodes.size > 1) {
+        await this.executeSubgraph(
+          state,
+          statsTriggeredIds,
+          new Set<NodeID>([statsListenerId!])
+        );
+        const restTriggered = new Set([...triggeredNodes].filter((id) => !statsDownstream.has(id)));
+        const restFired = new Set([...firedAutonomousNodes].filter((id) => id !== statsListenerId));
+        if (restTriggered.size > 0) {
+          await this.executeSubgraph(state, restTriggered, restFired);
+        }
+        return;
+      }
+
+      // Stats-only subgraph (single trigger): run without blocking tick; serialize per workflow.
       const statsOnly =
         firedAutonomousNodes.size === 1 &&
         Array.from(firedAutonomousNodes).every(
@@ -499,6 +525,26 @@ export class WorkflowRunner {
         await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
       }
     }
+  }
+
+  /** Node ID of the autotrader_stats_listener in this workflow, if any. */
+  private getStatsListenerNodeId(state: WorkflowState): NodeID | null {
+    for (const [nid, node] of state.nodes) {
+      if (node.nodeType === "autotrader_stats_listener") return nid;
+    }
+    return null;
+  }
+
+  /** Target node IDs that are direct successors of `sourceNodeId` in the workflow. */
+  private getTriggeredIdsFromSource(
+    workflow: WorkflowData,
+    sourceNodeId: NodeID
+  ): Set<NodeID> {
+    const out = new Set<NodeID>();
+    for (const conn of workflow.connections ?? []) {
+      if (conn.source_node === sourceNodeId) out.add(conn.target_node);
+    }
+    return out;
   }
 
   // ── Subgraph execution (mirrors Python _execute_subgraph) ──────────

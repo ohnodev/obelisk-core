@@ -32,7 +32,9 @@
       "inputs": {},
       "metadata": {
         "sell_timer_minutes": 5,
-        "Sell timer (min)": 5
+        "Sell timer (min)": 5,
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
       }
     },
     {
@@ -340,6 +342,42 @@
       "metadata": {
         "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
       }
+    },
+    {
+      "id": "30",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -520
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.PROFIT_TARGET_PERCENT}}"
+      }
+    },
+    {
+      "id": "31",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -440
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.STOP_LOSS_PERCENT}}"
+      }
+    },
+    {
+      "id": "32",
+      "type": "text",
+      "position": {
+        "x": 200,
+        "y": -360
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.SELL_TIMER_MINUTES}}"
+      }
     }
   ],
   "connections": [
@@ -360,6 +398,42 @@
       "from_output": "result",
       "to": "28",
       "to_input": "sell_result"
+    },
+    {
+      "from": "16",
+      "from_output": "holding",
+      "to": "28",
+      "to_input": "holding"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "stop_loss_percent"
+    },
+    {
+      "from": "32",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "sell_timer_minutes"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "stop_loss_percent"
     },
     {
       "from": "16",
