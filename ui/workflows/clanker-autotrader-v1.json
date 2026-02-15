@@ -669,6 +669,12 @@
       "to_input": "text"
     },
     {
+      "from": "34",
+      "from_output": "reject",
+      "to": "28",
+      "to_input": "system_note"
+    },
+    {
       "from": "22",
       "from_output": "has_sufficient_funds",
       "to": "23",
