@@ -53,6 +53,8 @@ ENV OBELISK_LOG_LEVEL=INFO
 
 # Expose HTTP Listener port (used by HttpListenerNode for API endpoints)
 EXPOSE 8080
+# Expose Autotrader Stats port (used by AutotraderStatsListenerNode for GET /stats, GET /health)
+EXPOSE 8081
 
 # Switch to non-root user
 USER obelisk

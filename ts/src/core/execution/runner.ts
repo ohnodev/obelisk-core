@@ -464,7 +464,22 @@ export class WorkflowRunner {
       logger.info(
         `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
       );
-      await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
+      // Stats-only subgraph (autotrader_stats_listener → read files → http_response) is fast.
+      // Run it without blocking the tick so GET /stats isn't delayed by long scheduler/inference runs.
+      const statsOnly =
+        firedAutonomousNodes.size === 1 &&
+        Array.from(firedAutonomousNodes).every(
+          (nid) => state.nodes.get(nid)?.nodeType === "autotrader_stats_listener"
+        );
+      if (statsOnly) {
+        this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error(`Stats subgraph failed: ${msg}`);
+          state.onError?.(msg);
+        });
+      } else {
+        await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
+      }
     }
   }
 

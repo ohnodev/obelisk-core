@@ -48,6 +48,28 @@ docker stop my-agent
 docker rm my-agent
 ```
 
+## Ports
+
+The image exposes two ports. Map both when you need HTTP and/or stats:
+
+| Container port | Purpose |
+|----------------|---------|
+| **8080** | HTTP Listener (HttpListenerNode) — chat/API requests into the workflow |
+| **8081** | Autotrader Stats (AutotraderStatsListenerNode) — `GET /health`, `GET /stats` (bags + actions) |
+
+Example: publish both so the host can reach them:
+
+```bash
+docker run -d \
+  --name my-agent \
+  -p 9080:8080 \
+  -p 9081:8081 \
+  -e WORKFLOW_JSON='...' \
+  obelisk-agent:latest
+```
+
+Then: `curl http://localhost:9081/health` and `curl http://localhost:9081/stats`. Workflows that do not use the autotrader stats node only need 8080.
+
 ## Environment Variables
 
 | Variable | Description | Default |
