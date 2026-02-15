@@ -8,6 +8,7 @@
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { Config } from "../../config";
 import { getLogger } from "../../../utils/logger";
+import { getTelegramBotToken } from "../../../utils/telegram";
 
 const logger = getLogger("sellNotify");
 const ETH_WEI = 1e18;
@@ -63,19 +64,10 @@ export class SellNotifyNode extends BaseNode {
       (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||
       (this.metadata.bot_token as string)?.trim() ||
       "";
-    let botToken =
-      (rawBotToken ? (this.resolveEnvVar(rawBotToken) as string)?.trim() : "") ||
-      Config.TELEGRAM_BOT_TOKEN ||
-      "";
-    // If still unresolved (e.g. Text node had {{process.env.TELEGRAM_BOT_TOKEN}} but env wasn't set), use env/Config at execute time
-    if (!botToken || botToken.startsWith("{{")) {
-      botToken = (
-        process.env.TELEGRAM_BOT_TOKEN ||
-        process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
-        Config.TELEGRAM_BOT_TOKEN ||
-        ""
-      ).trim();
-    }
+    const resolvedInput = rawBotToken
+      ? (this.resolveEnvVar(rawBotToken) as string)?.trim()
+      : "";
+    const botToken = getTelegramBotToken(resolvedInput);
 
     const success = sellResult?.success === true;
     const txHash = sellResult?.txHash as string | undefined;

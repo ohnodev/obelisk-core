@@ -9,6 +9,7 @@ import { formatEther } from "ethers";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { Config } from "../../config";
 import { getLogger } from "../../../utils/logger";
+import { getTelegramBotToken } from "../../../utils/telegram";
 
 const logger = getLogger("buyNotify");
 const BASESCAN_TX = "https://basescan.org/tx";
@@ -91,19 +92,10 @@ export class BuyNotifyNode extends BaseNode {
       (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||
       (this.metadata.bot_token as string)?.trim() ||
       "";
-    let botToken =
-      (rawBotToken ? (this.resolveEnvVar(rawBotToken) as string)?.trim() : "") ||
-      Config.TELEGRAM_BOT_TOKEN ||
-      "";
-    // If still unresolved (e.g. Text node had {{process.env.TELEGRAM_BOT_TOKEN}} but env wasn't set), use env/Config at execute time
-    if (!botToken || botToken.startsWith("{{")) {
-      botToken = (
-        process.env.TELEGRAM_BOT_TOKEN ||
-        process.env.TELEGRAM_DEV_AGENT_BOT_TOKEN ||
-        Config.TELEGRAM_BOT_TOKEN ||
-        ""
-      ).trim();
-    }
+    const resolvedInput = rawBotToken
+      ? (this.resolveEnvVar(rawBotToken) as string)?.trim()
+      : "";
+    const botToken = getTelegramBotToken(resolvedInput);
 
     const success = buyResult?.success === true;
     const txHash = buyResult?.txHash as string | undefined;
