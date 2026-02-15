@@ -11,6 +11,8 @@ const POOL_MANAGER = "0x498581ff718922c3f8e6a244956af099b2652b2b".toLowerCase();
 const UNIV4_SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006";
+/** ERC20 Transfer(address,address,uint256) */
+const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const WETH_ABI = [
   "function withdraw(uint256 wad)",
   "function deposit() payable",
@@ -93,6 +95,7 @@ export function parseSwapReceiptTokensReceived(
  * Parse the first Uniswap V4 Swap log and return the WETH amount received (wei string).
  * For a sell: we send token (negative delta) and receive WETH (positive delta).
  * Clanker pays out WETH, not native ETH.
+ * @deprecated Prefer parseWethReceivedByAddress for sells so we use actual WETH transfers TO our address.
  */
 export function parseSwapReceiptWethReceived(
   receipt: TransactionReceiptLike,
@@ -123,6 +126,34 @@ export function parseSwapReceiptWethReceived(
     }
   }
   return "0";
+}
+
+/**
+ * Parse WETH (ERC20) Transfer logs in the receipt and return the total amount
+ * transferred TO our address (wei string). Use this for sell receipts so we
+ * report actual WETH received by the wallet, not Swap log deltas.
+ * Log: address = WETH, topics[0] = Transfer, topics[1] = from, topics[2] = to, data = value.
+ */
+export function parseWethReceivedByAddress(
+  receipt: TransactionReceiptLike,
+  ourAddress: string
+): string {
+  if (!ourAddress || !ethers.isAddress(ourAddress)) return "0";
+  const ourPadded = "0x" + ourAddress.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+  const weth = WETH_ADDRESS.toLowerCase();
+  let sum = 0n;
+  for (const log of receipt.logs) {
+    if (log.address?.toLowerCase() !== weth || log.topics?.[0] !== ERC20_TRANSFER_TOPIC) continue;
+    if (log.topics?.[2]?.toLowerCase() !== ourPadded) continue;
+    if (!log.data || log.data === "0x") continue;
+    try {
+      const value = BigInt(log.data);
+      sum += value;
+    } catch {
+      continue;
+    }
+  }
+  return String(sum);
 }
 
 const CABAL_SWAPPER_ABI = [
@@ -352,8 +383,8 @@ export async function executeSwap(
           return { success: false, error: "Sell reverted on-chain", txHash: receipt?.hash ?? sellTxHash };
         }
         const wethReceived =
-          receipt && currency0 && currency1
-            ? parseSwapReceiptWethReceived(receipt as unknown as TransactionReceiptLike, token, currency0, currency1)
+          receipt
+            ? parseWethReceivedByAddress(receipt as unknown as TransactionReceiptLike, wallet.address)
             : undefined;
         return { success: true, txHash: receipt?.hash ?? sellTxHash, wethReceived, ethReceived: wethReceived };
       } catch (waitErr: unknown) {
@@ -367,8 +398,8 @@ export async function executeSwap(
               return { success: false, error: "Sell reverted on-chain (retry)", txHash: receipt2?.hash };
             }
             const wethReceived =
-              receipt2 && currency0 && currency1
-                ? parseSwapReceiptWethReceived(receipt2 as unknown as TransactionReceiptLike, token, currency0, currency1)
+              receipt2
+                ? parseWethReceivedByAddress(receipt2 as unknown as TransactionReceiptLike, wallet.address)
                 : undefined;
             return { success: true, txHash: receipt2?.hash, wethReceived, ethReceived: wethReceived };
           } catch (retryErr: unknown) {
@@ -416,8 +447,8 @@ export async function executeSwap(
       }
     }
     const wethReceived =
-      receipt && currency0 && currency1
-        ? parseSwapReceiptWethReceived(receipt as unknown as TransactionReceiptLike, token, currency0, currency1)
+      receipt
+        ? parseWethReceivedByAddress(receipt as unknown as TransactionReceiptLike, wallet.address)
         : undefined;
     return { success: true, txHash: receipt?.hash ?? txHash, wethReceived, ethReceived: wethReceived };
   } catch (e: unknown) {
