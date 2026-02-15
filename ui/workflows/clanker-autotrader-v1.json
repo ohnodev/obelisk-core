@@ -525,6 +525,12 @@
     },
     {
       "from": "10",
+      "from_output": "storage_instance",
+      "to": "26",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "10",
       "from_output": "base_path",
       "to": "28",
       "to_input": "base_path"
