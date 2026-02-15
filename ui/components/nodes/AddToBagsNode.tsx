@@ -15,8 +15,8 @@ class AddToBagsNode extends LGraphNode {
     this.addInput("state", "object");
     this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
-    this.addInput("profit_target_percent", "number");
-    this.addInput("stop_loss_percent", "number");
+    this.addInput("profit_target_percent", "string");
+    this.addInput("stop_loss_percent", "string");
 
     this.addOutput("success", "boolean");
     this.addOutput("holding", "object");

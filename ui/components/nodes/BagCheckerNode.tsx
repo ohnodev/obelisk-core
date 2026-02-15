@@ -19,9 +19,9 @@ class BagCheckerNode extends LGraphNode {
     this.addInput("state", "object");
     this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
-    this.addInput("sell_timer_minutes", "number");
-    this.addInput("profit_target_percent", "number");
-    this.addInput("stop_loss_percent", "number");
+    this.addInput("sell_timer_minutes", "string");
+    this.addInput("profit_target_percent", "string");
+    this.addInput("stop_loss_percent", "string");
 
     this.addOutput("should_sell", "boolean");
     this.addOutput("sell_params", "object");
