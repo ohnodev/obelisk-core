@@ -24,8 +24,9 @@ source venv/bin/activate
 # Check CUDA version: nvcc --version or nvidia-smi
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-# Install remaining dependencies
-pip install transformers accelerate peft fastapi uvicorn python-dotenv
+# Install remaining dependencies (from repo root: pip install -e .)
+# For vLLM backend: pip install -e ".[vllm]"
+pip install -e .
 ```
 
 ## 3. Verify GPU is detected
@@ -53,8 +54,23 @@ INFERENCE_API_KEY=your-secret-key-here
 
 # Device (auto-detects CUDA, but you can force it)
 # INFERENCE_DEVICE=cuda
+
+# Backend: "transformers" (default) or "vllm" for faster inference (Qwen3-0.6B supported in vLLM >= 0.8.5)
+# INFERENCE_BACKEND=vllm
 EOF
 ```
+
+**Qwen3 best practices:** The service uses the [recommended sampling settings](https://huggingface.co/Qwen/Qwen3-0.6B) automatically: thinking mode uses Temperature=0.6, TopP=0.95, TopK=20, MinP=0; non-thinking uses 0.7, 0.8, 20, MinP=0. Conversation history is stored without thinking content (only final replies).
+
+### Optional: vLLM backend
+
+For faster inference with the same API and output (same token-151668 thinking parsing):
+
+```bash
+pip install -e ".[vllm]"   # from repo root, in your venv
+```
+
+Then set in `.env`: `INFERENCE_BACKEND=vllm`. Requires CUDA; the service will fall back to Transformers if vLLM is not installed or load fails.
 
 ## 5. Start the inference service
 

@@ -29,6 +29,10 @@ setup(
         "python-dotenv>=1.0.0,<2",
         "numpy>=1.24.0,<2",
     ],
+    extras_require={
+        # Install with: pip install -e ".[vllm]". Qwen3-0.6B supported in vLLM >= 0.8.5.
+        "vllm": ["vllm>=0.8.5"],
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

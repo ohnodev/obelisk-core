@@ -1,8 +1,11 @@
 """
 Inference Model
 Loads and manages the LLM model for the inference service.
-Clean extraction of model loading + generation from ObeliskLLM.
+Supports Transformers (default) and vLLM backends. Uses Qwen3 best-practice
+sampling (see https://huggingface.co/Qwen/Qwen3-0.6B): thinking mode 0.6/0.95/20/MinP=0,
+non-thinking 0.7/0.8/20/MinP=0. Parsing uses token 151668 (</think>) for thinking/content split.
 """
+import os
 import re
 import sys
 import logging
@@ -14,6 +17,14 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from .config import InferenceConfig
 
 logger = logging.getLogger("inference_service.model")
+
+# Qwen3 best-practice sampling (Hugging Face model card)
+QWEN3_THINKING_TEMP = 0.6
+QWEN3_THINKING_TOP_P = 0.95
+QWEN3_NON_THINKING_TEMP = 0.7
+QWEN3_NON_THINKING_TOP_P = 0.8
+QWEN3_TOP_K = 20
+QWEN3_MIN_P = 0.0
 
 
 def _split_thinking_tokens(generated_tokens: List[int]) -> Tuple[List[int], List[int]]:
@@ -56,8 +67,10 @@ class InferenceModel:
     def __init__(self):
         self.model = None
         self.tokenizer = None
+        self.llm = None  # vLLM engine when INFERENCE_BACKEND=vllm
         self.device = self._resolve_device()
         self.model_name = InferenceConfig.MODEL_NAME
+        self._backend = InferenceConfig.INFERENCE_BACKEND
         self._loaded = False
 
     @staticmethod
@@ -92,40 +105,65 @@ class InferenceModel:
     def load(self) -> bool:
         """
         Load the model and tokenizer.
-        
-        Returns:
-            True if model loaded successfully, False otherwise
+        Uses vLLM when INFERENCE_BACKEND=vllm (Qwen3-0.6B supported in vLLM >= 0.8.5).
         """
         try:
-            logger.info(f"Loading {self.model_name} on {self.device}...")
-            
-            # Load tokenizer
+            logger.info(f"Loading {self.model_name} (backend={self._backend})...")
+
+            # Tokenizer always needed for prompt building and thinking/content parsing (token 151668)
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 local_files_only=False,
             )
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            # Try 4-bit quantization first, fall back to float16
-            self.model = self._load_with_quantization()
-            
-            self.model.eval()
-            
-            # Try torch.compile on CPU for faster inference
-            if self.device == "cpu":
-                self._try_compile()
-            
-            self._loaded = True
-            logger.info(f"Model loaded successfully. Memory: ~{self.estimate_memory()}MB")
-            return True
-            
+
+            if self._backend == "vllm":
+                if self.device != "cuda":
+                    logger.warning("vLLM backend requires CUDA; falling back to transformers.")
+                    self._backend = "transformers"
+                else:
+                    self._load_vllm()
+                    if self.llm is not None:
+                        self._loaded = True
+                        logger.info("Model loaded with vLLM backend.")
+                        return True
+                    self._backend = "transformers"
+
+            if self._backend == "transformers":
+                self.model = self._load_with_quantization()
+                self.model.eval()
+                if self.device == "cpu":
+                    self._try_compile()
+                self._loaded = True
+                logger.info(f"Model loaded successfully. Memory: ~{self.estimate_memory()}MB")
+                return True
+
+            return False
+
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             self.model = None
             self.tokenizer = None
+            self.llm = None
             self._loaded = False
             return False
+
+    def _load_vllm(self) -> None:
+        """Load model with vLLM (Qwen3-0.6B supported in vLLM >= 0.8.5)."""
+        try:
+            from vllm import LLM
+            self.llm = LLM(
+                model=self.model_name,
+                trust_remote_code=True,
+                dtype="auto",
+            )
+        except ImportError as e:
+            logger.warning(f"vLLM not available ({e}). Install with: pip install 'vllm>=0.8.5'")
+            self.llm = None
+        except Exception as e:
+            logger.warning(f"vLLM load failed: {e}")
+            self.llm = None
     
     def _load_with_quantization(self):
         """Try to load model with 4-bit quantization, fall back to float16"""
@@ -176,12 +214,16 @@ class InferenceModel:
     
     @property
     def is_loaded(self) -> bool:
-        return self._loaded and self.model is not None and self.tokenizer is not None
+        return (
+            self._loaded
+            and self.tokenizer is not None
+            and (self.model is not None or self.llm is not None)
+        )
     
     def estimate_memory(self) -> int:
         """Estimate model memory usage in MB"""
         if self.model is None:
-            return 0
+            return 0  # vLLM path or not loaded
         try:
             param_count = sum(p.numel() for p in self.model.parameters())
             memory_mb = (param_count * 0.5) / (1024 * 1024)
@@ -231,13 +273,18 @@ class InferenceModel:
             }
         
         try:
-            # Validate and clamp parameters
-            temperature = max(0.01, min(2.0, temperature))
-            top_p = max(0.01, min(1.0, top_p))
-            top_k = max(1, min(200, top_k))
+            # Qwen3 best-practice sampling (https://huggingface.co/Qwen/Qwen3-0.6B)
+            if enable_thinking:
+                temperature = QWEN3_THINKING_TEMP
+                top_p = QWEN3_THINKING_TOP_P
+                top_k = QWEN3_TOP_K
+            else:
+                temperature = QWEN3_NON_THINKING_TEMP
+                top_p = QWEN3_NON_THINKING_TOP_P
+                top_k = QWEN3_TOP_K
             repetition_penalty = max(1.0, min(3.0, repetition_penalty))
             max_tokens = max(1, min(InferenceConfig.MAX_OUTPUT_TOKENS_GPU if self.device == "cuda" else InferenceConfig.MAX_OUTPUT_TOKENS, max_tokens))
-            
+
             # Validate and truncate query
             query, query_token_count = self._validate_query(query)
             
@@ -262,11 +309,11 @@ class InferenceModel:
                 enable_thinking=enable_thinking,
             )
             logger.debug(f"[GEN] Prompt text length: {len(prompt_text)} chars")
-            
-            # Tokenize
-            inputs = self.tokenizer([prompt_text], return_tensors="pt").to(self.model.device)
-            input_token_count = inputs['input_ids'].shape[1]
-            
+
+            # Input token count (same for both backends)
+            inputs = self.tokenizer([prompt_text], return_tensors="pt")
+            input_token_count = inputs["input_ids"].shape[1]
+
             # Check context window
             available_tokens = InferenceConfig.MAX_CONTEXT_TOKENS - input_token_count
             logger.debug(f"[GEN] Input tokens: {input_token_count}, available: {available_tokens}")
@@ -282,15 +329,21 @@ class InferenceModel:
                     "output_tokens": 0,
                     "generation_params": {},
                 }
-            
+
             safe_max_tokens = min(max_tokens, available_tokens)
             logger.debug(f"[GEN] Generating with max_tokens={safe_max_tokens}, temp={temperature}, top_p={top_p}, top_k={top_k}")
-            
-            # Generate
-            generated_tokens = self._generate_tokens(
-                inputs, safe_max_tokens, enable_thinking,
-                temperature, top_p, top_k, repetition_penalty,
-            )
+
+            # Generate (vLLM or Transformers); same token-151668 parsing below
+            if self.llm is not None:
+                generated_tokens = self._generate_tokens_vllm(
+                    prompt_text, safe_max_tokens, temperature, top_p, top_k, repetition_penalty
+                )
+            else:
+                inputs = inputs.to(self.model.device)
+                generated_tokens = self._generate_tokens(
+                    inputs, safe_max_tokens, enable_thinking,
+                    temperature, top_p, top_k, repetition_penalty,
+                )
             output_token_count = len(generated_tokens)
             logger.debug(f"[GEN] Generated {output_token_count} tokens")
             
@@ -314,12 +367,13 @@ class InferenceModel:
                     "temperature": temperature,
                     "top_p": top_p,
                     "top_k": top_k,
+                    "min_p": QWEN3_MIN_P,
                     "repetition_penalty": repetition_penalty,
                     "enable_thinking": enable_thinking,
                     "max_tokens": safe_max_tokens,
                 },
             }
-            
+
         except Exception as e:
             logger.exception("Error during generation")
             return {
@@ -407,7 +461,39 @@ class InferenceModel:
         
         input_length = inputs['input_ids'].shape[1]
         return outputs[0][input_length:].tolist()
-    
+
+    def _generate_tokens_vllm(
+        self,
+        prompt_text: str,
+        max_output_tokens: int,
+        temperature: float,
+        top_p: float,
+        top_k: int,
+        repetition_penalty: float,
+    ) -> List[int]:
+        """Run vLLM generate and return new token IDs (same parsing as Transformers path)."""
+        from vllm import SamplingParams
+
+        sampling_params = SamplingParams(
+            max_tokens=max_output_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            repetition_penalty=repetition_penalty,
+            min_p=QWEN3_MIN_P,
+        )
+        outputs = self.llm.generate([prompt_text], sampling_params)
+        if not outputs or not outputs[0].outputs:
+            return []
+        out = outputs[0].outputs[0]
+        # CompletionOutput.token_ids = generated output token IDs (vLLM 0.6+)
+        token_ids = getattr(out, "token_ids", None)
+        if token_ids is not None:
+            return list(token_ids)
+        # Fallback: decode text and re-tokenize to get ids for _split_thinking_tokens
+        text = out.text or ""
+        return self.tokenizer.encode(text, add_special_tokens=False)
+
     def _parse_thinking(
         self, generated_tokens: List[int], enable_thinking: bool
     ) -> Tuple[str, str]:
