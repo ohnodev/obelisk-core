@@ -1,9 +1,10 @@
 """
 Inference Model
 Loads and manages the LLM model for the inference service.
-Supports Transformers (default) and vLLM backends. Uses Qwen3 best-practice
-sampling (see https://huggingface.co/Qwen/Qwen3-0.6B): thinking mode 0.6/0.95/20/MinP=0,
-non-thinking 0.7/0.8/20/MinP=0. Parsing uses token 151668 (</think>) for thinking/content split.
+Supports Transformers (default) and vLLM backends. Sampling follows the
+Qwen3-0.6B model card Best Practices (https://huggingface.co/Qwen/Qwen3-0.6B):
+thinking mode 0.6/0.95/20/MinP=0 (official); non-thinking 0.7/0.8/20/MinP=0
+(suggested there). Parsing uses token 151668 (</think>) for thinking/content split.
 """
 import os
 import re
@@ -18,7 +19,7 @@ from .config import InferenceConfig
 
 logger = logging.getLogger("inference_service.model")
 
-# Qwen3 best-practice sampling (Hugging Face model card)
+# Qwen3 sampling: official + suggested (Qwen3-0.6B model card Best Practices)
 QWEN3_THINKING_TEMP = 0.6
 QWEN3_THINKING_TOP_P = 0.95
 QWEN3_NON_THINKING_TEMP = 0.7
@@ -273,7 +274,7 @@ class InferenceModel:
             }
         
         try:
-            # Qwen3 best-practice sampling (https://huggingface.co/Qwen/Qwen3-0.6B)
+            # Qwen3 model card Best Practices: thinking official, non-thinking suggested
             if enable_thinking:
                 temperature = QWEN3_THINKING_TEMP
                 top_p = QWEN3_THINKING_TOP_P

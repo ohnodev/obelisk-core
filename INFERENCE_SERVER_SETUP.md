@@ -60,7 +60,7 @@ INFERENCE_API_KEY=your-secret-key-here
 EOF
 ```
 
-**Qwen3 best practices:** The service uses the [recommended sampling settings](https://huggingface.co/Qwen/Qwen3-0.6B) automatically: thinking mode uses Temperature=0.6, TopP=0.95, TopK=20, MinP=0; non-thinking uses 0.7, 0.8, 20, MinP=0. Conversation history is stored without thinking content (only final replies).
+**Qwen3 sampling (official source):** The service applies the sampling settings from the [Qwen3-0.6B model card — Best Practices](https://huggingface.co/Qwen/Qwen3-0.6B): **thinking mode** (`enable_thinking=True`) — Temperature=0.6, TopP=0.95, TopK=20, MinP=0 (official); **non-thinking mode** (`enable_thinking=False`) — Temperature=0.7, TopP=0.8, TopK=20, MinP=0 (suggested in the same Best Practices section). Conversation history is stored without thinking content (only final replies).
 
 ### Optional: vLLM backend
 
