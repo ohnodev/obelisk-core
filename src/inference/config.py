@@ -18,6 +18,9 @@ class InferenceConfig:
     HOST: str = os.getenv("INFERENCE_HOST", "127.0.0.1")
     PORT: int = int(os.getenv("INFERENCE_PORT", "7780"))
     
+    # Backend: "transformers" (default) or "vllm". vLLM requires vllm>=0.8.5 for Qwen3.
+    INFERENCE_BACKEND: str = os.getenv("INFERENCE_BACKEND", "transformers").lower()
+
     # Model
     MODEL_NAME: str = os.getenv("INFERENCE_MODEL", "Qwen/Qwen3-0.6B")
     

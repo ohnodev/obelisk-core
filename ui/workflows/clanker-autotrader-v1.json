@@ -36,11 +36,11 @@
       },
       "inputs": {},
       "metadata": {
-        "min_seconds": 10,
-        "max_seconds": 10,
+        "min_seconds": 60,
+        "max_seconds": 60,
         "enabled": true,
-        "Min Seconds": 10,
-        "Max Seconds": 10,
+        "Min Seconds": 60,
+        "Max Seconds": 60,
         "Enabled": true
       }
     },
