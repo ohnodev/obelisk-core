@@ -173,6 +173,18 @@ export function extractJsonFromLlmResponse(
     // fall through to repair
   }
 
+  // Strategy 2a: Trailing ",]" or "],}" (e.g. {"actions":[],}] )
+  const trailingNoise = text.replace(/,?\s*]\s*}\s*$/, "]}").trim();
+  const trailingCommaBracket = text.replace(/,(\s*]\s*})\s*$/, "$1").trim();
+  if (trailingNoise !== text || trailingCommaBracket !== text) {
+    const toTry = trailingNoise !== text ? trailingNoise : trailingCommaBracket;
+    try {
+      return JSON.parse(sanitizeJsonString(toTry)) as Record<string, unknown> | unknown[];
+    } catch {
+      // fall through
+    }
+  }
+
   // Strategy 2b: Try to repair common LLM bracket mistakes (e.g. "}"]}} instead of "}}]}")
   const malformedRepaired = tryRepairMalformedJson(text);
   if (malformedRepaired !== null) {
