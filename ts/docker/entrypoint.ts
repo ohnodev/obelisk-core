@@ -48,18 +48,12 @@ function loadWorkflow(): WorkflowData {
 }
 
 // ── Build context variables ───────────────────────────────────────────
-
+// Only agent_id and agent_name. Workflow env is from process.env (deploy env_vars).
 function buildContextVariables(): Record<string, string> {
-  const ctx: Record<string, string> = {};
-  ctx.agent_id = process.env.AGENT_ID ?? "unknown";
-  ctx.agent_name = process.env.AGENT_NAME ?? "unnamed";
-
-  for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith("OBELISK_VAR_") && value) {
-      ctx[key.slice(12).toLowerCase()] = value;
-    }
-  }
-  return ctx;
+  return {
+    agent_id: process.env.AGENT_ID ?? "unknown",
+    agent_name: process.env.AGENT_NAME ?? "unnamed",
+  };
 }
 
 // ── Agent runner ──────────────────────────────────────────────────────

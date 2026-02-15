@@ -79,8 +79,7 @@ transformers_cache/
 *.bin
 *.safetensors
 
-# PM2 (auto-generated)
-ecosystem.config.js
+# PM2 (ecosystem.config.js is tracked so log paths can be customized)
 logs/
 
 # Test artifacts

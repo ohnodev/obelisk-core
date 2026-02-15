@@ -107,9 +107,26 @@ export class ActionRouterNode extends BaseNode {
         ) as Record<string, unknown> | unknown[];
         // Accept either { "actions": [ ... ] } or a top-level array [ { "action": "buy", ... }, ... ]
         // Or a single action object from repaired JSON: { "action": "buy", "params": { ... } }
-        let rawList = Array.isArray(parsed)
+        // Or wrapper array [ { "actions": [ ... ] } ] (model output [{"actions":[...]}]]])
+        // Or alternate format [ "Buy", { "symbol": "X", "amount_eth": 0.001 } ]
+        let rawList: unknown[] | undefined = Array.isArray(parsed)
           ? parsed
-          : (parsed as Record<string, unknown>)?.actions;
+          : (parsed as Record<string, unknown>)?.actions as unknown[] | undefined;
+        if (Array.isArray(parsed) && parsed.length === 1) {
+          const sole = parsed[0];
+          if (sole != null && typeof sole === "object" && "actions" in sole && Array.isArray((sole as Record<string, unknown>).actions)) {
+            rawList = (sole as Record<string, unknown>).actions as unknown[];
+          }
+        }
+        if (Array.isArray(parsed) && parsed.length === 2 && typeof parsed[0] === "string" && typeof parsed[1] === "object" && parsed[1] !== null) {
+          const actionName = (parsed[0] as string).toLowerCase();
+          if (ALLOWED_ACTIONS.has(actionName)) {
+            rawList = [{ action: actionName, params: parsed[1] as Record<string, unknown> }];
+          }
+        }
+        if (rawList === undefined) {
+          rawList = Array.isArray(parsed) ? parsed : (parsed as Record<string, unknown>)?.actions as unknown[] | undefined;
+        }
         if (!Array.isArray(rawList) && parsed != null && typeof parsed === "object" && isActionItem(parsed)) {
           rawList = [parsed];
         }

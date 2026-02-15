@@ -68,23 +68,14 @@ function loadWorkflow() {
 }
 
 // ---------------------------------------------------------------------------
-// Build context variables from environment
+// Build context variables from environment.
+// Only agent_id and agent_name. Workflow env is from process.env (deploy env_vars).
 // ---------------------------------------------------------------------------
 function buildContextVariables() {
-  const context = {
+  return {
     agent_id: process.env.AGENT_ID || "unknown",
     agent_name: process.env.AGENT_NAME || "unnamed",
   };
-
-  // OBELISK_VAR_* env vars → context variables
-  for (const [key, value] of Object.entries(process.env)) {
-    if (key.startsWith("OBELISK_VAR_")) {
-      const varName = key.slice(12).toLowerCase();
-      context[varName] = value;
-    }
-  }
-
-  return context;
 }
 
 // ---------------------------------------------------------------------------
