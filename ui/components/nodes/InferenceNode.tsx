@@ -14,6 +14,7 @@ class InferenceNode extends LGraphNode {
   constructor() {
     super();
     this.title = "Inference";
+    this.addInput("trigger", "boolean"); // When false, skip API call (e.g. insufficient funds)
     this.addInput("query", "string");
     this.addInput("model", "object");
     this.addInput("system_prompt", "string"); // Optional — can use widget instead
