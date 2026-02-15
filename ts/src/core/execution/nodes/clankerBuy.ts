@@ -197,6 +197,15 @@ export class ClankerBuyNode extends BaseNode {
       logger.warn(`[ClankerBuy] Swap failed: ${result.error}`);
     }
 
+    let name = "";
+    let symbol = "";
+    if (state?.tokens && typeof state.tokens === "object") {
+      const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress.toLowerCase()];
+      if (t) {
+        name = getStr(t.name);
+        symbol = getStr(t.symbol);
+      }
+    }
     const out = {
       success: result.success,
       txHash: result.txHash,
@@ -209,6 +218,8 @@ export class ClankerBuyNode extends BaseNode {
       hook_address: hookAddress,
       currency0,
       currency1,
+      ...(name && { name }),
+      ...(symbol && { symbol }),
     };
     return { ...out, result: out };
   }

@@ -1,8 +1,9 @@
 /**
- * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification directly to Telegram
- * (amount, token, Basescan tx link). Uses TELEGRAM_BOT_TOKEN and chat_id; no TelegramAction node.
+ * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification to Telegram.
+ * Formatted with token name/symbol, cost (ETH), optional MC at buy (from state), and Basescan tx link.
  *
- * Inputs: buy_result (from Clanker Buy), chat_id, bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
+ * Inputs: buy_result (from Clanker Buy), state (optional; for MC and token name/symbol), chat_id,
+ *         bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
  * Outputs: sent (boolean), chat_id, error (if send failed)
  */
 import { formatEther } from "ethers";
@@ -80,9 +81,31 @@ async function sendTelegramMessage(
   }
 }
 
+function getNum(v: unknown): number {
+  if (v == null) return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** MC in ETH from lastPrice * (totalSupply / 10^decimals). */
+function formatMcEth(state: Record<string, unknown> | undefined, tokenAddress: string): string | null {
+  if (!state?.tokens || typeof state.tokens !== "object") return null;
+  const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress.toLowerCase()];
+  if (!t) return null;
+  const price = getNum(t.lastPrice);
+  const supply = getNum(t.totalSupply);
+  const decimals = Math.min(18, Math.max(0, getNum(t.decimals) || 18));
+  if (price <= 0 || supply <= 0) return null;
+  const mcEth = price * (supply / Math.pow(10, decimals));
+  if (mcEth < 0.0001) return mcEth.toFixed(6);
+  if (mcEth < 1) return mcEth.toFixed(4);
+  return mcEth.toFixed(2);
+}
+
 export class BuyNotifyNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const buyResult = this.getInputValue("buy_result", context, undefined) as Record<string, unknown> | undefined;
+    const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const chatId =
       (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
       Config.TELEGRAM_CHAT_ID ||
@@ -101,15 +124,23 @@ export class BuyNotifyNode extends BaseNode {
     const txHash = buyResult?.txHash as string | undefined;
     const tokenAddress = (buyResult?.token_address as string) ?? "";
     const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0"; // ETH spent (value_wei from ClankerBuy)
-    const symbol = (buyResult?.symbol as string) || (buyResult?.name as string);
+    const name = (buyResult?.name as string)?.trim() || "";
+    const symbol = (buyResult?.symbol as string)?.trim() || "";
+    const tokenLabel = name && symbol ? `${name} (${symbol})` : symbol || name || (tokenAddress ? shortAddress(tokenAddress) : "token");
 
     let sent = false;
     let error: string | undefined;
     if (success && txHash) {
-      const ethAmount = formatEth(valueWei);
-      const tokenLabel = symbol || (tokenAddress ? shortAddress(tokenAddress) : "token");
+      const costEth = formatEth(valueWei);
       const txUrl = `${BASESCAN_TX}/${txHash}`;
-      const text = `Bought ${tokenLabel} for ${ethAmount} ETH. Tx: ${txUrl}`;
+      const mcStr = formatMcEth(state, tokenAddress);
+      const lines = [
+        `🟢 Bought ${tokenLabel}`,
+        `Cost: ${costEth} ETH`,
+        ...(mcStr ? [`MC: ${mcStr} ETH`] : []),
+        `Tx: ${txUrl}`,
+      ];
+      const text = lines.join("\n");
       const result = await sendTelegramMessage(botToken, chatId, text);
       sent = result.ok;
       error = result.error;
