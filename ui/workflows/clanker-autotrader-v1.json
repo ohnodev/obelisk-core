@@ -167,6 +167,21 @@
       }
     },
     {
+      "id": "35",
+      "type": "memory_storage",
+      "position": {
+        "x": -750,
+        "y": -1150
+      },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
+      }
+    },
+    {
       "id": "30",
       "type": "text",
       "position": {
@@ -457,12 +472,6 @@
     },
     {
       "from": "10",
-      "from_output": "storage_instance",
-      "to": "26",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "10",
       "from_output": "base_path",
       "to": "3",
       "to_input": "base_path"
@@ -488,12 +497,6 @@
     {
       "from": "10",
       "from_output": "base_path",
-      "to": "26",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
       "to": "28",
       "to_input": "base_path"
     },
@@ -502,6 +505,18 @@
       "from_output": "model",
       "to": "6",
       "to_input": "model"
+    },
+    {
+      "from": "35",
+      "from_output": "base_path",
+      "to": "26",
+      "to_input": "base_path"
+    },
+    {
+      "from": "35",
+      "from_output": "storage_instance",
+      "to": "26",
+      "to_input": "storage_instance"
     },
     {
       "from": "25",

@@ -172,17 +172,18 @@ async def inference(request: InferenceRequest, raw_request: Request):
     """
     _verify_api_key(raw_request)
     
-    # Log incoming request summary
+    # Log incoming request summary (include first 100 chars of query for debugging)
     client_ip = raw_request.client.host if raw_request.client else "unknown"
-    query_preview = request.query[:120] + "..." if len(request.query) > 120 else request.query
+    query_preview_100 = request.query[:100] + ("..." if len(request.query) > 100 else "")
     logger.info(
         f"[API] Inference request from {client_ip} — "
         f"query={len(request.query)} chars, "
         f"history={len(request.conversation_history or [])} msgs, "
         f"thinking={request.enable_thinking}"
     )
+    logger.info(f"[API] Query (first 100 chars): {query_preview_100}")
     if InferenceConfig.DEBUG:
-        logger.debug(f"[API] Query preview: {query_preview}")
+        logger.debug(f"[API] Query preview (120 chars): {request.query[:120]}{'...' if len(request.query) > 120 else ''}")
     
     if not _model or not _model.is_loaded:
         raise HTTPException(
