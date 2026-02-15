@@ -363,6 +363,12 @@
     },
     {
       "from": "16",
+      "from_output": "holding",
+      "to": "28",
+      "to_input": "holding"
+    },
+    {
+      "from": "16",
       "from_output": "should_sell",
       "to": "17",
       "to_input": "should_sell"
