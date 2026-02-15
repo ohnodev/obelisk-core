@@ -18,6 +18,7 @@ import { resolveActionsPath } from "./clankerStoragePath";
 const logger = getLogger("actionLogger");
 
 const DEFAULT_MAX_ACTIONS = 100;
+const MAX_SYSTEM_NOTE_CHARS = 200;
 const ETH_WEI = 1e18;
 
 function getNum(v: unknown): number {
@@ -62,9 +63,10 @@ export class ActionLoggerNode extends BaseNode {
     }> = [];
 
     if (systemNote != null && String(systemNote).trim() !== "") {
+      const note = String(systemNote).trim().slice(0, MAX_SYSTEM_NOTE_CHARS);
       entries.push({
         type: "system",
-        reason: String(systemNote).trim(),
+        reason: note,
         timestamp: Date.now(),
       });
     }
