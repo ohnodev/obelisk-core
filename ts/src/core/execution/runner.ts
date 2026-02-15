@@ -140,6 +140,13 @@ export class WorkflowRunner {
   /** Guard: true while a tick is processing (prevents overlapping ticks). */
   private tickInFlight = false;
 
+  /**
+   * Per-workflow promise for the in-flight stats-only subgraph.
+   * Serializes stats-only execution so we don't interleave writes to state.context,
+   * state.latestResults, or resultsVersion across ticks.
+   */
+  private statsSubgraphLocks = new Map<string, Promise<void>>();
+
   constructor() {
     this.engine = new ExecutionEngine();
   }
@@ -326,6 +333,7 @@ export class WorkflowRunner {
 
     // Remove from running workflows (matches Python: del self._running_workflows[workflow_id])
     this.workflows.delete(workflowId);
+    this.statsSubgraphLocks.delete(workflowId);
 
     // Stop tick loop if no more running workflows
     if (!this.listWorkflows().length) this.stopTickLoop();
@@ -464,7 +472,32 @@ export class WorkflowRunner {
       logger.info(
         `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
       );
-      await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
+      // Stats-only subgraph (autotrader_stats_listener → read files → http_response) is fast.
+      // Serialize per workflow so we don't interleave writes to state.context, state.latestResults, or resultsVersion.
+      const statsOnly =
+        firedAutonomousNodes.size === 1 &&
+        Array.from(firedAutonomousNodes).every(
+          (nid) => state.nodes.get(nid)?.nodeType === "autotrader_stats_listener"
+        );
+      if (statsOnly) {
+        const workflowId = state.workflowId;
+        const previous = this.statsSubgraphLocks.get(workflowId);
+        if (previous) await previous;
+        const promise = this.executeSubgraph(
+          state,
+          triggeredNodes,
+          firedAutonomousNodes
+        ).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error(`Stats subgraph failed: ${msg}`);
+          state.onError?.(msg);
+        }).finally(() => {
+          this.statsSubgraphLocks.delete(workflowId);
+        });
+        this.statsSubgraphLocks.set(workflowId, promise);
+      } else {
+        await this.executeSubgraph(state, triggeredNodes, firedAutonomousNodes);
+      }
     }
   }
 

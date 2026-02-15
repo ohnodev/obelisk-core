@@ -43,6 +43,11 @@ services:
       # Persist memory across restarts
       - agent_memory:/app/memory
 
+    # Ports: 8080 = HttpListenerNode, 8081 = AutotraderStatsListenerNode (GET /stats, /health)
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+
     # Resource limits
     mem_limit: 512m
     cpus: 0.5
