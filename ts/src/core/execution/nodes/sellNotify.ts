@@ -31,9 +31,13 @@ function formatEth(wei: string | number): string {
   return String(parseFloat(s));
 }
 
-function shortAddress(addr: string): string {
-  if (!addr || addr.length < 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+/** Format token label as "Name ($SYMBOL)" or "$SYMBOL" or fallback. */
+function formatTokenLabel(name: string, symbol: string, fallback: string): string {
+  const sym = symbol ? `$${symbol}` : "";
+  if (name && sym) return `${name} (${sym})`;
+  if (sym) return sym;
+  if (name) return name;
+  return fallback;
 }
 
 async function sendTelegramMessage(
@@ -98,12 +102,11 @@ export class SellNotifyNode extends BaseNode {
           symbol = String(t.symbol ?? "").trim();
         }
       }
-      const tokenLabel =
-        name && symbol ? `${name} (${symbol})` : symbol || name || shortAddress(tokenAddress);
+      const tokenLabel = formatTokenLabel(name, symbol, tokenAddress);
       const lines = [
         `🔴 Sold ${tokenLabel}`,
         `${tokenAmount} tokens → ${receivedEth} ETH`,
-        tokenAddress ? `Address: ${shortAddress(tokenAddress)}` : null,
+        ...(tokenAddress ? [`CA: ${tokenAddress}`] : []),
       ];
       if (holding && typeof holding.boughtAtPriceEth === "number" && holding.amountWei) {
         const costEth = holding.boughtAtPriceEth * (Number(holding.amountWei) / ETH_WEI);

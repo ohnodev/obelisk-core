@@ -31,9 +31,13 @@ function formatEth(wei: string | bigint): string {
   }
 }
 
-function shortAddress(addr: string): string {
-  if (!addr || addr.length < 12) return addr;
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+/** Format token label as "Name ($SYMBOL)" or "$SYMBOL" or fallback. */
+function formatTokenLabel(name: string, symbol: string, fallback: string): string {
+  const sym = symbol ? `$${symbol}` : "";
+  if (name && sym) return `${name} (${sym})`;
+  if (sym) return sym;
+  if (name) return name;
+  return fallback;
 }
 
 function safeErrorMessage(e: unknown): string {
@@ -126,7 +130,7 @@ export class BuyNotifyNode extends BaseNode {
     const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0"; // ETH spent (value_wei from ClankerBuy)
     const name = (buyResult?.name as string)?.trim() || "";
     const symbol = (buyResult?.symbol as string)?.trim() || "";
-    const tokenLabel = name && symbol ? `${name} (${symbol})` : symbol || name || (tokenAddress ? shortAddress(tokenAddress) : "token");
+    const tokenLabel = formatTokenLabel(name, symbol, tokenAddress || "token");
 
     let sent = false;
     let error: string | undefined;
@@ -137,6 +141,7 @@ export class BuyNotifyNode extends BaseNode {
       const lines = [
         `🟢 Bought ${tokenLabel}`,
         `Cost: ${costEth} ETH`,
+        ...(tokenAddress ? [`CA: ${tokenAddress}`] : []),
         ...(mcStr ? [`MC: ${mcStr} ETH`] : []),
         `Tx: ${txUrl}`,
       ];
