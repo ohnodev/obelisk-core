@@ -177,7 +177,8 @@ export class ExecutionEngine {
             const v = outputs[k];
             if (typeof v === "string") {
               const s = abbrevPathForLog(v);
-              if (s.length <= MAX_DEBUG_PAYLOAD) {
+              const fullInference = node.nodeType === "inference" && (k === "query" || k === "response");
+              if (fullInference || s.length <= MAX_DEBUG_PAYLOAD) {
                 logger.debug(`  [${nodeId}] FULL ${k} (${s.length} chars):\n${s}`);
               } else {
                 logger.debug(`  [${nodeId}] ${k}: string ${s.length} chars (truncated in debug)`);

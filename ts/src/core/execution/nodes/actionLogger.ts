@@ -3,6 +3,7 @@
  * Storage from clanker_storage_path / base_path / storage_instance.
  *
  * Inputs: buy_result, sell_result, holding (optional; from bag_checker when selling),
+ *         system_note (optional; when set, log a non-trade entry e.g. "Insufficient funds."),
  *         clanker_storage_path / base_path / storage_instance, max_actions (default 100)
  *
  * Logs cost basis and PnL: on buy, costWei = valueWei (ETH spent). On sell, when holding
@@ -17,6 +18,7 @@ import { resolveActionsPath } from "./clankerStoragePath";
 const logger = getLogger("actionLogger");
 
 const DEFAULT_MAX_ACTIONS = 100;
+const MAX_SYSTEM_NOTE_CHARS = 200;
 const ETH_WEI = 1e18;
 
 function getNum(v: unknown): number {
@@ -46,6 +48,7 @@ export class ActionLoggerNode extends BaseNode {
     }
 
     const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;
+    const systemNote = this.getInputValue("system_note", context, undefined) as string | undefined;
     const entries: Array<{
       type: string;
       tokenAddress?: string;
@@ -55,8 +58,18 @@ export class ActionLoggerNode extends BaseNode {
       costEth?: number;
       pnlEth?: number;
       txHash?: string;
+      reason?: string;
       timestamp: number;
     }> = [];
+
+    if (systemNote != null && String(systemNote).trim() !== "") {
+      const note = String(systemNote).trim().slice(0, MAX_SYSTEM_NOTE_CHARS);
+      entries.push({
+        type: "system",
+        reason: note,
+        timestamp: Date.now(),
+      });
+    }
 
     if (buyResult?.success && buyResult?.token_address) {
       const valueWei = String(buyResult.value_wei ?? "0");

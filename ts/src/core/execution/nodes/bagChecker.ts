@@ -22,21 +22,26 @@ function getNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Treat empty or invalid input as unset so env-driven text nodes don't override defaults. */
+function numOrFallback(raw: unknown, fallback: number): number {
+  if (raw === "" || (typeof raw === "string" && raw.trim() === "")) return fallback;
+  const n = getNum(raw);
+  return n > 0 ? n : fallback;
+}
+
 export class BagCheckerNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const trigger = this.getInputValue("trigger", context, false) as boolean;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const rawTimer = this.getInputValue("sell_timer_minutes", context, undefined);
-    const timerFromInput = getNum(rawTimer);
     const timerFromMeta = getNum(this.metadata.sell_timer_minutes ?? 5);
     const sellTimerMinutes = Math.max(
       0,
-      timerFromInput > 0 ? timerFromInput : timerFromMeta
+      numOrFallback(this.getInputValue("sell_timer_minutes", context, undefined), timerFromMeta)
     );
-    const profitFromInput = getNum(this.getInputValue("profit_target_percent", context, undefined));
-    const stopFromInput = getNum(this.getInputValue("stop_loss_percent", context, undefined));
     const profitFromMeta = getNum(this.metadata.profit_target_percent ?? DEFAULT_PROFIT_TARGET_PERCENT);
     const stopFromMeta = getNum(this.metadata.stop_loss_percent ?? DEFAULT_STOP_LOSS_PERCENT);
+    const profitFromInput = numOrFallback(this.getInputValue("profit_target_percent", context, undefined), profitFromMeta);
+    const stopFromInput = numOrFallback(this.getInputValue("stop_loss_percent", context, undefined), stopFromMeta);
     const resolvedBagPath = resolveBagsPath(this, context);
 
     if (!trigger) {
@@ -70,8 +75,8 @@ export class BagCheckerNode extends BaseNode {
       if (boughtAt <= 0) continue;
 
       const profitPct = ((currentPriceEth - boughtAt) / boughtAt) * 100;
-      const profitTarget = profitFromInput > 0 ? profitFromInput : (holding.profitTargetPercent ?? profitFromMeta);
-      const stopLoss = stopFromInput > 0 ? stopFromInput : (holding.stopLossPercent ?? stopFromMeta);
+      const profitTarget = holding.profitTargetPercent ?? profitFromInput;
+      const stopLoss = holding.stopLossPercent ?? stopFromInput;
       const hitTarget = profitPct >= profitTarget;
       const hitStop = profitPct <= -stopLoss;
 

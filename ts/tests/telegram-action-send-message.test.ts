@@ -15,7 +15,7 @@ describe("TelegramActionNode send_message (no reply)", () => {
   const fakeToken = "test-bot-token-123";
   const chatId = "-1002523187907";
   const messageText =
-    "Bought 0x05f3...9b90 for 0.001 ETH. Tx: https://basescan.org/tx/0x6b36564d3bb20565942efcd72d15fc6d66a5bba0d254864ab4d40bef78a99974";
+    "🟢 Bought 0x05f3...9b90\nCost: 0.001 ETH\nTx: https://basescan.org/tx/0x6b36564d3bb20565942efcd72d15fc6d66a5bba0d254864ab4d40bef78a99974";
 
   let fetchMock: ReturnType<typeof vi.fn>;
   let sendMessageCalls: { url: string; body: Record<string, unknown> }[];
@@ -100,14 +100,14 @@ describe("TelegramActionNode send_message (no reply)", () => {
     node.inputConnections["actions"] = [{ nodeId: "12", outputName: "actions" }];
     node.inputConnections["chat_id"] = [{ nodeId: "12", outputName: "chat_id" }];
 
-    // Literally from log: Node 12 (buy_notify) → actions + chat_id
+    // Node 12 (buy_notify) → actions + chat_id (new formatted message)
     const node12Output = {
       actions: [
         {
           action: "send_message",
           params: {
             text:
-              "Bought 0x05f3...9b90 for 0.001 ETH. Tx: https://basescan.org/tx/0x6b36564d3bb20565942efcd72d15fc6d66a5bba0d254864ab4d40bef78a99974",
+              "🟢 Bought 0x05f3...9b90\nCost: 0.001 ETH\nTx: https://basescan.org/tx/0x6b36564d3bb20565942efcd72d15fc6d66a5bba0d254864ab4d40bef78a99974",
           },
         },
       ],

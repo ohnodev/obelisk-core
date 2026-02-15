@@ -241,6 +241,8 @@ class InferenceModel:
             # Validate and truncate query
             query, query_token_count = self._validate_query(query)
             
+            # Log first 100 chars at INFO for debugging
+            logger.info(f"[GEN] Query (first 100 chars): {query[:100]}{'...' if len(query) > 100 else ''}")
             logger.debug(f"[GEN] Query ({query_token_count} tokens): {query[:200]}{'...' if len(query) > 200 else ''}")
             logger.debug(f"[GEN] System prompt: {system_prompt[:200]}{'...' if len(system_prompt) > 200 else ''}")
             

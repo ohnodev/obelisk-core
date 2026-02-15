@@ -137,6 +137,10 @@ export class WorkflowRunner {
 
   /** Global tick interval handle (started on first workflow, stopped when last workflow ends). */
   private tickTimer: ReturnType<typeof setInterval> | null = null;
+  /** Dedicated stats tick interval (only ticks autotrader_stats_listener; runs independently of main tick). */
+  private statsTickTimer: ReturnType<typeof setInterval> | null = null;
+  /** Guard: true while a stats tick is processing (prevents overlapping stats ticks). */
+  private statsTickInFlight = false;
   /** Guard: true while a tick is processing (prevents overlapping ticks). */
   private tickInFlight = false;
 
@@ -303,6 +307,8 @@ export class WorkflowRunner {
 
     // Ensure global tick loop is running
     this.ensureTickLoop();
+    // Ensure stats tick loop if this workflow has a stats listener
+    this.ensureStatsTickLoop();
 
     return workflowId;
   }
@@ -337,6 +343,8 @@ export class WorkflowRunner {
 
     // Stop tick loop if no more running workflows
     if (!this.listWorkflows().length) this.stopTickLoop();
+    // Stop stats tick loop if no running workflow has a stats listener
+    this.stopStatsTickLoopIfNoListeners();
 
     return true;
   }
@@ -405,6 +413,79 @@ export class WorkflowRunner {
     logger.debug("Stopped global tick loop");
   }
 
+  private hasAnyRunningWorkflowWithStatsListener(): boolean {
+    const running = Array.from(this.workflows.values()).filter(
+      (s) => s.state === "running"
+    );
+    return running.some((s) => this.getStatsListenerNodeId(s) !== null);
+  }
+
+  private ensureStatsTickLoop(): void {
+    if (!this.hasAnyRunningWorkflowWithStatsListener()) return;
+    if (this.statsTickTimer) return;
+    this.statsTickTimer = setInterval(() => this.globalStatsTick(), DEFAULT_TICK_MS);
+    logger.debug("Started stats tick loop");
+  }
+
+  private stopStatsTickLoop(): void {
+    if (!this.statsTickTimer) return;
+    clearInterval(this.statsTickTimer);
+    this.statsTickTimer = null;
+    logger.debug("Stopped stats tick loop");
+  }
+
+  private stopStatsTickLoopIfNoListeners(): void {
+    if (!this.hasAnyRunningWorkflowWithStatsListener()) {
+      this.stopStatsTickLoop();
+    }
+  }
+
+  private async globalStatsTick(): Promise<void> {
+    if (this.statsTickInFlight) return;
+    this.statsTickInFlight = true;
+    try {
+      const running = Array.from(this.workflows.values()).filter(
+        (s) => s.state === "running"
+      );
+      for (const state of running) {
+        try {
+          const statsListenerId = this.getStatsListenerNodeId(state);
+          if (statsListenerId === null) continue;
+
+          const node = state.nodes.get(statsListenerId);
+          if (!node || !node.isAutonomous()) continue;
+
+          const result = await node.onTick(state.context);
+          if (result === null) continue;
+
+          const workflowId = state.workflowId;
+          const previous = this.statsSubgraphLocks.get(workflowId);
+          if (previous) await previous;
+          const promise = this.executeSubgraphResponseOnly(
+            state,
+            statsListenerId,
+            result
+          )
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.error(`Stats subgraph failed: ${msg}`);
+              state.onError?.(msg);
+            })
+            .finally(() => {
+              this.statsSubgraphLocks.delete(workflowId);
+            });
+          this.statsSubgraphLocks.set(workflowId, promise);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error(`Stats tick error for workflow ${state.workflowId}: ${msg}`);
+          state.onError?.(msg);
+        }
+      }
+    } finally {
+      this.statsTickInFlight = false;
+    }
+  }
+
   private async globalTick(): Promise<void> {
     if (this.tickInFlight) return; // skip if previous tick still running
     this.tickInFlight = true;
@@ -437,9 +518,12 @@ export class WorkflowRunner {
     /** Autonomous nodes that actually fired THIS tick (not stale from prior ticks) */
     const firedAutonomousNodes = new Set<NodeID>();
 
-    // Call onTick on every autonomous node
+    const statsListenerId = this.getStatsListenerNodeId(state);
+
+    // Call onTick on every autonomous node except the stats listener (it has its own tick loop)
     for (const [nodeId, node] of state.nodes) {
       if (!node.isAutonomous()) continue;
+      if (statsListenerId !== null && nodeId === statsListenerId) continue;
 
       const result = await node.onTick(state.context);
       if (result !== null) {
@@ -473,7 +557,6 @@ export class WorkflowRunner {
         `[Tick ${state.tickCount}] Downstream targets: [${Array.from(triggeredNodes).join(", ")}]`
       );
 
-      const statsListenerId = this.getStatsListenerNodeId(state);
       const hasStatsTrigger = statsListenerId && firedAutonomousNodes.has(statsListenerId);
       const statsTriggeredIds = hasStatsTrigger
         ? this.getTriggeredIdsFromSource(state.workflow, statsListenerId)
@@ -545,6 +628,47 @@ export class WorkflowRunner {
       if (conn.source_node === sourceNodeId) out.add(conn.target_node);
     }
     return out;
+  }
+
+  /**
+   * Run the stats subgraph (listener downstream + deps) without updating workflow state.
+   * Used by the dedicated stats tick so GET /stats is answered while the main tick is blocked on inference.
+   */
+  private async executeSubgraphResponseOnly(
+    state: WorkflowState,
+    statsListenerId: NodeID,
+    requestOutputs: Record<string, unknown>
+  ): Promise<void> {
+    const { workflow, nodes } = state;
+    const triggeredIds = this.getTriggeredIdsFromSource(workflow, statsListenerId);
+    if (triggeredIds.size === 0) return;
+
+    const downstream = this.getAllDownstream(workflow, triggeredIds, nodes);
+    const subgraphNodeIds = this.getSubgraphWithDependencies(
+      workflow,
+      downstream,
+      nodes
+    );
+
+    const subWorkflow = this.buildSubgraphWorkflow(
+      workflow,
+      subgraphNodeIds,
+      new Set<NodeID>([statsListenerId])
+    );
+
+    const result = await this.engine.execute(
+      subWorkflow,
+      state.context.variables,
+      { [statsListenerId]: requestOutputs }
+    );
+
+    if (result.success) {
+      logger.info(
+        `[Stats subgraph] Completed in ${result.totalExecutionTime}ms (response sent via HttpResponse)`
+      );
+    } else {
+      logger.error(`[Stats subgraph] Failed: ${result.error}`);
+    }
   }
 
   // ── Subgraph execution (mirrors Python _execute_subgraph) ──────────

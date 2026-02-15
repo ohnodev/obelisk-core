@@ -1,8 +1,9 @@
 /**
  * SellNotifyNode – when Clanker Sell succeeds, sends a sell notification to Telegram.
- * Includes Basescan tx link and PnL (received ETH vs cost from holding).
+ * Formatted with token label (name/symbol from state), amount, received ETH, PnL when holding present, and Basescan tx link.
  *
- * Inputs: sell_result, holding (from BagChecker), chat_id, bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
+ * Inputs: sell_result, holding (from BagChecker; for PnL), state (optional; for token name/symbol),
+ *         chat_id, bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
  * Outputs: sent (boolean), chat_id, error (if send failed)
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
@@ -30,6 +31,11 @@ function formatEth(wei: string | number): string {
   return String(parseFloat(s));
 }
 
+function shortAddress(addr: string): string {
+  if (!addr || addr.length < 12) return addr;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
 async function sendTelegramMessage(
   botToken: string,
   chatId: string,
@@ -55,6 +61,7 @@ export class SellNotifyNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
     const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;
+    const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const chatId =
       (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
       Config.TELEGRAM_CHAT_ID ||
@@ -82,17 +89,32 @@ export class SellNotifyNode extends BaseNode {
       const txUrl = `${BASESCAN_TX}/${txHash}`;
       const tokenAmount = weiToEth(amountWei);
       const receivedEth = formatEth(receivedWei);
-      let pnlPart = "";
+      let name = "";
+      let symbol = "";
+      if (state?.tokens && typeof state.tokens === "object") {
+        const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress.toLowerCase()];
+        if (t) {
+          name = String(t.name ?? "").trim();
+          symbol = String(t.symbol ?? "").trim();
+        }
+      }
+      const tokenLabel =
+        name && symbol ? `${name} (${symbol})` : symbol || name || shortAddress(tokenAddress);
+      const lines = [
+        `🔴 Sold ${tokenLabel}`,
+        `${tokenAmount} tokens → ${receivedEth} ETH`,
+        tokenAddress ? `Address: ${shortAddress(tokenAddress)}` : null,
+      ];
       if (holding && typeof holding.boughtAtPriceEth === "number" && holding.amountWei) {
         const costEth = holding.boughtAtPriceEth * (Number(holding.amountWei) / ETH_WEI);
         const receivedEthNum = Number(receivedWei) / ETH_WEI;
         const pnlEth = receivedEthNum - costEth;
         const pnlPct = costEth > 0 ? (pnlEth / costEth) * 100 : 0;
-        pnlPart = ` Received ${receivedEth} ETH. PnL: ${pnlEth >= 0 ? "+" : ""}${pnlEth.toFixed(6)} ETH (${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%).`;
-      } else {
-        pnlPart = ` Received ${receivedEth} ETH.`;
+        const sign = pnlEth >= 0 ? "+" : "";
+        lines.push(`PnL: ${sign}${pnlEth.toFixed(6)} ETH (${sign}${pnlPct.toFixed(2)}%)`);
       }
-      const text = `Sold token ${tokenAddress} (${tokenAmount} tokens).${pnlPart} Tx: ${txUrl}`;
+      lines.push(`Tx: ${txUrl}`);
+      const text = lines.filter(Boolean).join("\n");
       const result = await sendTelegramMessage(botToken, chatId, text);
       sent = result.ok;
       error = result.error;

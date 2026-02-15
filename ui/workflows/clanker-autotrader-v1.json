@@ -3,41 +3,6 @@
   "name": "Obelisk Workflow",
   "nodes": [
     {
-      "id": "17",
-      "type": "clanker_sell",
-      "position": {
-        "x": 943,
-        "y": -644
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "18",
-      "type": "update_bags_on_sell",
-      "position": {
-        "x": 1418,
-        "y": -492
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "16",
-      "type": "bag_checker",
-      "position": {
-        "x": 514,
-        "y": -473
-      },
-      "inputs": {},
-      "metadata": {
-        "sell_timer_minutes": 5,
-        "Sell timer (min)": 5,
-        "profit_target_percent": 50,
-        "stop_loss_percent": 20
-      }
-    },
-    {
       "id": "8",
       "type": "wallet",
       "position": {
@@ -97,42 +62,6 @@
       }
     },
     {
-      "id": "9",
-      "type": "clanker_buy",
-      "position": {
-        "x": 1968,
-        "y": -97
-      },
-      "inputs": {},
-      "metadata": {
-        "amount_wei": "0",
-        "rpc_url": ""
-      }
-    },
-    {
-      "id": "3",
-      "type": "clanker_launch_summary",
-      "position": {
-        "x": 336,
-        "y": 234
-      },
-      "inputs": {},
-      "metadata": {
-        "window_hours": 1,
-        "limit": 20
-      }
-    },
-    {
-      "id": "7",
-      "type": "action_router",
-      "position": {
-        "x": 1756,
-        "y": 170
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
       "id": "24",
       "type": "text",
       "position": {
@@ -142,18 +71,6 @@
       "inputs": {},
       "metadata": {
         "text": "Model output (reply + reasoning) — for debugging"
-      }
-    },
-    {
-      "id": "4",
-      "type": "text",
-      "position": {
-        "x": 773,
-        "y": 49
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
       }
     },
     {
@@ -172,19 +89,6 @@
       }
     },
     {
-      "id": "22",
-      "type": "balance_checker",
-      "position": {
-        "x": -63,
-        "y": 238
-      },
-      "inputs": {},
-      "metadata": {
-        "min_balance_wei": "0.004",
-        "min ETH": "0.004"
-      }
-    },
-    {
       "id": "10",
       "type": "memory_storage",
       "position": {
@@ -197,18 +101,6 @@
         "storage_type": "local_json",
         "Storage Path": "clanker",
         "Storage Type": "local_json"
-      }
-    },
-    {
-      "id": "23",
-      "type": "boolean_logic",
-      "position": {
-        "x": 140,
-        "y": -271
-      },
-      "inputs": {},
-      "metadata": {
-        "operation": "AND"
       }
     },
     {
@@ -227,76 +119,6 @@
       }
     },
     {
-      "id": "34",
-      "type": "boolean_logic",
-      "position": {
-        "x": 585,
-        "y": -24
-      },
-      "inputs": {},
-      "metadata": {
-        "operation": "AND"
-      }
-    },
-    {
-      "id": "27",
-      "type": "http_response",
-      "position": {
-        "x": 1086,
-        "y": -905
-      },
-      "inputs": {},
-      "metadata": {
-        "status_code": 200
-      }
-    },
-    {
-      "id": "26",
-      "type": "clanker_autotrader_stats",
-      "position": {
-        "x": 539,
-        "y": -895
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "25",
-      "type": "autotrader_stats_listener",
-      "position": {
-        "x": -3,
-        "y": -911
-      },
-      "inputs": {},
-      "metadata": {
-        "port": 8081,
-        "path": "/stats"
-      }
-    },
-    {
-      "id": "19",
-      "type": "sell_notify",
-      "position": {
-        "x": 1895,
-        "y": -722
-      },
-      "inputs": {},
-      "metadata": {}
-    },
-    {
-      "id": "20",
-      "type": "add_to_bags",
-      "position": {
-        "x": 2238,
-        "y": -536
-      },
-      "inputs": {},
-      "metadata": {
-        "profit_target_percent": 50,
-        "stop_loss_percent": 20
-      }
-    },
-    {
       "id": "28",
       "type": "action_logger",
       "position": {
@@ -310,45 +132,61 @@
       }
     },
     {
-      "id": "12",
-      "type": "buy_notify",
+      "id": "25",
+      "type": "autotrader_stats_listener",
       "position": {
-        "x": 2359,
-        "y": 93
+        "x": -77,
+        "y": -1196
+      },
+      "inputs": {},
+      "metadata": {
+        "port": 8081,
+        "path": "/stats"
+      }
+    },
+    {
+      "id": "26",
+      "type": "clanker_autotrader_stats",
+      "position": {
+        "x": 468,
+        "y": -1200
       },
       "inputs": {},
       "metadata": {}
     },
     {
-      "id": "11",
-      "type": "text",
+      "id": "27",
+      "type": "http_response",
       "position": {
-        "x": 1391,
-        "y": -328
+        "x": 985,
+        "y": -1203
       },
       "inputs": {},
       "metadata": {
-        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+        "status_code": 200
       }
     },
     {
-      "id": "29",
-      "type": "text",
+      "id": "35",
+      "type": "memory_storage",
       "position": {
-        "x": 1762,
-        "y": -484
+        "x": -750,
+        "y": -1150
       },
       "inputs": {},
       "metadata": {
-        "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
       }
     },
     {
       "id": "30",
       "type": "text",
       "position": {
-        "x": 200,
-        "y": -520
+        "x": 293,
+        "y": -993
       },
       "inputs": {},
       "metadata": {
@@ -359,8 +197,8 @@
       "id": "31",
       "type": "text",
       "position": {
-        "x": 200,
-        "y": -440
+        "x": 273,
+        "y": -723
       },
       "inputs": {},
       "metadata": {
@@ -371,82 +209,195 @@
       "id": "32",
       "type": "text",
       "position": {
-        "x": 200,
-        "y": -360
+        "x": 612,
+        "y": -572
       },
       "inputs": {},
       "metadata": {
         "text": "{{process.env.SELL_TIMER_MINUTES}}"
       }
+    },
+    {
+      "id": "17",
+      "type": "clanker_sell",
+      "position": {
+        "x": 1299,
+        "y": -862
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "16",
+      "type": "bag_checker",
+      "position": {
+        "x": 975,
+        "y": -847
+      },
+      "inputs": {},
+      "metadata": {
+        "sell_timer_minutes": 5,
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20,
+        "Sell timer (min)": 5,
+        "Profit target %": 50,
+        "Stop loss %": 20
+      }
+    },
+    {
+      "id": "19",
+      "type": "sell_notify",
+      "position": {
+        "x": 2101,
+        "y": -812
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "20",
+      "type": "add_to_bags",
+      "position": {
+        "x": 2459,
+        "y": -678
+      },
+      "inputs": {},
+      "metadata": {
+        "profit_target_percent": 50,
+        "stop_loss_percent": 20
+      }
+    },
+    {
+      "id": "29",
+      "type": "text",
+      "position": {
+        "x": 1882,
+        "y": -424
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
+      }
+    },
+    {
+      "id": "18",
+      "type": "update_bags_on_sell",
+      "position": {
+        "x": 1672,
+        "y": -612
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": {
+        "x": 1472,
+        "y": -381
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
+    },
+    {
+      "id": "12",
+      "type": "buy_notify",
+      "position": {
+        "x": 2452,
+        "y": 45
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "9",
+      "type": "clanker_buy",
+      "position": {
+        "x": 2031,
+        "y": -61
+      },
+      "inputs": {},
+      "metadata": {
+        "amount_wei": "0",
+        "rpc_url": ""
+      }
+    },
+    {
+      "id": "7",
+      "type": "action_router",
+      "position": {
+        "x": 1767,
+        "y": 78
+      },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "4",
+      "type": "text",
+      "position": {
+        "x": 784,
+        "y": -42
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "Context passed to LLM (recent launches, volume/price deltas in ETH):"
+      }
+    },
+    {
+      "id": "34",
+      "type": "boolean_logic",
+      "position": {
+        "x": 534,
+        "y": -24
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
+    },
+    {
+      "id": "22",
+      "type": "balance_checker",
+      "position": {
+        "x": -177,
+        "y": 108
+      },
+      "inputs": {},
+      "metadata": {
+        "min_balance_wei": "0.004",
+        "min ETH": "0.004"
+      }
+    },
+    {
+      "id": "3",
+      "type": "clanker_launch_summary",
+      "position": {
+        "x": 159,
+        "y": -2
+      },
+      "inputs": {},
+      "metadata": {
+        "window_hours": 1,
+        "limit": 10
+      }
+    },
+    {
+      "id": "23",
+      "type": "boolean_logic",
+      "position": {
+        "x": -37,
+        "y": -252
+      },
+      "inputs": {},
+      "metadata": {
+        "operation": "AND"
+      }
     }
   ],
   "connections": [
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "18",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "19",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "28",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "16",
-      "from_output": "holding",
-      "to": "28",
-      "to_input": "holding"
-    },
-    {
-      "from": "30",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "profit_target_percent"
-    },
-    {
-      "from": "31",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "stop_loss_percent"
-    },
-    {
-      "from": "32",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "sell_timer_minutes"
-    },
-    {
-      "from": "30",
-      "from_output": "text",
-      "to": "20",
-      "to_input": "profit_target_percent"
-    },
-    {
-      "from": "31",
-      "from_output": "text",
-      "to": "20",
-      "to_input": "stop_loss_percent"
-    },
-    {
-      "from": "16",
-      "from_output": "should_sell",
-      "to": "17",
-      "to_input": "should_sell"
-    },
-    {
-      "from": "16",
-      "from_output": "sell_params",
-      "to": "17",
-      "to_input": "sell_params"
-    },
     {
       "from": "8",
       "from_output": "private_key",
@@ -487,6 +438,18 @@
       "from": "1",
       "from_output": "state",
       "to": "16",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "12",
+      "to_input": "state"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "19",
       "to_input": "state"
     },
     {
@@ -502,64 +465,16 @@
       "to_input": "trigger"
     },
     {
-      "from": "9",
-      "from_output": "result",
-      "to": "12",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "9",
-      "from_output": "result",
-      "to": "20",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "9",
-      "from_output": "result",
-      "to": "28",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "3",
-      "from_output": "summary",
-      "to": "34",
-      "to_input": "value"
-    },
-    {
-      "from": "3",
-      "from_output": "has_tokens",
-      "to": "34",
-      "to_input": "b"
-    },
-    {
-      "from": "7",
-      "from_output": "tg_actions",
-      "to": "9",
-      "to_input": "tg_actions"
-    },
-    {
       "from": "24",
       "from_output": "text",
       "to": "7",
       "to_input": "response"
     },
     {
-      "from": "4",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "query"
-    },
-    {
       "from": "6",
       "from_output": "response",
       "to": "24",
       "to_input": "text"
-    },
-    {
-      "from": "22",
-      "from_output": "has_sufficient_funds",
-      "to": "23",
-      "to_input": "b"
     },
     {
       "from": "10",
@@ -594,32 +509,8 @@
     {
       "from": "10",
       "from_output": "base_path",
-      "to": "26",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "storage_instance",
-      "to": "26",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
       "to": "28",
       "to_input": "base_path"
-    },
-    {
-      "from": "23",
-      "from_output": "result",
-      "to": "34",
-      "to_input": "a"
-    },
-    {
-      "from": "23",
-      "from_output": "trigger",
-      "to": "3",
-      "to_input": "trigger"
     },
     {
       "from": "5",
@@ -628,10 +519,22 @@
       "to_input": "model"
     },
     {
-      "from": "34",
-      "from_output": "pass",
-      "to": "4",
-      "to_input": "text"
+      "from": "35",
+      "from_output": "base_path",
+      "to": "26",
+      "to_input": "base_path"
+    },
+    {
+      "from": "35",
+      "from_output": "storage_instance",
+      "to": "26",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "25",
+      "from_output": "request_id",
+      "to": "26",
+      "to_input": "request_id"
     },
     {
       "from": "26",
@@ -646,10 +549,88 @@
       "to_input": "request_id"
     },
     {
-      "from": "25",
-      "from_output": "request_id",
-      "to": "26",
-      "to_input": "request_id"
+      "from": "16",
+      "from_output": "holding",
+      "to": "28",
+      "to_input": "holding"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "30",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "profit_target_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "stop_loss_percent"
+    },
+    {
+      "from": "31",
+      "from_output": "text",
+      "to": "20",
+      "to_input": "stop_loss_percent"
+    },
+    {
+      "from": "32",
+      "from_output": "text",
+      "to": "16",
+      "to_input": "sell_timer_minutes"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "18",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "19",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "17",
+      "from_output": "result",
+      "to": "28",
+      "to_input": "sell_result"
+    },
+    {
+      "from": "16",
+      "from_output": "should_sell",
+      "to": "17",
+      "to_input": "should_sell"
+    },
+    {
+      "from": "16",
+      "from_output": "sell_params",
+      "to": "17",
+      "to_input": "sell_params"
+    },
+    {
+      "from": "16",
+      "from_output": "holding",
+      "to": "19",
+      "to_input": "holding"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "bot_token"
+    },
+    {
+      "from": "29",
+      "from_output": "text",
+      "to": "19",
+      "to_input": "bot_token"
     },
     {
       "from": "11",
@@ -664,16 +645,88 @@
       "to_input": "chat_id"
     },
     {
-      "from": "29",
-      "from_output": "text",
+      "from": "9",
+      "from_output": "result",
       "to": "12",
-      "to_input": "bot_token"
+      "to_input": "buy_result"
     },
     {
-      "from": "29",
+      "from": "9",
+      "from_output": "result",
+      "to": "20",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "9",
+      "from_output": "result",
+      "to": "28",
+      "to_input": "buy_result"
+    },
+    {
+      "from": "7",
+      "from_output": "tg_actions",
+      "to": "9",
+      "to_input": "tg_actions"
+    },
+    {
+      "from": "4",
       "from_output": "text",
-      "to": "19",
-      "to_input": "bot_token"
+      "to": "6",
+      "to_input": "query"
+    },
+    {
+      "from": "34",
+      "from_output": "result",
+      "to": "6",
+      "to_input": "trigger"
+    },
+    {
+      "from": "34",
+      "from_output": "pass",
+      "to": "4",
+      "to_input": "text"
+    },
+    {
+      "from": "34",
+      "from_output": "reject",
+      "to": "28",
+      "to_input": "system_note"
+    },
+    {
+      "from": "22",
+      "from_output": "has_sufficient_funds",
+      "to": "23",
+      "to_input": "b"
+    },
+    {
+      "from": "14",
+      "from_output": "trigger",
+      "to": "23",
+      "to_input": "a"
+    },
+    {
+      "from": "3",
+      "from_output": "summary",
+      "to": "34",
+      "to_input": "value"
+    },
+    {
+      "from": "3",
+      "from_output": "has_tokens",
+      "to": "34",
+      "to_input": "b"
+    },
+    {
+      "from": "23",
+      "from_output": "result",
+      "to": "34",
+      "to_input": "a"
+    },
+    {
+      "from": "23",
+      "from_output": "trigger",
+      "to": "3",
+      "to_input": "trigger"
     }
   ]
 }

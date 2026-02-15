@@ -118,7 +118,8 @@ class InferenceQueue:
                 start_time = time.time()
                 req_id = uuid.uuid4().hex[:8]
                 
-                # --- Log incoming request ---
+                # --- Log incoming request (first 100 chars of query for debugging) ---
+                query_preview_100 = request.query[:100] + ("..." if len(request.query) > 100 else "")
                 logger.info(
                     f"[{req_id}] Processing request "
                     f"(queue_size={self._queue.qsize()}, "
@@ -126,6 +127,7 @@ class InferenceQueue:
                     f"max_tokens={request.max_tokens}, "
                     f"temp={request.temperature})"
                 )
+                logger.info(f"[{req_id}] Query (first 100 chars): {query_preview_100}")
                 if _debug:
                     _log_request_detail(req_id, request)
                 
