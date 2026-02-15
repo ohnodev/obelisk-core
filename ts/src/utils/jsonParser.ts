@@ -76,12 +76,15 @@ export function extractJsonFromLlmResponse(
     }
   }
 
-  // Strategy 1b: Find complete JSON object by matching braces.
+  // Strategy 1b: Find complete JSON object by matching braces and brackets.
   // Track whether we're inside a JSON string to avoid miscounting
-  // braces that appear as string values (e.g. {"key": "a { b }"}).
+  // braces/brackets that appear as string values (e.g. {"key": "a { b }"}).
+  // Must track bracket depth so we don't stop at } that closes an object inside
+  // an array (e.g. {"actions":[{"action":"buy","params":{...}}]} — stop at final }, not at inner }).
   const jsonStart = text.indexOf("{");
   if (jsonStart >= 0) {
     let braceCount = 0;
+    let bracketDepth = 0;
     let jsonEnd = jsonStart;
     let inString = false;
     let escaped = false;
@@ -111,10 +114,14 @@ export function extractJsonFromLlmResponse(
         braceCount++;
       } else if (ch === "}") {
         braceCount--;
-        if (braceCount === 0) {
+        if (braceCount === 0 && bracketDepth === 0) {
           jsonEnd = i + 1;
           break;
         }
+      } else if (ch === "[") {
+        bracketDepth++;
+      } else if (ch === "]") {
+        bracketDepth--;
       }
     }
 
@@ -173,15 +180,22 @@ export function extractJsonFromLlmResponse(
     // fall through to repair
   }
 
-  // Strategy 2a: Trailing ",]" or "],}" (e.g. {"actions":[],}] )
+  // Strategy 2a: Trailing comma/bracket noise — collect all distinct repair candidates and try each
   const trailingNoise = text.replace(/,?\s*]\s*}\s*$/, "]}").trim();
   const trailingCommaBracket = text.replace(/,(\s*]\s*})\s*$/, "$1").trim();
-  if (trailingNoise !== text || trailingCommaBracket !== text) {
-    const toTry = trailingNoise !== text ? trailingNoise : trailingCommaBracket;
+  // Comma-before-} then ] variants (e.g. ",}]" or "}]" at end)
+  const trailingCommaBeforeBraceBracket = text.replace(/,?\s*}\s*]\s*$/, "]}").trim();
+  const trailingCommaBeforeBraceBracketStrip = text.replace(/,(\s*}\s*]\s*)$/, "$1").trim();
+  const candidates = new Set<string>();
+  if (trailingNoise !== text) candidates.add(trailingNoise);
+  if (trailingCommaBracket !== text) candidates.add(trailingCommaBracket);
+  if (trailingCommaBeforeBraceBracket !== text) candidates.add(trailingCommaBeforeBraceBracket);
+  if (trailingCommaBeforeBraceBracketStrip !== text) candidates.add(trailingCommaBeforeBraceBracketStrip);
+  for (const candidate of candidates) {
     try {
-      return JSON.parse(sanitizeJsonString(toTry)) as Record<string, unknown> | unknown[];
+      return JSON.parse(sanitizeJsonString(candidate)) as Record<string, unknown> | unknown[];
     } catch {
-      // fall through
+      // try next candidate
     }
   }
 
