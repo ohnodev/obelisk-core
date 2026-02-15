@@ -410,7 +410,11 @@ class InferenceModel:
         return query, len(tokens)
     
     def _clean_history(self, history: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        """Remove thinking content from assistant messages in history"""
+        """
+        Remove thinking content (<think>...</think>) from assistant messages in history.
+        Qwen3 best practice: 'No Thinking Content in History' — only the final
+        output part should be in multi-turn history.
+        """
         cleaned = []
         for msg in history:
             if msg.get("role") == "assistant":
@@ -499,13 +503,35 @@ class InferenceModel:
         if not outputs or not outputs[0].outputs:
             return []
         out = outputs[0].outputs[0]
-        # CompletionOutput.token_ids = generated output token IDs (vLLM 0.6+)
+        # CompletionOutput.token_ids = generated output token IDs (vLLM >= 0.8.5)
         token_ids = getattr(out, "token_ids", None)
         if token_ids is not None:
             return list(token_ids)
-        # Fallback: decode text and re-tokenize to get ids for _split_thinking_tokens
+        # Fallback: token_ids missing — reconstruct from text so _split_thinking_tokens(151668) still works
         text = out.text or ""
-        return self.tokenizer.encode(text, add_special_tokens=False)
+        logger.warning(
+            "vLLM CompletionOutput.token_ids missing; re-tokenizing from text may drop special tokens "
+            "and make thinking/content parsing unreliable. Reconstructing with </think> and token 151668 when possible."
+        )
+        return self._reconstruct_token_ids_with_thinking_marker(text)
+
+    def _reconstruct_token_ids_with_thinking_marker(self, text: str) -> List[int]:
+        """
+        Reconstruct output token IDs from text when CompletionOutput.token_ids is missing,
+        so _split_thinking_tokens() can still split on the special token 151668 (</think>).
+        """
+        THINKING_END_MARKER = "</think>"
+        QWEN3_THINKING_END_TOKEN_ID = 151668
+
+        idx = text.find(THINKING_END_MARKER)
+        if idx == -1:
+            # No marker — cannot preserve 151668; _split_thinking_tokens will treat all as content
+            return self.tokenizer.encode(text, add_special_tokens=False)
+        before = text[:idx]
+        after = text[idx + len(THINKING_END_MARKER) :].lstrip()
+        thinking_ids = self.tokenizer.encode(before, add_special_tokens=False)
+        content_ids = self.tokenizer.encode(after, add_special_tokens=False)
+        return thinking_ids + [QWEN3_THINKING_END_TOKEN_ID] + content_ids
 
     def _parse_thinking(
         self, generated_tokens: List[int], enable_thinking: bool
