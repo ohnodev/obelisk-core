@@ -19,6 +19,9 @@ from .config import InferenceConfig
 
 logger = logging.getLogger("inference_service.model")
 
+# Allowed values for INFERENCE_BACKEND
+ALLOWED_BACKENDS = ("transformers", "vllm")
+
 # Qwen3 sampling: official + suggested (Qwen3-0.6B model card Best Practices)
 QWEN3_THINKING_TEMP = 0.6
 QWEN3_THINKING_TOP_P = 0.95
@@ -108,6 +111,15 @@ class InferenceModel:
         Load the model and tokenizer.
         Uses vLLM when INFERENCE_BACKEND=vllm (Qwen3-0.6B supported in vLLM >= 0.8.5).
         """
+        if self._backend not in ALLOWED_BACKENDS:
+            logger.error(
+                "Invalid INFERENCE_BACKEND=%r; allowed values: %s. Set INFERENCE_BACKEND to one of these.",
+                self._backend,
+                ", ".join(ALLOWED_BACKENDS),
+            )
+            self._loaded = False
+            return False
+
         try:
             logger.info(f"Loading {self.model_name} (backend={self._backend})...")
 
