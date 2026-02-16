@@ -1,6 +1,6 @@
 # Inference Server Setup (GPU VPS)
 
-Quick guide to get the Obelisk inference service running on a dedicated GPU server.
+Quick guide to get the Obelisk inference service running on a dedicated GPU server. The vLLM backend defaults (memory and ninja) are set up for **NVIDIA Tesla T4** (15 GB VRAM).
 
 **Prerequisites:** NVIDIA drivers + CUDA already installed. Python 3.10+.
 
@@ -71,6 +71,44 @@ pip install -e ".[vllm]"   # from repo root, in your venv
 ```
 
 Then set in `.env`: `INFERENCE_BACKEND=vllm`. Requires CUDA; the service will fall back to Transformers if vLLM is not installed or load fails.
+
+### vLLM on NVIDIA T4 (memory + ninja)
+
+This setup is tuned for **NVIDIA Tesla T4** (15 GB, compute capability 7.5). On T4, vLLM cannot use Flash Attention 2 (requires compute ≥ 8.0); it uses FlashInfer instead. Two things are required:
+
+**1. Ninja (build tool)**  
+FlashInfer JIT-compiles kernels and needs the `ninja` executable.
+
+- **Option A (recommended):** install system-wide so all processes see it:
+  ```bash
+  sudo apt-get install -y ninja-build
+  ```
+- **Option B:** install in the venv and ensure the inference process has `venv/bin` on `PATH`:
+  ```bash
+  pip install ninja
+  ```
+  When using PM2 (`./pm2-manager.sh`), the generated ecosystem config already sets `PATH` to include `venv/bin` for the inference app so the worker and its subprocesses can find `ninja`.
+
+**2. vLLM memory settings**  
+To avoid OOM during engine startup (e.g. sampler warmup), the service uses lower defaults when creating the vLLM engine:
+
+- **`VLLM_GPU_MEMORY_UTILIZATION`** (default `0.85`) — fraction of GPU memory vLLM can use; leave headroom on T4.
+- **`VLLM_MAX_NUM_SEQS`** (default `64`) — max sequences per batch; lower than vLLM’s default so warmup and CUDA graphs fit in 15 GB.
+
+These are read from env in `src/inference/config.py` and passed into the vLLM `LLM(...)` constructor in `src/inference/model.py`. Override in `.env` if needed, e.g.:
+
+```bash
+# Optional overrides (defaults are tuned for T4)
+# VLLM_GPU_MEMORY_UTILIZATION=0.85
+# VLLM_MAX_NUM_SEQS=64
+```
+
+**Summary of repo changes for vLLM on T4:**
+
+- **Config** (`src/inference/config.py`): add `VLLM_GPU_MEMORY_UTILIZATION` and `VLLM_MAX_NUM_SEQS` (with defaults above).
+- **Model** (`src/inference/model.py`): in `_load_vllm()`, pass `gpu_memory_utilization` and `max_num_seqs` into `LLM(...)` from config.
+- **Process env** (e.g. PM2): ensure `PATH` includes the directory that contains `ninja` (e.g. `venv/bin` or system path). The PM2 ecosystem generator in `pm2-manager.sh` sets `PATH` for the inference app to `venv/bin` + existing `PATH`.
+- **System (optional):** `apt-get install ninja-build` so `ninja` is available even if the venv is not on `PATH` for spawned subprocesses.
 
 ## 5. Start the inference service
 

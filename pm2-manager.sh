@@ -144,7 +144,10 @@ module.exports = {
       cwd: path.resolve(__dirname),
       instances: 1,
       exec_mode: 'fork',
-      env: { PYTHONUNBUFFERED: '1' },
+      env: {
+        PYTHONUNBUFFERED: '1',
+        PATH: path.resolve(__dirname, 'venv/bin') + ':' + (process.env.PATH || '/usr/local/bin:/usr/bin:/bin'),
+      },
       log_file: path.resolve(__dirname, 'logs', 'obelisk-inference.log'),
       out_file: '/dev/null',
       error_file: '/dev/null',
