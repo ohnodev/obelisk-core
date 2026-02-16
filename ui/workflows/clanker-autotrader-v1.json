@@ -423,6 +423,28 @@
       "position": { "x": 985, "y": -1083 },
       "inputs": {},
       "metadata": {}
+    },
+    {
+      "id": "40",
+      "type": "memory_storage",
+      "position": { "x": -750, "y": -1020 },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
+      }
+    },
+    {
+      "id": "41",
+      "type": "blockchain_config",
+      "position": { "x": -750, "y": -960 },
+      "inputs": {},
+      "metadata": {
+        "blockchain_service_url": "{{process.env.BLOCKCHAIN_SERVICE_URL}}",
+        "api_key": "{{process.env.BLOCKCHAIN_SERVICE_API_KEY}}"
+      }
     }
   ],
   "connections": [
@@ -601,19 +623,19 @@
       "to_input": "trigger"
     },
     {
-      "from": "10",
+      "from": "40",
       "from_output": "storage_instance",
       "to": "38",
       "to_input": "storage_instance"
     },
     {
-      "from": "10",
+      "from": "40",
       "from_output": "base_path",
       "to": "38",
       "to_input": "base_path"
     },
     {
-      "from": "1",
+      "from": "41",
       "from_output": "state",
       "to": "38",
       "to_input": "state"
