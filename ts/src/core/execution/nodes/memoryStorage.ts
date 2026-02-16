@@ -7,7 +7,7 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
 import { LocalJSONStorage } from "../../../storage/localJson";
 import { SupabaseStorage } from "../../../storage/supabase";
-import { getLogger } from "../../../utils/logger";
+import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 
 const logger = getLogger("memoryStorage");
 
@@ -53,12 +53,12 @@ export class MemoryStorageNode extends BaseNode {
     }
 
     logger.debug(
-      `[MemoryStorage] storage_path=${storagePath}, storage_type=${storageType}, cache_key=${cacheKey}`
+      `[MemoryStorage] storage_path=${abbrevPathForLog(storagePath)}, storage_type=${storageType}, cache_key=${abbrevPathForLog(cacheKey)}`
     );
 
     // Check cache
     if (storageCache[cacheKey]) {
-      logger.debug(`[MemoryStorage] Using cached storage for ${cacheKey}`);
+      logger.debug(`[MemoryStorage] Using cached storage for ${abbrevPathForLog(cacheKey)}`);
       const instance = storageCache[cacheKey];
       const basePath =
         storageType === "local_json" && "basePath" in instance

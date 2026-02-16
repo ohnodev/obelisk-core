@@ -17,6 +17,20 @@ export function abbrevPathForLog(pathOrMessage: string): string {
   return pathOrMessage;
 }
 
+/** Recursively sanitize an object for logging: replace any string that looks like a path (home dir) with ~. */
+export function sanitizeForLog(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value === "string") return abbrevPathForLog(value);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.map(sanitizeForLog);
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = sanitizeForLog(v);
+    return out;
+  }
+  return value;
+}
+
 const LEVEL_PRIORITY: Record<LogLevel, number> = {
   DEBUG: 0,
   INFO: 1,

@@ -17,7 +17,7 @@ import {
 } from "../types";
 import { BaseNode, ExecutionContext } from "./nodeBase";
 import { getNodeClass, registerAllNodes } from "./nodeRegistry";
-import { getLogger, abbrevPathForLog } from "../../utils/logger";
+import { getLogger, abbrevPathForLog, sanitizeForLog } from "../../utils/logger";
 
 const logger = getLogger("engine");
 
@@ -185,7 +185,8 @@ export class ExecutionEngine {
               }
             } else if (v !== null && v !== undefined && typeof v === "object") {
               try {
-                const json = JSON.stringify(v, null, 2);
+                const sanitized = sanitizeForLog(v);
+                const json = JSON.stringify(sanitized, null, 2);
                 if (json.length <= MAX_DEBUG_PAYLOAD) {
                   logger.debug(`  [${nodeId}] FULL ${k}:\n${json}`);
                 } else {
