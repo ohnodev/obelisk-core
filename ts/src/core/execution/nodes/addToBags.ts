@@ -2,7 +2,10 @@
  * AddToBagsNode – after a successful Clanker buy, add the position to bag state (clanker_bags.json)
  * with profit target and stop loss. Storage from clanker_storage_path / base_path / storage_instance.
  *
- * Inputs: buy_result, state (for boughtAtPriceEth), clanker_storage_path / base_path / storage_instance, profit_target_percent, stop_loss_percent
+ * Cost basis (boughtAtPriceEth): derived from buy_result (valueWei / amountWei = ETH per token) so
+ * PnL on sell is correct. Falls back to state.tokens[].lastPrice only if buy result has no valueWei.
+ *
+ * Inputs: buy_result, state (fallback for boughtAtPriceEth), base_path / storage_instance, profit_target_percent, stop_loss_percent
  */
 import fs from "fs";
 import path from "path";
@@ -44,8 +47,21 @@ export class AddToBagsNode extends BaseNode {
     const profitTargetPercent = getNum(this.getInputValue("profit_target_percent", context, undefined)) || DEFAULT_PROFIT_TARGET_PERCENT;
     const stopLossPercent = getNum(this.getInputValue("stop_loss_percent", context, undefined)) || DEFAULT_STOP_LOSS_PERCENT;
 
-    let boughtAtPriceEth = 0;
+    // Cost basis from buy result (ETH spent / tokens received = ETH per token) so PnL on sell is correct.
+    // Clanker tokens use 18 decimals; we use BigInt for wei arithmetic and convert to Number only at the end.
+    const valueWeiBI = BigInt(String(buyResult.value_wei ?? "0"));
+    const amountWeiBI = BigInt(amountWei);
+    let decimals = 18;
     if (state?.tokens && typeof state.tokens === "object") {
+      const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress];
+      if (t != null) decimals = Math.min(18, Math.max(0, getNum(t.decimals) || 18));
+    }
+    const decimalsMultiplier = 10 ** decimals;
+    const ETH_WEI = 10 ** 18;
+    const numerator = valueWeiBI * BigInt(decimalsMultiplier);
+    const denominator = BigInt(ETH_WEI) * amountWeiBI;
+    let boughtAtPriceEth = denominator !== 0n ? Number(numerator) / Number(denominator) : 0;
+    if (boughtAtPriceEth <= 0 && state?.tokens && typeof state.tokens === "object") {
       const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress];
       if (t && getNum(t.lastPrice) > 0) boughtAtPriceEth = getNum(t.lastPrice);
     }
