@@ -8,7 +8,7 @@ const path = require("path");
 
 const API_BASE = "http://localhost:7779/api/v1";
 const STATS_BASE = "http://localhost:8081";
-const WORKFLOW_PATH = path.join(__dirname, "../../ui/workflows/clanker-autotrader-v1.json");
+const WORKFLOW_PATH = path.join(__dirname, "../../ui/workflows/clanker-autotrader-v1.1.json");
 
 async function main() {
   const workflow = JSON.parse(fs.readFileSync(WORKFLOW_PATH, "utf8"));

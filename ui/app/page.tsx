@@ -11,8 +11,8 @@ import { getApiUrls } from "@/lib/api-config";
 import { getUserId } from "@/lib/user-id";
 import "@/components/nodes"; // Register all node types
 
-// Load default workflow: Clanker Autotrader V1
-import defaultWorkflowData from "../workflows/clanker-autotrader-v1.json";
+// Load default workflow: Clanker Autotrader V1.1
+import defaultWorkflowData from "../workflows/clanker-autotrader-v1.1.json";
 
 const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
 
