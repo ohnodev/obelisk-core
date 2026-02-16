@@ -91,7 +91,7 @@ export function createRouter(): Router {
    * - Max 5 total running workflows
    * - Max 2 running workflows per user
    */
-  router.post("/workflow/run", (req: Request, res: Response) => {
+  router.post("/workflow/run", async (req: Request, res: Response) => {
     try {
       const { workflow, options } = req.body as {
         workflow: Record<string, unknown>;
@@ -107,7 +107,7 @@ export function createRouter(): Router {
       const backendWorkflow = convertFrontendWorkflow(workflow);
       const contextVars = extractContextVariables(options);
 
-      const workflowId = runner.startWorkflow(
+      const workflowId = await runner.startWorkflow(
         backendWorkflow,
         contextVars
       );

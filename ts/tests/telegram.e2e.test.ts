@@ -304,7 +304,7 @@ describe("Telegram E2E workflow test", () => {
         error?: string;
       }> = [];
 
-      const workflowId = runner.startWorkflow(
+      const workflowId = await runner.startWorkflow(
         workflow,
         {},
         (tickResult) => {
@@ -500,7 +500,7 @@ describe("Telegram E2E workflow test", () => {
 
       const executedNodesList: string[][] = [];
 
-      const wid = runner.startWorkflow(
+      const wid = await runner.startWorkflow(
         workflow,
         {},
         (tick) => {
@@ -595,7 +595,7 @@ describe("Telegram E2E workflow test", () => {
 
       const executedNodesList: string[][] = [];
 
-      const wid = runner.startWorkflow(
+      const wid = await runner.startWorkflow(
         workflow,
         {},
         (tick) => {

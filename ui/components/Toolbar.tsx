@@ -66,7 +66,7 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 ];
 
 // Node types that run autonomously (continuously) and require the persistent runner
-const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler", "http_listener", "autotrader_stats_listener"]);
+const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler", "http_listener", "express_service", "autotrader_stats_listener", "sell_bags_listener"]);
 
 // Single breakpoint for responsive design
 const MOBILE_BREAKPOINT = 1200;

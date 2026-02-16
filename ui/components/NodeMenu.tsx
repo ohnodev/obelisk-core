@@ -146,6 +146,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
     name: "Integrations",
     nodes: [
       {
+        type: "express_service",
+        title: "Express Service",
+        description: "Shared HTTP server (port). Connect Stats Listener and Sell Bags Listener to reuse same server",
+      },
+      {
         type: "http_listener",
         title: "HTTP Listener",
         description: "Starts an HTTP server and listens for POST requests (autonomous)",
@@ -153,7 +158,12 @@ const NODE_CATEGORIES: NodeCategory[] = [
       {
         type: "autotrader_stats_listener",
         title: "Autotrader Stats Listener",
-        description: "GET /stats for dashboard (bags, actions). Connect to Clanker Autotrader Stats + HTTP Response",
+        description: "GET /stats for dashboard (bags, actions). Connect to Express Service + Clanker Autotrader Stats + HTTP Response",
+      },
+      {
+        type: "sell_bags_listener",
+        title: "Sell Bags Listener",
+        description: "POST /sell-all-bags. Connect to Express Service + Sell All Bags + HTTP Response",
       },
       {
         type: "http_response",
@@ -254,6 +264,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         type: "clanker_autotrader_stats",
         title: "Clanker Autotrader Stats",
         description: "Read bags + actions, format JSON for dashboard. Hook to Stats Listener + Blockchain Config + HTTP Response",
+      },
+      {
+        type: "sell_all_bags",
+        title: "Sell All Bags",
+        description: "Sell every position in clanker_bags.json. Connect from Sell Bags Listener; needs Storage + Wallet + State → HTTP Response",
       },
       {
         type: "action_logger",

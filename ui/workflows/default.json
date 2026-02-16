@@ -258,6 +258,55 @@
         "system_prompt": "You are Obelisk Agent #001, a sharp and concise AI.\n\nRules:\n- Keep responses SHORT. 1-3 sentences max unless the user explicitly asks for detail.\n- Be direct, witty, and to the point. No filler, no fluff.\n- Use the context you receive (recent messages, chat summaries, memories) to answer. Never say you have no memories or no context when context was provided.\n- When the user asks what you remember, what memories you have, or what happened recently: use the provided context and reply with specific, concrete details from it (e.g. recent topics, who said what, summaries). Do NOT say \"nothing\" or \"I don't have memories\" if context is present.\n- No emojis. No bullet lists unless asked. No repeating the question back.\n- If you genuinely don't know, say so in one line.\n\nOutput format (JSON only):\nYou MUST respond ONLY with valid, well-formed JSON. No markdown code blocks, no text before or after the JSON. Start with { and end with }.\nJSON rules: match every { with }, every [ with ]; use double quotes for strings; inside string values escape double quotes as \\\"; no trailing commas. Emojis and Unicode inside strings are fine, but the surrounding structure must be valid JSON so the response can be parsed.\nUse this format for every response: { \"actions\": [ { \"action\": \"...\", \"params\": { ... } }, ... ] }\n\nImportant: Always include at least one reply action so the user gets a text response. In addition you may include other actions (delete, pin, timeout). When you perform an action (e.g. delete a message), also send a short reply like \"Done.\" or \"Deleted.\" or \"Deleting the message.\" so the user gets feedback.\n\nAvailable actions:\n- reply: Params { \"text\": \"your message\" }.\n- send_dm: Params { \"user_id\": \"<telegram_user_id>\", \"text\": \"message\" }.\n- pin_message: Params { \"message_id\": <number> }.\n- timeout_message_author: Params { \"message_id\": <number>, \"duration_seconds\": <1-60> }. System resolves author from storage.\n- delete_message: Params { \"message_id\": <number> }. Use when the user refers to a message by context (e.g. \"delete the message where X said Y\") — get message_id from recent messages in context.\n- delete_reply_to_message: Params {} (no message_id). Use when the user REPLIED to a message and asks to delete it (e.g. \"delete this message I'm replying to\").\n- pin_reply_to_message: Params {} (no message_id). Use when the user replied to a message and asks to pin it.\n- timeout_reply_to_author: Params { \"duration_seconds\": <1-60> } optional. Use when the user replied to a message and asks to timeout that message's author.\n\nMessage IDs: Recent messages in context are formatted with [message_id: <number>]. For \"delete that message\" / \"pin that\" / \"timeout who said Y\" when they refer by context, use delete_message/pin_message/timeout_message_author with that message_id. When they reply to a message and say \"delete this\" or \"timeout them\", use delete_reply_to_message or timeout_reply_to_author with no message_id.\n\nExample (user replied and asked to delete): { \"actions\": [ { \"action\": \"delete_reply_to_message\", \"params\": {} }, { \"action\": \"reply\", \"params\": { \"text\": \"Done.\" } } ] }\nExample (by context): { \"actions\": [ { \"action\": \"delete_message\", \"params\": { \"message_id\": 12345 } }, { \"action\": \"reply\", \"params\": { \"text\": \"Deleted.\" } } ] }",
         "enable_thinking": true
       }
+    },
+    {
+      "id": "34",
+      "type": "express_service",
+      "position": { "x": 100, "y": 640 },
+      "inputs": {},
+      "metadata": { "port": 8081, "host": "0.0.0.0" }
+    },
+    {
+      "id": "35",
+      "type": "autotrader_stats_listener",
+      "position": { "x": 380, "y": 640 },
+      "inputs": {},
+      "metadata": { "port": 8081, "path": "/stats" }
+    },
+    {
+      "id": "36",
+      "type": "clanker_autotrader_stats",
+      "position": { "x": 640, "y": 640 },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "37",
+      "type": "http_response",
+      "position": { "x": 900, "y": 640 },
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "38",
+      "type": "sell_bags_listener",
+      "position": { "x": 380, "y": 740 },
+      "inputs": {},
+      "metadata": { "path": "/sell-all-bags" }
+    },
+    {
+      "id": "39",
+      "type": "sell_all_bags",
+      "position": { "x": 640, "y": 740 },
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "40",
+      "type": "http_response",
+      "position": { "x": 900, "y": 740 },
+      "inputs": {},
+      "metadata": {}
     }
   ],
   "connections": [
@@ -518,6 +567,96 @@
       "from_output": "tg_actions",
       "to": "33",
       "to_input": "tg_actions"
+    },
+    {
+      "from": "34",
+      "from_output": "express_service",
+      "to": "35",
+      "to_input": "express_service"
+    },
+    {
+      "from": "34",
+      "from_output": "express_service",
+      "to": "38",
+      "to_input": "express_service"
+    },
+    {
+      "from": "35",
+      "from_output": "request_id",
+      "to": "36",
+      "to_input": "request_id"
+    },
+    {
+      "from": "16",
+      "from_output": "base_path",
+      "to": "36",
+      "to_input": "base_path"
+    },
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "36",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "36",
+      "from_output": "stats",
+      "to": "37",
+      "to_input": "response"
+    },
+    {
+      "from": "36",
+      "from_output": "request_id",
+      "to": "37",
+      "to_input": "request_id"
+    },
+    {
+      "from": "38",
+      "from_output": "request_id",
+      "to": "39",
+      "to_input": "request_id"
+    },
+    {
+      "from": "38",
+      "from_output": "trigger",
+      "to": "39",
+      "to_input": "trigger"
+    },
+    {
+      "from": "16",
+      "from_output": "storage_instance",
+      "to": "39",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "16",
+      "from_output": "base_path",
+      "to": "39",
+      "to_input": "base_path"
+    },
+    {
+      "from": "28",
+      "from_output": "state",
+      "to": "39",
+      "to_input": "state"
+    },
+    {
+      "from": "39",
+      "from_output": "response_body",
+      "to": "40",
+      "to_input": "body"
+    },
+    {
+      "from": "39",
+      "from_output": "request_id",
+      "to": "40",
+      "to_input": "request_id"
+    },
+    {
+      "from": "39",
+      "from_output": "status_code",
+      "to": "40",
+      "to_input": "status_code"
     }
   ]
 }
