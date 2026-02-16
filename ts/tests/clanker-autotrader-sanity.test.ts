@@ -93,7 +93,7 @@ describe("Clanker autotrader workflow sanity", () => {
     expect(executedIds.has("10")).toBe(true); // memory_storage
     expect(executedIds.has("22")).toBe(true); // balance_checker
     expect(executedIds.has("23")).toBe(true); // boolean_logic
-    expect(executedIds.has("2")).toBe(true); // scheduler (60–120s)
+    expect(executedIds.has("14")).toBe(true); // scheduler (60s, v1.1)
     expect(executedIds.has("3")).toBe(true); // clanker_launch_summary
 
     vi.restoreAllMocks();
