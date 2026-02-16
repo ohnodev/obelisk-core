@@ -59,12 +59,14 @@ async function sendTelegramMessage(
     return { ok: false, error: "missing bot_token or chat_id" };
   }
   const url = `${TELEGRAM_API}${botToken}/sendMessage`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId.trim(), text }),
-      signal: AbortSignal.timeout(10_000),
+      signal: controller.signal,
     });
     let data: { ok?: boolean; description?: string };
     try {
@@ -82,6 +84,8 @@ async function sendTelegramMessage(
     const msg = safeErrorMessage(e);
     logger.error(`[BuyNotify] Telegram fetch failed: ${msg}`);
     return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -110,10 +114,13 @@ export class BuyNotifyNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const buyResult = this.getInputValue("buy_result", context, undefined) as Record<string, unknown> | undefined;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const chatId =
+    const rawChatId =
       (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
-      Config.TELEGRAM_CHAT_ID ||
+      (this.metadata.chat_id as string)?.trim() ||
       "";
+    const chatId = rawChatId
+      ? String(this.resolveEnvVar(rawChatId) ?? rawChatId).trim()
+      : Config.TELEGRAM_CHAT_ID || "";
 
     const rawBotToken =
       (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||
