@@ -21,6 +21,10 @@ class InferenceConfig:
     # Backend: "transformers" (default) or "vllm". vLLM requires vllm>=0.8.5 for Qwen3.
     INFERENCE_BACKEND: str = os.getenv("INFERENCE_BACKEND", "transformers").lower()
 
+    # vLLM engine options (reduce memory on smaller GPUs, e.g. T4)
+    VLLM_GPU_MEMORY_UTILIZATION: float = float(os.getenv("VLLM_GPU_MEMORY_UTILIZATION", "0.85"))
+    VLLM_MAX_NUM_SEQS: int = int(os.getenv("VLLM_MAX_NUM_SEQS", "64"))
+
     # Model
     MODEL_NAME: str = os.getenv("INFERENCE_MODEL", "Qwen/Qwen3-0.6B")
     

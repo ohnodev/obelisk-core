@@ -166,10 +166,15 @@ class InferenceModel:
         """Load model with vLLM (Qwen3-0.6B supported in vLLM >= 0.8.5)."""
         try:
             from vllm import LLM
+            gpu_util = InferenceConfig.VLLM_GPU_MEMORY_UTILIZATION
+            max_seqs = InferenceConfig.VLLM_MAX_NUM_SEQS
+            logger.info(f"vLLM engine: gpu_memory_utilization={gpu_util}, max_num_seqs={max_seqs}")
             self.llm = LLM(
                 model=self.model_name,
                 trust_remote_code=True,
                 dtype="auto",
+                gpu_memory_utilization=gpu_util,
+                max_num_seqs=max_seqs,
             )
         except ImportError as e:
             logger.warning(f"vLLM not available ({e}). Install with: pip install 'vllm>=0.8.5'")
