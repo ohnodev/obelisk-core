@@ -428,398 +428,138 @@
         "blockchain_service_url": "{{process.env.BLOCKCHAIN_SERVICE_URL}}",
         "api_key": "{{process.env.BLOCKCHAIN_SERVICE_API_KEY}}"
       }
+    },
+    {
+      "id": "42",
+      "type": "scheduler",
+      "position": { "x": -548, "y": -800 },
+      "inputs": {},
+      "metadata": {
+        "min_seconds": 1,
+        "max_seconds": 1,
+        "enabled": true,
+        "Min Seconds": 1,
+        "Max Seconds": 1,
+        "Enabled": true
+      }
+    },
+    {
+      "id": "43",
+      "type": "memory_storage",
+      "position": { "x": -750, "y": -660 },
+      "inputs": {},
+      "metadata": {
+        "storage_path": "clanker",
+        "storage_type": "local_json",
+        "Storage Path": "clanker",
+        "Storage Type": "local_json"
+      }
+    },
+    {
+      "id": "44",
+      "type": "blockchain_config",
+      "position": { "x": -381, "y": -660 },
+      "inputs": {},
+      "metadata": {
+        "blockchain_service_url": "{{process.env.BLOCKCHAIN_SERVICE_URL}}",
+        "api_key": "{{process.env.BLOCKCHAIN_SERVICE_API_KEY}}"
+      }
+    },
+    {
+      "id": "45",
+      "type": "action_logger",
+      "position": { "x": 2363, "y": -550 },
+      "inputs": {},
+      "metadata": {
+        "max_actions": 100,
+        "Max actions (keep last N)": 100
+      }
     }
   ],
   "connections": [
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "9",
-      "to_input": "private_key"
-    },
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "17",
-      "to_input": "private_key"
-    },
-    {
-      "from": "8",
-      "from_output": "private_key",
-      "to": "22",
-      "to_input": "private_key"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "9",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "3",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "20",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "16",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "12",
-      "to_input": "state"
-    },
-    {
-      "from": "1",
-      "from_output": "state",
-      "to": "19",
-      "to_input": "state"
-    },
-    {
-      "from": "14",
-      "from_output": "trigger",
-      "to": "22",
-      "to_input": "trigger"
-    },
-    {
-      "from": "14",
-      "from_output": "trigger",
-      "to": "16",
-      "to_input": "trigger"
-    },
-    {
-      "from": "24",
-      "from_output": "text",
-      "to": "7",
-      "to_input": "response"
-    },
-    {
-      "from": "6",
-      "from_output": "response",
-      "to": "24",
-      "to_input": "text"
-    },
-    {
-      "from": "10",
-      "from_output": "storage_instance",
-      "to": "3",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "3",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "20",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "16",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "18",
-      "to_input": "base_path"
-    },
-    {
-      "from": "10",
-      "from_output": "base_path",
-      "to": "28",
-      "to_input": "base_path"
-    },
-    {
-      "from": "5",
-      "from_output": "model",
-      "to": "6",
-      "to_input": "model"
-    },
-    {
-      "from": "36",
-      "from_output": "express_service",
-      "to": "25",
-      "to_input": "express_service"
-    },
-    {
-      "from": "36",
-      "from_output": "express_service",
-      "to": "37",
-      "to_input": "express_service"
-    },
-    {
-      "from": "35",
-      "from_output": "base_path",
-      "to": "26",
-      "to_input": "base_path"
-    },
-    {
-      "from": "35",
-      "from_output": "storage_instance",
-      "to": "26",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "25",
-      "from_output": "request_id",
-      "to": "26",
-      "to_input": "request_id"
-    },
-    {
-      "from": "26",
-      "from_output": "stats",
-      "to": "27",
-      "to_input": "response"
-    },
-    {
-      "from": "26",
-      "from_output": "request_id",
-      "to": "27",
-      "to_input": "request_id"
-    },
-    {
-      "from": "37",
-      "from_output": "request_id",
-      "to": "38",
-      "to_input": "request_id"
-    },
-    {
-      "from": "37",
-      "from_output": "trigger",
-      "to": "38",
-      "to_input": "trigger"
-    },
-    {
-      "from": "40",
-      "from_output": "storage_instance",
-      "to": "38",
-      "to_input": "storage_instance"
-    },
-    {
-      "from": "40",
-      "from_output": "base_path",
-      "to": "38",
-      "to_input": "base_path"
-    },
-    {
-      "from": "41",
-      "from_output": "state",
-      "to": "38",
-      "to_input": "state"
-    },
-    {
-      "from": "38",
-      "from_output": "response_body",
-      "to": "39",
-      "to_input": "body"
-    },
-    {
-      "from": "38",
-      "from_output": "request_id",
-      "to": "39",
-      "to_input": "request_id"
-    },
-    {
-      "from": "38",
-      "from_output": "status_code",
-      "to": "39",
-      "to_input": "status_code"
-    },
-    {
-      "from": "16",
-      "from_output": "holding",
-      "to": "28",
-      "to_input": "holding"
-    },
-    {
-      "from": "30",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "profit_target_percent"
-    },
-    {
-      "from": "30",
-      "from_output": "text",
-      "to": "20",
-      "to_input": "profit_target_percent"
-    },
-    {
-      "from": "31",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "stop_loss_percent"
-    },
-    {
-      "from": "31",
-      "from_output": "text",
-      "to": "20",
-      "to_input": "stop_loss_percent"
-    },
-    {
-      "from": "32",
-      "from_output": "text",
-      "to": "16",
-      "to_input": "sell_timer_minutes"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "18",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "19",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "17",
-      "from_output": "result",
-      "to": "28",
-      "to_input": "sell_result"
-    },
-    {
-      "from": "16",
-      "from_output": "should_sell",
-      "to": "17",
-      "to_input": "should_sell"
-    },
-    {
-      "from": "16",
-      "from_output": "sell_params",
-      "to": "17",
-      "to_input": "sell_params"
-    },
-    {
-      "from": "16",
-      "from_output": "holding",
-      "to": "19",
-      "to_input": "holding"
-    },
-    {
-      "from": "29",
-      "from_output": "text",
-      "to": "12",
-      "to_input": "bot_token"
-    },
-    {
-      "from": "29",
-      "from_output": "text",
-      "to": "19",
-      "to_input": "bot_token"
-    },
-    {
-      "from": "11",
-      "from_output": "text",
-      "to": "12",
-      "to_input": "chat_id"
-    },
-    {
-      "from": "11",
-      "from_output": "text",
-      "to": "19",
-      "to_input": "chat_id"
-    },
-    {
-      "from": "9",
-      "from_output": "result",
-      "to": "12",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "9",
-      "from_output": "result",
-      "to": "20",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "9",
-      "from_output": "result",
-      "to": "28",
-      "to_input": "buy_result"
-    },
-    {
-      "from": "7",
-      "from_output": "tg_actions",
-      "to": "9",
-      "to_input": "tg_actions"
-    },
-    {
-      "from": "4",
-      "from_output": "text",
-      "to": "6",
-      "to_input": "query"
-    },
-    {
-      "from": "34",
-      "from_output": "result",
-      "to": "6",
-      "to_input": "trigger"
-    },
-    {
-      "from": "34",
-      "from_output": "pass",
-      "to": "4",
-      "to_input": "text"
-    },
-    {
-      "from": "34",
-      "from_output": "reject",
-      "to": "28",
-      "to_input": "system_note"
-    },
-    {
-      "from": "22",
-      "from_output": "has_sufficient_funds",
-      "to": "23",
-      "to_input": "b"
-    },
-    {
-      "from": "14",
-      "from_output": "trigger",
-      "to": "23",
-      "to_input": "a"
-    },
-    {
-      "from": "3",
-      "from_output": "summary",
-      "to": "34",
-      "to_input": "value"
-    },
-    {
-      "from": "3",
-      "from_output": "has_tokens",
-      "to": "34",
-      "to_input": "b"
-    },
-    {
-      "from": "23",
-      "from_output": "result",
-      "to": "34",
-      "to_input": "a"
-    },
-    {
-      "from": "23",
-      "from_output": "trigger",
-      "to": "3",
-      "to_input": "trigger"
-    }
+    { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
+    { "from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key" },
+    { "from": "8", "from_output": "private_key", "to": "22", "to_input": "private_key" },
+
+    { "from": "1", "from_output": "state", "to": "9", "to_input": "state" },
+    { "from": "1", "from_output": "state", "to": "3", "to_input": "state" },
+    { "from": "1", "from_output": "state", "to": "20", "to_input": "state" },
+    { "from": "1", "from_output": "state", "to": "12", "to_input": "state" },
+
+    { "from": "14", "from_output": "trigger", "to": "22", "to_input": "trigger" },
+    { "from": "14", "from_output": "trigger", "to": "23", "to_input": "a" },
+
+    { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
+    { "from": "10", "from_output": "base_path", "to": "3", "to_input": "base_path" },
+    { "from": "10", "from_output": "base_path", "to": "20", "to_input": "base_path" },
+    { "from": "10", "from_output": "base_path", "to": "28", "to_input": "base_path" },
+
+    { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
+
+    { "from": "22", "from_output": "has_sufficient_funds", "to": "23", "to_input": "b" },
+    { "from": "23", "from_output": "result", "to": "34", "to_input": "a" },
+    { "from": "23", "from_output": "trigger", "to": "3", "to_input": "trigger" },
+
+    { "from": "3", "from_output": "summary", "to": "34", "to_input": "value" },
+    { "from": "3", "from_output": "has_tokens", "to": "34", "to_input": "b" },
+
+    { "from": "34", "from_output": "result", "to": "6", "to_input": "trigger" },
+    { "from": "34", "from_output": "pass", "to": "4", "to_input": "text" },
+    { "from": "34", "from_output": "reject", "to": "28", "to_input": "system_note" },
+
+    { "from": "4", "from_output": "text", "to": "6", "to_input": "query" },
+    { "from": "6", "from_output": "response", "to": "24", "to_input": "text" },
+    { "from": "24", "from_output": "text", "to": "7", "to_input": "response" },
+    { "from": "7", "from_output": "tg_actions", "to": "9", "to_input": "tg_actions" },
+
+    { "from": "9", "from_output": "result", "to": "12", "to_input": "buy_result" },
+    { "from": "9", "from_output": "result", "to": "20", "to_input": "buy_result" },
+    { "from": "9", "from_output": "result", "to": "28", "to_input": "buy_result" },
+
+    { "from": "29", "from_output": "text", "to": "12", "to_input": "bot_token" },
+    { "from": "29", "from_output": "text", "to": "19", "to_input": "bot_token" },
+    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
+    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" },
+
+    { "from": "30", "from_output": "text", "to": "20", "to_input": "profit_target_percent" },
+    { "from": "31", "from_output": "text", "to": "20", "to_input": "stop_loss_percent" },
+
+    { "from": "42", "from_output": "trigger", "to": "16", "to_input": "trigger" },
+    { "from": "44", "from_output": "state", "to": "16", "to_input": "state" },
+    { "from": "44", "from_output": "state", "to": "19", "to_input": "state" },
+    { "from": "43", "from_output": "base_path", "to": "16", "to_input": "base_path" },
+    { "from": "43", "from_output": "base_path", "to": "18", "to_input": "base_path" },
+    { "from": "43", "from_output": "base_path", "to": "45", "to_input": "base_path" },
+
+    { "from": "30", "from_output": "text", "to": "16", "to_input": "profit_target_percent" },
+    { "from": "31", "from_output": "text", "to": "16", "to_input": "stop_loss_percent" },
+    { "from": "32", "from_output": "text", "to": "16", "to_input": "sell_timer_minutes" },
+
+    { "from": "16", "from_output": "should_sell", "to": "17", "to_input": "should_sell" },
+    { "from": "16", "from_output": "sell_params", "to": "17", "to_input": "sell_params" },
+    { "from": "16", "from_output": "holding", "to": "19", "to_input": "holding" },
+    { "from": "16", "from_output": "holding", "to": "45", "to_input": "holding" },
+
+    { "from": "17", "from_output": "result", "to": "18", "to_input": "sell_result" },
+    { "from": "17", "from_output": "result", "to": "19", "to_input": "sell_result" },
+    { "from": "17", "from_output": "result", "to": "45", "to_input": "sell_result" },
+
+    { "from": "36", "from_output": "express_service", "to": "25", "to_input": "express_service" },
+    { "from": "36", "from_output": "express_service", "to": "37", "to_input": "express_service" },
+
+    { "from": "35", "from_output": "base_path", "to": "26", "to_input": "base_path" },
+    { "from": "35", "from_output": "storage_instance", "to": "26", "to_input": "storage_instance" },
+    { "from": "25", "from_output": "request_id", "to": "26", "to_input": "request_id" },
+    { "from": "26", "from_output": "stats", "to": "27", "to_input": "response" },
+    { "from": "26", "from_output": "request_id", "to": "27", "to_input": "request_id" },
+
+    { "from": "37", "from_output": "request_id", "to": "38", "to_input": "request_id" },
+    { "from": "37", "from_output": "trigger", "to": "38", "to_input": "trigger" },
+    { "from": "40", "from_output": "storage_instance", "to": "38", "to_input": "storage_instance" },
+    { "from": "40", "from_output": "base_path", "to": "38", "to_input": "base_path" },
+    { "from": "41", "from_output": "state", "to": "38", "to_input": "state" },
+    { "from": "38", "from_output": "response_body", "to": "39", "to_input": "body" },
+    { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
+    { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" }
   ]
 }
