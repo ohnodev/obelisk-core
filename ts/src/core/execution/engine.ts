@@ -43,12 +43,14 @@ export class ExecutionEngine {
    * @param workflow  The workflow JSON (nodes + connections)
    * @param contextVariables  Variables injected into execution (user_query, etc.)
    * @param initialNodeOutputs  Pre-seeded node outputs (e.g. from autonomous nodes in the runner)
+   * @param onNodeProgress  Optional callback fired before/after each node executes
    * @returns Execution result with per-node outputs
    */
   async execute(
     workflow: WorkflowData,
     contextVariables: Record<string, unknown> = {},
-    initialNodeOutputs: Record<NodeID, Record<string, unknown>> = {}
+    initialNodeOutputs: Record<NodeID, Record<string, unknown>> = {},
+    onNodeProgress?: (nodeId: NodeID, phase: "start" | "done") => void
   ): Promise<GraphExecutionResult> {
     const startTime = Date.now();
 
@@ -124,6 +126,7 @@ export class ExecutionEngine {
         const node = nodeMap.get(nodeId);
         if (!node) continue;
 
+        if (onNodeProgress) onNodeProgress(nodeId, "start");
         const nodeStart = Date.now();
         try {
           // Resolve inputs from connections (mirrors Python _resolve_node_inputs)
@@ -208,6 +211,8 @@ export class ExecutionEngine {
             const s = outputs.text;
             logger.info(`  [Debug text node ${nodeId}] ${s.length <= MODEL_OUTPUT_MAX ? s : s.slice(0, MODEL_OUTPUT_MAX) + "..."}`);
           }
+
+          if (onNodeProgress) onNodeProgress(nodeId, "done");
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const fullErrMsg = `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`;
@@ -221,6 +226,8 @@ export class ExecutionEngine {
             error: errorMsg,
             executionTime: Date.now() - nodeStart,
           });
+
+          if (onNodeProgress) onNodeProgress(nodeId, "done");
 
           // Stop execution on error (matches Python behaviour)
           break;
