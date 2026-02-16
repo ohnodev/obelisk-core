@@ -55,12 +55,14 @@ async function sendTelegramMessage(
     return { ok: false, error: "missing bot_token or chat_id" };
   }
   const url = `${TELEGRAM_API}${botToken}/sendMessage`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId.trim(), text }),
-      signal: AbortSignal.timeout(10_000),
+      signal: controller.signal,
     });
     let data: { ok?: boolean; description?: string };
     try {
@@ -78,6 +80,8 @@ async function sendTelegramMessage(
     const msg = safeErrorMessage(e);
     logger.error(`[SellNotify] Telegram fetch failed: ${msg}`);
     return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
