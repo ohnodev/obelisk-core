@@ -456,11 +456,38 @@
         "max_actions": 100,
         "Max actions (keep last N)": 100
       }
+    },
+    {
+      "id": "46",
+      "type": "text",
+      "position": { "x": 2150, "y": -550 },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.PROFIT_TARGET_PERCENT}}"
+      }
+    },
+    {
+      "id": "47",
+      "type": "text",
+      "position": { "x": 2150, "y": -450 },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.STOP_LOSS_PERCENT}}"
+      }
+    },
+    {
+      "id": "48",
+      "type": "wallet",
+      "position": { "x": -407, "y": -800 },
+      "inputs": {},
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
     }
   ],
   "connections": [
     { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
-    { "from": "8", "from_output": "private_key", "to": "17", "to_input": "private_key" },
+    { "from": "48", "from_output": "private_key", "to": "17", "to_input": "private_key" },
     { "from": "8", "from_output": "private_key", "to": "22", "to_input": "private_key" },
 
     { "from": "1", "from_output": "state", "to": "9", "to_input": "state" },
@@ -498,8 +525,8 @@
     { "from": "9", "from_output": "result", "to": "20", "to_input": "buy_result" },
     { "from": "9", "from_output": "result", "to": "28", "to_input": "buy_result" },
 
-    { "from": "30", "from_output": "text", "to": "20", "to_input": "profit_target_percent" },
-    { "from": "31", "from_output": "text", "to": "20", "to_input": "stop_loss_percent" },
+    { "from": "46", "from_output": "text", "to": "20", "to_input": "profit_target_percent" },
+    { "from": "47", "from_output": "text", "to": "20", "to_input": "stop_loss_percent" },
 
     { "from": "42", "from_output": "trigger", "to": "16", "to_input": "trigger" },
     { "from": "44", "from_output": "state", "to": "16", "to_input": "state" },
