@@ -27,9 +27,44 @@ function getNum(v: unknown): number {
 function safeBigInt(v: unknown): bigint {
   if (typeof v === "bigint") return v;
   const s = String(v ?? "0").trim();
+
+  // Fast path: plain integer string (no decimals, no exponent)
   try { return BigInt(s); } catch { /* fall through */ }
+
+  // Parse scientific notation / decimal strings into an exact integer string
+  // e.g. "1.5e18" → "1500000000000000000", "1000.0" → "1000"
+  const m = s.match(/^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
+  if (m) {
+    try {
+      const sign = m[1];
+      const intPart = m[2];
+      const fracPart = m[3] ?? "";
+      const exp = Number(m[4] ?? "0");
+      const digits = intPart + fracPart;
+      const netExp = exp - fracPart.length;
+
+      let intStr: string;
+      if (netExp >= 0) {
+        intStr = digits + "0".repeat(netExp);
+      } else {
+        // Truncate fractional remainder (floor toward zero)
+        const cutPos = digits.length + netExp;
+        intStr = cutPos <= 0 ? "0" : digits.slice(0, cutPos);
+      }
+      intStr = intStr.replace(/^0+/, "") || "0";
+      const result = BigInt(sign + intStr);
+      logger.debug(`[safeBigInt] Parsed "${s}" → ${result}`);
+      return result;
+    } catch { /* fall through to Number fallback */ }
+  }
+
+  // Last resort: lossy Number fallback (precision loss for values > 2^53)
   const n = Number(s);
-  if (!Number.isFinite(n) || n < 0) return 0n;
+  if (!Number.isFinite(n) || n < 0) {
+    logger.warn(`[safeBigInt] Invalid input "${s}", defaulting to 0`);
+    return 0n;
+  }
+  logger.warn(`[safeBigInt] Number fallback for "${s}" → ${Math.round(n)} (may lose precision)`);
   return BigInt(Math.round(n));
 }
 
