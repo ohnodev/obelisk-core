@@ -20,6 +20,7 @@ import { getNodeClass, registerAllNodes } from "./nodeRegistry";
 import { getLogger, abbrevPathForLog, sanitizeForLog } from "../../utils/logger";
 
 const logger = getLogger("engine");
+const SKIP_DEBUG_KEYS = new Set(["storage_instance"]);
 
 export class CycleError extends Error {
   constructor(message: string) {
@@ -174,6 +175,7 @@ export class ExecutionEngine {
           // DEBUG: log full outputs when OBELISK_CORE_DEBUG=true; cap size to avoid huge logs (e.g. full clanker state)
           const MAX_DEBUG_PAYLOAD = 2000;
           for (const k of outputKeys) {
+            if (SKIP_DEBUG_KEYS.has(k)) continue;
             const v = outputs[k];
             if (typeof v === "string") {
               const s = abbrevPathForLog(v);
