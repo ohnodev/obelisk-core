@@ -304,7 +304,7 @@ export function applyNodeProgress(
     if (!node) continue;
 
     const id = String(node.id);
-    // Save original boxcolor once
+    // Save original boxcolor on first encounter
     if (node._progressSavedBoxcolor === undefined) {
       node._progressSavedBoxcolor = node.boxcolor ?? null;
     }
@@ -314,6 +314,9 @@ export function applyNodeProgress(
       target = "#ffc800"; // yellow — executing
     } else if (completedSet.has(id)) {
       target = "#00e000"; // green — done
+    } else {
+      // Neither active nor completed — refresh baseline so it never goes stale
+      node._progressSavedBoxcolor = node.boxcolor ?? null;
     }
 
     const desired = target ?? node._progressSavedBoxcolor;
