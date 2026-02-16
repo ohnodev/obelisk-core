@@ -126,7 +126,20 @@ export class ExecutionEngine {
         const node = nodeMap.get(nodeId);
         if (!node) continue;
 
-        if (onNodeProgress) onNodeProgress(nodeId, "start");
+        const safeProgress = (phase: "start" | "done") => {
+          if (!onNodeProgress) return;
+          try {
+            onNodeProgress(nodeId, phase);
+          } catch (err) {
+            logger.warn(
+              `onNodeProgress(${phase}) failed for node ${nodeId}: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
+          }
+        };
+
+        safeProgress("start");
         const nodeStart = Date.now();
         try {
           // Resolve inputs from connections (mirrors Python _resolve_node_inputs)
@@ -212,7 +225,7 @@ export class ExecutionEngine {
             logger.info(`  [Debug text node ${nodeId}] ${s.length <= MODEL_OUTPUT_MAX ? s : s.slice(0, MODEL_OUTPUT_MAX) + "..."}`);
           }
 
-          if (onNodeProgress) onNodeProgress(nodeId, "done");
+          safeProgress("done");
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const fullErrMsg = `Node ${nodeId} (${node.nodeType}) failed: ${errorMsg}`;
@@ -227,7 +240,7 @@ export class ExecutionEngine {
             executionTime: Date.now() - nodeStart,
           });
 
-          if (onNodeProgress) onNodeProgress(nodeId, "done");
+          safeProgress("done");
 
           // Stop execution on error (matches Python behaviour)
           break;
