@@ -166,12 +166,12 @@ export class WorkflowRunner {
    * - Enforces total + per-user limits
    * - Builds node instances once, initialises CONTINUOUS nodes
    */
-  startWorkflow(
+  async startWorkflow(
     workflow: WorkflowData,
     contextVariables: Record<string, unknown> = {},
     onTickComplete?: (result: TickResult) => void,
     onError?: (error: string) => void
-  ): string {
+  ): Promise<string> {
     // Normalise connections once at the boundary — all downstream code can
     // rely on source_node / target_node being present.
     normalizeWorkflowConnections(workflow);
@@ -268,11 +268,24 @@ export class WorkflowRunner {
       nodeOutputs: {},
     };
 
-    // Initialise CONTINUOUS nodes via initialize() (no side-effect-producing execute())
+    // Initialise CONTINUOUS nodes: express_service first so listeners can attach to shared server
     for (const [nid, node] of nodes) {
-      if (node.isAutonomous()) {
+      if (node.isAutonomous() && node.nodeType === "express_service") {
         try {
-          // initialize() may be async (e.g. TelegramListenerNode fetches bot info)
+          const maybePromise = node.initialize(workflow, nodes);
+          if (maybePromise && typeof (maybePromise as Promise<void>).then === "function") {
+            await (maybePromise as Promise<void>);
+          }
+          logger.debug(`Initialized autonomous node ${nid}`);
+        } catch (err) {
+          logger.warning(`Failed to initialize express_service node ${nid}: ${err}`);
+          throw err;
+        }
+      }
+    }
+    for (const [nid, node] of nodes) {
+      if (node.isAutonomous() && node.nodeType !== "express_service") {
+        try {
           const maybePromise = node.initialize(workflow, nodes);
           if (maybePromise && typeof (maybePromise as Promise<void>).then === "function") {
             (maybePromise as Promise<void>).catch((err) => {
@@ -692,11 +705,21 @@ export class WorkflowRunner {
     const downstream = this.getAllDownstream(workflow, triggeredIds, nodes);
 
     // Step 2: Find upstream dependencies of the downstream nodes
-    const subgraphNodeIds = this.getSubgraphWithDependencies(
+    let subgraphNodeIds = this.getSubgraphWithDependencies(
       workflow,
       downstream,
       nodes
     );
+
+    // Step 2b: Include nodes downstream of the subgraph (e.g. buy_notify, add_to_bags
+    // which are downstream of clanker_buy; they are not reachable from the trigger
+    // but are reachable from nodes added as dependencies of action_logger etc.)
+    const downstreamOfSubgraph = this.getAllDownstream(
+      workflow,
+      subgraphNodeIds,
+      nodes
+    );
+    for (const nid of downstreamOfSubgraph) subgraphNodeIds.add(nid);
 
     logger.info(
       `Autonomous trigger → executing subgraph with ${subgraphNodeIds.size} nodes: [${Array.from(subgraphNodeIds).join(", ")}]`

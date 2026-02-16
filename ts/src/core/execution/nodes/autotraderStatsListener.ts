@@ -3,6 +3,7 @@
  * Listens for GET requests on a path (e.g. /stats), queues them, and triggers the
  * stats subgraph. Uses the same HttpRequestRegistry as HttpListener so HttpResponse
  * can send the response back.
+ * If connected to an express_service node, registers routes on the shared app; otherwise starts its own server.
  *
  * CONTINUOUS node. Outputs: trigger, request_id, path, method.
  */
@@ -12,6 +13,7 @@ import { WorkflowData, NodeID } from "../../types";
 import { getLogger } from "../../../utils/logger";
 import { randomUUID } from "crypto";
 import { HttpRequestRegistry } from "./httpListener";
+import { getExpressApp } from "./expressService";
 
 const logger = getLogger("autotraderStatsListener");
 
@@ -63,31 +65,12 @@ export class AutotraderStatsListenerNode extends BaseNode {
     );
   }
 
-  override async initialize(
-    _workflow: WorkflowData,
-    _allNodes: Map<NodeID, BaseNode>
-  ): Promise<void> {
-    if (this._server) {
-      logger.warn(`[AutotraderStatsListener ${this.nodeId}] Server already running`);
-      return;
-    }
-
-    this._app = express();
-    this._app.use(express.json({ limit: "64kb" }));
-
-    this._app.use((_req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
-      res.header("Access-Control-Allow-Headers", "Content-Type");
-      if (_req.method === "OPTIONS") return res.sendStatus(200);
-      next();
-    });
-
-    this._app.get("/health", (_req, res) => {
+  private registerRoutes(app: express.Application): void {
+    app.get("/health", (_req, res) => {
       res.json({ status: "healthy", node_id: this.nodeId, port: this._port, type: "autotrader_stats" });
     });
 
-    this._app.get(this._path, (req, res) => {
+    app.get(this._path, (req, res) => {
       if (this._pending.length >= MAX_QUEUE_SIZE) {
         res.status(429).json({ error: "Too many requests", message: "Stats queue full" });
         logger.warn(`[AutotraderStatsListener ${this.nodeId}] Rejected GET (queue full, size=${this._pending.length})`);
@@ -136,6 +119,41 @@ export class AutotraderStatsListenerNode extends BaseNode {
         }
       }, 30_000);
     });
+  }
+
+  override async initialize(
+    workflow: WorkflowData,
+    _allNodes: Map<NodeID, BaseNode>
+  ): Promise<void> {
+    if (this._server || this._app) {
+      logger.warn(`[AutotraderStatsListener ${this.nodeId}] Already initialized`);
+      return;
+    }
+
+    const workflowId = workflow.id ?? "workflow-1";
+    const expressConn = this.inputConnections["express_service"];
+    const expressNodeId = expressConn?.[0]?.nodeId;
+    const sharedApp = expressNodeId ? getExpressApp(workflowId, expressNodeId) : null;
+
+    if (sharedApp) {
+      this._app = sharedApp;
+      this.registerRoutes(sharedApp);
+      logger.info(
+        `[AutotraderStatsListener ${this.nodeId}] Registered GET ${this._path} on shared Express (port from express_service)`
+      );
+      return;
+    }
+
+    this._app = express();
+    this._app.use(express.json({ limit: "64kb" }));
+    this._app.use((_req, res, next) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type");
+      if (_req.method === "OPTIONS") return res.sendStatus(200);
+      next();
+    });
+    this.registerRoutes(this._app);
 
     return new Promise<void>((resolve, reject) => {
       try {
@@ -145,7 +163,7 @@ export class AutotraderStatsListenerNode extends BaseNode {
           );
           resolve();
         });
-        this._server.on("error", (err: NodeJS.ErrnoException) => {
+        this._server!.on("error", (err: NodeJS.ErrnoException) => {
           if (err.code === "EADDRINUSE") {
             logger.error(`[AutotraderStatsListener ${this.nodeId}] Port ${this._port} already in use`);
           } else {
@@ -202,7 +220,7 @@ export class AutotraderStatsListenerNode extends BaseNode {
         else logger.info(`[AutotraderStatsListener ${this.nodeId}] Server closed on port ${this._port}`);
       });
       this._server = null;
-      this._app = null;
     }
+    this._app = null;
   }
 }

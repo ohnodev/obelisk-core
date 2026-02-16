@@ -87,7 +87,7 @@ class AgentRunner {
     const context = buildContextVariables();
     logger.info(`Context variables: ${Object.keys(context).join(", ")}`);
 
-    this.workflowId = this.runner.startWorkflow(
+    this.workflowId = await this.runner.startWorkflow(
       workflow,
       context,
       30_000,
