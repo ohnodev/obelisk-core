@@ -66,10 +66,13 @@ export class SellNotifyNode extends BaseNode {
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
     const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
-    const chatId =
+    const rawChatId =
       (this.getInputValue("chat_id", context, undefined) as string)?.trim() ||
-      Config.TELEGRAM_CHAT_ID ||
+      (this.metadata.chat_id as string)?.trim() ||
       "";
+    const chatId = rawChatId
+      ? String(this.resolveEnvVar(rawChatId) ?? rawChatId).trim()
+      : Config.TELEGRAM_CHAT_ID || "";
 
     const rawBotToken =
       (this.getInputValue("bot_token", context, undefined) as string)?.trim() ||

@@ -235,7 +235,10 @@
         "y": -812
       },
       "inputs": {},
-      "metadata": {}
+      "metadata": {
+        "bot_token": "{{process.env.TELEGRAM_BOT_TOKEN}}",
+        "chat_id": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
     },
     {
       "id": "20",
@@ -251,18 +254,6 @@
       }
     },
     {
-      "id": "29",
-      "type": "text",
-      "position": {
-        "x": 1882,
-        "y": -424
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "{{process.env.TELEGRAM_BOT_TOKEN}}"
-      }
-    },
-    {
       "id": "18",
       "type": "update_bags_on_sell",
       "position": {
@@ -273,18 +264,6 @@
       "metadata": {}
     },
     {
-      "id": "11",
-      "type": "text",
-      "position": {
-        "x": 1472,
-        "y": -381
-      },
-      "inputs": {},
-      "metadata": {
-        "text": "{{process.env.TELEGRAM_CHAT_ID}}"
-      }
-    },
-    {
       "id": "12",
       "type": "buy_notify",
       "position": {
@@ -292,7 +271,10 @@
         "y": 45
       },
       "inputs": {},
-      "metadata": {}
+      "metadata": {
+        "bot_token": "{{process.env.TELEGRAM_BOT_TOKEN}}",
+        "chat_id": "{{process.env.TELEGRAM_CHAT_ID}}"
+      }
     },
     {
       "id": "9",
@@ -515,11 +497,6 @@
     { "from": "9", "from_output": "result", "to": "12", "to_input": "buy_result" },
     { "from": "9", "from_output": "result", "to": "20", "to_input": "buy_result" },
     { "from": "9", "from_output": "result", "to": "28", "to_input": "buy_result" },
-
-    { "from": "29", "from_output": "text", "to": "12", "to_input": "bot_token" },
-    { "from": "29", "from_output": "text", "to": "19", "to_input": "bot_token" },
-    { "from": "11", "from_output": "text", "to": "12", "to_input": "chat_id" },
-    { "from": "11", "from_output": "text", "to": "19", "to_input": "chat_id" },
 
     { "from": "30", "from_output": "text", "to": "20", "to_input": "profit_target_percent" },
     { "from": "31", "from_output": "text", "to": "20", "to_input": "stop_loss_percent" },
