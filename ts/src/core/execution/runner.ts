@@ -61,6 +61,11 @@ interface WorkflowState {
   latestResults: Record<string, unknown> | null;
   resultsVersion: number;
 
+  /** Real-time progress: node currently executing (null when idle between ticks) */
+  activeNodeId: string | null;
+  /** Real-time progress: nodes that have completed in the current subgraph execution */
+  completedNodeIds: string[];
+
   /** Timer that removes the entry after it has been stopped. */
   cleanupTimer?: ReturnType<typeof setTimeout>;
 
@@ -311,6 +316,8 @@ export class WorkflowRunner {
       nodeCount: nodes.size,
       latestResults: null,
       resultsVersion: 0,
+      activeNodeId: null,
+      completedNodeIds: [],
       onTickComplete,
       onError,
     };
@@ -382,6 +389,8 @@ export class WorkflowRunner {
     node_count: number;
     latest_results: Record<string, unknown> | null;
     results_version: number;
+    active_node_id: string | null;
+    completed_node_ids: string[];
   } | null {
     const s = this.workflows.get(workflowId);
     if (!s) return null;
@@ -393,6 +402,8 @@ export class WorkflowRunner {
       node_count: s.nodeCount,
       latest_results: s.latestResults,
       results_version: s.resultsVersion,
+      active_node_id: s.activeNodeId,
+      completed_node_ids: s.completedNodeIds,
     };
   }
 
@@ -733,10 +744,23 @@ export class WorkflowRunner {
     );
 
     // Step 4: Execute through the engine with initial outputs from autonomous nodes
+    // Progress callback updates state in real-time so the frontend poll can show active nodes
+    state.activeNodeId = null;
+    state.completedNodeIds = [];
     const result = await this.engine.execute(
       subWorkflow,
       context.variables,
-      { ...context.nodeOutputs }
+      { ...context.nodeOutputs },
+      (nodeId, phase) => {
+        if (phase === "start") {
+          state.activeNodeId = nodeId;
+        } else {
+          state.activeNodeId = null;
+          if (!state.completedNodeIds.includes(nodeId)) {
+            state.completedNodeIds.push(nodeId);
+          }
+        }
+      }
     );
 
     // Update context with new outputs
@@ -795,6 +819,10 @@ export class WorkflowRunner {
           { outputs: makeSerializable(nr.outputs) },
         ]),
     ]);
+
+    // Clear real-time progress now that the subgraph is done
+    state.activeNodeId = null;
+    state.completedNodeIds = [];
 
     state.latestResults = {
       tick: state.tickCount,

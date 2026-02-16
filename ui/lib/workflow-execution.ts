@@ -284,6 +284,55 @@ export async function cancelJob(
 }
 
 /**
+ * Apply real-time node progress from the runner status poll.
+ * Sets the currently-executing node to yellow and completed nodes to green.
+ * Called every poll interval (~1s) so the canvas reflects live progress.
+ */
+export function applyNodeProgress(
+  graph: any,
+  activeNodeId: string | null,
+  completedNodeIds: string[]
+): void {
+  if (!graph) return;
+  const canvas = (window as any).__obeliskCanvas;
+  const allNodes = graph._nodes || [];
+  let dirty = false;
+
+  const completedSet = new Set(completedNodeIds.map(String));
+
+  for (const node of allNodes) {
+    if (!node) continue;
+
+    const id = String(node.id);
+    // Save original boxcolor on first encounter
+    if (node._progressSavedBoxcolor === undefined) {
+      node._progressSavedBoxcolor = node.boxcolor ?? null;
+    }
+
+    let target: string | null = null;
+    if (activeNodeId != null && id === String(activeNodeId)) {
+      target = "#ffc800"; // yellow — executing
+    } else if (completedSet.has(id)) {
+      target = "#00e000"; // green — done
+    } else {
+      // Neither active nor completed — refresh baseline so it never goes stale
+      node._progressSavedBoxcolor = node.boxcolor ?? null;
+    }
+
+    const desired = target ?? node._progressSavedBoxcolor;
+    if (node.boxcolor !== desired) {
+      node.boxcolor = desired;
+      dirty = true;
+    }
+  }
+
+  if (dirty && canvas) {
+    canvas.dirty_canvas = true;
+    canvas.draw(true);
+  }
+}
+
+/**
  * Highlights nodes during execution (like ComfyUI)
  * Shows which nodes are currently executing or have completed
  */

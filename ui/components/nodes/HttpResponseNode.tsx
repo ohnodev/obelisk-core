@@ -100,16 +100,6 @@ class HttpResponseNode extends LGraphNode {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
-
-    // Draw connected overlay on status widget
-    const widget = (this as any)._status_widget;
-    if (widget && widget._connected && widget.last_y !== undefined) {
-      ctx.fillStyle = "rgba(230, 126, 34, 0.7)";
-      ctx.fillRect(60, widget.last_y, this.size[0] - 70, 20);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-      ctx.font = "10px sans-serif";
-      ctx.fillText("← connected", 65, widget.last_y + 14);
-    }
   }
 
   onDrawBackground(ctx: CanvasRenderingContext2D) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAccount } from "wagmi";
 import { usePrivy } from "@privy-io/react-auth";
 import { WorkflowGraph } from "@/lib/litegraph";
-import { updateNodeOutputs } from "@/lib/workflow-execution";
+import { updateNodeOutputs, applyNodeProgress } from "@/lib/workflow-execution";
 import { getApiUrls } from "@/lib/api-config";
 import PlayIcon from "./icons/PlayIcon";
 import SaveIcon from "./icons/SaveIcon";
@@ -217,6 +217,11 @@ export default function Toolbar({
       clearInterval(statusPollRef.current);
       statusPollRef.current = null;
     }
+    // Clear any in-progress node highlights
+    const graph = (window as any).__obeliskGraph;
+    if (graph) {
+      applyNodeProgress(graph, null, []);
+    }
   };
 
   /** Unified Run button handler – auto-detects autonomous vs one-shot */
@@ -304,11 +309,20 @@ export default function Toolbar({
                 if (statusRes.ok) {
                   const status = await statusRes.json();
 
+                  // Real-time node progress: highlight active + completed nodes
+                  const graph = (window as any).__obeliskGraph;
+                  if (graph) {
+                    applyNodeProgress(
+                      graph,
+                      status.active_node_id ?? null,
+                      status.completed_node_ids ?? []
+                    );
+                  }
+
                   // Apply latest results first (including final results when workflow finishes)
                   if (status.results_version && status.results_version > lastResultsVersionRef.current) {
                     lastResultsVersionRef.current = status.results_version;
                     if (status.latest_results?.results) {
-                      const graph = (window as any).__obeliskGraph;
                       if (graph) {
                         console.log("[Runner] Applying new results to graph, version:", status.results_version);
                         updateNodeOutputs(graph, status.latest_results.results, status.latest_results.executed_nodes);

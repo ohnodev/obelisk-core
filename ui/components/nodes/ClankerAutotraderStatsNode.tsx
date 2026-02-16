@@ -12,8 +12,8 @@ class ClankerAutotraderStatsNode extends LGraphNode {
     this.title = "Clanker Autotrader Stats";
 
     this.addInput("request_id", "string");
-    this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
+    this.addInput("base_path", "string");
     this.addInput("actions_limit", "number");
 
     this.addOutput("stats", "string");
