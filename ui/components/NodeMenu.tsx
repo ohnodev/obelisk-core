@@ -148,7 +148,7 @@ const NODE_CATEGORIES: NodeCategory[] = [
       {
         type: "express_service",
         title: "Express Service",
-        description: "Shared HTTP server (port). Connect Stats Listener and Sell Bags Listener to reuse same server",
+        description: "Provider: shared HTTP server (no reads). Connect Stats + Sell Bags Listeners to reuse one server",
       },
       {
         type: "http_listener",

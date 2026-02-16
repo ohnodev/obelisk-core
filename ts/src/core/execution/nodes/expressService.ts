@@ -1,7 +1,9 @@
 /**
- * ExpressServiceNode – shared Express server (one per port).
+ * ExpressServiceNode – provider node: shared Express server (one per port).
+ * Does not read workflow state or trigger execution; only provides the app.
  * Listeners (autotrader_stats_listener, sell_bags_listener) connect to this node
- * and register their routes on the same app instead of starting their own server.
+ * and register their routes on the same app. Read-only (e.g. /stats) and write
+ * (e.g. /sell-all-bags) paths are separate subgraphs; they just share the server.
  */
 import express from "express";
 import { BaseNode, ExecutionContext, ExecutionMode } from "../nodeBase";

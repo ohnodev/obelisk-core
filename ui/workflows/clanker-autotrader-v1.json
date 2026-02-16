@@ -395,6 +395,34 @@
       "metadata": {
         "operation": "AND"
       }
+    },
+    {
+      "id": "36",
+      "type": "express_service",
+      "position": { "x": -280, "y": -1196 },
+      "inputs": {},
+      "metadata": { "port": 8081, "host": "0.0.0.0" }
+    },
+    {
+      "id": "37",
+      "type": "sell_bags_listener",
+      "position": { "x": -77, "y": -1080 },
+      "inputs": {},
+      "metadata": { "path": "/sell-all-bags" }
+    },
+    {
+      "id": "38",
+      "type": "sell_all_bags",
+      "position": { "x": 468, "y": -1080 },
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "39",
+      "type": "http_response",
+      "position": { "x": 985, "y": -1083 },
+      "inputs": {},
+      "metadata": {}
     }
   ],
   "connections": [
@@ -519,6 +547,18 @@
       "to_input": "model"
     },
     {
+      "from": "36",
+      "from_output": "express_service",
+      "to": "25",
+      "to_input": "express_service"
+    },
+    {
+      "from": "36",
+      "from_output": "express_service",
+      "to": "37",
+      "to_input": "express_service"
+    },
+    {
       "from": "35",
       "from_output": "base_path",
       "to": "26",
@@ -547,6 +587,54 @@
       "from_output": "request_id",
       "to": "27",
       "to_input": "request_id"
+    },
+    {
+      "from": "37",
+      "from_output": "request_id",
+      "to": "38",
+      "to_input": "request_id"
+    },
+    {
+      "from": "37",
+      "from_output": "trigger",
+      "to": "38",
+      "to_input": "trigger"
+    },
+    {
+      "from": "10",
+      "from_output": "storage_instance",
+      "to": "38",
+      "to_input": "storage_instance"
+    },
+    {
+      "from": "10",
+      "from_output": "base_path",
+      "to": "38",
+      "to_input": "base_path"
+    },
+    {
+      "from": "1",
+      "from_output": "state",
+      "to": "38",
+      "to_input": "state"
+    },
+    {
+      "from": "38",
+      "from_output": "response_body",
+      "to": "39",
+      "to_input": "body"
+    },
+    {
+      "from": "38",
+      "from_output": "request_id",
+      "to": "39",
+      "to_input": "request_id"
+    },
+    {
+      "from": "38",
+      "from_output": "status_code",
+      "to": "39",
+      "to_input": "status_code"
     },
     {
       "from": "16",

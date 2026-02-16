@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class ExpressServiceNode extends LGraphNode {
   static title = "Express Service";
-  static desc = "Shared HTTP server. Connect Stats Listener and Sell Bags Listener to reuse same port.";
+  static desc = "Provider: shared HTTP server only (no reads, no execution). Listeners register routes on it; connect Stats + Sell Bags Listeners to reuse one port.";
   static title_color = "#3498db";
 
   constructor() {

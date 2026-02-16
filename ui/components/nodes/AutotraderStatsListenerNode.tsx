@@ -4,12 +4,14 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class AutotraderStatsListenerNode extends LGraphNode {
   static title = "Autotrader Stats Listener";
-  static desc = "GET /stats for dashboard (bags, actions). Queues requests; connect to Clanker Autotrader Stats + HTTP Response.";
+  static desc = "GET /stats for dashboard (bags, actions). Connect Express Service to use shared server; connect to Clanker Autotrader Stats + HTTP Response.";
   static title_color = "#3498db"; // Blue
 
   constructor() {
     super();
     this.title = "Autotrader Stats Listener";
+
+    this.addInput("express_service", "object");
 
     this.addOutput("trigger", "boolean");
     this.addOutput("request_id", "string");
