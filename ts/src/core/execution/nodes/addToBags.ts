@@ -23,6 +23,16 @@ function getNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Safely parse a value as BigInt; handles scientific notation and decimals that would throw. */
+function safeBigInt(v: unknown): bigint {
+  if (typeof v === "bigint") return v;
+  const s = String(v ?? "0").trim();
+  try { return BigInt(s); } catch { /* fall through */ }
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return 0n;
+  return BigInt(Math.round(n));
+}
+
 export class AddToBagsNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const buyResult = this.getInputValue("buy_result", context, undefined) as Record<string, unknown> | undefined;
@@ -49,8 +59,9 @@ export class AddToBagsNode extends BaseNode {
 
     // Cost basis from buy result (ETH spent / tokens received = ETH per token) so PnL on sell is correct.
     // Clanker tokens use 18 decimals; we use BigInt for wei arithmetic and convert to Number only at the end.
-    const valueWeiBI = BigInt(String(buyResult.value_wei ?? "0"));
-    const amountWeiBI = BigInt(amountWei);
+    // safeBigInt handles scientific notation / decimal strings that raw BigInt() would throw on.
+    const valueWeiBI = safeBigInt(buyResult.value_wei);
+    const amountWeiBI = safeBigInt(amountWei);
     let decimals = 18;
     if (state?.tokens && typeof state.tokens === "object") {
       const t = (state.tokens as Record<string, Record<string, unknown>>)[tokenAddress];
@@ -92,6 +103,23 @@ export class AddToBagsNode extends BaseNode {
       }
     }
     if (!bagState.holdings) bagState.holdings = {};
+    const existing = bagState.holdings[tokenAddress] as BagHolding | undefined;
+    if (existing && existing.amountWei) {
+      // Accumulate: add token amounts and compute weighted-average cost basis
+      const oldAmtBI = safeBigInt(existing.amountWei);
+      const newAmtBI = safeBigInt(holding.amountWei);
+      const totalAmtBI = oldAmtBI + newAmtBI;
+      holding.amountWei = String(totalAmtBI);
+      const oldAmt = Number(oldAmtBI);
+      const newAmt = Number(newAmtBI);
+      const totalAmt = oldAmt + newAmt;
+      if (totalAmt > 0) {
+        holding.boughtAtPriceEth =
+          (existing.boughtAtPriceEth * oldAmt + boughtAtPriceEth * newAmt) / totalAmt;
+      }
+      holding.boughtAtTimestamp = existing.boughtAtTimestamp;
+      logger.info(`[AddToBags] Accumulated ${tokenAddress}: prev=${String(oldAmtBI)} + new=${String(newAmtBI)} = ${String(totalAmtBI)}`);
+    }
     bagState.holdings[tokenAddress] = holding;
     bagState.lastUpdated = Date.now();
 
