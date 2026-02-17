@@ -149,7 +149,13 @@ function renderLinks(
     if (!link) continue;
     const src = nodeById.get((link as any).origin_id);
     const tgt = nodeById.get((link as any).target_id);
-    if (!src || !tgt) continue;
+    if (
+      !src || !tgt ||
+      !Array.isArray(src.pos) || src.pos.length < 2 ||
+      !Array.isArray(src.size) || src.size.length < 2 ||
+      !Array.isArray(tgt.pos) || tgt.pos.length < 2 ||
+      !Array.isArray(tgt.size) || tgt.size.length < 2
+    ) continue;
 
     const sx = (src.pos[0] - bounds.minX) * scale + offsetX;
     const sy = (src.pos[1] - bounds.minY) * scale + offsetY;
