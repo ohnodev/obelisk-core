@@ -79,7 +79,9 @@ export function formatHoldingsSummary(
     const pnlStr = pnl >= 0 ? `+${pnl.toFixed(1)}%` : `${pnl.toFixed(1)}%`;
     const heldMs = now - h.boughtAtTimestamp;
     const heldMin = Math.max(0, Math.floor(heldMs / 60_000));
-    const heldStr = heldMin >= 60 ? `${Math.floor(heldMin / 60)}h${heldMin % 60}m` : `${heldMin}m`;
+    const heldStr = heldMin >= 60
+      ? (heldMin % 60 === 0 ? `${Math.floor(heldMin / 60)}h` : `${Math.floor(heldMin / 60)}h${heldMin % 60}m`)
+      : `${heldMin}m`;
     return `- ${name} (${symbol}): bought ${buyPrice.toFixed(8)} ETH, now ${currentPrice.toFixed(8)} ETH, P&L: ${pnlStr}, held ${heldStr}`;
   });
 
