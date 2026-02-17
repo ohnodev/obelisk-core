@@ -339,40 +339,19 @@ export async function executeSwap(
       return { success: true, txHash: receipt?.hash ?? undefined, tokensReceived };
     }
 
-    // ── Sell path: check actual on-chain token balance to handle transfer-tax tokens ──
-    let sellAmount = amount;
-    try {
-      const balContract = new ethers.Contract(
-        token,
-        ["function balanceOf(address) view returns (uint256)"],
-        wallet.provider
-      );
-      const actualBalance: bigint = await balContract.balanceOf(wallet.address);
-      if (actualBalance === 0n) {
-        return { success: false, error: "Zero token balance — nothing to sell", zeroBalance: true };
-      }
-      if (actualBalance < amount) {
-        sellAmount = actualBalance;
-        // Brief delay to let on-chain state settle before retrying with adjusted amount
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    } catch {
-      // Cannot read balance; proceed with stored amount
-    }
-
     if (isWethPool(currency0, currency1)) {
       const tokenContract = new ethers.Contract(
         token,
         ["function approve(address spender, uint256 amount) returns (bool)"],
         wallet
       );
-      const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, sellAmount);
+      const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, amount);
       await txApprove.wait();
       // Send sell tx with fixed gas so it's broadcast even if estimateGas would revert (so you can trace the revert)
       const populated = await contract.cabalSellV4WithPool.populateTransaction(
         currency0!,
         currency1!,
-        sellAmount,
+        amount,
         fee,
         tick,
         hook
@@ -430,18 +409,41 @@ export async function executeSwap(
             return { success: false, error: retryMsg, txHash: undefined };
           }
         }
+        // ── Post-revert recovery: wait 2s, check balance, retry or clean up ──
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        try {
+          const balContract = new ethers.Contract(token, ["function balanceOf(address) view returns (uint256)"], wallet.provider);
+          const actualBalance: bigint = await balContract.balanceOf(wallet.address);
+          if (actualBalance === 0n) {
+            return { success: false, error: "Zero token balance after revert", zeroBalance: true, txHash: sellTxHash };
+          }
+          if (actualBalance < amount) {
+            const txApproveRetry = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, actualBalance);
+            await txApproveRetry.wait();
+            const populatedRetry = await contract.cabalSellV4WithPool.populateTransaction(currency0!, currency1!, actualBalance, fee, tick, hook);
+            const txRetry = await wallet.sendTransaction({ to: CABAL_SWAPPER_ADDRESS, data: populatedRetry.data, gasLimit: 3_000_000n });
+            const receiptRetry = await txRetry.wait();
+            if (receiptRetry?.status === 0) {
+              return { success: false, error: "Sell reverted on retry with adjusted balance", txHash: receiptRetry?.hash ?? sellTxHash };
+            }
+            const wethRetry = receiptRetry ? parseWethReceivedByAddress(receiptRetry as unknown as TransactionReceiptLike, wallet.address) : undefined;
+            return { success: true, txHash: receiptRetry?.hash, wethReceived: wethRetry, ethReceived: wethRetry };
+          }
+        } catch {
+          // Recovery failed — fall through to original error
+        }
         return { success: false, error: waitMsg, txHash: sellTxHash };
       }
     }
-    const tokenContract = new ethers.Contract(
+    const tokenContract2 = new ethers.Contract(
       token,
       ["function approve(address spender, uint256 amount) returns (bool)"],
       wallet
     );
-    const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, sellAmount);
+    const txApprove = await tokenContract2.approve(CABAL_SWAPPER_ADDRESS, amount);
     await txApprove.wait();
     const doSell = async (): Promise<{ receipt: ethers.TransactionReceipt | null; txHash: string | undefined }> => {
-      const tx = await contract.cabalSellV4(token, sellAmount, fee, tick, hook, { gasLimit: 3_000_000n });
+      const tx = await contract.cabalSellV4(token, amount, fee, tick, hook, { gasLimit: 3_000_000n });
       const receipt = await tx.wait();
       return { receipt: receipt as ethers.TransactionReceipt | null, txHash: receipt?.hash ?? undefined };
     };
@@ -466,6 +468,25 @@ export async function executeSwap(
       } else {
         const err = sellErr as { transaction?: { hash?: string }; receipt?: { hash?: string }; hash?: string };
         txHash = err?.transaction?.hash ?? err?.receipt?.hash ?? (typeof err?.hash === "string" ? err.hash : undefined);
+        // ── Post-revert recovery: wait 2s, check balance, retry or clean up ──
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        try {
+          const balContract = new ethers.Contract(token, ["function balanceOf(address) view returns (uint256)"], wallet.provider);
+          const actualBalance: bigint = await balContract.balanceOf(wallet.address);
+          if (actualBalance === 0n) {
+            return { success: false, error: "Zero token balance after revert", zeroBalance: true, txHash };
+          }
+          if (actualBalance < amount) {
+            const txApproveRetry = await tokenContract2.approve(CABAL_SWAPPER_ADDRESS, actualBalance);
+            await txApproveRetry.wait();
+            const txRetry = await contract.cabalSellV4(token, actualBalance, fee, tick, hook, { gasLimit: 3_000_000n });
+            const receiptRetry = await txRetry.wait();
+            const wethRetry = receiptRetry ? parseWethReceivedByAddress(receiptRetry as unknown as TransactionReceiptLike, wallet.address) : undefined;
+            return { success: true, txHash: receiptRetry?.hash, wethReceived: wethRetry, ethReceived: wethRetry };
+          }
+        } catch {
+          // Recovery failed — fall through to original error
+        }
         return { success: false, error: sellMsg, txHash };
       }
     }
