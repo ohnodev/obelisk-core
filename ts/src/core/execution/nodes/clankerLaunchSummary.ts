@@ -25,6 +25,13 @@ function getStr(v: unknown): string {
   return String(v).trim();
 }
 
+/** Format an ETH price so tiny values (< 1e-6) use scientific notation instead of rounding to 0. */
+function fmtPrice(v: number): string {
+  if (v === 0) return "0";
+  if (Math.abs(v) < 1e-6) return v.toExponential(2);
+  return v.toFixed(8);
+}
+
 interface HeldToken {
   address: string;
   boughtAtPriceEth: number;
@@ -82,7 +89,7 @@ export function formatHoldingsSummary(
     const heldStr = heldMin >= 60
       ? (heldMin % 60 === 0 ? `${Math.floor(heldMin / 60)}h` : `${Math.floor(heldMin / 60)}h${heldMin % 60}m`)
       : `${heldMin}m`;
-    return `- ${name} (${symbol}): bought ${buyPrice.toFixed(8)} ETH, now ${currentPrice.toFixed(8)} ETH, P&L: ${pnlStr}, held ${heldStr}`;
+    return `- ${name} (${symbol}): bought ${fmtPrice(buyPrice)} ETH, now ${fmtPrice(currentPrice)} ETH, P&L: ${pnlStr}, held ${heldStr}`;
   });
 
   return `Current Holdings (${holdings.length} position${holdings.length !== 1 ? "s" : ""}):\n${lines.join("\n")}\n`;
