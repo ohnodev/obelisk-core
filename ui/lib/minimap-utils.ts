@@ -26,15 +26,19 @@ export function calculateNodeBounds(nodes: any[]): SpatialBounds | null {
 
   for (const node of nodes) {
     if (!node) continue;
-    const x = node.pos[0];
-    const y = node.pos[1];
-    const w = node.size[0];
-    const h = node.size[1];
+    const p = node.pos;
+    const s = node.size;
+    if (
+      !Array.isArray(p) || p.length < 2 ||
+      typeof p[0] !== "number" || typeof p[1] !== "number" ||
+      !Array.isArray(s) || s.length < 2 ||
+      typeof s[0] !== "number" || typeof s[1] !== "number"
+    ) continue;
 
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x + w);
-    maxY = Math.max(maxY, y + h);
+    minX = Math.min(minX, p[0]);
+    minY = Math.min(minY, p[1]);
+    maxX = Math.max(maxX, p[0] + s[0]);
+    maxY = Math.max(maxY, p[1] + s[1]);
   }
 
   if (!Number.isFinite(minX)) return null;
