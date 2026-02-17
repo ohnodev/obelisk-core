@@ -353,6 +353,8 @@ export async function executeSwap(
       }
       if (actualBalance < amount) {
         sellAmount = actualBalance;
+        // Brief delay to let on-chain state settle before retrying with adjusted amount
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     } catch {
       // Cannot read balance; proceed with stored amount
