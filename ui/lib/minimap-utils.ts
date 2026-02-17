@@ -191,7 +191,7 @@ function renderNodes(
     const w = node.size[0] * scale;
     const h = node.size[1] * scale;
 
-    const color: string = node.bgcolor ?? COLORS.nodeDefault;
+    const color: string = node.color ?? node.bgcolor ?? COLORS.nodeDefault;
     let bucket = byColor.get(color);
     if (!bucket) {
       bucket = [];
