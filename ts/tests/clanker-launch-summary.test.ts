@@ -264,10 +264,64 @@ describe("formatHoldingsSummary", () => {
     const result = formatHoldingsSummary(holdings, {}, now);
 
     expect(result).toContain("Current Holdings (1 position):");
-    // Falls back to truncated address
     expect(result).toContain("0xunknown");
-    expect(result).toContain("now 0.00000000 ETH");
-    // With 0 current price and 0.0001 buy price => -100% P&L
     expect(result).toContain("-100.0%");
+  });
+
+  it("formats very small prices (real production data) without rounding to zero", () => {
+    const now = Date.now();
+    const holdings = [
+      {
+        address: "0xd945a7c7b99f6149183ac05063b824b5026a0b07",
+        boughtAtPriceEth: 2.480679475181656e-10,
+        boughtAtTimestamp: now - 6 * 60 * 60_000, // 6h ago
+        amountWei: "4031153601280034596123158",
+      },
+      {
+        address: "0x28be7a48da70d238715107acf0f50afb0d03eb07",
+        boughtAtPriceEth: 1.0137617223426713e-10,
+        boughtAtTimestamp: now - 355 * 60_000, // 5h55m ago
+        amountWei: "986425091775146487395147",
+      },
+    ];
+    const tokens: Record<string, Record<string, unknown>> = {
+      "0xd945a7c7b99f6149183ac05063b824b5026a0b07": {
+        name: "SomeToken",
+        symbol: "SOME",
+        lastPrice: 3.5e-10,
+      },
+      "0x28be7a48da70d238715107acf0f50afb0d03eb07": {
+        name: "OtherToken",
+        symbol: "OTHER",
+        lastPrice: 5e-11,
+      },
+    };
+    const result = formatHoldingsSummary(holdings, tokens, now);
+
+    // Names should come from tokens, not truncated addresses
+    expect(result).toContain("SomeToken (SOME)");
+    expect(result).toContain("OtherToken (OTHER)");
+
+    // Prices must NOT show as 0.00000000 — they should use scientific notation
+    expect(result).not.toContain("bought 0.00000000");
+    expect(result).not.toContain("now 0.00000000");
+
+    // Buy prices should be visible
+    expect(result).toContain("2.48e-10");
+    expect(result).toContain("1.01e-10");
+
+    // Current prices should be visible
+    expect(result).toContain("3.50e-10");
+    expect(result).toContain("5.00e-11");
+
+    // P&L should be meaningful, not -100%
+    // SOME: (3.5e-10 - 2.48e-10) / 2.48e-10 = +41.1%
+    expect(result).toContain("+41.1%");
+    // OTHER: (5e-11 - 1.014e-10) / 1.014e-10 ≈ -50.7%
+    expect(result).toContain("-50.7%");
+
+    // Held durations
+    expect(result).toContain("held 6h");
+    expect(result).toContain("held 5h55m");
   });
 });
