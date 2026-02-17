@@ -101,6 +101,7 @@ export class ClankerSellNode extends BaseNode {
         value_wei: wethReceived,
         weth_received: wethReceived,
         eth_received: wethReceived,
+        ...(res.zeroBalance && { zeroBalance: true }),
       },
     };
   }
