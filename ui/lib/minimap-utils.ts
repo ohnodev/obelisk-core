@@ -199,7 +199,11 @@ function renderNodes(
   const byColor = new Map<string, Array<{ x: number; y: number; w: number; h: number }>>();
 
   for (const node of nodes) {
-    if (!node) continue;
+    if (
+      !node ||
+      !Array.isArray(node.pos) || node.pos.length < 2 ||
+      !Array.isArray(node.size) || node.size.length < 2
+    ) continue;
     const x = (node.pos[0] - bounds.minX) * scale + offsetX;
     const y = (node.pos[1] - bounds.minY) * scale + offsetY;
     const w = node.size[0] * scale;
