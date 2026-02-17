@@ -483,6 +483,9 @@ export async function executeSwap(
             await txApproveRetry.wait();
             const txRetry = await contract.cabalSellV4(token, actualBalance, fee, tick, hook, { gasLimit: 3_000_000n });
             const receiptRetry = await txRetry.wait();
+            if (receiptRetry?.status === 0) {
+              return { success: false, error: "Sell reverted on retry with adjusted balance", txHash: receiptRetry?.hash ?? txHash };
+            }
             const wethRetry = receiptRetry ? parseWethReceivedByAddress(receiptRetry as unknown as TransactionReceiptLike, wallet.address) : undefined;
             return { success: true, txHash: receiptRetry?.hash, wethReceived: wethRetry, ethReceived: wethRetry };
           }
