@@ -391,7 +391,8 @@ export async function executeSwap(
         return { success: true, txHash: receipt?.hash ?? sellTxHash, wethReceived, ethReceived: wethReceived };
       } catch (waitErr: unknown) {
         const waitMsg = waitErr instanceof Error ? waitErr.message : String(waitErr);
-        if (isInsufficientFundsError(waitMsg)) {
+        const isRevert = waitMsg.includes("CALL_EXCEPTION") || waitMsg.includes("execution reverted");
+        if (!isRevert && isInsufficientFundsError(waitMsg)) {
           await unwrapWethForGas(wallet);
           try {
             const txSell2 = await sendAndWait();
@@ -455,7 +456,8 @@ export async function executeSwap(
       txHash = res.txHash;
     } catch (sellErr: unknown) {
       const sellMsg = sellErr instanceof Error ? sellErr.message : String(sellErr);
-      if (isInsufficientFundsError(sellMsg)) {
+      const isRevert = sellMsg.includes("CALL_EXCEPTION") || sellMsg.includes("execution reverted");
+      if (!isRevert && isInsufficientFundsError(sellMsg)) {
         await unwrapWethForGas(wallet);
         try {
           const res = await doSell();
