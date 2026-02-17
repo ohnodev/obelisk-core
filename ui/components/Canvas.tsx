@@ -5,6 +5,7 @@ import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-ind
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
 import NodeMenu from "./NodeMenu";
 import MobileControls from "./MobileControls";
+import Minimap from "./Minimap";
 // LiteGraph CSS is imported in globals.css
 
 interface CanvasProps {
@@ -447,6 +448,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             imageRendering: "crisp-edges",
           }}
         />
+        <Minimap />
       </div>
       <NodeMenu
         visible={nodeMenuVisible}
