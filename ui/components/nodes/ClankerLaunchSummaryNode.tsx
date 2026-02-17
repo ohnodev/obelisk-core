@@ -36,7 +36,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
       this.setProperty("max_positions", value);
     }, { serialize: true });
 
-    this.size = [320, 200];
+    this.size = [320, 230];
     (this as any).type = "clanker_launch_summary";
     (this as any).resizable = true;
   }
