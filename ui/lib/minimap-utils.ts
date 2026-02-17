@@ -14,6 +14,15 @@ export interface SpatialBounds {
   height: number;
 }
 
+// ── Helpers ────────────────────────────────────────────────────────────
+
+/** Works for Array, Float32Array, and any indexable with .length */
+function isVec2(v: unknown): v is { 0: number; 1: number; length: number } {
+  if (!v || typeof v !== "object") return false;
+  const a = v as any;
+  return a.length >= 2 && typeof a[0] === "number" && typeof a[1] === "number";
+}
+
 // ── Bounds helpers ─────────────────────────────────────────────────────
 
 export function calculateNodeBounds(nodes: any[]): SpatialBounds | null {
@@ -25,20 +34,12 @@ export function calculateNodeBounds(nodes: any[]): SpatialBounds | null {
   let maxY = -Infinity;
 
   for (const node of nodes) {
-    if (!node) continue;
-    const p = node.pos;
-    const s = node.size;
-    if (
-      !Array.isArray(p) || p.length < 2 ||
-      typeof p[0] !== "number" || typeof p[1] !== "number" ||
-      !Array.isArray(s) || s.length < 2 ||
-      typeof s[0] !== "number" || typeof s[1] !== "number"
-    ) continue;
+    if (!node || !isVec2(node.pos) || !isVec2(node.size)) continue;
 
-    minX = Math.min(minX, p[0]);
-    minY = Math.min(minY, p[1]);
-    maxX = Math.max(maxX, p[0] + s[0]);
-    maxY = Math.max(maxY, p[1] + s[1]);
+    minX = Math.min(minX, node.pos[0]);
+    minY = Math.min(minY, node.pos[1]);
+    maxX = Math.max(maxX, node.pos[0] + node.size[0]);
+    maxY = Math.max(maxY, node.pos[1] + node.size[1]);
   }
 
   if (!Number.isFinite(minX)) return null;
@@ -101,11 +102,7 @@ function renderGroups(
   scale: number
 ) {
   for (const g of groups) {
-    if (
-      !g ||
-      !Array.isArray(g.pos) || g.pos.length < 2 ||
-      !Array.isArray(g.size) || g.size.length < 2
-    ) continue;
+    if (!g || !isVec2(g.pos) || !isVec2(g.size)) continue;
     const x = (g.pos[0] - bounds.minX) * scale + offsetX;
     const y = (g.pos[1] - bounds.minY) * scale + offsetY;
     const w = g.size[0] * scale;
@@ -150,10 +147,8 @@ function renderLinks(
     const tgt = nodeById.get((link as any).target_id);
     if (
       !src || !tgt ||
-      !Array.isArray(src.pos) || src.pos.length < 2 ||
-      !Array.isArray(src.size) || src.size.length < 2 ||
-      !Array.isArray(tgt.pos) || tgt.pos.length < 2 ||
-      !Array.isArray(tgt.size) || tgt.size.length < 2
+      !isVec2(src.pos) || !isVec2(src.size) ||
+      !isVec2(tgt.pos) || !isVec2(tgt.size)
     ) continue;
 
     const sx = (src.pos[0] - bounds.minX) * scale + offsetX;
@@ -198,11 +193,7 @@ function renderNodes(
   const byColor = new Map<string, Array<{ x: number; y: number; w: number; h: number }>>();
 
   for (const node of nodes) {
-    if (
-      !node ||
-      !Array.isArray(node.pos) || node.pos.length < 2 ||
-      !Array.isArray(node.size) || node.size.length < 2
-    ) continue;
+    if (!node || !isVec2(node.pos) || !isVec2(node.size)) continue;
     const x = (node.pos[0] - bounds.minX) * scale + offsetX;
     const y = (node.pos[1] - bounds.minY) * scale + offsetY;
     const w = node.size[0] * scale;
