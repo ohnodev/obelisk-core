@@ -84,7 +84,6 @@ export function calculateMinimapScale(
 // ── Dark-theme colors (our app is dark-only) ──────────────────────────
 
 const COLORS = {
-  node: "#0B8CE999",
   nodeDefault: "#353535",
   link: "#B3B3B3",
   slot: "#B3B3B3",
