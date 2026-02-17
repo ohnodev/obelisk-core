@@ -109,7 +109,12 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const limit =
       limitRaw != null && Number.isFinite(Number(limitRaw))
         ? Math.max(1, Math.min(100, Number(limitRaw)))
-        : 20;
+        : 5;
+    const maxPosRaw = this.getInputValue("max_positions", context, undefined);
+    const maxPositions =
+      maxPosRaw != null && Number.isFinite(Number(maxPosRaw))
+        ? Math.max(1, Math.min(50, Number(maxPosRaw)))
+        : 3;
 
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const bagsPath = resolveBagsPath(this, context);
@@ -118,6 +123,19 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       ? (state.recentLaunches as Record<string, unknown>[])
       : [];
     const { addresses: heldAddresses, holdings: heldTokens } = loadHeldTokens(bagsPath);
+
+    // Gate: if we already hold max positions, skip inference
+    if (heldTokens.length >= maxPositions) {
+      const holdingSummary = formatHoldingsSummary(heldTokens, tokens, Date.now());
+      logger.info(`[ClankerLaunchSummary] At max positions (${heldTokens.length}/${maxPositions}), skipping`);
+      return {
+        recent_launches: [],
+        summary: holdingSummary + `\nMax positions reached (${heldTokens.length}/${maxPositions}). Not looking for new buys.`,
+        count: 0,
+        text: holdingSummary,
+        has_tokens: false,
+      };
+    }
 
     const now = Date.now();
     const cutoff = now - windowHours * ONE_HOUR_MS;

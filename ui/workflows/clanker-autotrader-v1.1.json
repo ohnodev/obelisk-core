@@ -346,7 +346,20 @@
       "inputs": {},
       "metadata": {
         "window_hours": 1,
-        "limit": 10
+        "limit": 5,
+        "max_positions": 3
+      }
+    },
+    {
+      "id": "49",
+      "type": "text",
+      "position": {
+        "x": -177,
+        "y": 280
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.MAX_POSITIONS}}"
       }
     },
     {
@@ -564,6 +577,8 @@
     { "from": "41", "from_output": "state", "to": "38", "to_input": "state" },
     { "from": "38", "from_output": "response_body", "to": "39", "to_input": "body" },
     { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
-    { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" }
+    { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" },
+
+    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" }
   ]
 }
