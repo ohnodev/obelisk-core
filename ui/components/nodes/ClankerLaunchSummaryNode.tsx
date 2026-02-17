@@ -16,6 +16,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addInput("storage_instance", "object");
     this.addInput("limit", "number");
     this.addInput("window_hours", "number");
+    this.addInput("max_positions", "number");
     this.addOutput("recent_launches", "object");
     this.addOutput("summary", "string");
     this.addOutput("text", "string");
@@ -23,15 +24,19 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addOutput("has_tokens", "boolean");
 
     this.addProperty("window_hours", 1, "number");
-    this.addProperty("limit", 20, "number");
+    this.addProperty("limit", 5, "number");
+    this.addProperty("max_positions", 3, "number");
     this.addWidget("number", "window_hours", 1, (value: number) => {
       this.setProperty("window_hours", value);
     }, { serialize: true });
-    this.addWidget("number", "limit", 20, (value: number) => {
+    this.addWidget("number", "limit", 5, (value: number) => {
       this.setProperty("limit", value);
     }, { serialize: true });
+    this.addWidget("number", "max_positions", 3, (value: number) => {
+      this.setProperty("max_positions", value);
+    }, { serialize: true });
 
-    this.size = [320, 172];
+    this.size = [320, 230];
     (this as any).type = "clanker_launch_summary";
     (this as any).resizable = true;
   }
@@ -45,6 +50,10 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     }
     if (name === "limit") {
       const w = widgets.find((x: any) => x.name === "limit");
+      if (w) w.value = value;
+    }
+    if (name === "max_positions") {
+      const w = widgets.find((x: any) => x.name === "max_positions");
       if (w) w.value = value;
     }
   }

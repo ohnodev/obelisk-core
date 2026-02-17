@@ -67,7 +67,7 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "system_prompt": "You are a Clanker autotrader. You get a list of recent launches as Name (SYMBOL) with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the list. Do not use token_address. RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
+        "system_prompt": "You are a Clanker autotrader. You receive two sections: (1) your Current Holdings with buy price, current price, and P&L, and (2) Top Clanker candidates with volume and price deltas. Output ONLY one of two options: (1) one buy action for the single best token, or (2) no action. Use exact name or symbol from the candidates list. Do not use token_address. Do NOT buy any token you already hold. If you have 2+ open positions with negative P&L, be more selective — only buy on very strong signals (priceChange5m > 5% AND vol5m > 0.5 ETH). RULE: only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH. AMOUNT: You MUST always include amount_eth for every buy action. Use ETH only (e.g. 0.0005, 0.0007, 0.001), range 0.0005 to 0.001. Stronger signal = use more ETH toward 0.001; weaker = less toward 0.0005. Do not use wei. Output ONLY valid JSON. The actions value must be an array. Allowed action type for trading: only \"buy\". For \"no buy\" you MUST output an empty array — do NOT use any other action type. DO NOT use action \"no\", \"skip\", \"pass\", \"none\", or anything other than \"buy\"; the system only accepts buy or empty. Examples: (1) Buy: {\"actions\":[{\"action\":\"buy\",\"params\":{\"symbol\":\"STABLE\",\"amount_eth\":0.001}}]}. (2) No buy (CORRECT): {\"actions\":[]}. (3) No buy (WRONG — do not do this): {\"actions\":[{\"action\":\"no\",\"params\":{}}]} or {\"action\":\"skip\"}. For no buy always use {\"actions\":[]}. Always end with ]} when you have an actions array.",
         "enable_thinking": true
       }
     },
@@ -346,7 +346,20 @@
       "inputs": {},
       "metadata": {
         "window_hours": 1,
-        "limit": 10
+        "limit": 5,
+        "max_positions": 3
+      }
+    },
+    {
+      "id": "49",
+      "type": "text",
+      "position": {
+        "x": -177,
+        "y": 280
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.MAX_POSITIONS}}"
       }
     },
     {
@@ -564,6 +577,8 @@
     { "from": "41", "from_output": "state", "to": "38", "to_input": "state" },
     { "from": "38", "from_output": "response_body", "to": "39", "to_input": "body" },
     { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
-    { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" }
+    { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" },
+
+    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" }
   ]
 }
