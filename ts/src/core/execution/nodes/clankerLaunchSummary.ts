@@ -128,13 +128,14 @@ export class ClankerLaunchSummaryNode extends BaseNode {
 
     // Gate: if we already hold max positions, skip inference
     if (heldTokens.length >= maxPositions) {
-      const holdingSummary = formatHoldingsSummary(heldTokens, tokens, Date.now());
+      const fullSummary = formatHoldingsSummary(heldTokens, tokens, Date.now())
+        + `\nMax positions reached (${heldTokens.length}/${maxPositions}). Not looking for new buys.`;
       logger.info(`[ClankerLaunchSummary] At max positions (${heldTokens.length}/${maxPositions}), skipping`);
       return {
         recent_launches: [],
-        summary: holdingSummary + `\nMax positions reached (${heldTokens.length}/${maxPositions}). Not looking for new buys.`,
+        summary: fullSummary,
         count: 0,
-        text: holdingSummary,
+        text: fullSummary,
         has_tokens: false,
       };
     }
