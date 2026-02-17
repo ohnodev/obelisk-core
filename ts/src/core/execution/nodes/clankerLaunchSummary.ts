@@ -25,19 +25,65 @@ function getStr(v: unknown): string {
   return String(v).trim();
 }
 
-function loadHeldTokenAddresses(bagsPath: string): Set<string> {
-  const set = new Set<string>();
-  if (!bagsPath) return set;
+interface HeldToken {
+  address: string;
+  boughtAtPriceEth: number;
+  boughtAtTimestamp: number;
+  amountWei: string;
+}
+
+interface HeldTokensResult {
+  addresses: Set<string>;
+  holdings: HeldToken[];
+}
+
+function loadHeldTokens(bagsPath: string): HeldTokensResult {
+  const addresses = new Set<string>();
+  const holdings: HeldToken[] = [];
+  if (!bagsPath) return { addresses, holdings };
   try {
-    if (!fs.existsSync(bagsPath)) return set;
+    if (!fs.existsSync(bagsPath)) return { addresses, holdings };
     const raw = fs.readFileSync(bagsPath, "utf-8");
-    const bagState = JSON.parse(raw) as { holdings?: Record<string, unknown> };
-    const holdings = bagState?.holdings ?? {};
-    for (const addr of Object.keys(holdings)) set.add(addr.toLowerCase());
+    const bagState = JSON.parse(raw) as { holdings?: Record<string, Record<string, unknown>> };
+    const h = bagState?.holdings ?? {};
+    for (const [addr, data] of Object.entries(h)) {
+      const lc = addr.toLowerCase();
+      addresses.add(lc);
+      holdings.push({
+        address: lc,
+        boughtAtPriceEth: getNum(data?.boughtAtPriceEth),
+        boughtAtTimestamp: getNum(data?.boughtAtTimestamp),
+        amountWei: getStr(data?.amountWei) || "0",
+      });
+    }
   } catch {
     // ignore
   }
-  return set;
+  return { addresses, holdings };
+}
+
+export function formatHoldingsSummary(
+  holdings: HeldToken[],
+  tokens: Record<string, Record<string, unknown>>,
+  now: number
+): string {
+  if (holdings.length === 0) return "Current Holdings: none\n";
+
+  const lines = holdings.map((h) => {
+    const t = tokens[h.address] ?? {};
+    const name = getStr(t.name) || getStr(t.symbol) || h.address.slice(0, 10);
+    const symbol = getStr(t.symbol) || getStr(t.name) || "?";
+    const currentPrice = getNum(t.lastPrice);
+    const buyPrice = h.boughtAtPriceEth;
+    const pnl = buyPrice > 0 ? ((currentPrice - buyPrice) / buyPrice) * 100 : 0;
+    const pnlStr = pnl >= 0 ? `+${pnl.toFixed(1)}%` : `${pnl.toFixed(1)}%`;
+    const heldMs = now - h.boughtAtTimestamp;
+    const heldMin = Math.max(0, Math.floor(heldMs / 60_000));
+    const heldStr = heldMin >= 60 ? `${Math.floor(heldMin / 60)}h${heldMin % 60}m` : `${heldMin}m`;
+    return `- ${name} (${symbol}): bought ${buyPrice.toFixed(8)} ETH, now ${currentPrice.toFixed(8)} ETH, P&L: ${pnlStr}, held ${heldStr}`;
+  });
+
+  return `Current Holdings (${holdings.length} position${holdings.length !== 1 ? "s" : ""}):\n${lines.join("\n")}\n`;
 }
 
 export class ClankerLaunchSummaryNode extends BaseNode {
@@ -71,7 +117,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const recentLaunches = Array.isArray(state?.recentLaunches)
       ? (state.recentLaunches as Record<string, unknown>[])
       : [];
-    const heldAddresses = loadHeldTokenAddresses(bagsPath);
+    const { addresses: heldAddresses, holdings: heldTokens } = loadHeldTokens(bagsPath);
 
     const now = Date.now();
     const cutoff = now - windowHours * ONE_HOUR_MS;
@@ -127,6 +173,10 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       };
     });
 
+    // ── Holdings summary ──────────────────────────────────────────────
+    const holdingsSummary = formatHoldingsSummary(heldTokens, tokens, now);
+
+    // ── Candidates summary ───────────────────────────────────────────
     const lines = enriched.map(
       (e) => {
         const name = getStr(e.name) || getStr(e.symbol) || "?";
@@ -134,8 +184,8 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         return `- ${name} (${symbol}): vol24h=${getNum(e.volume24h).toFixed(4)}ETH vol1h=${getNum(e.volume1h).toFixed(4)}ETH vol5m=${getNum(e.volume5m).toFixed(4)}ETH vol1m=${getNum(e.volume1m).toFixed(4)}ETH makers=${getNum(e.totalMakers)} swaps=${getNum(e.totalSwaps)} priceChange1m=${getNum(e.priceChange1m)}% priceChange5m=${getNum(e.priceChange5m)}% priceChange1h=${getNum(e.priceChange1h)}%`;
       }
     );
-    const summary =
-      `Recent Clanker launches (past ${windowHours}h). Volumes in ETH; price deltas: 1m, 5m, 1h.\n` + (lines.length ? lines.join("\n") : "(none)");
+    const candidatesHeader = `Top ${limit} Clanker candidates (past ${windowHours}h). Volumes in ETH; price deltas: 1m, 5m, 1h.\n`;
+    const summary = holdingsSummary + "\n" + candidatesHeader + (lines.length ? lines.join("\n") : "(none)");
 
     const hasTokens = enriched.length > 0;
     return {

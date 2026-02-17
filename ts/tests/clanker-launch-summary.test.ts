@@ -1,9 +1,10 @@
 /**
  * Unit test: ClankerLaunchSummaryNode selects tokens launched in the past hour,
  * sorted by top volume, with 1m/5m/15m/30m/1h volume and price movement fields.
+ * Also tests formatHoldingsSummary for portfolio-aware LLM context.
  */
 import { describe, it, expect, beforeAll } from "vitest";
-import { ClankerLaunchSummaryNode } from "../src/core/execution/nodes/clankerLaunchSummary";
+import { ClankerLaunchSummaryNode, formatHoldingsSummary } from "../src/core/execution/nodes/clankerLaunchSummary";
 import { registerAllNodes } from "../src/core/execution/nodeRegistry";
 import type { NodeData } from "../src/core/types";
 import type { ExecutionContext } from "../src/core/execution/nodeBase";
@@ -165,10 +166,108 @@ describe("ClankerLaunchSummaryNode", () => {
       }
     }
 
-    expect(out.summary).toContain("Recent Clanker launches");
+    expect(out.summary).toContain("Top 2 Clanker candidates");
+    expect(out.summary).toContain("Current Holdings: none");
     expect(out.summary).toContain("vol1m=");
     expect(out.summary).toContain("priceChange1m=");
     expect(out.summary).toContain("priceChange5m=");
     expect(out.summary).toContain("priceChange1h=");
+  });
+});
+
+describe("formatHoldingsSummary", () => {
+  it("returns 'none' when there are no holdings", () => {
+    const result = formatHoldingsSummary([], {}, Date.now());
+    expect(result).toBe("Current Holdings: none\n");
+  });
+
+  it("formats a single holding with correct P&L", () => {
+    const now = Date.now();
+    const holdings = [
+      {
+        address: "0xaaa",
+        boughtAtPriceEth: 0.0001,
+        boughtAtTimestamp: now - 5 * 60_000, // 5 min ago
+        amountWei: "1000000000000000000",
+      },
+    ];
+    const tokens: Record<string, Record<string, unknown>> = {
+      "0xaaa": { name: "TestToken", symbol: "TST", lastPrice: 0.00015 },
+    };
+    const result = formatHoldingsSummary(holdings, tokens, now);
+
+    expect(result).toContain("Current Holdings (1 position):");
+    expect(result).toContain("TestToken (TST)");
+    expect(result).toContain("bought 0.00010000 ETH");
+    expect(result).toContain("now 0.00015000 ETH");
+    expect(result).toContain("+50.0%");
+    expect(result).toContain("held 5m");
+  });
+
+  it("formats negative P&L correctly", () => {
+    const now = Date.now();
+    const holdings = [
+      {
+        address: "0xbbb",
+        boughtAtPriceEth: 0.0002,
+        boughtAtTimestamp: now - 90 * 60_000, // 1h30m ago
+        amountWei: "500000000000000000",
+      },
+    ];
+    const tokens: Record<string, Record<string, unknown>> = {
+      "0xbbb": { name: "Loser", symbol: "LOSE", lastPrice: 0.0001 },
+    };
+    const result = formatHoldingsSummary(holdings, tokens, now);
+
+    expect(result).toContain("Current Holdings (1 position):");
+    expect(result).toContain("-50.0%");
+    expect(result).toContain("held 1h30m");
+  });
+
+  it("formats multiple holdings with plural label", () => {
+    const now = Date.now();
+    const holdings = [
+      {
+        address: "0xaaa",
+        boughtAtPriceEth: 0.0001,
+        boughtAtTimestamp: now - 3 * 60_000,
+        amountWei: "1000000000000000000",
+      },
+      {
+        address: "0xbbb",
+        boughtAtPriceEth: 0.0002,
+        boughtAtTimestamp: now - 10 * 60_000,
+        amountWei: "500000000000000000",
+      },
+    ];
+    const tokens: Record<string, Record<string, unknown>> = {
+      "0xaaa": { name: "Alpha", symbol: "ALPH", lastPrice: 0.00012 },
+      "0xbbb": { name: "Beta", symbol: "BETA", lastPrice: 0.00018 },
+    };
+    const result = formatHoldingsSummary(holdings, tokens, now);
+
+    expect(result).toContain("Current Holdings (2 positions):");
+    expect(result).toContain("Alpha (ALPH)");
+    expect(result).toContain("Beta (BETA)");
+  });
+
+  it("handles missing token data gracefully", () => {
+    const now = Date.now();
+    const holdings = [
+      {
+        address: "0xunknown",
+        boughtAtPriceEth: 0.0001,
+        boughtAtTimestamp: now - 2 * 60_000,
+        amountWei: "1000000000000000000",
+      },
+    ];
+    const result = formatHoldingsSummary(holdings, {}, now);
+
+    expect(result).toContain("Current Holdings (1 position):");
+    // Falls back to truncated address
+    expect(result).toContain("0xunknown");
+    expect(result).toContain("now 0.00000000 ETH");
+    // With 0 current price and 0.0001 buy price => -100% P&L
+    expect(result).toContain("-100.0%");
   });
 });
