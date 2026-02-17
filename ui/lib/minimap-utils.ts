@@ -102,7 +102,11 @@ function renderGroups(
   scale: number
 ) {
   for (const g of groups) {
-    if (!g) continue;
+    if (
+      !g ||
+      !Array.isArray(g.pos) || g.pos.length < 2 ||
+      !Array.isArray(g.size) || g.size.length < 2
+    ) continue;
     const x = (g.pos[0] - bounds.minX) * scale + offsetX;
     const y = (g.pos[1] - bounds.minY) * scale + offsetY;
     const w = g.size[0] * scale;
