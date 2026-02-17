@@ -17,11 +17,15 @@ export class UpdateBagsOnSellNode extends BaseNode {
     const resolvedBagPath = resolveBagsPath(this, context);
     if (!resolvedBagPath) return { success: false, error: "clanker_storage_path or base_path or storage_instance required" };
 
-    if (!sellResult?.success || !sellResult?.token_address) {
+    // Remove holding on successful sell OR when wallet has zero token balance
+    if ((!sellResult?.success && !sellResult?.zeroBalance) || !sellResult?.token_address) {
       return { success: true };
     }
 
     const tokenAddress = String(sellResult.token_address).toLowerCase();
+    if (sellResult.zeroBalance) {
+      logger.info(`[UpdateBagsOnSell] Removing ${tokenAddress} — zero on-chain balance`);
+    }
     // Load existing bags from storage first; only start fresh if file missing
     let bagState: ClankerBagState = { lastUpdated: 0, holdings: {} };
     if (fs.existsSync(resolvedBagPath)) {

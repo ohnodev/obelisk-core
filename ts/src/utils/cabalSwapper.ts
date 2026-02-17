@@ -242,6 +242,8 @@ export interface SwapExecuteResult {
   wethReceived?: string;
   /** @deprecated Use wethReceived. Same value – Clanker gives WETH. */
   ethReceived?: string;
+  /** True when the wallet holds zero tokens — the holding should be removed from bags. */
+  zeroBalance?: boolean;
 }
 
 function createWallet(privateKey: string, rpcUrl: string): ethers.Wallet {
@@ -337,19 +339,38 @@ export async function executeSwap(
       return { success: true, txHash: receipt?.hash ?? undefined, tokensReceived };
     }
 
+    // ── Sell path: check actual on-chain token balance to handle transfer-tax tokens ──
+    let sellAmount = amount;
+    try {
+      const balContract = new ethers.Contract(
+        token,
+        ["function balanceOf(address) view returns (uint256)"],
+        wallet.provider
+      );
+      const actualBalance: bigint = await balContract.balanceOf(wallet.address);
+      if (actualBalance === 0n) {
+        return { success: false, error: "Zero token balance — nothing to sell", zeroBalance: true };
+      }
+      if (actualBalance < amount) {
+        sellAmount = actualBalance;
+      }
+    } catch {
+      // Cannot read balance; proceed with stored amount
+    }
+
     if (isWethPool(currency0, currency1)) {
       const tokenContract = new ethers.Contract(
         token,
         ["function approve(address spender, uint256 amount) returns (bool)"],
         wallet
       );
-      const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, amount);
+      const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, sellAmount);
       await txApprove.wait();
       // Send sell tx with fixed gas so it's broadcast even if estimateGas would revert (so you can trace the revert)
       const populated = await contract.cabalSellV4WithPool.populateTransaction(
         currency0!,
         currency1!,
-        amount,
+        sellAmount,
         fee,
         tick,
         hook
@@ -415,10 +436,10 @@ export async function executeSwap(
       ["function approve(address spender, uint256 amount) returns (bool)"],
       wallet
     );
-    const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, amount);
+    const txApprove = await tokenContract.approve(CABAL_SWAPPER_ADDRESS, sellAmount);
     await txApprove.wait();
     const doSell = async (): Promise<{ receipt: ethers.TransactionReceipt | null; txHash: string | undefined }> => {
-      const tx = await contract.cabalSellV4(token, amount, fee, tick, hook, { gasLimit: 3_000_000n });
+      const tx = await contract.cabalSellV4(token, sellAmount, fee, tick, hook, { gasLimit: 3_000_000n });
       const receipt = await tx.wait();
       return { receipt: receipt as ethers.TransactionReceipt | null, txHash: receipt?.hash ?? undefined };
     };

@@ -80,7 +80,7 @@ export class ClankerSellNode extends BaseNode {
       logger.warn(`[ClankerSell] Sell failed: ${result.error}`);
     }
 
-    const res = result as { wethReceived?: string; ethReceived?: string };
+    const res = result as { wethReceived?: string; ethReceived?: string; zeroBalance?: boolean };
     const wethReceived = res.wethReceived ?? res.ethReceived;
     return {
       success: result.success,
@@ -91,6 +91,7 @@ export class ClankerSellNode extends BaseNode {
       value_wei: wethReceived ?? undefined,
       weth_received: wethReceived ?? undefined,
       eth_received: wethReceived ?? undefined,
+      ...(res.zeroBalance && { zeroBalance: true }),
       result: {
         success: result.success,
         txHash: result.txHash,
