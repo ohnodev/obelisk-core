@@ -210,8 +210,14 @@ export class ClankerBuyNode extends BaseNode {
     }
 
     // ── No-rebuy cooldown check ──
-    const rawCooldown = this.getInputValue("rebuy_cooldown_minutes", context, undefined) ?? this.metadata.rebuy_cooldown_minutes;
-    const cooldownMinutes = rawCooldown != null ? getNum(rawCooldown) : DEFAULT_COOLDOWN_MINUTES;
+    const rawInput = this.getInputValue("rebuy_cooldown_minutes", context, undefined);
+    const rawMeta = this.metadata.rebuy_cooldown_minutes;
+    const rawCooldown = rawInput ?? rawMeta;
+    let cooldownMinutes = DEFAULT_COOLDOWN_MINUTES;
+    if (rawCooldown != null && String(rawCooldown).trim() !== "") {
+      const parsed = Number(rawCooldown);
+      cooldownMinutes = Number.isFinite(parsed) ? parsed : DEFAULT_COOLDOWN_MINUTES;
+    }
     const actionsPath = resolveActionsPath(this, context);
     if (actionsPath && cooldownMinutes > 0) {
       const cd = checkCooldown(actionsPath, tokenAddress, cooldownMinutes * 60_000);
