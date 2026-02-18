@@ -94,7 +94,7 @@ app.get("/clanker/token/:address", (req, res) => {
   res.json(token);
 });
 
-app.get("/eth-price", (_req, res) => {
+app.get("/eth-price", verifyApiKey, (_req, res) => {
   res.json(ethPrice.getPrice());
 });
 
