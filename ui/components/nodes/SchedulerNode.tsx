@@ -14,8 +14,10 @@ class SchedulerNode extends LGraphNode {
     super();
     this.title = "Scheduler";
     
-    // No inputs - scheduler is autonomous
-    
+    // Inputs (optional — wire a Text node to override metadata defaults)
+    this.addInput("min_seconds", "string,number");
+    this.addInput("max_seconds", "string,number");
+
     // Outputs
     this.addOutput("trigger", "boolean");
     this.addOutput("tick_count", "number");
