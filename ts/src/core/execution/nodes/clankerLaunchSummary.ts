@@ -72,6 +72,7 @@ function loadHeldTokens(bagsPath: string): HeldTokensResult {
 interface ActionEntry {
   type: string;
   tokenAddress?: string;
+  amountWei?: string;
   valueWei?: string;
   costWei?: string;
   costEth?: number;
@@ -108,14 +109,18 @@ function loadRecentActions(actionsPath: string, maxActions: number): ActionEntry
       } else if (t.type === "sell" && t.pnlEth == null) {
         const buy = lastBuyByToken.get(addr);
         if (buy) {
-          const costEth = buy.costWei
+          const buyCostEth = buy.costWei
             ? Number(buy.costWei) / ETH_WEI
             : buy.valueWei
               ? Number(buy.valueWei) / ETH_WEI
               : 0;
+          // Pro-rate buy cost for partial sells
+          const buyAmt = buy.amountWei ? Number(buy.amountWei) : 0;
+          const sellAmt = t.amountWei ? Number(t.amountWei) : 0;
+          const fraction = buyAmt > 0 && sellAmt > 0 ? sellAmt / buyAmt : 1;
+          const proratedCostEth = buyCostEth * Math.min(fraction, 1);
           const receivedEth = t.valueWei ? Number(t.valueWei) / ETH_WEI : 0;
-          t.pnlEth = receivedEth - costEth;
-          // Propagate name/symbol from buy if sell doesn't have it
+          t.pnlEth = receivedEth - proratedCostEth;
           if (!t.name && buy.name) t.name = buy.name;
           if (!t.symbol && buy.symbol) t.symbol = buy.symbol;
         }
