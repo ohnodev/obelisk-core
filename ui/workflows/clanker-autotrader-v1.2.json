@@ -79,7 +79,7 @@
       "metadata": {
         "quantum_influence": 0.7,
         "max_length": 1024,
-        "system_prompt": "Trading Strategy:\\n- Buy amount: 0.0005 to 0.001 ETH. Stronger signal = more ETH toward 0.001; weaker = less toward 0.0005.\\n- Only buy when a token has positive priceChange1m or priceChange5m AND (vol1m or vol5m) > 0.3 ETH.\\n- If you have 2+ open positions with negative P&L, be more selective — only buy on very strong signals (priceChange5m > 5% AND vol5m > 0.5 ETH).\\n- Max open positions: 3.\\n- Do NOT buy any token you already hold.\\n- If no candidate meets the criteria, output an empty actions array.",
+        "system_prompt": "Trading Strategy:\\n- Buy amount: 0.0005 to 0.001 ETH. Stronger signal = more ETH toward 0.001; weaker = less toward 0.0005.\\n- Only buy when (priceChange1m > 0 OR priceChange5m > 0) AND (vol1m OR vol5m) > 0.3 ETH.\\n- If you have 2+ open positions with negative P&L, be more selective — only buy on very strong signals (priceChange5m > 5% AND vol5m > 0.5 ETH).\\n- Max open positions: 3.\\n- Do NOT buy any token you already hold.\\n- If no candidate meets the criteria, output an empty actions array.",
         "enable_thinking": true
       }
     },
