@@ -107,7 +107,7 @@
       },
       "inputs": {},
       "metadata": {
-        "endpoint_url": "http://localhost:7780",
+        "endpoint_url": "https://router.theobelisk.ai",
         "use_default": true,
         "model_path": "models/default_model",
         "auto_load": true
