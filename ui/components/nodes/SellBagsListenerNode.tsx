@@ -13,8 +13,8 @@ class SellBagsListenerNode extends LGraphNode {
 
     this.addInput("express_service", "object");
 
-    this.addOutput("trigger", "boolean");
     this.addOutput("request_id", "string");
+    this.addOutput("trigger", "boolean");
     this.addOutput("path", "string");
     this.addOutput("method", "string");
 
