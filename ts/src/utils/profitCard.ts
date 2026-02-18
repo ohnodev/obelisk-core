@@ -169,7 +169,7 @@ export async function generateProfitCard(data: ProfitCardData): Promise<Buffer> 
   ctx.textBaseline = "alphabetic";
   ctx.font = `bold 28px "TT Hoves"`;
   ctx.fillStyle = accentColor;
-  const tokenLabel = `${data.tokenName}/${data.chain}`;
+  const tokenLabel = `${data.tokenName}/ETH`;
   ctx.fillText(tokenLabel, leftMargin, 75);
 
   const tokenWidth = ctx.measureText(tokenLabel).width;
