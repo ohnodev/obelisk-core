@@ -84,22 +84,6 @@ export class SchedulerNode extends BaseNode {
   onTick(_context: ExecutionContext): Record<string, unknown> | null {
     if (!this._enabled) return null;
 
-    // Re-read interval from inputs so wired values take effect dynamically
-    const minInput = this.getInputValue("min_seconds", _context, undefined);
-    const maxInput = this.getInputValue("max_seconds", _context, undefined);
-    if (minInput != null) {
-      const v = Number(minInput);
-      if (Number.isFinite(v) && v > 0 && v !== this._minSeconds) {
-        this._minSeconds = v;
-      }
-    }
-    if (maxInput != null) {
-      const v = Number(maxInput);
-      if (Number.isFinite(v) && v > 0 && v !== this._maxSeconds) {
-        this._maxSeconds = v;
-      }
-    }
-
     const now = Date.now() / 1000;
     const elapsed = now - this._lastFireTime;
 
