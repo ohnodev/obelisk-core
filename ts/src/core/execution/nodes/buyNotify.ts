@@ -1,6 +1,6 @@
 /**
- * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification to Telegram.
- * Formatted with token name/symbol, cost (ETH), optional MC at buy (from state), and Basescan tx link.
+ * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification to Telegram
+ * with a shareable profit card image.
  *
  * Inputs: buy_result (from Clanker Buy), state (optional; for MC and token name/symbol), chat_id,
  *         bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
@@ -11,6 +11,8 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { Config } from "../../config";
 import { getLogger } from "../../../utils/logger";
 import { getTelegramBotToken } from "../../../utils/telegram";
+import { fetchEthUsdPrice } from "../../../utils/ethPrice";
+import { generateProfitCard, type ProfitCardData } from "../../../utils/profitCard";
 
 const logger = getLogger("buyNotify");
 const BASESCAN_TX = "https://basescan.org/tx";
@@ -89,6 +91,45 @@ async function sendTelegramMessage(
   }
 }
 
+async function sendTelegramPhoto(
+  botToken: string,
+  chatId: string,
+  imageBuffer: Buffer,
+  caption: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!botToken || !chatId.trim()) {
+    return { ok: false, error: "missing bot_token or chat_id" };
+  }
+  const url = `${TELEGRAM_API}${botToken}/sendPhoto`;
+  const form = new FormData();
+  form.append("chat_id", chatId.trim());
+  form.append("photo", new Blob([imageBuffer], { type: "image/png" }), "profit-card.png");
+  form.append("caption", caption);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(url, { method: "POST", body: form, signal: controller.signal });
+    let data: { ok?: boolean; description?: string };
+    try {
+      data = (await res.json()) as { ok?: boolean; description?: string };
+    } catch (parseErr) {
+      const msg = safeErrorMessage(parseErr);
+      logger.warn(`[BuyNotify] Telegram photo response not JSON: ${msg}`);
+      return { ok: false, error: `invalid response: ${msg}` };
+    }
+    if (data?.ok) return { ok: true };
+    const err = data?.description ?? `HTTP ${res.status}`;
+    logger.warn(`[BuyNotify] Telegram sendPhoto failed: ${err}`);
+    return { ok: false, error: err };
+  } catch (e) {
+    const msg = safeErrorMessage(e);
+    logger.error(`[BuyNotify] Telegram photo fetch failed: ${msg}`);
+    return { ok: false, error: msg };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function getNum(v: unknown): number {
   if (v == null) return 0;
   const n = Number(v);
@@ -142,20 +183,42 @@ export class BuyNotifyNode extends BaseNode {
     let sent = false;
     let error: string | undefined;
     if (success && txHash) {
-      const costEth = formatEth(valueWei);
+      const costEthStr = formatEth(valueWei);
+      const costEthNum = Number(valueWei) / 1e18;
       const txUrl = `${BASESCAN_TX}/${txHash}`;
       const mcStr = formatMcEth(state, tokenAddress);
-      const lines = [
+
+      const caption = [
         `🟢 Bought ${tokenLabel}`,
-        `Cost: ${costEth} ETH`,
+        `Cost: ${costEthStr} ETH`,
         ...(tokenAddress ? [`CA: ${tokenAddress}`] : []),
         ...(mcStr ? [`MC: ${mcStr} ETH`] : []),
         `Tx: ${txUrl}`,
-      ];
-      const text = lines.join("\n");
-      const result = await sendTelegramMessage(botToken, chatId, text);
-      sent = result.ok;
-      error = result.error;
+      ].join("\n");
+
+      let ethUsdPrice = 0;
+      try { ethUsdPrice = await fetchEthUsdPrice(); } catch { /* non-critical */ }
+
+      try {
+        const cardData: ProfitCardData = {
+          tokenName: symbol || name || "TOKEN",
+          chain: "BASE",
+          action: "BUY",
+          profitPercent: 0,
+          initialEth: costEthNum,
+          positionEth: costEthNum,
+          ...(ethUsdPrice > 0 ? { ethUsdPrice } : {}),
+        };
+        const imageBuffer = await generateProfitCard(cardData);
+        const photoResult = await sendTelegramPhoto(botToken, chatId, imageBuffer, caption);
+        sent = photoResult.ok;
+        error = photoResult.error;
+      } catch (cardErr) {
+        logger.warn(`[BuyNotify] Profit card generation failed, falling back to text: ${safeErrorMessage(cardErr)}`);
+        const textResult = await sendTelegramMessage(botToken, chatId, caption);
+        sent = textResult.ok;
+        error = textResult.error;
+      }
     }
 
     return {
