@@ -30,8 +30,9 @@ export class SchedulerNode extends BaseNode {
     super(nodeId, nodeData);
 
     const meta = this.metadata;
-    let minRaw = Number(meta.min_seconds ?? meta.interval_seconds ?? 60);
-    let maxRaw = Number(meta.max_seconds ?? meta.interval_seconds ?? 60);
+    // Resolve {{process.env.X}} templates before parsing as numbers
+    let minRaw = Number(this.resolveEnvVar(meta.min_seconds ?? meta.interval_seconds) ?? 60);
+    let maxRaw = Number(this.resolveEnvVar(meta.max_seconds ?? meta.interval_seconds) ?? 60);
     this._enabled = meta.enabled !== false;
 
     // Sanitize: fall back to sane defaults for NaN / Infinity
