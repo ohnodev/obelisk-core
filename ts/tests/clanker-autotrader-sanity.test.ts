@@ -1,6 +1,6 @@
 /**
  * Sanity test for the Clanker autotrader workflow.
- * Loads clanker-autotrader-v1.1.json, converts it, and runs it once to verify
+ * Loads clanker-autotrader-v1.2.json, converts it, and runs it once to verify
  * the workflow starts and key nodes execute (Wallet, Balance Checker, Boolean Logic,
  * Blockchain Config, Clanker Launch Summary, etc.). Uses .env from obelisk-core and
  * blockchain-service so RPC_URL, SWAP_PRIVATE_KEY, TELEGRAM_*, etc. are available.
@@ -34,7 +34,7 @@ beforeAll(() => {
 });
 
 const workflowsDir = path.join(__dirname, "../../ui/workflows");
-const WORKFLOW_FILE = "clanker-autotrader-v1.1.json";
+const WORKFLOW_FILE = "clanker-autotrader-v1.2.json";
 
 function loadClankerWorkflow(): Record<string, unknown> {
   const p = path.join(workflowsDir, WORKFLOW_FILE);
@@ -93,7 +93,7 @@ describe("Clanker autotrader workflow sanity", () => {
     expect(executedIds.has("10")).toBe(true); // memory_storage
     expect(executedIds.has("22")).toBe(true); // balance_checker
     expect(executedIds.has("23")).toBe(true); // boolean_logic
-    expect(executedIds.has("14")).toBe(true); // scheduler (60s, v1.1)
+    expect(executedIds.has("14")).toBe(true); // scheduler (v1.2)
     expect(executedIds.has("3")).toBe(true); // clanker_launch_summary
 
     vi.restoreAllMocks();
