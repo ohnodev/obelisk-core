@@ -4,14 +4,17 @@
  * Pool params (pool_fee, tick_spacing, hook_address, currency0, currency1) are
  * resolved from the cached Clanker state (connect state from Blockchain Config).
  */
+import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
 import { executeSwap } from "../../../utils/cabalSwapper";
+import { resolveActionsPath } from "./clankerStoragePath";
 
 const logger = getLogger("clankerBuy");
 
 const DEFAULT_AMOUNT_WEI = "1000000000000000"; // 0.001 ETH
 const DEFAULT_RPC_URL = "https://mainnet.base.org";
+const DEFAULT_COOLDOWN_MINUTES = 30;
 
 function getActions(value: unknown): Array<{ action: string; params: Record<string, unknown> }> {
   if (!Array.isArray(value)) return [];
@@ -51,6 +54,36 @@ function ethToWei(eth: unknown): string {
   const combined = intPart + fracPart;
   if (combined === "0" || /^0+$/.test(combined)) return "0";
   return BigInt(combined).toString();
+}
+
+/**
+ * Check if a token was bought or sold within the cooldown window.
+ * Returns the minutes since last trade, or null if no recent trade found.
+ */
+function checkCooldown(actionsPath: string, tokenAddress: string, cooldownMs: number): { onCooldown: boolean; minutesAgo: number } | null {
+  if (!actionsPath || !tokenAddress) return null;
+  try {
+    if (!fs.existsSync(actionsPath)) return null;
+    const raw = fs.readFileSync(actionsPath, "utf-8");
+    const data = JSON.parse(raw);
+    const list: Array<{ type?: string; tokenAddress?: string; timestamp?: number }> = Array.isArray(data) ? data : (data?.actions ?? []);
+    const addr = tokenAddress.toLowerCase();
+    const now = Date.now();
+    for (let i = list.length - 1; i >= 0; i--) {
+      const entry = list[i];
+      if (!entry || !entry.tokenAddress || !entry.timestamp) continue;
+      if (entry.tokenAddress.toLowerCase() !== addr) continue;
+      if (entry.type !== "buy" && entry.type !== "sell") continue;
+      const elapsed = now - entry.timestamp;
+      if (elapsed < cooldownMs) {
+        return { onCooldown: true, minutesAgo: Math.round(elapsed / 60_000) };
+      }
+      return null;
+    }
+  } catch (err) {
+    logger.debug(`[ClankerBuy] Failed to read actions for cooldown check (${tokenAddress}): ${err instanceof Error ? err.message : err}`);
+  }
+  return null;
 }
 
 /** Find token in state by address, or by name/symbol (case-insensitive). */
@@ -174,6 +207,30 @@ export class ClankerBuyNode extends BaseNode {
 
     if (!/^0x[a-fA-F0-9]{40}$/.test(tokenAddress)) {
       return { success: false, error: "Resolved token address invalid", txHash: undefined, token_address: tokenAddress };
+    }
+
+    // ── No-rebuy cooldown check ──
+    const rawInput = this.getInputValue("rebuy_cooldown_minutes", context, undefined);
+    const rawMeta = this.metadata.rebuy_cooldown_minutes;
+    const rawCooldown = rawInput ?? rawMeta;
+    let cooldownMinutes = DEFAULT_COOLDOWN_MINUTES;
+    if (rawCooldown != null && String(rawCooldown).trim() !== "") {
+      const parsed = Number(rawCooldown);
+      cooldownMinutes = Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_COOLDOWN_MINUTES;
+    }
+    const actionsPath = resolveActionsPath(this, context);
+    if (actionsPath && cooldownMinutes > 0) {
+      const cd = checkCooldown(actionsPath, tokenAddress, cooldownMinutes * 60_000);
+      if (cd?.onCooldown) {
+        logger.info(`[ClankerBuy] Token ${tokenAddress} on cooldown (traded ${cd.minutesAgo}m ago, cooldown=${cooldownMinutes}m) — skipping`);
+        return {
+          success: false,
+          error: `Token on cooldown (traded ${cd.minutesAgo}m ago, cooldown ${cooldownMinutes}m)`,
+          skipped: true,
+          txHash: undefined,
+          token_address: tokenAddress,
+        };
+      }
     }
 
     const result = await executeSwap(
