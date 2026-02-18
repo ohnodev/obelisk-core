@@ -80,8 +80,8 @@ function checkCooldown(actionsPath: string, tokenAddress: string, cooldownMs: nu
       }
       return null;
     }
-  } catch {
-    // If we can't read actions, don't block the buy
+  } catch (err) {
+    logger.debug(`[ClankerBuy] Failed to read actions for cooldown check (${tokenAddress}): ${err instanceof Error ? err.message : err}`);
   }
   return null;
 }
@@ -210,10 +210,8 @@ export class ClankerBuyNode extends BaseNode {
     }
 
     // ── No-rebuy cooldown check ──
-    const cooldownMinutes = getNum(
-      this.getInputValue("rebuy_cooldown_minutes", context, undefined) ??
-      this.metadata.rebuy_cooldown_minutes
-    ) || DEFAULT_COOLDOWN_MINUTES;
+    const rawCooldown = this.getInputValue("rebuy_cooldown_minutes", context, undefined) ?? this.metadata.rebuy_cooldown_minutes;
+    const cooldownMinutes = rawCooldown != null ? getNum(rawCooldown) : DEFAULT_COOLDOWN_MINUTES;
     const actionsPath = resolveActionsPath(this, context);
     if (actionsPath && cooldownMinutes > 0) {
       const cd = checkCooldown(actionsPath, tokenAddress, cooldownMinutes * 60_000);
