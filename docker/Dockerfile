@@ -8,6 +8,12 @@ FROM node:20-slim AS build
 
 WORKDIR /build
 
+# Native libs needed to compile node-canvas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3 pkg-config \
+    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+  && rm -rf /var/lib/apt/lists/*
+
 # Copy package manifests
 COPY ts/package.json ts/package-lock.json* ./
 
@@ -26,12 +32,21 @@ FROM node:20-slim
 
 WORKDIR /app
 
+# Runtime libs for node-canvas (no build tools needed)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
+    libjpeg62-turbo libgif7 librsvg2-2 \
+  && rm -rf /var/lib/apt/lists/*
+
 # Copy package manifests and install production deps only
 COPY ts/package.json ts/package-lock.json* ./
 RUN npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 
 # Copy compiled JS from build stage
 COPY --from=build /build/dist ./dist
+
+# Copy profit card assets (background image + fonts)
+COPY assets/ ./assets/
 
 # Copy entrypoint
 COPY docker/entrypoint.js .
@@ -47,6 +62,7 @@ RUN groupadd --system obelisk \
 # Environment variables
 ENV NODE_ENV=production
 ENV OBELISK_LOG_LEVEL=INFO
+ENV DEEPENTRY_ASSETS_DIR=/app/assets/deepentry
 
 # The workflow JSON is passed via WORKFLOW_JSON env var
 # Or mounted as a file at /app/workflows/workflow.json
