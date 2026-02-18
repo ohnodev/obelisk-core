@@ -15,16 +15,10 @@ export class InferenceConfigNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const endpointUrl =
       (this.metadata.endpoint_url as string) || "";
-    const useDefault =
-      (this.metadata.use_default as boolean) ?? true;
 
-    // Resolve endpoint
-    let resolvedUrl: string;
-    if (useDefault || !endpointUrl) {
-      resolvedUrl = InferenceClient.DEFAULT_ENDPOINT;
-    } else {
-      resolvedUrl = endpointUrl;
-    }
+    // Workflow metadata endpoint_url always wins when set;
+    // fall back to env var / hardcoded default only when absent.
+    const resolvedUrl = endpointUrl || InferenceClient.DEFAULT_ENDPOINT;
 
     // Resolve API key from metadata override or environment default
     const apiKey =
