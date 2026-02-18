@@ -211,8 +211,14 @@ export class BuyNotifyNode extends BaseNode {
         };
         const imageBuffer = await generateProfitCard(cardData);
         const photoResult = await sendTelegramPhoto(botToken, chatId, imageBuffer, caption);
-        sent = photoResult.ok;
-        error = photoResult.error;
+        if (photoResult.ok) {
+          sent = true;
+        } else {
+          logger.warn(`[BuyNotify] Photo send failed (${photoResult.error}), falling back to text`);
+          const textResult = await sendTelegramMessage(botToken, chatId, caption);
+          sent = textResult.ok;
+          error = textResult.error;
+        }
       } catch (cardErr) {
         logger.warn(`[BuyNotify] Profit card generation failed, falling back to text: ${safeErrorMessage(cardErr)}`);
         const textResult = await sendTelegramMessage(botToken, chatId, caption);

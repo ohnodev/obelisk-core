@@ -13,27 +13,33 @@ const ASSETS_DIR = path.join(__dirname, "../../../assets/deepentry");
 const FONTS_DIR = path.join(ASSETS_DIR, "tt_hoves_pro");
 const BG_IMAGE = path.join(ASSETS_DIR, "profit-card-v1.jpg");
 
-// ── Register fonts ────────────────────────────────────────────────
-registerFont(path.join(FONTS_DIR, "TT Hoves Pro Trial Bold.ttf"), {
-  family: "TT Hoves",
-  weight: "bold",
-});
-registerFont(path.join(FONTS_DIR, "TT Hoves Pro Trial Medium.ttf"), {
-  family: "TT Hoves",
-  weight: "500",
-});
-registerFont(path.join(FONTS_DIR, "TT Hoves Pro Trial Regular.ttf"), {
-  family: "TT Hoves",
-  weight: "normal",
-});
-registerFont(path.join(FONTS_DIR, "TT Hoves Pro Trial ExtraBold.ttf"), {
-  family: "TT Hoves",
-  weight: "800",
-});
-registerFont(path.join(FONTS_DIR, "TT Hoves Pro Trial Black.ttf"), {
-  family: "TT Hoves",
-  weight: "900",
-});
+// ── Lazy font registration + background cache ────────────────────
+let fontsRegistered = false;
+let cachedBgPromise: ReturnType<typeof loadImage> | null = null;
+
+function ensureFontsRegistered(): void {
+  if (fontsRegistered) return;
+  fontsRegistered = true;
+  const fonts: Array<[string, { family: string; weight: string }]> = [
+    ["TT Hoves Pro Trial Bold.ttf", { family: "TT Hoves", weight: "bold" }],
+    ["TT Hoves Pro Trial Medium.ttf", { family: "TT Hoves", weight: "500" }],
+    ["TT Hoves Pro Trial Regular.ttf", { family: "TT Hoves", weight: "normal" }],
+    ["TT Hoves Pro Trial ExtraBold.ttf", { family: "TT Hoves", weight: "800" }],
+    ["TT Hoves Pro Trial Black.ttf", { family: "TT Hoves", weight: "900" }],
+  ];
+  for (const [file, opts] of fonts) {
+    try {
+      registerFont(path.join(FONTS_DIR, file), opts);
+    } catch {
+      // Font missing — canvas will fall back to system fonts
+    }
+  }
+}
+
+function loadBackground(): ReturnType<typeof loadImage> {
+  if (!cachedBgPromise) cachedBgPromise = loadImage(BG_IMAGE);
+  return cachedBgPromise;
+}
 
 // ── Colors ────────────────────────────────────────────────────────
 const GREEN = "#BDFF00";
@@ -121,11 +127,12 @@ function drawPill(
 
 // ── Main generator ────────────────────────────────────────────────
 export async function generateProfitCard(data: ProfitCardData): Promise<Buffer> {
+  ensureFontsRegistered();
   const canvas = createCanvas(WIDTH, HEIGHT);
   const ctx = canvas.getContext("2d");
 
-  // 1. Draw background image
-  const bg = await loadImage(BG_IMAGE);
+  // 1. Draw background image (cached after first load)
+  const bg = await loadBackground();
   const bgAspect = bg.width / bg.height;
   const canvasAspect = WIDTH / HEIGHT;
   let drawW: number, drawH: number, drawX: number, drawY: number;
