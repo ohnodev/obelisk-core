@@ -208,10 +208,13 @@ export async function generateProfitCard(data: ProfitCardData): Promise<Buffer> 
   ctx.fillText(formatEth(data.initialEth), col1X, statsY + 80);
   ctx.fillText(formatEth(data.positionEth), col2X, statsY + 80);
 
-  // 6. Tagline
-  ctx.font = `500 16px "TT Hoves"`;
-  ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-  ctx.fillText("Sign up and trade faster with DEEP Ai", leftMargin, HEIGHT - 50);
+  // 6. Tagline + URL
+  ctx.font = `bold 16px "TT Hoves"`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  ctx.fillText("Get that DEEP DEEP Entry with Deep Entry AI", leftMargin, HEIGHT - 65);
+  ctx.font = `500 14px "TT Hoves"`;
+  ctx.fillStyle = accentColor;
+  ctx.fillText("trade.deepentryai.com", leftMargin, HEIGHT - 40);
 
   return canvas.toBuffer("image/png");
 }
