@@ -30,10 +30,8 @@ export class SchedulerNode extends BaseNode {
     super(nodeId, nodeData);
 
     const meta = this.metadata;
-    const envInterval = Number(process.env.OBELISK_SCHEDULER_INTERVAL_S);
-    const hasEnvOverride = Number.isFinite(envInterval) && envInterval > 0;
-    let minRaw = hasEnvOverride ? envInterval : Number(meta.min_seconds ?? meta.interval_seconds ?? 60);
-    let maxRaw = hasEnvOverride ? envInterval : Number(meta.max_seconds ?? meta.interval_seconds ?? 60);
+    let minRaw = Number(meta.min_seconds ?? meta.interval_seconds ?? 60);
+    let maxRaw = Number(meta.max_seconds ?? meta.interval_seconds ?? 60);
     this._enabled = meta.enabled !== false;
 
     // Sanitize: fall back to sane defaults for NaN / Infinity
@@ -85,6 +83,22 @@ export class SchedulerNode extends BaseNode {
   // ── onTick() — called every ~100ms by WorkflowRunner ──────────────
   onTick(_context: ExecutionContext): Record<string, unknown> | null {
     if (!this._enabled) return null;
+
+    // Re-read interval from inputs so wired values take effect dynamically
+    const minInput = this.getInputValue("min_seconds", _context, undefined);
+    const maxInput = this.getInputValue("max_seconds", _context, undefined);
+    if (minInput != null) {
+      const v = Number(minInput);
+      if (Number.isFinite(v) && v > 0 && v !== this._minSeconds) {
+        this._minSeconds = v;
+      }
+    }
+    if (maxInput != null) {
+      const v = Number(maxInput);
+      if (Number.isFinite(v) && v > 0 && v !== this._maxSeconds) {
+        this._maxSeconds = v;
+      }
+    }
 
     const now = Date.now() / 1000;
     const elapsed = now - this._lastFireTime;
