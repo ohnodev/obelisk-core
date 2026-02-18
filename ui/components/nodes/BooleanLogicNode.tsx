@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 // Compact dimensions — logic node is simple
 const NODE_WIDTH = 220;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 130;
 
 class BooleanLogicNode extends LGraphNode {
   static title = "Boolean Logic";
