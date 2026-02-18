@@ -216,7 +216,7 @@ export class ClankerBuyNode extends BaseNode {
     let cooldownMinutes = DEFAULT_COOLDOWN_MINUTES;
     if (rawCooldown != null && String(rawCooldown).trim() !== "") {
       const parsed = Number(rawCooldown);
-      cooldownMinutes = Number.isFinite(parsed) ? parsed : DEFAULT_COOLDOWN_MINUTES;
+      cooldownMinutes = Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_COOLDOWN_MINUTES;
     }
     const actionsPath = resolveActionsPath(this, context);
     if (actionsPath && cooldownMinutes > 0) {
