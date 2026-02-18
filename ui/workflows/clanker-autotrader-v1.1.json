@@ -36,11 +36,11 @@
       },
       "inputs": {},
       "metadata": {
-        "min_seconds": 60,
-        "max_seconds": 60,
+        "min_seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
+        "max_seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
         "enabled": true,
-        "Min Seconds": 60,
-        "Max Seconds": 60,
+        "Min Seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
+        "Max Seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
         "Enabled": true
       }
     },
