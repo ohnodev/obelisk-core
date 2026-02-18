@@ -72,9 +72,13 @@ function loadHeldTokens(bagsPath: string): HeldTokensResult {
 interface ActionEntry {
   type: string;
   tokenAddress?: string;
+  amountWei?: string;
   valueWei?: string;
+  costWei?: string;
   costEth?: number;
   pnlEth?: number;
+  name?: string;
+  symbol?: string;
   txHash?: string;
   reason?: string;
   timestamp: number;
@@ -83,14 +87,46 @@ interface ActionEntry {
 const ETH_WEI = 1e18;
 const DEFAULT_MAX_RECENT_ACTIONS = 5;
 
+/**
+ * Load recent trade actions and compute PnL for sells by matching
+ * each sell with the most recent preceding buy of the same token.
+ */
 function loadRecentActions(actionsPath: string, maxActions: number): ActionEntry[] {
   if (!actionsPath) return [];
   try {
     if (!fs.existsSync(actionsPath)) return [];
     const raw = fs.readFileSync(actionsPath, "utf-8");
     const data = JSON.parse(raw);
-    const list: ActionEntry[] = Array.isArray(data) ? data : (data?.actions ?? []);
-    const trades = list.filter((e) => e.type === "buy" || e.type === "sell");
+    const all: ActionEntry[] = Array.isArray(data) ? data : (data?.actions ?? []);
+    const trades = all.filter((e) => e.type === "buy" || e.type === "sell");
+
+    // Compute PnL for sells that don't already have it
+    const lastBuyByToken = new Map<string, ActionEntry>();
+    for (const t of trades) {
+      const addr = (t.tokenAddress ?? "").toLowerCase();
+      if (t.type === "buy") {
+        lastBuyByToken.set(addr, t);
+      } else if (t.type === "sell" && t.pnlEth == null) {
+        const buy = lastBuyByToken.get(addr);
+        if (buy) {
+          const buyCostEth = buy.costWei
+            ? Number(buy.costWei) / ETH_WEI
+            : buy.valueWei
+              ? Number(buy.valueWei) / ETH_WEI
+              : 0;
+          // Pro-rate buy cost for partial sells
+          const buyAmt = buy.amountWei ? Number(buy.amountWei) : 0;
+          const sellAmt = t.amountWei ? Number(t.amountWei) : 0;
+          const fraction = buyAmt > 0 && sellAmt > 0 ? sellAmt / buyAmt : 1;
+          const proratedCostEth = buyCostEth * Math.min(fraction, 1);
+          const receivedEth = t.valueWei ? Number(t.valueWei) / ETH_WEI : 0;
+          t.pnlEth = receivedEth - proratedCostEth;
+          if (!t.name && buy.name) t.name = buy.name;
+          if (!t.symbol && buy.symbol) t.symbol = buy.symbol;
+        }
+      }
+    }
+
     return trades.slice(-maxActions);
   } catch {
     return [];
@@ -117,16 +153,30 @@ export function formatRecentActions(
   const lines = actions.map((a) => {
     const addr = (a.tokenAddress ?? "").toLowerCase();
     const t = tokens[addr] ?? {};
-    const name = getStr(t.symbol) || getStr(t.name) || (addr ? addr.slice(0, 10) : "?");
+    // Prefer name/symbol stored on the action, then fall back to token state
+    const name =
+      getStr(a.symbol) || getStr(a.name) ||
+      getStr(t.symbol) || getStr(t.name) ||
+      (addr ? addr.slice(0, 10) : "?");
     const ago = formatRelativeTime(now - a.timestamp);
-    const valueEth = a.valueWei ? (Number(a.valueWei) / ETH_WEI) : 0;
+    const valueEth = a.valueWei ? Number(a.valueWei) / ETH_WEI : 0;
 
     if (a.type === "buy") {
       return `- BUY ${name}: spent ${fmtPrice(valueEth)} ETH, ${ago}`;
     }
-    const pnlStr = a.pnlEth != null
-      ? `, P&L: ${a.pnlEth >= 0 ? "+" : ""}${fmtPrice(a.pnlEth)} ETH`
-      : "";
+
+    // Show PnL in ETH and percentage for sells
+    let pnlStr = "";
+    if (a.pnlEth != null) {
+      const sign = a.pnlEth >= 0 ? "+" : "";
+      pnlStr = `, P&L: ${sign}${fmtPrice(a.pnlEth)} ETH`;
+      // Calculate percentage if we can infer the cost
+      const costEth = valueEth - a.pnlEth;
+      if (costEth > 0) {
+        const pct = (a.pnlEth / costEth) * 100;
+        pnlStr += ` (${sign}${pct.toFixed(1)}%)`;
+      }
+    }
     return `- SELL ${name}: received ${fmtPrice(valueEth)} ETH${pnlStr}, ${ago}`;
   });
 

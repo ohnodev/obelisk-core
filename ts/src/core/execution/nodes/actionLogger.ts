@@ -52,6 +52,8 @@ export class ActionLoggerNode extends BaseNode {
     const entries: Array<{
       type: string;
       tokenAddress?: string;
+      name?: string;
+      symbol?: string;
       amountWei?: string;
       valueWei?: string;
       costWei?: string;
@@ -76,6 +78,8 @@ export class ActionLoggerNode extends BaseNode {
       entries.push({
         type: "buy",
         tokenAddress: String(buyResult.token_address).toLowerCase(),
+        ...(buyResult.name ? { name: String(buyResult.name) } : {}),
+        ...(buyResult.symbol ? { symbol: String(buyResult.symbol) } : {}),
         amountWei: String(buyResult.amount_wei ?? "0"),
         valueWei,
         costWei: valueWei,
@@ -89,6 +93,8 @@ export class ActionLoggerNode extends BaseNode {
       const sellEntry: (typeof entries)[0] = {
         type: "sell",
         tokenAddress: String(sellResult.token_address).toLowerCase(),
+        ...(sellResult.name ? { name: String(sellResult.name) } : holding?.name ? { name: String(holding.name) } : {}),
+        ...(sellResult.symbol ? { symbol: String(sellResult.symbol) } : holding?.symbol ? { symbol: String(holding.symbol) } : {}),
         amountWei: amountWeiSold,
         valueWei,
         txHash: sellResult.txHash != null ? String(sellResult.txHash) : undefined,

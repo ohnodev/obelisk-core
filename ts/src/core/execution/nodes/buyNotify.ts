@@ -1,6 +1,6 @@
 /**
- * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification to Telegram.
- * Formatted with token name/symbol, cost (ETH), optional MC at buy (from state), and Basescan tx link.
+ * BuyNotifyNode – when Clanker Buy succeeds, sends a buy notification to Telegram
+ * with a shareable profit card image.
  *
  * Inputs: buy_result (from Clanker Buy), state (optional; for MC and token name/symbol), chat_id,
  *         bot_token (optional; from Text node or {{process.env.TELEGRAM_BOT_TOKEN}})
@@ -11,12 +11,19 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { Config } from "../../config";
 import { getLogger } from "../../../utils/logger";
 import { getTelegramBotToken } from "../../../utils/telegram";
+import { fetchEthUsdPrice } from "../../../utils/ethPrice";
+import { generateProfitCard, type ProfitCardData } from "../../../utils/profitCard";
+import {
+  sendTelegramMessage,
+  sendTelegramPhoto,
+  formatTokenLabel,
+  safeErrorMessage,
+} from "../../../utils/telegramNotify";
 
 const logger = getLogger("buyNotify");
 const BASESCAN_TX = "https://basescan.org/tx";
-const TELEGRAM_API = "https://api.telegram.org/bot";
 
-/** Format wei as human-readable ETH (e.g. "0", "0.002", "0.00001") with no trailing zeros. */
+/** Format wei as human-readable ETH with no trailing zeros. */
 function formatEth(wei: string | bigint): string {
   try {
     const weiValue = typeof wei === "bigint" ? wei : BigInt(wei);
@@ -28,64 +35,6 @@ function formatEth(wei: string | bigint): string {
     return s;
   } catch {
     return "0";
-  }
-}
-
-/** Format token label as "Name ($SYMBOL)" or "$SYMBOL" or fallback. */
-function formatTokenLabel(name: string, symbol: string, fallback: string): string {
-  const sym = symbol ? `$${symbol}` : "";
-  if (name && sym) return `${name} (${sym})`;
-  if (sym) return sym;
-  if (name) return name;
-  return fallback;
-}
-
-function safeErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  try {
-    return String(e);
-  } catch {
-    return "unknown error";
-  }
-}
-
-async function sendTelegramMessage(
-  botToken: string,
-  chatId: string,
-  text: string
-): Promise<{ ok: boolean; error?: string }> {
-  if (!botToken || !chatId.trim()) {
-    return { ok: false, error: "missing bot_token or chat_id" };
-  }
-  const url = `${TELEGRAM_API}${botToken}/sendMessage`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId.trim(), text }),
-      signal: controller.signal,
-    });
-    let data: { ok?: boolean; description?: string };
-    try {
-      data = (await res.json()) as { ok?: boolean; description?: string };
-    } catch (parseErr) {
-      const msg = safeErrorMessage(parseErr);
-      logger.warn(`[BuyNotify] Telegram response not JSON: ${msg}`);
-      return { ok: false, error: `invalid response: ${msg}` };
-    }
-    if (data?.ok) return { ok: true };
-    const err = data?.description ?? `HTTP ${res.status}`;
-    logger.warn(`[BuyNotify] Telegram send failed: ${err}`);
-    return { ok: false, error: err };
-  } catch (e) {
-    const msg = safeErrorMessage(e);
-    logger.error(`[BuyNotify] Telegram fetch failed: ${msg}`);
-    return { ok: false, error: msg };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -134,7 +83,7 @@ export class BuyNotifyNode extends BaseNode {
     const success = buyResult?.success === true;
     const txHash = buyResult?.txHash as string | undefined;
     const tokenAddress = (buyResult?.token_address as string) ?? "";
-    const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0"; // ETH spent (value_wei from ClankerBuy)
+    const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0";
     const name = (buyResult?.name as string)?.trim() || "";
     const symbol = (buyResult?.symbol as string)?.trim() || "";
     const tokenLabel = formatTokenLabel(name, symbol, tokenAddress || "token");
@@ -142,20 +91,48 @@ export class BuyNotifyNode extends BaseNode {
     let sent = false;
     let error: string | undefined;
     if (success && txHash) {
-      const costEth = formatEth(valueWei);
+      const costEthStr = formatEth(valueWei);
+      const costEthNum = getNum(valueWei) / 1e18;
       const txUrl = `${BASESCAN_TX}/${txHash}`;
       const mcStr = formatMcEth(state, tokenAddress);
-      const lines = [
+
+      const caption = [
         `🟢 Bought ${tokenLabel}`,
-        `Cost: ${costEth} ETH`,
+        `Cost: ${costEthStr} ETH`,
         ...(tokenAddress ? [`CA: ${tokenAddress}`] : []),
         ...(mcStr ? [`MC: ${mcStr} ETH`] : []),
         `Tx: ${txUrl}`,
-      ];
-      const text = lines.join("\n");
-      const result = await sendTelegramMessage(botToken, chatId, text);
-      sent = result.ok;
-      error = result.error;
+      ].join("\n");
+
+      let ethUsdPrice = 0;
+      try { ethUsdPrice = await fetchEthUsdPrice(); } catch { /* non-critical */ }
+
+      try {
+        const cardData: ProfitCardData = {
+          tokenName: symbol || name || "TOKEN",
+          chain: "BASE",
+          action: "BUY",
+          profitPercent: 0,
+          initialEth: costEthNum,
+          positionEth: costEthNum,
+          ...(ethUsdPrice > 0 ? { ethUsdPrice } : {}),
+        };
+        const imageBuffer = await generateProfitCard(cardData);
+        const photoResult = await sendTelegramPhoto(botToken, chatId, imageBuffer, caption);
+        if (photoResult.ok) {
+          sent = true;
+        } else {
+          logger.warn(`[BuyNotify] Photo send failed (${photoResult.error}), falling back to text`);
+          const textResult = await sendTelegramMessage(botToken, chatId, caption);
+          sent = textResult.ok;
+          error = textResult.error;
+        }
+      } catch (cardErr) {
+        logger.warn(`[BuyNotify] Profit card generation failed, falling back to text: ${safeErrorMessage(cardErr)}`);
+        const textResult = await sendTelegramMessage(botToken, chatId, caption);
+        sent = textResult.ok;
+        error = textResult.error;
+      }
     }
 
     return {

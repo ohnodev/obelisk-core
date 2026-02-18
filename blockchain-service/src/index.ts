@@ -13,6 +13,7 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
 import { StateManager } from "./state.js";
 import { BlockProcessor } from "./blockProcessor.js";
+import { EthPriceService } from "./ethPrice.js";
 import { PERSIST_INTERVAL_MS, BLOCK_POLL_MS, CLEANUP_INTERVAL_MS, CLEANUP_MIN_VOLUME_ETH } from "./constants.js";
 
 const RPC_URL = process.env.RPC_URL || "https://mainnet.base.org";
@@ -38,6 +39,9 @@ const cleanupIntervalId = setInterval(() => {
 }, CLEANUP_INTERVAL_MS);
 
 const processor = new BlockProcessor(RPC_URL, state, CLANKER_HOOK_ADDRESS);
+
+const ethPrice = new EthPriceService();
+ethPrice.start();
 
 const CORS_ORIGINS = (process.env.BLOCKCHAIN_CORS_ORIGINS ?? "https://trade.deepentryai.com")
   .split(",")
@@ -90,6 +94,10 @@ app.get("/clanker/token/:address", (req, res) => {
   res.json(token);
 });
 
+app.get("/eth-price", verifyApiKey, (_req, res) => {
+  res.json(ethPrice.getPrice());
+});
+
 const server = app.listen(API_PORT, () => {
   console.log(`[Clanker] API listening on port ${API_PORT} (auth: ${API_KEY ? "required" : "disabled"})`);
 });
@@ -98,6 +106,7 @@ function shutdown(): void {
   console.log("[Clanker] Shutting down...");
   server.close();
   clearInterval(cleanupIntervalId);
+  ethPrice.stop();
   processor.stop();
   state.stopPersistInterval();
   state.persist();
