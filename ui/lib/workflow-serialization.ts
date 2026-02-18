@@ -12,6 +12,7 @@ export interface WorkflowNode {
   type: string;
   inputs?: Record<string, any>;
   position?: { x: number; y: number };
+  size?: [number, number];
   metadata?: Record<string, any>;
 }
 
@@ -73,6 +74,7 @@ export function serializeGraph(graph: LGraphType): WorkflowGraph {
       id: node.id.toString(),
       type: node.type || node.constructor.name,
       position: { x: node.pos[0], y: node.pos[1] },
+      ...(node.size ? { size: [node.size[0], node.size[1]] as [number, number] } : {}),
       inputs: {},
       metadata,
     };
@@ -151,6 +153,11 @@ export function deserializeGraph(graph: LGraphType, workflow: WorkflowGraph): vo
       const posX = nodeData.position?.x ?? 0;
       const posY = nodeData.position?.y ?? 0;
       node.pos = [posX, posY];
+
+      // Restore saved size (overrides constructor default)
+      if (nodeData.size && Array.isArray(nodeData.size) && nodeData.size.length === 2) {
+        node.size = [nodeData.size[0], nodeData.size[1]];
+      }
       
       // Set input values and properties
       if (nodeData.inputs) {

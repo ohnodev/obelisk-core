@@ -135,20 +135,6 @@ class SchedulerNode extends LGraphNode {
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
 
-    // Grey out widgets when their inputs are wired
-    const drawConnectedOverlay = (widget: any) => {
-      if (widget && widget._connected && widget.last_y !== undefined) {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-        ctx.fillRect(0, widget.last_y, this.size[0], LiteGraph.NODE_WIDGET_HEIGHT || 20);
-        ctx.fillStyle = "rgba(200, 200, 200, 0.7)";
-        ctx.font = "10px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("(from input)", this.size[0] / 2, widget.last_y + 14);
-      }
-    };
-    drawConnectedOverlay((this as any)._min_widget);
-    drawConnectedOverlay((this as any)._max_widget);
-
     // Draw pulse indicator when active
     if (this._pulseActive) {
       const now = Date.now();
