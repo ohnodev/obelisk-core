@@ -84,6 +84,24 @@ export class SchedulerNode extends BaseNode {
   onTick(_context: ExecutionContext): Record<string, unknown> | null {
     if (!this._enabled) return null;
 
+    // Pick up wired input values (e.g. from a Text node with process.env)
+    const minInput = this.getInputValue("min_seconds", _context, undefined);
+    const maxInput = this.getInputValue("max_seconds", _context, undefined);
+    if (minInput != null) {
+      const v = Number(minInput);
+      if (Number.isFinite(v) && v > 0 && v !== this._minSeconds) {
+        this._minSeconds = v;
+        logger.debug(`[Scheduler ${this.nodeId}] min_seconds updated to ${v}`);
+      }
+    }
+    if (maxInput != null) {
+      const v = Number(maxInput);
+      if (Number.isFinite(v) && v > 0 && v !== this._maxSeconds) {
+        this._maxSeconds = v;
+        logger.debug(`[Scheduler ${this.nodeId}] max_seconds updated to ${v}`);
+      }
+    }
+
     const now = Date.now() / 1000;
     const elapsed = now - this._lastFireTime;
 

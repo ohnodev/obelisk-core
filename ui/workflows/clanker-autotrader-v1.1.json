@@ -36,12 +36,24 @@
       },
       "inputs": {},
       "metadata": {
-        "min_seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
-        "max_seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
+        "min_seconds": 60,
+        "max_seconds": 60,
         "enabled": true,
-        "Min Seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
-        "Max Seconds": "{{process.env.SCHEDULER_INTERVAL_S}}",
+        "Min Seconds": 60,
+        "Max Seconds": 60,
         "Enabled": true
+      }
+    },
+    {
+      "id": "50",
+      "type": "text",
+      "position": {
+        "x": -750,
+        "y": 400
+      },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.SCHEDULER_INTERVAL_S}}"
       }
     },
     {
@@ -499,6 +511,9 @@
     }
   ],
   "connections": [
+    { "from": "50", "from_output": "text", "to": "14", "to_input": "min_seconds" },
+    { "from": "50", "from_output": "text", "to": "14", "to_input": "max_seconds" },
+
     { "from": "8", "from_output": "private_key", "to": "9", "to_input": "private_key" },
     { "from": "48", "from_output": "private_key", "to": "17", "to_input": "private_key" },
     { "from": "8", "from_output": "private_key", "to": "22", "to_input": "private_key" },
