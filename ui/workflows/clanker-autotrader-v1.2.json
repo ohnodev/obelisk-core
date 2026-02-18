@@ -231,10 +231,10 @@
       },
       "inputs": {},
       "metadata": {
-        "sell_timer_minutes": 5,
+        "sell_timer_minutes": 60,
         "profit_target_percent": 50,
         "stop_loss_percent": 20,
-        "Sell timer (min)": 5,
+        "Sell timer (min)": 60,
         "Profit target %": 50,
         "Stop loss %": 20
       }
@@ -442,11 +442,11 @@
       "position": { "x": -548, "y": -800 },
       "inputs": {},
       "metadata": {
-        "min_seconds": 1,
-        "max_seconds": 1,
+        "min_seconds": 4,
+        "max_seconds": 4,
         "enabled": true,
-        "Min Seconds": 1,
-        "Max Seconds": 1,
+        "Min Seconds": 4,
+        "Max Seconds": 4,
         "Enabled": true
       }
     },
