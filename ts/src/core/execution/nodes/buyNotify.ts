@@ -13,12 +13,17 @@ import { getLogger } from "../../../utils/logger";
 import { getTelegramBotToken } from "../../../utils/telegram";
 import { fetchEthUsdPrice } from "../../../utils/ethPrice";
 import { generateProfitCard, type ProfitCardData } from "../../../utils/profitCard";
+import {
+  sendTelegramMessage,
+  sendTelegramPhoto,
+  formatTokenLabel,
+  safeErrorMessage,
+} from "../../../utils/telegramNotify";
 
 const logger = getLogger("buyNotify");
 const BASESCAN_TX = "https://basescan.org/tx";
-const TELEGRAM_API = "https://api.telegram.org/bot";
 
-/** Format wei as human-readable ETH (e.g. "0", "0.002", "0.00001") with no trailing zeros. */
+/** Format wei as human-readable ETH with no trailing zeros. */
 function formatEth(wei: string | bigint): string {
   try {
     const weiValue = typeof wei === "bigint" ? wei : BigInt(wei);
@@ -30,103 +35,6 @@ function formatEth(wei: string | bigint): string {
     return s;
   } catch {
     return "0";
-  }
-}
-
-/** Format token label as "Name ($SYMBOL)" or "$SYMBOL" or fallback. */
-function formatTokenLabel(name: string, symbol: string, fallback: string): string {
-  const sym = symbol ? `$${symbol}` : "";
-  if (name && sym) return `${name} (${sym})`;
-  if (sym) return sym;
-  if (name) return name;
-  return fallback;
-}
-
-function safeErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  if (typeof e === "string") return e;
-  try {
-    return String(e);
-  } catch {
-    return "unknown error";
-  }
-}
-
-async function sendTelegramMessage(
-  botToken: string,
-  chatId: string,
-  text: string
-): Promise<{ ok: boolean; error?: string }> {
-  if (!botToken || !chatId.trim()) {
-    return { ok: false, error: "missing bot_token or chat_id" };
-  }
-  const url = `${TELEGRAM_API}${botToken}/sendMessage`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId.trim(), text }),
-      signal: controller.signal,
-    });
-    let data: { ok?: boolean; description?: string };
-    try {
-      data = (await res.json()) as { ok?: boolean; description?: string };
-    } catch (parseErr) {
-      const msg = safeErrorMessage(parseErr);
-      logger.warn(`[BuyNotify] Telegram response not JSON: ${msg}`);
-      return { ok: false, error: `invalid response: ${msg}` };
-    }
-    if (data?.ok) return { ok: true };
-    const err = data?.description ?? `HTTP ${res.status}`;
-    logger.warn(`[BuyNotify] Telegram send failed: ${err}`);
-    return { ok: false, error: err };
-  } catch (e) {
-    const msg = safeErrorMessage(e);
-    logger.error(`[BuyNotify] Telegram fetch failed: ${msg}`);
-    return { ok: false, error: msg };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function sendTelegramPhoto(
-  botToken: string,
-  chatId: string,
-  imageBuffer: Buffer,
-  caption: string,
-): Promise<{ ok: boolean; error?: string }> {
-  if (!botToken || !chatId.trim()) {
-    return { ok: false, error: "missing bot_token or chat_id" };
-  }
-  const url = `${TELEGRAM_API}${botToken}/sendPhoto`;
-  const form = new FormData();
-  form.append("chat_id", chatId.trim());
-  form.append("photo", new Blob([imageBuffer], { type: "image/png" }), "profit-card.png");
-  form.append("caption", caption);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const res = await fetch(url, { method: "POST", body: form, signal: controller.signal });
-    let data: { ok?: boolean; description?: string };
-    try {
-      data = (await res.json()) as { ok?: boolean; description?: string };
-    } catch (parseErr) {
-      const msg = safeErrorMessage(parseErr);
-      logger.warn(`[BuyNotify] Telegram photo response not JSON: ${msg}`);
-      return { ok: false, error: `invalid response: ${msg}` };
-    }
-    if (data?.ok) return { ok: true };
-    const err = data?.description ?? `HTTP ${res.status}`;
-    logger.warn(`[BuyNotify] Telegram sendPhoto failed: ${err}`);
-    return { ok: false, error: err };
-  } catch (e) {
-    const msg = safeErrorMessage(e);
-    logger.error(`[BuyNotify] Telegram photo fetch failed: ${msg}`);
-    return { ok: false, error: msg };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -175,7 +83,7 @@ export class BuyNotifyNode extends BaseNode {
     const success = buyResult?.success === true;
     const txHash = buyResult?.txHash as string | undefined;
     const tokenAddress = (buyResult?.token_address as string) ?? "";
-    const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0"; // ETH spent (value_wei from ClankerBuy)
+    const valueWei = (buyResult?.value_wei as string) ?? (buyResult?.amount_wei as string) ?? "0";
     const name = (buyResult?.name as string)?.trim() || "";
     const symbol = (buyResult?.symbol as string)?.trim() || "";
     const tokenLabel = formatTokenLabel(name, symbol, tokenAddress || "token");
@@ -184,7 +92,7 @@ export class BuyNotifyNode extends BaseNode {
     let error: string | undefined;
     if (success && txHash) {
       const costEthStr = formatEth(valueWei);
-      const costEthNum = Number(valueWei) / 1e18;
+      const costEthNum = getNum(valueWei) / 1e18;
       const txUrl = `${BASESCAN_TX}/${txHash}`;
       const mcStr = formatMcEth(state, tokenAddress);
 

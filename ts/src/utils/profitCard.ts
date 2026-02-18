@@ -8,8 +8,10 @@
 import path from "path";
 import { createCanvas, loadImage, registerFont, type CanvasRenderingContext2D } from "canvas";
 
-// ── Paths ─────────────────────────────────────────────────────────
-const ASSETS_DIR = path.join(__dirname, "../../../assets/deepentry");
+// ── Paths (overridable via DEEPENTRY_ASSETS_DIR env var) ──────────
+const ASSETS_DIR = process.env.DEEPENTRY_ASSETS_DIR
+  ? path.resolve(process.env.DEEPENTRY_ASSETS_DIR)
+  : path.join(__dirname, "../../../assets/deepentry");
 const FONTS_DIR = path.join(ASSETS_DIR, "tt_hoves_pro");
 const BG_IMAGE = path.join(ASSETS_DIR, "profit-card-v1.jpg");
 
@@ -98,6 +100,7 @@ function drawPill(
   textColor: string,
   fontSize: number = 16,
 ) {
+  ctx.save();
   ctx.font = `bold ${fontSize}px "TT Hoves"`;
   const metrics = ctx.measureText(text);
   const padX = 12;
@@ -121,6 +124,7 @@ function drawPill(
   ctx.fillStyle = textColor;
   ctx.textBaseline = "middle";
   ctx.fillText(text, x + padX, y + h / 2);
+  ctx.restore();
 
   return w;
 }
