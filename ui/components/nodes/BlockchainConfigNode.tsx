@@ -25,7 +25,7 @@ class BlockchainConfigNode extends LGraphNode {
       this.setProperty("api_key", value);
     }, { serialize: true });
 
-    this.size = [340, 120];
+    this.size = [400, 120];
     (this as any).type = "blockchain_config";
     (this as any).resizable = true;
   }
