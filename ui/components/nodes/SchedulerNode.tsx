@@ -14,14 +14,16 @@ class SchedulerNode extends LGraphNode {
     super();
     this.title = "Scheduler";
     
-    // No inputs - scheduler is autonomous
-    
+    // Inputs (optional — wire a Text node to override metadata defaults)
+    this.addInput("min_seconds", "string,number");
+    this.addInput("max_seconds", "string,number");
+
     // Outputs
     this.addOutput("trigger", "boolean");
     this.addOutput("tick_count", "number");
     this.addOutput("timestamp", "number");
     
-    this.size = [220, 140];
+    this.size = [220, 160];
     (this as any).type = "scheduler";
     (this as any).resizable = true;
     
@@ -30,21 +32,18 @@ class SchedulerNode extends LGraphNode {
     this.addProperty("max_seconds", 10, "number");
     this.addProperty("enabled", true, "boolean");
     
-    // Add widgets for configuration
-    this.addWidget(
+    // Add widgets for configuration (store refs for disable toggling)
+    (this as any)._min_widget = this.addWidget(
       "number" as any,
       "Min Seconds",
       5,
       (value: number) => {
         const newMin = Math.max(0.1, value);
         this.setProperty("min_seconds", newMin);
-        // Enforce invariant: max_seconds >= min_seconds
         const currentMax = (this.properties as any)?.max_seconds || 10;
         if (currentMax < newMin) {
           this.setProperty("max_seconds", newMin);
-          // Update the max widget display
-          const widgets = (this as any).widgets as any[];
-          const maxWidget = widgets?.find((w: any) => w.name === "Max Seconds");
+          const maxWidget = (this as any)._max_widget;
           if (maxWidget) maxWidget.value = newMin;
         }
       },
@@ -57,13 +56,12 @@ class SchedulerNode extends LGraphNode {
       } as any
     );
     
-    this.addWidget(
+    (this as any)._max_widget = this.addWidget(
       "number" as any,
       "Max Seconds",
       10,
       (value: number) => {
         const currentMin = (this.properties as any)?.min_seconds || 5;
-        // Enforce invariant: max_seconds >= min_seconds
         const newMax = Math.max(0.1, value, currentMin);
         this.setProperty("max_seconds", newMax);
       },
@@ -89,6 +87,46 @@ class SchedulerNode extends LGraphNode {
     );
   }
 
+  // ── Disable widgets when corresponding inputs are wired ──────────
+  private _updateWidgetState(inputName: string, widgetRef: string) {
+    const idx = this.inputs.findIndex((i: any) => i.name === inputName);
+    const isConnected = idx !== -1 && !!(this.inputs[idx] as any).link;
+    const widget = (this as any)[widgetRef];
+    if (widget) {
+      widget.disabled = isConnected;
+      (widget as any)._connected = isConnected;
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onConnectionsChange() {
+    this._updateWidgetState("min_seconds", "_min_widget");
+    this._updateWidgetState("max_seconds", "_max_widget");
+  }
+
+  onAdded() {
+    this._updateWidgetState("min_seconds", "_min_widget");
+    this._updateWidgetState("max_seconds", "_max_widget");
+  }
+
+  onConfigure(data: any) {
+    const widgets = (this as any).widgets as any[];
+    if (widgets && this.properties) {
+      const props = this.properties as any;
+      widgets.forEach((widget: any) => {
+        if (widget.name === "Min Seconds" && props.min_seconds !== undefined) {
+          widget.value = props.min_seconds;
+        } else if (widget.name === "Max Seconds" && props.max_seconds !== undefined) {
+          widget.value = props.max_seconds;
+        }
+      });
+    }
+    this._updateWidgetState("min_seconds", "_min_widget");
+    this._updateWidgetState("max_seconds", "_max_widget");
+  }
+
   onDrawForeground(ctx: CanvasRenderingContext2D) {
     const isSelected = (this as any).is_selected || (this as any).isSelected;
     if (isSelected) {
@@ -96,7 +134,21 @@ class SchedulerNode extends LGraphNode {
       ctx.lineWidth = 1.5;
       ctx.strokeRect(1, 1, this.size[0] - 2, this.size[1] - 2);
     }
-    
+
+    // Grey out widgets when their inputs are wired
+    const drawConnectedOverlay = (widget: any) => {
+      if (widget && widget._connected && widget.last_y !== undefined) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+        ctx.fillRect(0, widget.last_y, this.size[0], LiteGraph.NODE_WIDGET_HEIGHT || 20);
+        ctx.fillStyle = "rgba(200, 200, 200, 0.7)";
+        ctx.font = "10px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("(from input)", this.size[0] / 2, widget.last_y + 14);
+      }
+    };
+    drawConnectedOverlay((this as any)._min_widget);
+    drawConnectedOverlay((this as any)._max_widget);
+
     // Draw pulse indicator when active
     if (this._pulseActive) {
       const now = Date.now();
