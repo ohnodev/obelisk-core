@@ -297,7 +297,8 @@
       "inputs": {},
       "metadata": {
         "amount_wei": "0",
-        "rpc_url": ""
+        "rpc_url": "",
+        "rebuy_cooldown_minutes": 30
       }
     },
     {
@@ -507,6 +508,15 @@
       "metadata": {
         "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
       }
+    },
+    {
+      "id": "51",
+      "type": "text",
+      "position": { "x": 2031, "y": -180 },
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.REBUY_COOLDOWN_MINUTES}}"
+      }
     }
   ],
   "connections": [
@@ -593,6 +603,9 @@
     { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
     { "from": "38", "from_output": "status_code", "to": "39", "to_input": "status_code" },
 
-    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" }
+    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" },
+
+    { "from": "10", "from_output": "base_path", "to": "9", "to_input": "base_path" },
+    { "from": "51", "from_output": "text", "to": "9", "to_input": "rebuy_cooldown_minutes" }
   ]
 }
