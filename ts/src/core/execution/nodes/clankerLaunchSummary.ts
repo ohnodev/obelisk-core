@@ -6,7 +6,7 @@
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
-import { resolveBagsPath } from "./clankerStoragePath";
+import { resolveBagsPath, resolveActionsPath } from "./clankerStoragePath";
 
 const logger = getLogger("clankerLaunchSummary");
 
@@ -69,6 +69,70 @@ function loadHeldTokens(bagsPath: string): HeldTokensResult {
   return { addresses, holdings };
 }
 
+interface ActionEntry {
+  type: string;
+  tokenAddress?: string;
+  valueWei?: string;
+  costEth?: number;
+  pnlEth?: number;
+  txHash?: string;
+  reason?: string;
+  timestamp: number;
+}
+
+const ETH_WEI = 1e18;
+const DEFAULT_MAX_RECENT_ACTIONS = 5;
+
+function loadRecentActions(actionsPath: string, maxActions: number): ActionEntry[] {
+  if (!actionsPath) return [];
+  try {
+    if (!fs.existsSync(actionsPath)) return [];
+    const raw = fs.readFileSync(actionsPath, "utf-8");
+    const data = JSON.parse(raw);
+    const list: ActionEntry[] = Array.isArray(data) ? data : (data?.actions ?? []);
+    const trades = list.filter((e) => e.type === "buy" || e.type === "sell");
+    return trades.slice(-maxActions);
+  } catch {
+    return [];
+  }
+}
+
+function formatRelativeTime(ms: number): string {
+  const mins = Math.max(0, Math.floor(ms / 60_000));
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m === 0 ? `${h}h ago` : `${h}h${m}m ago`;
+  }
+  return `${mins}m ago`;
+}
+
+export function formatRecentActions(
+  actions: ActionEntry[],
+  tokens: Record<string, Record<string, unknown>>,
+  now: number
+): string {
+  if (actions.length === 0) return "Recent Trades: none\n";
+
+  const lines = actions.map((a) => {
+    const addr = (a.tokenAddress ?? "").toLowerCase();
+    const t = tokens[addr] ?? {};
+    const name = getStr(t.symbol) || getStr(t.name) || (addr ? addr.slice(0, 10) : "?");
+    const ago = formatRelativeTime(now - a.timestamp);
+    const valueEth = a.valueWei ? (Number(a.valueWei) / ETH_WEI) : 0;
+
+    if (a.type === "buy") {
+      return `- BUY ${name}: spent ${fmtPrice(valueEth)} ETH, ${ago}`;
+    }
+    const pnlStr = a.pnlEth != null
+      ? `, P&L: ${a.pnlEth >= 0 ? "+" : ""}${fmtPrice(a.pnlEth)} ETH`
+      : "";
+    return `- SELL ${name}: received ${fmtPrice(valueEth)} ETH${pnlStr}, ${ago}`;
+  });
+
+  return `Recent Trades (last ${actions.length}):\n${lines.join("\n")}\n`;
+}
+
 export function formatHoldingsSummary(
   holdings: HeldToken[],
   tokens: Record<string, Record<string, unknown>>,
@@ -124,9 +188,15 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       maxPosRaw != null && Number.isFinite(Number(maxPosRaw))
         ? Math.max(1, Math.min(50, Number(maxPosRaw)))
         : 3;
+    const maxRecentActionsRaw = this.getInputValue("max_recent_actions", context, this.metadata.max_recent_actions ?? undefined);
+    const maxRecentActions =
+      maxRecentActionsRaw != null && Number.isFinite(Number(maxRecentActionsRaw))
+        ? Math.max(1, Math.min(20, Number(maxRecentActionsRaw)))
+        : DEFAULT_MAX_RECENT_ACTIONS;
 
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const bagsPath = resolveBagsPath(this, context);
+    const actionsPath = resolveActionsPath(this, context);
     const tokens = (state?.tokens as Record<string, Record<string, unknown>>) ?? {};
     const recentLaunches = Array.isArray(state?.recentLaunches)
       ? (state.recentLaunches as Record<string, unknown>[])
@@ -204,6 +274,10 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     // ── Holdings summary ──────────────────────────────────────────────
     const holdingsSummary = formatHoldingsSummary(heldTokens, tokens, now);
 
+    // ── Recent trade history ──────────────────────────────────────────
+    const recentActions = loadRecentActions(actionsPath, maxRecentActions);
+    const tradeHistorySummary = formatRecentActions(recentActions, tokens, now);
+
     // ── Candidates summary ───────────────────────────────────────────
     const lines = enriched.map(
       (e) => {
@@ -213,7 +287,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       }
     );
     const candidatesHeader = `Top ${limit} Clanker candidates (past ${windowHours}h). Volumes in ETH; price deltas: 1m, 5m, 1h.\n`;
-    const summary = holdingsSummary + "\n" + candidatesHeader + (lines.length ? lines.join("\n") : "(none)");
+    const summary = holdingsSummary + "\n" + tradeHistorySummary + "\n" + candidatesHeader + (lines.length ? lines.join("\n") : "(none)");
 
     const hasTokens = enriched.length > 0;
     return {
