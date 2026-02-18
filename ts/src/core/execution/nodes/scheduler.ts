@@ -31,9 +31,9 @@ export class SchedulerNode extends BaseNode {
 
     const meta = this.metadata;
     const envInterval = Number(process.env.OBELISK_SCHEDULER_INTERVAL_S);
-    const defaultInterval = Number.isFinite(envInterval) && envInterval > 0 ? envInterval : 60;
-    let minRaw = Number(meta.min_seconds ?? meta.interval_seconds ?? defaultInterval);
-    let maxRaw = Number(meta.max_seconds ?? meta.interval_seconds ?? defaultInterval);
+    const hasEnvOverride = Number.isFinite(envInterval) && envInterval > 0;
+    let minRaw = hasEnvOverride ? envInterval : Number(meta.min_seconds ?? meta.interval_seconds ?? 60);
+    let maxRaw = hasEnvOverride ? envInterval : Number(meta.max_seconds ?? meta.interval_seconds ?? 60);
     this._enabled = meta.enabled !== false;
 
     // Sanitize: fall back to sane defaults for NaN / Infinity
