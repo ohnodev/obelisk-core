@@ -57,6 +57,12 @@ export class MemorySelectorNode extends BaseNode {
     const modelRaw =
       this.getInputValue("model", context, undefined) ||
       this.getInputValue("llm", context, undefined);
+    const agentId =
+      modelRaw &&
+      typeof modelRaw === "object" &&
+      "agent_id" in modelRaw
+        ? (modelRaw as { agent_id?: string }).agent_id
+        : undefined;
     const model = resolveInferenceClient(modelRaw);
     let enableRecentBuffer = this.getInputValue(
       "enable_recent_buffer",
@@ -149,6 +155,7 @@ export class MemorySelectorNode extends BaseNode {
       if (allSummaries.length > 1) {
         selectedSummaries = await this._selectRelevantMemories(
           model,
+          agentId,
           queryStr,
           allSummaries,
           5
@@ -266,6 +273,7 @@ export class MemorySelectorNode extends BaseNode {
 
   private async _selectRelevantMemories(
     model: InferenceClient,
+    agentId: string | undefined,
     userQuery: string,
     summaries: Array<Record<string, unknown>>,
     topK: number
@@ -335,7 +343,8 @@ Example of correct JSON format:
         0.1, // Low quantum_influence for consistent selection
         800,
         null,
-        false
+        false,
+        agentId
       );
 
       const selectionText = (result.response ?? "").trim();
