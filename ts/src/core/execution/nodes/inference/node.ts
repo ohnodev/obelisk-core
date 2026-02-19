@@ -112,22 +112,21 @@ export class InferenceNode extends BaseNode {
       };
     }
 
-    // Model is required
-    if (!model) {
+    // Model is required (may be InferenceClient or { model: InferenceClient, agent_id?: string })
+    const client = model && typeof model === "object" && "model" in model
+      ? (model as { model: InferenceClient }).model
+      : (model as InferenceClient | undefined);
+    const agentId = model && typeof model === "object" && "agent_id" in model
+      ? (model as { agent_id?: string }).agent_id
+      : undefined;
+    if (!client) {
       throw new Error(
         `InferenceNode ${this.nodeId}: 'model' input is required. ` +
           "Connect an InferenceConfigNode upstream."
       );
     }
 
-    // System prompt is required (from connected input or widget/metadata)
-    if (!originalSystemPrompt) {
-      throw new Error(
-        `InferenceNode ${this.nodeId}: 'system_prompt' is required. ` +
-          "Set it via the node's textarea widget or connect a TextNode."
-      );
-    }
-
+    // System prompt is optional (e.g. when using a router agent that has its own)
     const queryPreview = query.length > 100 ? query.slice(0, 100) + "..." : query;
     logger.info(
       `InferenceNode ${this.nodeId}: query="${queryPreview}", system_prompt=${mergedSystemPrompt.length} chars, thinking=${enableThinking}`
@@ -141,13 +140,14 @@ export class InferenceNode extends BaseNode {
     }
 
     // Generate response using the model (matches Python signature)
-    const result = await model.generate(
+    const result = await client.generate(
       String(query),
       String(mergedSystemPrompt),
       Number(quantumInfluence),
       Number(maxLength),
       conversationHistory,
-      enableThinking
+      enableThinking,
+      agentId
     );
 
     const responseText = result.response ?? "";

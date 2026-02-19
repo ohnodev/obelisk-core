@@ -134,12 +134,14 @@ describe("InferenceConfigNode", () => {
       metadata: { use_default: true },
     });
     const result = node.execute(makeContext());
-    expect(result.model).toBeInstanceOf(InferenceClient);
-    const client = result.model as InferenceClient;
-    expect(client.endpointUrl).toContain("7780");
+    expect(result.model).toBeDefined();
+    const out = result.model as { model?: InferenceClient; agent_id?: string };
+    const client = out?.model ?? result.model;
+    expect(client).toBeInstanceOf(InferenceClient);
+    expect((client as InferenceClient).endpointUrl).toContain("7780");
   });
 
-  it("should create an InferenceClient with custom endpoint", () => {
+  it("should create an InferenceClient with custom endpoint and optional agent_id", () => {
     const node = new InferenceConfigNode("ic2", {
       id: "ic2",
       type: "inference_config",
@@ -147,11 +149,15 @@ describe("InferenceConfigNode", () => {
       metadata: {
         use_default: false,
         endpoint_url: "http://my-inference:8000",
+        agent_id: "clawballs",
       },
     });
     const result = node.execute(makeContext());
-    const client = result.model as InferenceClient;
-    expect(client.endpointUrl).toBe("http://my-inference:8000");
+    const out = result.model as { model?: InferenceClient; agent_id?: string };
+    const client = out?.model ?? result.model;
+    expect(client).toBeInstanceOf(InferenceClient);
+    expect((client as InferenceClient).endpointUrl).toBe("http://my-inference:8000");
+    expect(out?.agent_id).toBe("clawballs");
   });
 });
 

@@ -23,7 +23,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
 
@@ -64,9 +64,7 @@ export class TelegramMemorySelectorNode extends BaseNode {
       context,
       undefined
     ) as StorageInterface | undefined;
-    const model = this.getInputValue("model", context, undefined) as
-      | InferenceClient
-      | undefined;
+    const model = resolveInferenceClient(this.getInputValue("model", context, undefined));
 
     // Validate required inputs
     if (!chatId) {

@@ -17,7 +17,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface, ActivityLog } from "../../types";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { RecentBufferManager } from "./memory/bufferManager";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
@@ -53,14 +53,17 @@ export class MemorySelectorNode extends BaseNode {
     let userId = this.getInputValue("user_id", context, null) as
       | string
       | null;
-    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy)
-    const model =
-      (this.getInputValue("model", context, undefined) as
-        | InferenceClient
-        | undefined) ||
-      (this.getInputValue("llm", context, undefined) as
-        | InferenceClient
-        | undefined);
+    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy); unwrap { model, agent_id } shape
+    const modelRaw =
+      this.getInputValue("model", context, undefined) ||
+      this.getInputValue("llm", context, undefined);
+    const agentId =
+      modelRaw &&
+      typeof modelRaw === "object" &&
+      "agent_id" in modelRaw
+        ? (modelRaw as { agent_id?: string }).agent_id
+        : undefined;
+    const model = resolveInferenceClient(modelRaw);
     let enableRecentBuffer = this.getInputValue(
       "enable_recent_buffer",
       context,
@@ -152,6 +155,7 @@ export class MemorySelectorNode extends BaseNode {
       if (allSummaries.length > 1) {
         selectedSummaries = await this._selectRelevantMemories(
           model,
+          agentId,
           queryStr,
           allSummaries,
           5
@@ -269,6 +273,7 @@ export class MemorySelectorNode extends BaseNode {
 
   private async _selectRelevantMemories(
     model: InferenceClient,
+    agentId: string | undefined,
     userQuery: string,
     summaries: Array<Record<string, unknown>>,
     topK: number
@@ -338,7 +343,8 @@ Example of correct JSON format:
         0.1, // Low quantum_influence for consistent selection
         800,
         null,
-        false
+        false,
+        agentId
       );
 
       const selectionText = (result.response ?? "").trim();

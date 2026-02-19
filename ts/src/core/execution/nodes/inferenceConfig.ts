@@ -41,6 +41,9 @@ export class InferenceConfigNode extends BaseNode {
       );
     }
 
-    return { model: clientCache[cacheKey] };
+    const agentId = (this.metadata.agent_id as string) ?? "";
+    const client = clientCache[cacheKey];
+    // Output a single "model" slot so downstream nodes receive { model: client, agent_id }
+    return { model: { model: client, agent_id: agentId } };
   }
 }
