@@ -4,6 +4,8 @@
  * Mirrors Python src/core/execution/nodes/inference/node.py
  *
  * Inputs:
+ *   trigger: boolean (optional, default true) – when false, skips the API call and returns
+ *     empty response/outputs so downstream nodes (e.g. http_response) still run.
  *   model: InferenceClient (from InferenceConfigNode) – required
  *   system_prompt: System prompt (from connected TextNode or widget) – required
  *   query: User query string – required

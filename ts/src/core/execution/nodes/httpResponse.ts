@@ -6,7 +6,8 @@
  * the pending request by looking up the request_id and sending the response.
  *
  * Inputs:
- *   response:    string – optional text (used when body is not provided)
+ *   response:    string – optional text (used when body is not provided). May be empty when
+ *     inference was gated (e.g. binary_intent trigger=false); this node still fires and sends the response.
  *   body:        object – optional; when provided, sent as JSON body (e.g. from sell_all_bags)
  *   request_id:  string – correlates with the request
  *   status_code: number – HTTP status code (default: 200)
