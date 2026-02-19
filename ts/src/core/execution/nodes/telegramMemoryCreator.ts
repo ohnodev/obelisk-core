@@ -25,7 +25,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
 
@@ -186,9 +186,7 @@ Example of correct JSON format:
       context,
       undefined
     ) as StorageInterface | undefined;
-    const llm = this.getInputValue("model", context, undefined) as
-      | InferenceClient
-      | undefined;
+    const llm = resolveInferenceClient(this.getInputValue("model", context, undefined));
 
     // Normalize message to string immediately
     const messageStr = message ? String(message) : "";

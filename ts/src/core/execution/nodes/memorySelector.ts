@@ -17,7 +17,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface, ActivityLog } from "../../types";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { RecentBufferManager } from "./memory/bufferManager";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
@@ -53,14 +53,11 @@ export class MemorySelectorNode extends BaseNode {
     let userId = this.getInputValue("user_id", context, null) as
       | string
       | null;
-    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy)
-    const model =
-      (this.getInputValue("model", context, undefined) as
-        | InferenceClient
-        | undefined) ||
-      (this.getInputValue("llm", context, undefined) as
-        | InferenceClient
-        | undefined);
+    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy); unwrap { model, agent_id } shape
+    const modelRaw =
+      this.getInputValue("model", context, undefined) ||
+      this.getInputValue("llm", context, undefined);
+    const model = resolveInferenceClient(modelRaw);
     let enableRecentBuffer = this.getInputValue(
       "enable_recent_buffer",
       context,

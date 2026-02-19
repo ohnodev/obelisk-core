@@ -28,15 +28,23 @@ class InferenceConfigNode extends LGraphNode {
     }, {
       serialize: true
     });
-    
-    this.size = [280, 120];
+
+    // Agent ID for router (e.g. clawballs, default) – optional
+    this.addProperty("agent_id", "", "string");
+    this.addWidget("string", "agent_id", "", (value: string) => {
+      this.setProperty("agent_id", value);
+    }, {
+      serialize: true
+    });
+
+    this.size = [280, 150];
     (this as any).type = "inference_config";
     (this as any).resizable = true;
   }
 
   onPropertyChanged(name: string, value: any) {
     // Sync widget value when property changes (e.g., during deserialization)
-    if (name === "endpoint_url" || name === "use_default") {
+    if (name === "endpoint_url" || name === "use_default" || name === "agent_id") {
       const widgets = (this as any).widgets as any[];
       if (widgets) {
         const widget = widgets.find((w: any) => w.name === name);
@@ -59,13 +67,15 @@ class InferenceConfigNode extends LGraphNode {
   onExecute() {
     const useDefault = (this.properties as any)?.use_default !== false;
     const endpointUrl = (this.properties as any)?.endpoint_url || "http://localhost:7780";
-    
+    const agentId = (this.properties as any)?.agent_id ?? "";
+
     const resolvedEndpoint = useDefault ? "http://localhost:7780" : endpointUrl;
-    
-    this.setOutputData(0, { 
-      type: "inference_config", 
+
+    this.setOutputData(0, {
+      type: "inference_config",
       endpoint_url: resolvedEndpoint,
       use_default: useDefault,
+      agent_id: agentId,
     });
   }
 

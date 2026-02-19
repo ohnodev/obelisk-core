@@ -23,6 +23,7 @@ import clankerAutotraderV1Template from "@/workflows/clanker-autotrader-v1.2.jso
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
 import soraTemplate from "@/workflows/sora.json";
+import clawballsTemplate from "@/workflows/clawballs.json";
 import crabTemplate from "@/workflows/crab.json";
 
 interface WorkflowTemplate {
@@ -56,6 +57,12 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     name: "Sora – The Elegant One",
     description: "Mysterious, graceful HTTP-based AI companion with memory",
     data: soraTemplate,
+  },
+  {
+    id: "clawballs",
+    name: "Clawballs",
+    description: "Same as Sora, routed via router.theobelisk.ai with agent_id clawballs",
+    data: clawballsTemplate,
   },
   {
     id: "crab",

@@ -16,6 +16,16 @@ export interface InferenceClientOptions {
   timeout?: number;
 }
 
+/** Unwrap model input from InferenceConfigNode: may be InferenceClient or { model, agent_id } */
+export function resolveInferenceClient(value: unknown): InferenceClient | undefined {
+  if (!value) return undefined;
+  if (value instanceof InferenceClient) return value;
+  if (typeof value === "object" && value !== null && "model" in value) {
+    return (value as { model: InferenceClient }).model;
+  }
+  return undefined;
+}
+
 export class InferenceClient {
   static readonly DEFAULT_ENDPOINT =
     process.env.INFERENCE_SERVICE_URL || "http://localhost:7780";
@@ -67,7 +77,8 @@ export class InferenceClient {
     quantumInfluence: number = 0.7,
     maxLength: number = 1024,
     conversationHistory?: Array<Record<string, string>> | null,
-    enableThinking: boolean = true
+    enableThinking: boolean = true,
+    agent?: string
   ): Promise<LLMGenerationResult> {
     const url = `${this.endpointUrl}/v1/inference`;
     const sampling = this.quantumToSamplingParams(quantumInfluence);
@@ -83,6 +94,9 @@ export class InferenceClient {
       repetition_penalty: InferenceClient.REPETITION_PENALTY,
     };
 
+    if (agent && agent.trim()) {
+      body.agent = agent.trim();
+    }
     if (conversationHistory) {
       body.conversation_history = conversationHistory;
     }

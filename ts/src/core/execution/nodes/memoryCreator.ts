@@ -20,7 +20,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { RecentBufferManager } from "./memory/bufferManager";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
@@ -146,14 +146,11 @@ Example of correct JSON format:
     let userId = this.getInputValue("user_id", context, null) as
       | string
       | null;
-    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy)
-    const llm =
-      (this.getInputValue("model", context, undefined) as
-        | InferenceClient
-        | undefined) ||
-      (this.getInputValue("llm", context, undefined) as
-        | InferenceClient
-        | undefined);
+    // Accept both 'model' (from InferenceConfigNode) and 'llm' (legacy); unwrap { model, agent_id } shape
+    const llmRaw =
+      this.getInputValue("model", context, undefined) ||
+      this.getInputValue("llm", context, undefined);
+    const llm = resolveInferenceClient(llmRaw);
     const summarizeThresholdRaw = this.getInputValue(
       "summarize_threshold",
       context,

@@ -15,7 +15,7 @@
  *   reasoning: Brief explanation of the decision
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
-import { InferenceClient } from "./inference/inferenceClient";
+import { InferenceClient, resolveInferenceClient } from "./inference/inferenceClient";
 import { extractJsonFromLlmResponse } from "../../../utils/jsonParser";
 import { getLogger } from "../../../utils/logger";
 
@@ -47,9 +47,7 @@ export class BinaryIntentNode extends BaseNode {
   }
 
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
-    const model = this.getInputValue("model", context) as
-      | InferenceClient
-      | undefined;
+    const model = resolveInferenceClient(this.getInputValue("model", context));
     const message = this.getInputValue("message", context, "") as string;
     const intentCriteriaInput = this.getInputValue(
       "intent_criteria",

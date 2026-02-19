@@ -112,8 +112,14 @@ export class InferenceNode extends BaseNode {
       };
     }
 
-    // Model is required
-    if (!model) {
+    // Model is required (may be InferenceClient or { model: InferenceClient, agent_id?: string })
+    const client = model && typeof model === "object" && "model" in model
+      ? (model as { model: InferenceClient }).model
+      : (model as InferenceClient | undefined);
+    const agentId = model && typeof model === "object" && "agent_id" in model
+      ? (model as { agent_id?: string }).agent_id
+      : undefined;
+    if (!client) {
       throw new Error(
         `InferenceNode ${this.nodeId}: 'model' input is required. ` +
           "Connect an InferenceConfigNode upstream."
@@ -141,13 +147,14 @@ export class InferenceNode extends BaseNode {
     }
 
     // Generate response using the model (matches Python signature)
-    const result = await model.generate(
+    const result = await client.generate(
       String(query),
       String(mergedSystemPrompt),
       Number(quantumInfluence),
       Number(maxLength),
       conversationHistory,
-      enableThinking
+      enableThinking,
+      agentId
     );
 
     const responseText = result.response ?? "";
