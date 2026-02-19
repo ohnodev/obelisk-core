@@ -126,14 +126,7 @@ export class InferenceNode extends BaseNode {
       );
     }
 
-    // System prompt is required (from connected input or widget/metadata)
-    if (!originalSystemPrompt) {
-      throw new Error(
-        `InferenceNode ${this.nodeId}: 'system_prompt' is required. ` +
-          "Set it via the node's textarea widget or connect a TextNode."
-      );
-    }
-
+    // System prompt is optional (e.g. when using a router agent that has its own)
     const queryPreview = query.length > 100 ? query.slice(0, 100) + "..." : query;
     logger.info(
       `InferenceNode ${this.nodeId}: query="${queryPreview}", system_prompt=${mergedSystemPrompt.length} chars, thinking=${enableThinking}`
