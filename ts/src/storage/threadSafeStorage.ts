@@ -31,9 +31,9 @@ export class ThreadSafeStorage implements StorageInterface {
 
   /** Run a write operation after all prior writes complete; returns the operation result. */
   private enqueue<T>(fn: () => Promise<T>): Promise<T> {
-    const next = this.writeQueue.then(() => fn());
-    this.writeQueue = next;
-    return next;
+    const wrapperPromise = this.writeQueue.then(() => fn());
+    this.writeQueue = wrapperPromise.catch(() => undefined);
+    return wrapperPromise;
   }
 
   // ─── Read-only: call delegate directly ─────────────────────────────────
