@@ -415,18 +415,6 @@
       "metadata": {}
     },
     {
-      "id": "40",
-      "type": "memory_storage",
-      "position": { "x": -750, "y": -1020 },
-      "inputs": {},
-      "metadata": {
-        "storage_path": "clanker",
-        "storage_type": "local_json",
-        "Storage Path": "clanker",
-        "Storage Type": "local_json"
-      }
-    },
-    {
       "id": "41",
       "type": "blockchain_config",
       "position": { "x": -750, "y": -960 },
@@ -596,8 +584,8 @@
 
     { "from": "37", "from_output": "request_id", "to": "38", "to_input": "request_id" },
     { "from": "37", "from_output": "trigger", "to": "38", "to_input": "trigger" },
-    { "from": "40", "from_output": "storage_instance", "to": "38", "to_input": "storage_instance" },
-    { "from": "40", "from_output": "base_path", "to": "38", "to_input": "base_path" },
+    { "from": "35", "from_output": "storage_instance", "to": "38", "to_input": "storage_instance" },
+    { "from": "35", "from_output": "base_path", "to": "38", "to_input": "base_path" },
     { "from": "41", "from_output": "state", "to": "38", "to_input": "state" },
     { "from": "38", "from_output": "response_body", "to": "39", "to_input": "body" },
     { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
