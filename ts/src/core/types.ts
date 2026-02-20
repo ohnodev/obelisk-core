@@ -44,17 +44,6 @@ export interface StorageInterface {
     activityType?: string,
     limit?: number
   ): Promise<ActivityLog[]>;
-  saveLoRaWeights(
-    cycleNumber: number,
-    loraWeights: Buffer,
-    evolutionScore: number,
-    interactionsUsed: number,
-    metadata?: Record<string, unknown>
-  ): Promise<string | null>;
-  getLatestModelWeights(
-    baseModel?: string
-  ): Promise<Record<string, unknown> | null>;
-  deleteLoRaWeights(): Promise<boolean>;
   calculateUserRewardScore(
     userId: string,
     cycleId: string

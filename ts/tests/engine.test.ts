@@ -163,15 +163,15 @@ describe("ExecutionEngine", () => {
     expect(result.nodeResults[0].outputs.model).toBeDefined();
   });
 
-  it("should stop execution on first error (matches Python break behaviour)", async () => {
+  it("should fail validation for unknown node type", async () => {
     const workflow: WorkflowData = {
-      nodes: [{ id: "1", type: "lora_loader", inputs: {} }],
+      nodes: [{ id: "1", type: "unknown_node_type", inputs: {} }],
       connections: [],
     };
     const result = await engine.execute(workflow);
     expect(result.success).toBe(false);
-    expect(result.nodeResults[0].success).toBe(false);
-    expect(result.nodeResults[0].error).toContain("not supported");
+    expect(result.error).toBe("Graph validation failed");
+    expect(result.nodeResults).toHaveLength(0);
   });
 
   it("should measure execution time", async () => {

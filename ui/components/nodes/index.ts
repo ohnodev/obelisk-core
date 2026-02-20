@@ -1,8 +1,6 @@
 // Import all node types to register them with Litegraph
 import "./TextNode";
 import "./InferenceConfigNode"; // Replaces ModelLoaderNode — configures inference service endpoint
-// NOTE: LoRA is not supported via the inference service yet.
-// import "./LoRALoaderNode";
 import "./MemoryStorageNode";
 import "./MemorySelectorNode";
 import "./MemoryCreatorNode";

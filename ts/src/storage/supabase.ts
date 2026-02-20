@@ -189,18 +189,6 @@ export class SupabaseStorage implements StorageInterface {
     return (data as ActivityLog[]) ?? [];
   }
 
-  // ── LoRA weights (stub) ────────────────────────────────────────────
-  async saveLoRaWeights(): Promise<string | null> {
-    logger.warn("LoRA weight saving not supported in TS runtime");
-    return null;
-  }
-  async getLatestModelWeights(): Promise<Record<string, unknown> | null> {
-    return null;
-  }
-  async deleteLoRaWeights(): Promise<boolean> {
-    return true;
-  }
-
   // ── Reward scoring ─────────────────────────────────────────────────
 
   async calculateUserRewardScore(

@@ -72,34 +72,6 @@ export class ThreadSafeStorage implements StorageInterface {
     return this.delegate.checkNftUpgrades(userId);
   }
 
-  getLatestModelWeights(
-    baseModel?: string
-  ): Promise<Record<string, unknown> | null> {
-    return this.delegate.getLatestModelWeights(baseModel);
-  }
-
-  saveLoRaWeights(
-    cycleNumber: number,
-    loraWeights: Buffer,
-    evolutionScore: number,
-    interactionsUsed: number,
-    metadata?: Record<string, unknown>
-  ): Promise<string | null> {
-    return this.enqueue(() =>
-      this.delegate.saveLoRaWeights(
-        cycleNumber,
-        loraWeights,
-        evolutionScore,
-        interactionsUsed,
-        metadata
-      )
-    );
-  }
-
-  deleteLoRaWeights(): Promise<boolean> {
-    return this.enqueue(() => this.delegate.deleteLoRaWeights());
-  }
-
   // ─── Mutating: enqueue so only one write runs at a time ─────────────────
 
   saveInteraction(params: SaveInteractionParams): Promise<string> {

@@ -53,8 +53,6 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Inference Config",
         description: "Configures inference service endpoint (default: localhost:7780)",
       },
-      // NOTE: LoRA is not supported via the inference service yet.
-      // LoRA Loader will be re-added when remote LoRA support is implemented.
     ],
   },
   {
