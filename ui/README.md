@@ -5,7 +5,7 @@ Visual node-based workflow editor for Obelisk Core AI agents, built with Next.js
 ## Features
 
 - **Visual Node Editor** — Drag-and-drop interface for building AI agent workflows (ComfyUI-style)
-- **18 Node Types — BinaryIntentNode, BooleanLogicNode, InferenceConfigNode, InferenceNode, InputPromptNode, LoRALoaderNode, MemoryCreatorNode, MemorySelectorNode, MemoryStorageNode, ModelLoaderNode, OutputTextNode, RerouteNode, SchedulerNode, TelegramBotNode, TelegramListenerNode, TelegramMemoryCreatorNode, TelegramMemorySelectorNode, TextNode**
+- **Many node types** — BinaryIntentNode, BooleanLogicNode, InferenceConfigNode, InferenceNode, MemoryCreatorNode, MemorySelectorNode, MemoryStorageNode, ModelLoaderNode, RerouteNode, SchedulerNode, TelegramBotNode, TelegramListenerNode, TelegramMemoryCreatorNode, TelegramMemorySelectorNode, TextNode, and more
 - **One-Click Deploy** — Deploy workflows as autonomous Docker agents from the UI
 - **Wallet Authentication** — Privy-based wallet connect for agent ownership
 - **Deployments Dashboard** — View, restart, and stop running agents
@@ -105,7 +105,6 @@ ui/
 │       ├── InputPromptNode.tsx
 │       ├── OutputTextNode.tsx
 │       ├── ModelLoaderNode.tsx
-│       ├── LoRALoaderNode.tsx
 │       ├── BooleanLogicNode.tsx
 │       ├── RerouteNode.tsx
 │       └── index.ts

@@ -3,7 +3,7 @@
  * checks each holding against current price; if any hits profit target, stop loss,
  * or sell timer, outputs should_sell and sell_params.
  *
- * Inputs: trigger, state (from Blockchain Config), clanker_storage_path / base_path / storage_instance (for bags),
+ * Inputs: trigger, state (from Blockchain Config), storage_instance (for bags),
  *         sell_timer_minutes (default 5; 0 = disabled),
  *         profit_target_percent (default 50), stop_loss_percent (default 20) – e.g. from env via text nodes
  */

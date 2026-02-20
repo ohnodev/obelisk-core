@@ -64,18 +64,6 @@ export function getRegisteredTypes(): string[] {
   return Object.keys(NODE_REGISTRY);
 }
 
-// ── LoRA stub (backward compat) ─────────────────────────────────────
-
-class LoRALoaderStub extends BaseNode {
-  execute(_context: ExecutionContext): Record<string, unknown> {
-    throw new Error(
-      "LoRA loading is not supported via the inference service yet. " +
-        "Please remove LoRALoaderNode from your workflow. " +
-        "The InferenceConfigNode provides the primary model."
-    );
-  }
-}
-
 // ── Register all built-in nodes ─────────────────────────────────────
 
 let _registered = false;
@@ -122,9 +110,6 @@ export function registerAllNodes(): void {
   registerNode("update_bags_on_sell", UpdateBagsOnSellNode);
   registerNode("sell_notify", SellNotifyNode);
   registerNode("balance_checker", BalanceCheckerNode);
-
-  // LoRA stub for backward compatibility
-  registerNode("lora_loader", LoRALoaderStub);
 
   logger.info(
     `Node registry initialised – ${Object.keys(NODE_REGISTRY).length} types`

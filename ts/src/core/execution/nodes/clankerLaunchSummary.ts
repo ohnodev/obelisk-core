@@ -1,7 +1,7 @@
 /**
  * ClankerLaunchSummaryNode – reads Clanker state from Blockchain Config,
  * filters to recent launches, enriches with token stats. Excludes tokens we hold
- * (from clanker_bags.json at clanker_storage_path / base_path / storage_instance).
+ * (from clanker_bags.json at storage_instance.basePath or clanker_storage_path).
  */
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";

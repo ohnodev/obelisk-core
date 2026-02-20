@@ -1,6 +1,6 @@
 /**
  * ClankerAutotraderStatsNode – reads clanker_bags.json and clanker_actions.json from storage,
- * formats for dashboard consumption. Inputs: request_id, clanker_storage_path / base_path / storage_instance.
+ * formats for dashboard consumption. Inputs: request_id, storage_instance (or clanker_storage_path).
  */
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";

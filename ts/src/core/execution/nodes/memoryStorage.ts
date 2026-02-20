@@ -7,6 +7,7 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 import { StorageInterface } from "../../types";
 import { LocalJSONStorage } from "../../../storage/localJson";
 import { SupabaseStorage } from "../../../storage/supabase";
+import { ThreadSafeStorage } from "../../../storage/threadSafeStorage";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 
 const logger = getLogger("memoryStorage");
@@ -59,33 +60,25 @@ export class MemoryStorageNode extends BaseNode {
     // Check cache
     if (storageCache[cacheKey]) {
       logger.debug(`[MemoryStorage] Using cached storage for ${abbrevPathForLog(cacheKey)}`);
-      const instance = storageCache[cacheKey];
-      const basePath =
-        storageType === "local_json" && "basePath" in instance
-          ? (instance as { basePath: string }).basePath
-          : storagePath;
-      return { storage_instance: instance, base_path: basePath };
+      return { storage_instance: storageCache[cacheKey] };
     }
 
-    // Create new storage instance
-    let instance: StorageInterface;
+    // Create new storage instance and wrap for thread-safe writes (serialized write queue, concurrent reads)
+    let raw: StorageInterface;
     if (storageType === "local_json") {
-      instance = new LocalJSONStorage(storagePath);
+      raw = new LocalJSONStorage(storagePath);
     } else if (storageType === "supabase") {
       const supabaseUrl = process.env.SUPABASE_URL!;
       const supabaseKey = process.env.SUPABASE_KEY!;
-      instance = new SupabaseStorage(supabaseUrl, supabaseKey);
+      raw = new SupabaseStorage(supabaseUrl, supabaseKey);
     } else {
       throw new Error(
         `Unknown storage_type: ${storageType}. Must be 'local_json' or 'supabase'`
       );
     }
 
+    const instance = new ThreadSafeStorage(raw);
     storageCache[cacheKey] = instance;
-    const basePath =
-      storageType === "local_json" && "basePath" in instance
-        ? (instance as { basePath: string }).basePath
-        : storagePath;
-    return { storage_instance: instance, base_path: basePath };
+    return { storage_instance: instance };
   }
 }

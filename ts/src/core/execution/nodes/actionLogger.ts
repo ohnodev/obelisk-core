@@ -1,10 +1,9 @@
 /**
  * ActionLoggerNode – appends buy/sell results to clanker_actions.json.
- * Storage from clanker_storage_path / base_path / storage_instance.
+ * Storage from storage_instance (or clanker_storage_path).
  *
- * Inputs: buy_result, sell_result, holding (optional; from bag_checker when selling),
- *         system_note (optional; when set, log a non-trade entry e.g. "Insufficient funds."),
- *         clanker_storage_path / base_path / storage_instance, max_actions (default 100)
+ * Inputs: buy_result, sell_result, holding (optional), system_note (optional),
+ *         storage_instance (or clanker_storage_path), max_actions (default 100)
  *
  * Logs cost basis and PnL: on buy, costWei = valueWei (ETH spent). On sell, when holding
  * is provided, costEth from holding and pnlEth = valueEth - costEth.
@@ -43,8 +42,8 @@ export class ActionLoggerNode extends BaseNode {
     );
 
     if (!actionsPath) {
-      logger.warn("[ActionLogger] No clanker_storage_path or base_path or storage_instance, skipping");
-      return { success: false, logged_count: 0, error: "clanker_storage_path or base_path or storage_instance required" };
+      logger.warn("[ActionLogger] No storage_instance or clanker_storage_path, skipping");
+      return { success: false, logged_count: 0, error: "storage_instance (or clanker_storage_path) required" };
     }
 
     const holding = this.getInputValue("holding", context, undefined) as Record<string, unknown> | undefined;

@@ -1,7 +1,7 @@
 /**
  * UpdateBagsOnSellNode – after a successful Clanker sell, remove that token from bag state.
  *
- * Inputs: sell_result (from Clanker Sell), clanker_storage_path / base_path / storage_instance
+ * Inputs: sell_result (from Clanker Sell), storage_instance (or clanker_storage_path)
  */
 import fs from "fs";
 import { BaseNode, ExecutionContext } from "../nodeBase";
@@ -15,7 +15,7 @@ export class UpdateBagsOnSellNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     const sellResult = this.getInputValue("sell_result", context, undefined) as Record<string, unknown> | undefined;
     const resolvedBagPath = resolveBagsPath(this, context);
-    if (!resolvedBagPath) return { success: false, error: "clanker_storage_path or base_path or storage_instance required" };
+    if (!resolvedBagPath) return { success: false, error: "storage_instance (or clanker_storage_path) required" };
 
     // Remove holding on successful sell OR when wallet has zero token balance
     if ((!sellResult?.success && !sellResult?.zeroBalance) || !sellResult?.token_address) {

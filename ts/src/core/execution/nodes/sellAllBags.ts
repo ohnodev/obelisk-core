@@ -1,6 +1,6 @@
 /**
  * SellAllBagsNode – sell every position in clanker_bags.json (same logic as sell-all-bags script).
- * Inputs: trigger/request_id from sell_bags_listener, storage_instance/base_path, state, wallet (private_key).
+ * Inputs: trigger/request_id from sell_bags_listener, storage_instance, state, wallet (private_key).
  * Outputs: success, sold_count, errors, response_body (for HTTP), request_id, status_code.
  */
 import fs from "fs";

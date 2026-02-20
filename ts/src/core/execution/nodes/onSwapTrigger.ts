@@ -1,6 +1,6 @@
 /**
  * OnSwapTriggerNode – reads last_swap.json; when a new swap is detected, outputs trigger and swap payload.
- * Uses clanker_storage_path / base_path / storage_instance for last_swap.json and listener state.
+ * Uses storage_instance (or clanker_storage_path) for last_swap.json and listener state.
  * Optional swap_file_path overrides the path to last_swap.json.
  */
 import fs from "fs";

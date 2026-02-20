@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class SellAllBagsNode extends LGraphNode {
   static title = "Sell All Bags";
-  static desc = "Sell every position in clanker_bags.json. Inputs: request_id from Sell Bags Listener; storage_instance/base_path from Storage; state from Blockchain Config; private_key from Wallet. Outputs to HTTP Response (body, request_id, status_code).";
+  static desc = "Sell every position in clanker_bags.json. Inputs: request_id from Sell Bags Listener; storage_instance from Storage; state from Blockchain Config; private_key from Wallet. Outputs to HTTP Response (body, request_id, status_code).";
   static title_color = "#c0392b";
 
   constructor() {
@@ -14,7 +14,6 @@ class SellAllBagsNode extends LGraphNode {
     this.addInput("request_id", "string");
     this.addInput("trigger", "boolean");
     this.addInput("storage_instance", "object");
-    this.addInput("base_path", "string");
     this.addInput("state", "object");
     this.addInput("private_key", "string");
 

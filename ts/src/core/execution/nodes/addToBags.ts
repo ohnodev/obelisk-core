@@ -1,11 +1,11 @@
 /**
  * AddToBagsNode – after a successful Clanker buy, add the position to bag state (clanker_bags.json)
- * with profit target and stop loss. Storage from clanker_storage_path / base_path / storage_instance.
+ * with profit target and stop loss. Storage from storage_instance (or clanker_storage_path).
  *
  * Cost basis (boughtAtPriceEth): derived from buy_result (valueWei / amountWei = ETH per token) so
  * PnL on sell is correct. Falls back to state.tokens[].lastPrice only if buy result has no valueWei.
  *
- * Inputs: buy_result, state (fallback for boughtAtPriceEth), base_path / storage_instance, profit_target_percent, stop_loss_percent
+ * Inputs: buy_result, state (fallback for boughtAtPriceEth), storage_instance, profit_target_percent, stop_loss_percent
  */
 import fs from "fs";
 import path from "path";
@@ -74,7 +74,7 @@ export class AddToBagsNode extends BaseNode {
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const resolvedBagPath = resolveBagsPath(this, context);
     if (!resolvedBagPath) {
-      return { success: false, error: "clanker_storage_path or base_path or storage_instance required" };
+      return { success: false, error: "storage_instance (or clanker_storage_path) required" };
     }
 
     if (!buyResult?.success || !buyResult?.token_address) {
