@@ -15,7 +15,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addInput("storage_instance", "object");
     this.addInput("limit", "number");
     this.addInput("window_hours", "number");
-    this.addInput("max_positions", "number");
+    this.addInput("max_positions", "string,number");
     this.addOutput("recent_launches", "object");
     this.addOutput("summary", "string");
     this.addOutput("text", "string");
@@ -31,13 +31,38 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addWidget("number", "limit", 5, (value: number) => {
       this.setProperty("limit", value);
     }, { serialize: true });
-    this.addWidget("number", "max_positions", 3, (value: number) => {
+    (this as any)._max_positions_widget = this.addWidget("number", "max_positions", 3, (value: number) => {
       this.setProperty("max_positions", value);
     }, { serialize: true });
 
     this.size = [320, 230];
     (this as any).type = "clanker_launch_summary";
     (this as any).resizable = true;
+  }
+
+  private _updateMaxPositionsWidgetState() {
+    const idx = (this as any).inputs?.findIndex((i: any) => i.name === "max_positions");
+    const isConnected = idx !== -1 && !!(this as any).inputs?.[idx]?.link;
+    const widget = (this as any)._max_positions_widget;
+    if (widget) {
+      widget.disabled = isConnected;
+      (widget as any)._connected = isConnected;
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onConnectionsChange() {
+    this._updateMaxPositionsWidgetState();
+  }
+
+  onAdded() {
+    this._updateMaxPositionsWidgetState();
+  }
+
+  onConfigure(_data: any) {
+    this._updateMaxPositionsWidgetState();
   }
 
   onPropertyChanged(name: string, value: any) {
