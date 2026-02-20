@@ -524,9 +524,8 @@
     { "from": "14", "from_output": "trigger", "to": "23", "to_input": "a" },
 
     { "from": "10", "from_output": "storage_instance", "to": "3", "to_input": "storage_instance" },
-    { "from": "10", "from_output": "base_path", "to": "3", "to_input": "base_path" },
-    { "from": "10", "from_output": "base_path", "to": "20", "to_input": "base_path" },
-    { "from": "10", "from_output": "base_path", "to": "28", "to_input": "base_path" },
+    { "from": "10", "from_output": "storage_instance", "to": "20", "to_input": "storage_instance" },
+    { "from": "10", "from_output": "storage_instance", "to": "28", "to_input": "storage_instance" },
 
     { "from": "5", "from_output": "model", "to": "6", "to_input": "model" },
 
@@ -556,9 +555,9 @@
     { "from": "42", "from_output": "trigger", "to": "16", "to_input": "trigger" },
     { "from": "44", "from_output": "state", "to": "16", "to_input": "state" },
     { "from": "44", "from_output": "state", "to": "19", "to_input": "state" },
-    { "from": "43", "from_output": "base_path", "to": "16", "to_input": "base_path" },
-    { "from": "43", "from_output": "base_path", "to": "18", "to_input": "base_path" },
-    { "from": "43", "from_output": "base_path", "to": "45", "to_input": "base_path" },
+    { "from": "43", "from_output": "storage_instance", "to": "16", "to_input": "storage_instance" },
+    { "from": "43", "from_output": "storage_instance", "to": "18", "to_input": "storage_instance" },
+    { "from": "43", "from_output": "storage_instance", "to": "45", "to_input": "storage_instance" },
 
     { "from": "30", "from_output": "text", "to": "16", "to_input": "profit_target_percent" },
     { "from": "31", "from_output": "text", "to": "16", "to_input": "stop_loss_percent" },
@@ -576,7 +575,6 @@
     { "from": "36", "from_output": "express_service", "to": "25", "to_input": "express_service" },
     { "from": "36", "from_output": "express_service", "to": "37", "to_input": "express_service" },
 
-    { "from": "35", "from_output": "base_path", "to": "26", "to_input": "base_path" },
     { "from": "35", "from_output": "storage_instance", "to": "26", "to_input": "storage_instance" },
     { "from": "25", "from_output": "request_id", "to": "26", "to_input": "request_id" },
     { "from": "26", "from_output": "stats", "to": "27", "to_input": "response" },
@@ -585,7 +583,6 @@
     { "from": "37", "from_output": "request_id", "to": "38", "to_input": "request_id" },
     { "from": "37", "from_output": "trigger", "to": "38", "to_input": "trigger" },
     { "from": "35", "from_output": "storage_instance", "to": "38", "to_input": "storage_instance" },
-    { "from": "35", "from_output": "base_path", "to": "38", "to_input": "base_path" },
     { "from": "41", "from_output": "state", "to": "38", "to_input": "state" },
     { "from": "38", "from_output": "response_body", "to": "39", "to_input": "body" },
     { "from": "38", "from_output": "request_id", "to": "39", "to_input": "request_id" },
@@ -593,7 +590,7 @@
 
     { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" },
 
-    { "from": "10", "from_output": "base_path", "to": "9", "to_input": "base_path" },
+    { "from": "10", "from_output": "storage_instance", "to": "9", "to_input": "storage_instance" },
     { "from": "51", "from_output": "text", "to": "9", "to_input": "rebuy_cooldown_minutes" }
   ]
 }

@@ -15,7 +15,6 @@ class ActionLoggerNode extends LGraphNode {
 
     this.addInput("buy_result", "object");
     this.addInput("sell_result", "object");
-    this.addInput("base_path", "string");
     this.addInput("storage_instance", "object");
     this.addInput("max_actions", "number");
 

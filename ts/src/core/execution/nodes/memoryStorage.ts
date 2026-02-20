@@ -60,12 +60,7 @@ export class MemoryStorageNode extends BaseNode {
     // Check cache
     if (storageCache[cacheKey]) {
       logger.debug(`[MemoryStorage] Using cached storage for ${abbrevPathForLog(cacheKey)}`);
-      const instance = storageCache[cacheKey];
-      const basePath =
-        storageType === "local_json" && "basePath" in instance
-          ? (instance as { basePath: string }).basePath
-          : storagePath;
-      return { storage_instance: instance, base_path: basePath };
+      return { storage_instance: storageCache[cacheKey] };
     }
 
     // Create new storage instance and wrap for thread-safe writes (serialized write queue, concurrent reads)
@@ -84,10 +79,6 @@ export class MemoryStorageNode extends BaseNode {
 
     const instance = new ThreadSafeStorage(raw);
     storageCache[cacheKey] = instance;
-    const basePath =
-      storageType === "local_json" && "basePath" in raw
-        ? (raw as { basePath: string }).basePath
-        : storagePath;
-    return { storage_instance: instance, base_path: basePath };
+    return { storage_instance: instance };
   }
 }

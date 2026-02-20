@@ -15,7 +15,6 @@ class MemoryStorageNode extends LGraphNode {
     this.addInput("storage_path", "string");
     
     this.addOutput("storage_instance", "object");
-    this.addOutput("base_path", "string");
     this.size = [280, 150];
     (this as any).type = "memory_storage";
     (this as any).resizable = true;

@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class ClankerAutotraderStatsNode extends LGraphNode {
   static title = "Clanker Autotrader Stats";
-  static desc = "Reads clanker_bags.json and actions from storage. Connect base_path from Storage, request_id from Autotrader Stats Listener; output to HTTP Response.";
+  static desc = "Reads clanker_bags.json and actions from storage. Connect storage_instance from Storage, request_id from Autotrader Stats Listener; output to HTTP Response.";
   static title_color = "#50b050";
 
   constructor() {
@@ -13,7 +13,6 @@ class ClankerAutotraderStatsNode extends LGraphNode {
 
     this.addInput("request_id", "string");
     this.addInput("storage_instance", "object");
-    this.addInput("base_path", "string");
     this.addInput("actions_limit", "number");
 
     this.addOutput("stats", "string");

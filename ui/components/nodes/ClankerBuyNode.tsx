@@ -17,7 +17,7 @@ class ClankerBuyNode extends LGraphNode {
     this.addInput("token_address", "string");
     this.addInput("amount_wei", "string");
     this.addInput("rpc_url", "string");
-    this.addInput("base_path", "string");
+    this.addInput("storage_instance", "object");
     this.addInput("rebuy_cooldown_minutes", "string");
 
     this.addOutput("success", "boolean");

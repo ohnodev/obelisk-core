@@ -19,6 +19,12 @@ export class ThreadSafeStorage implements StorageInterface {
   private readonly delegate: StorageInterface;
   private writeQueue: Promise<unknown> = Promise.resolve();
 
+  /** Expose delegate's basePath when present (e.g. LocalJSONStorage) so nodes can use storage_instance.basePath. */
+  get basePath(): string | undefined {
+    const d = this.delegate as { basePath?: string };
+    return typeof d.basePath === "string" ? d.basePath : undefined;
+  }
+
   constructor(delegate: StorageInterface) {
     this.delegate = delegate;
   }

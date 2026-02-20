@@ -9,21 +9,18 @@ import type { ExecutionContext } from "../nodeBase";
 const BAGS_FILE = "clanker_bags.json";
 const ACTIONS_FILE = "clanker_actions.json";
 
+/** Resolve clanker storage base from storage_instance.basePath (or clanker_storage_path fallback). */
 export function resolveClankerStorageBase(
   node: BaseNode,
   context: ExecutionContext
 ): string {
-  const clankerStoragePath = node.getInputValue("clanker_storage_path", context, undefined) as string | undefined;
-  if (clankerStoragePath && typeof clankerStoragePath === "string" && clankerStoragePath.trim()) {
-    return path.resolve(clankerStoragePath.trim());
-  }
-  const basePath = node.getInputValue("base_path", context, undefined) as string | undefined;
-  if (basePath && typeof basePath === "string" && basePath.trim()) {
-    return path.resolve(basePath.trim());
-  }
   const storageInstance = node.getInputValue("storage_instance", context, undefined) as Record<string, unknown> | undefined;
   if (storageInstance?.basePath && typeof storageInstance.basePath === "string") {
     return path.resolve(String(storageInstance.basePath).trim());
+  }
+  const clankerStoragePath = node.getInputValue("clanker_storage_path", context, undefined) as string | undefined;
+  if (clankerStoragePath && typeof clankerStoragePath === "string" && clankerStoragePath.trim()) {
+    return path.resolve(clankerStoragePath.trim());
   }
   return "";
 }
