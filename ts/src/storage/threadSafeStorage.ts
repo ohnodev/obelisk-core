@@ -85,17 +85,19 @@ export class ThreadSafeStorage implements StorageInterface {
     interactionsUsed: number,
     metadata?: Record<string, unknown>
   ): Promise<string | null> {
-    return this.delegate.saveLoRaWeights(
-      cycleNumber,
-      loraWeights,
-      evolutionScore,
-      interactionsUsed,
-      metadata
+    return this.enqueue(() =>
+      this.delegate.saveLoRaWeights(
+        cycleNumber,
+        loraWeights,
+        evolutionScore,
+        interactionsUsed,
+        metadata
+      )
     );
   }
 
   deleteLoRaWeights(): Promise<boolean> {
-    return this.delegate.deleteLoRaWeights();
+    return this.enqueue(() => this.delegate.deleteLoRaWeights());
   }
 
   // ─── Mutating: enqueue so only one write runs at a time ─────────────────
