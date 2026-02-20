@@ -72,6 +72,26 @@ export class ThreadSafeStorage implements StorageInterface {
     return this.delegate.getLatestModelWeights(baseModel);
   }
 
+  saveLoRaWeights(
+    cycleNumber: number,
+    loraWeights: Buffer,
+    evolutionScore: number,
+    interactionsUsed: number,
+    metadata?: Record<string, unknown>
+  ): Promise<string | null> {
+    return this.delegate.saveLoRaWeights(
+      cycleNumber,
+      loraWeights,
+      evolutionScore,
+      interactionsUsed,
+      metadata
+    );
+  }
+
+  deleteLoRaWeights(): Promise<boolean> {
+    return this.delegate.deleteLoRaWeights();
+  }
+
   // ─── Mutating: enqueue so only one write runs at a time ─────────────────
 
   saveInteraction(params: SaveInteractionParams): Promise<string> {
@@ -124,27 +144,5 @@ export class ThreadSafeStorage implements StorageInterface {
     return this.enqueue(() =>
       this.delegate.updateCycleStatus(cycleId, status, topContributors)
     );
-  }
-
-  saveLorWeights(
-    cycleNumber: number,
-    loraWeights: Buffer,
-    evolutionScore: number,
-    interactionsUsed: number,
-    metadata?: Record<string, unknown>
-  ): Promise<string | null> {
-    return this.enqueue(() =>
-      this.delegate.saveLorWeights(
-        cycleNumber,
-        loraWeights,
-        evolutionScore,
-        interactionsUsed,
-        metadata
-      )
-    );
-  }
-
-  deleteLoraWeights(): Promise<boolean> {
-    return this.enqueue(() => this.delegate.deleteLoraWeights());
   }
 }

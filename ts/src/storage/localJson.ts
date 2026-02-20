@@ -265,14 +265,14 @@ export class LocalJSONStorage implements StorageInterface {
   }
 
   // ── LoRA / Weights (stub – LoRA not supported via inference service) ─
-  async saveLorWeights(): Promise<string | null> {
+  async saveLoRaWeights(): Promise<string | null> {
     logger.warn("LoRA weight saving is not supported in the TS runtime");
     return null;
   }
   async getLatestModelWeights(): Promise<Record<string, unknown> | null> {
     return null;
   }
-  async deleteLoraWeights(): Promise<boolean> {
+  async deleteLoRaWeights(): Promise<boolean> {
     return true;
   }
 
