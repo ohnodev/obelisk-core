@@ -12,7 +12,7 @@ import { resolveActionsPath } from "./clankerStoragePath";
 
 const logger = getLogger("clankerBuy");
 
-const DEFAULT_AMOUNT_WEI = "1000000000000000"; // 0.001 ETH
+const DEFAULT_AMOUNT_WEI = "3000000000000000"; // 0.003 ETH
 const DEFAULT_RPC_URL = "https://mainnet.base.org";
 const DEFAULT_COOLDOWN_MINUTES = 30;
 
