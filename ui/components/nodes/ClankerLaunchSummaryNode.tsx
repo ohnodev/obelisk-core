@@ -16,6 +16,7 @@ class ClankerLaunchSummaryNode extends LGraphNode {
     this.addInput("limit", "number");
     this.addInput("window_hours", "number");
     this.addInput("max_positions", "string,number");
+    this.addInput("min_makers", "string,number");
     this.addOutput("recent_launches", "object");
     this.addOutput("summary", "string");
     this.addOutput("text", "string");

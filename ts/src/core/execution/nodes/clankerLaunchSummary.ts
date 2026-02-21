@@ -243,6 +243,16 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       maxRecentActionsRaw != null && Number.isFinite(Number(maxRecentActionsRaw))
         ? Math.max(1, Math.min(20, Number(maxRecentActionsRaw)))
         : DEFAULT_MAX_RECENT_ACTIONS;
+    const minMakersRaw =
+      this.getInputValue("min_makers", context, undefined) ??
+      this.resolveEnvVar(this.metadata.min_makers) ??
+      this.metadata.min_makers ??
+      process.env.MIN_MAKERS;
+    const minMakersStr = minMakersRaw != null ? String(minMakersRaw).trim() : "";
+    const minMakersParsed = minMakersStr !== "" ? Number(minMakersStr) : NaN;
+    const minMakers = Number.isFinite(minMakersParsed)
+      ? Math.max(0, Math.floor(minMakersParsed))
+      : 0;
 
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
     const bagsPath = resolveBagsPath(this, context);
@@ -274,7 +284,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const notHeld = heldAddresses.size
       ? inWindow.filter((l) => !heldAddresses.has(getStr(l.tokenAddress).toLowerCase()))
       : inWindow;
-    // Enrich with token stats so we can sort by volume
+    // Enrich with token stats so we can sort by volume and filter by makers
     const withStats = notHeld.map((launch) => {
       const addr = getStr(launch.tokenAddress).toLowerCase();
       const t = tokens[addr] ?? {};
@@ -282,10 +292,15 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         launch,
         volume1h: getNum(t.volume1h),
         volume24h: getNum(t.volume24h),
+        totalMakers: getNum(t.totalMakers),
       };
     });
     // Only include tokens with at least MIN_VOLUME_1H_ETH in the past hour
-    const meetsMinVolume = withStats.filter((x) => (x.volume1h ?? 0) >= MIN_VOLUME_1H_ETH);
+    let meetsMinVolume = withStats.filter((x) => (x.volume1h ?? 0) >= MIN_VOLUME_1H_ETH);
+    // Filter by min unique makers when MIN_MAKERS (or min_makers input) is set
+    if (minMakers > 0) {
+      meetsMinVolume = meetsMinVolume.filter((x) => (x.totalMakers ?? 0) >= minMakers);
+    }
     meetsMinVolume.sort((a, b) => (b.volume1h || 0) - (a.volume1h || 0) || (b.volume24h || 0) - (a.volume24h || 0));
     const slice = meetsMinVolume.slice(0, limit);
 

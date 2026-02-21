@@ -12,7 +12,8 @@ import { resolveActionsPath } from "./clankerStoragePath";
 
 const logger = getLogger("clankerBuy");
 
-const DEFAULT_AMOUNT_WEI = "1000000000000000"; // 0.001 ETH
+/** Fallback default when DEFAULT_AMOUNT_ETH env / input is missing or invalid. */
+const FALLBACK_DEFAULT_AMOUNT_ETH = "0.003";
 const DEFAULT_RPC_URL = "https://mainnet.base.org";
 const DEFAULT_COOLDOWN_MINUTES = 30;
 
@@ -139,10 +140,20 @@ export class ClankerBuyNode extends BaseNode {
     const tgActions = getActions(this.getInputValue("tg_actions", context, undefined));
 
     let tokenAddress = getStr(this.getInputValue("token_address", context, undefined));
-    let amountWei = getStr(this.getInputValue("amount_wei", context, undefined)) ||
+    // Default amount in ETH (from text input, metadata, or env). Convert to wei when used.
+    const defaultAmountEthRaw =
+      getStr(this.getInputValue("default_amount_eth", context, undefined)) ||
+      getStr(this.metadata.default_amount_eth) ||
+      getStr(this.resolveEnvVar(this.metadata.default_amount_eth)) ||
+      getStr(process.env.DEFAULT_AMOUNT_ETH) ||
+      FALLBACK_DEFAULT_AMOUNT_ETH;
+    const defaultAmountWei = ethToWei(defaultAmountEthRaw);
+    const defaultAmountWeiResolved = defaultAmountWei !== "0" ? defaultAmountWei : "3000000000000000"; // 0.003 ETH fallback
+
+    let amountWei =
+      getStr(this.getInputValue("amount_wei", context, undefined)) ||
       getStr(this.getInputValue("amount", context, undefined)) ||
-      getStr(this.metadata.amount_wei) ||
-      DEFAULT_AMOUNT_WEI;
+      defaultAmountWeiResolved;
     let nameOrSymbol = "";
 
     if (tgActions.length > 0) {
@@ -157,6 +168,8 @@ export class ClankerBuyNode extends BaseNode {
         else if (amtEth !== undefined && amtEth !== null && amtEth !== "") {
           const weiStr = ethToWei(amtEth);
           if (weiStr !== "0") amountWei = weiStr;
+        } else {
+          amountWei = defaultAmountWeiResolved;
         }
       }
     }
