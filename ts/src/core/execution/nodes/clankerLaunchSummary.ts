@@ -308,7 +308,7 @@ export class ClankerLaunchSummaryNode extends BaseNode {
       const before = meetsMinVolume.length;
       const makersSample = meetsMinVolume.slice(0, 10).map((x) => x.totalMakers ?? 0);
       logger.info(
-        `[ClankerLaunchSummary] totalMakers sample (top ${makersSample.length} by vol): [${makersSample.join(", ")}]`
+        `[ClankerLaunchSummary] totalMakers sample (first ${makersSample.length} meeting volume, before sort): [${makersSample.join(", ")}]`
       );
       meetsMinVolume = meetsMinVolume.filter((x) => (x.totalMakers ?? 0) >= minMakers);
       logger.info(
