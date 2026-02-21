@@ -415,6 +415,14 @@
       "size": [320, 230],
       "inputs": {},
       "metadata": { "window_hours": 1, "limit": 5, "max_positions": 3 }
+    },
+    {
+      "id": "53",
+      "type": "text",
+      "position": { "x": -130, "y": 55 },
+      "size": [200, 80],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.MIN_MAKERS}}" }
     }
   ],
   "connections": [
@@ -481,6 +489,7 @@
     { "from": "3", "from_output": "summary", "to": "34", "to_input": "value" },
     { "from": "3", "from_output": "has_tokens", "to": "34", "to_input": "b" },
     { "from": "34", "from_output": "reject", "to": "28", "to_input": "system_note" },
-    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" }
+    { "from": "49", "from_output": "text", "to": "3", "to_input": "max_positions" },
+    { "from": "53", "from_output": "text", "to": "3", "to_input": "min_makers" }
   ]
 }
