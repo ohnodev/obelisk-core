@@ -186,6 +186,7 @@ export class StateManager {
     const poolIdLower = poolId.toLowerCase();
     for (const t of Object.values(this.state.tokens)) {
       if (t.poolId.toLowerCase() === poolIdLower) {
+        t.last20Swaps = t.last20Swaps && Array.isArray(t.last20Swaps) ? t.last20Swaps : [];
         t.totalSwaps += 1;
         if (side === "buy") t.totalBuys += 1;
         else t.totalSells += 1;
@@ -206,8 +207,9 @@ export class StateManager {
 
   /** Recompute uniqueSenders and totalMakers from current last20Swaps (keeps in sync after trim). */
   private recomputeUniqueMakers(t: TokenState): void {
+    t.last20Swaps = Array.isArray(t.last20Swaps) ? t.last20Swaps : [];
     const senders = new Set<string>();
-    for (const swap of t.last20Swaps ?? []) {
+    for (const swap of t.last20Swaps) {
       if (swap.sender) senders.add(swap.sender.toLowerCase());
     }
     this.uniqueSenders.set(t.tokenAddress, senders);
