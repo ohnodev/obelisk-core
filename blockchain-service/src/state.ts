@@ -45,12 +45,7 @@ export class StateManager {
         recentLaunches: Array.isArray(data.recentLaunches) ? data.recentLaunches : [],
       };
       for (const t of Object.values(this.state.tokens)) {
-        const senders = new Set<string>();
-        for (const swap of t.last20Swaps ?? []) {
-          if (swap.sender) senders.add(swap.sender.toLowerCase());
-        }
-        this.uniqueSenders.set(t.tokenAddress, senders);
-        t.totalMakers = senders.size;
+        this.recomputeUniqueMakers(t);
       }
       console.log(
         `[Clanker] Loaded state: ${Object.keys(this.state.tokens).length} tokens, ${this.state.recentLaunches.length} recent launches`
@@ -115,6 +110,8 @@ export class StateManager {
     }
     for (const addr of toRemove) {
       delete this.state.tokens[addr];
+      this.uniqueSenders.delete(addr);
+      this.volumeEvents.delete(addr);
     }
     const removedSet = new Set(toRemove);
     this.state.recentLaunches = this.state.recentLaunches.filter(
@@ -144,6 +141,7 @@ export class StateManager {
       totalSells: 0,
       volume24h: 0,
       last20Swaps: [],
+      totalMakers: 0,
       blockNumber: event.blockNumber,
       transactionHash: event.transactionHash,
       name: event.name ?? "",
@@ -188,6 +186,7 @@ export class StateManager {
     const poolIdLower = poolId.toLowerCase();
     for (const t of Object.values(this.state.tokens)) {
       if (t.poolId.toLowerCase() === poolIdLower) {
+        t.last20Swaps = t.last20Swaps && Array.isArray(t.last20Swaps) ? t.last20Swaps : [];
         t.totalSwaps += 1;
         if (side === "buy") t.totalBuys += 1;
         else t.totalSells += 1;
@@ -197,15 +196,7 @@ export class StateManager {
         if (t.last20Swaps.length > LAST_N_SWAPS) {
           t.last20Swaps = t.last20Swaps.slice(-LAST_N_SWAPS);
         }
-        if (sender) {
-          let set = this.uniqueSenders.get(t.tokenAddress);
-          if (!set) {
-            set = new Set<string>();
-            this.uniqueSenders.set(t.tokenAddress, set);
-          }
-          set.add(sender.toLowerCase());
-          t.totalMakers = set.size;
-        }
+        this.recomputeUniqueMakers(t);
         this.updateIntervalVolumes(t, timestamp);
         return;
       }
@@ -213,6 +204,17 @@ export class StateManager {
   }
 
   private uniqueSenders: Map<string, Set<string>> = new Map();
+
+  /** Recompute uniqueSenders and totalMakers from current last20Swaps (keeps in sync after trim). */
+  private recomputeUniqueMakers(t: TokenState): void {
+    t.last20Swaps = Array.isArray(t.last20Swaps) ? t.last20Swaps : [];
+    const senders = new Set<string>();
+    for (const swap of t.last20Swaps) {
+      if (swap.sender) senders.add(swap.sender.toLowerCase());
+    }
+    this.uniqueSenders.set(t.tokenAddress, senders);
+    t.totalMakers = senders.size;
+  }
 
   private updateIntervalVolumes(token: TokenState, timestamp: number): void {
     const events = this.volumeEvents.get(token.tokenAddress);
