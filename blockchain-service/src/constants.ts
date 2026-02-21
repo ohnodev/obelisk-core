@@ -13,6 +13,9 @@ export const V4_INITIALIZE_TOPIC =
 export const UNIV4_SWAP_TOPIC =
   "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 
+/** Universal Router (and similar) appear as Swap sender; we use tx signer for unique makers. */
+export const UNIVERSAL_ROUTER = "0x6fF5693b99212Da76ad316178A184AB56D299b43".toLowerCase();
+
 /** Clanker factory: TokenCreated(..., bytes32 poolId, ...) — same tx as Initialize */
 export const TOKEN_CREATED_TOPIC =
   "0x9299d1d1a88d8e1abdc591ae7a167a6bc63a8f17d695804e9091ee33aa89fb67";

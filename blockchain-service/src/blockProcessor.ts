@@ -286,8 +286,34 @@ export class BlockProcessor {
       }
     }
 
+    // Resolve transaction signer (real maker) per unique tx — Swap event sender is often Universal Router
+    const txHashToSigner = new Map<string, string>();
+    const seenTxHashes = new Set<string>();
+    for (const { receipt } of swapsToProcess) {
+      const hash = receipt?.transactionHash;
+      if (!hash || seenTxHashes.has(hash)) continue;
+      seenTxHashes.add(hash);
+      let from: string | undefined = receipt.from;
+      if (from == null || from === "") {
+        try {
+          const tx = await this.provider.getTransaction(hash);
+          from = tx?.from ?? undefined;
+        } catch {
+          // leave from undefined
+        }
+      }
+      if (from) {
+        try {
+          txHashToSigner.set(hash, ethers.getAddress(from));
+        } catch {
+          // invalid address, skip
+        }
+      }
+    }
+
     for (const { log, receipt, blockNumber: bn } of swapsToProcess) {
-      this.processV4Swap(log, receipt, bn);
+      const signer = receipt?.transactionHash ? txHashToSigner.get(receipt.transactionHash) : undefined;
+      this.processV4Swap(log, receipt, bn, signer);
     }
     if (swapsToProcess.length > 0 && pendingLaunches.length === 0) {
       this.state.persist();
@@ -420,17 +446,14 @@ export class BlockProcessor {
   private processV4Swap(
     log: { topics: string[]; data: string },
     receipt: { blockNumber: number },
-    blockNumber: number
+    blockNumber: number,
+    /** Transaction signer (real maker); Swap event sender is often Universal Router. */
+    signer?: string
   ): void {
     try {
       const poolId = log.topics[1];
-      // Swap(index_topic_1 bytes32 id, index_topic_2 address sender, ...) — sender is topics[2]
-      let sender: string | undefined;
-      if (log.topics[2]) {
-        const raw = log.topics[2];
-        const addr = raw.length === 66 ? "0x" + raw.slice(26) : "0x" + raw.slice(-40);
-        sender = ethers.getAddress(addr);
-      }
+      // Use tx signer as sender for unique makers; event topics[2] is often the router (e.g. Universal Router)
+      const sender: string | undefined = signer;
       const decoded = abiCoder.decode(
         ["int256", "int256", "uint160", "uint128", "int24", "uint24"],
         log.data
