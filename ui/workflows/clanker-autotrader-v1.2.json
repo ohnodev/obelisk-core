@@ -125,7 +125,7 @@
       "position": { "x": 2031, "y": -61 },
       "size": [280, 240],
       "inputs": {},
-      "metadata": { "amount_wei": "0", "rpc_url": "", "rebuy_cooldown_minutes": 30 }
+      "metadata": { "default_amount_eth": "{{process.env.DEFAULT_AMOUNT_ETH}}", "rpc_url": "", "rebuy_cooldown_minutes": 30 }
     },
     {
       "id": "7",

@@ -15,7 +15,7 @@ class ClankerBuyNode extends LGraphNode {
     this.addInput("state", "object");
     this.addInput("tg_actions", "array");
     this.addInput("token_address", "string");
-    this.addInput("amount_wei", "string");
+    this.addInput("default_amount_eth", "string");
     this.addInput("rpc_url", "string");
     this.addInput("storage_instance", "object");
     this.addInput("rebuy_cooldown_minutes", "string");
@@ -25,11 +25,11 @@ class ClankerBuyNode extends LGraphNode {
     this.addOutput("error", "string");
     this.addOutput("result", "object");
 
-    this.addProperty("amount_wei", "0", "string");
+    this.addProperty("default_amount_eth", "0.003", "string");
     this.addProperty("rpc_url", "", "string");
-    this.addWidget("string", "amount_wei", "0", (value: string) => {
-      this.setProperty("amount_wei", value);
-    }, { serialize: true });
+    this.addWidget("string", "default_amount_eth", "0.003", (value: string) => {
+      this.setProperty("default_amount_eth", value);
+    }, { serialize: true, name: "Default amount (ETH)" });
     this.addWidget("string", "rpc_url", "", (value: string) => {
       this.setProperty("rpc_url", value);
     }, { serialize: true });
@@ -42,8 +42,8 @@ class ClankerBuyNode extends LGraphNode {
   onPropertyChanged(name: string, value: any) {
     const widgets = (this as any).widgets as any[];
     if (!widgets) return;
-    if (name === "amount_wei") {
-      const w = widgets.find((x: any) => x.name === "amount_wei");
+    if (name === "default_amount_eth") {
+      const w = widgets.find((x: any) => x.name === "default_amount_eth");
       if (w) w.value = value;
     }
     if (name === "rpc_url") {
