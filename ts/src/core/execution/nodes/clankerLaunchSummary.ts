@@ -280,6 +280,9 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     const now = Date.now();
     const cutoff = now - windowHours * ONE_HOUR_MS;
     const inWindow = recentLaunches.filter((l) => (getNum(l.launchTime) || 0) >= cutoff);
+    logger.info(
+      `[ClankerLaunchSummary] recentLaunches=${recentLaunches.length}, inWindow(past ${windowHours}h)=${inWindow.length}`
+    );
     // Exclude tokens we already hold so the model doesn't try to buy them again
     const notHeld = heldAddresses.size
       ? inWindow.filter((l) => !heldAddresses.has(getStr(l.tokenAddress).toLowerCase()))
@@ -297,9 +300,20 @@ export class ClankerLaunchSummaryNode extends BaseNode {
     });
     // Only include tokens with at least MIN_VOLUME_1H_ETH in the past hour
     let meetsMinVolume = withStats.filter((x) => (x.volume1h ?? 0) >= MIN_VOLUME_1H_ETH);
+    logger.info(
+      `[ClankerLaunchSummary] after volume>=${MIN_VOLUME_1H_ETH} ETH: ${meetsMinVolume.length}`
+    );
     // Filter by min unique makers when MIN_MAKERS (or min_makers input) is set
     if (minMakers > 0) {
+      const before = meetsMinVolume.length;
+      const makersSample = meetsMinVolume.slice(0, 10).map((x) => x.totalMakers ?? 0);
+      logger.info(
+        `[ClankerLaunchSummary] totalMakers sample (first ${makersSample.length} meeting volume, before sort): [${makersSample.join(", ")}]`
+      );
       meetsMinVolume = meetsMinVolume.filter((x) => (x.totalMakers ?? 0) >= minMakers);
+      logger.info(
+        `[ClankerLaunchSummary] after totalMakers>=${minMakers}: ${meetsMinVolume.length} (dropped ${before - meetsMinVolume.length})`
+      );
     }
     meetsMinVolume.sort((a, b) => (b.volume1h || 0) - (a.volume1h || 0) || (b.volume24h || 0) - (a.volume24h || 0));
     const slice = meetsMinVolume.slice(0, limit);
