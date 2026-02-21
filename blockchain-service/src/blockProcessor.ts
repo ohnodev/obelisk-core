@@ -286,8 +286,18 @@ export class BlockProcessor {
       }
     }
 
+    // Maker = tx signer (receipt.from), like DexScreener — simple, no router/transfer parsing
     for (const { log, receipt, blockNumber: bn } of swapsToProcess) {
-      this.processV4Swap(log, receipt, bn);
+      let maker: string | undefined;
+      const from = receipt?.from;
+      if (from != null && from !== "") {
+        try {
+          maker = ethers.getAddress(from);
+        } catch {
+          maker = undefined;
+        }
+      }
+      this.processV4Swap(log, receipt, bn, maker);
     }
     if (swapsToProcess.length > 0 && pendingLaunches.length === 0) {
       this.state.persist();
@@ -420,17 +430,13 @@ export class BlockProcessor {
   private processV4Swap(
     log: { topics: string[]; data: string },
     receipt: { blockNumber: number },
-    blockNumber: number
+    blockNumber: number,
+    /** Maker = tx signer (receipt.from), like DexScreener. */
+    maker?: string
   ): void {
     try {
       const poolId = log.topics[1];
-      // Swap(index_topic_1 bytes32 id, index_topic_2 address sender, ...) — sender is topics[2]
-      let sender: string | undefined;
-      if (log.topics[2]) {
-        const raw = log.topics[2];
-        const addr = raw.length === 66 ? "0x" + raw.slice(26) : "0x" + raw.slice(-40);
-        sender = ethers.getAddress(addr);
-      }
+      const sender: string | undefined = maker;
       const decoded = abiCoder.decode(
         ["int256", "int256", "uint160", "uint128", "int24", "uint24"],
         log.data
