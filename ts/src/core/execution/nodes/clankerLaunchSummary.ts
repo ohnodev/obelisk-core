@@ -245,11 +245,13 @@ export class ClankerLaunchSummaryNode extends BaseNode {
         : DEFAULT_MAX_RECENT_ACTIONS;
     const minMakersRaw =
       this.getInputValue("min_makers", context, undefined) ??
-      this.metadata.min_makers ??
       this.resolveEnvVar(this.metadata.min_makers) ??
+      this.metadata.min_makers ??
       process.env.MIN_MAKERS;
-    const minMakers = minMakersRaw != null && String(minMakersRaw).trim() !== ""
-      ? Math.max(0, Math.floor(Number(String(minMakersRaw).trim())))
+    const minMakersStr = minMakersRaw != null ? String(minMakersRaw).trim() : "";
+    const minMakersParsed = minMakersStr !== "" ? Number(minMakersStr) : NaN;
+    const minMakers = Number.isFinite(minMakersParsed)
+      ? Math.max(0, Math.floor(minMakersParsed))
       : 0;
 
     const state = this.getInputValue("state", context, undefined) as Record<string, unknown> | undefined;
