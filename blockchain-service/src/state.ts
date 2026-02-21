@@ -45,12 +45,7 @@ export class StateManager {
         recentLaunches: Array.isArray(data.recentLaunches) ? data.recentLaunches : [],
       };
       for (const t of Object.values(this.state.tokens)) {
-        const senders = new Set<string>();
-        for (const swap of t.last20Swaps ?? []) {
-          if (swap.sender) senders.add(swap.sender.toLowerCase());
-        }
-        this.uniqueSenders.set(t.tokenAddress, senders);
-        t.totalMakers = senders.size;
+        this.recomputeUniqueMakers(t);
       }
       console.log(
         `[Clanker] Loaded state: ${Object.keys(this.state.tokens).length} tokens, ${this.state.recentLaunches.length} recent launches`
