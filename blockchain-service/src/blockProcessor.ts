@@ -424,6 +424,13 @@ export class BlockProcessor {
   ): void {
     try {
       const poolId = log.topics[1];
+      // Swap(index_topic_1 bytes32 id, index_topic_2 address sender, ...) — sender is topics[2]
+      let sender: string | undefined;
+      if (log.topics[2]) {
+        const raw = log.topics[2];
+        const addr = raw.length === 66 ? "0x" + raw.slice(26) : "0x" + raw.slice(-40);
+        sender = ethers.getAddress(addr);
+      }
       const decoded = abiCoder.decode(
         ["int256", "int256", "uint160", "uint128", "int24", "uint24"],
         log.data
@@ -453,8 +460,8 @@ export class BlockProcessor {
           ? volumeEth / (Number(tokenAmountAbs) / Math.pow(10, decimals))
           : undefined;
 
-      this.state.recordSwap(poolId, side, volumeEth, Date.now(), undefined, priceEth);
-      console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}... volEth=${volumeEth.toFixed(6)}`);
+      this.state.recordSwap(poolId, side, volumeEth, Date.now(), sender, priceEth);
+      console.log(`[Clanker] Swap ${side} on pool ${poolId.slice(0, 18)}... volEth=${volumeEth.toFixed(6)}${sender ? ` sender=${sender.slice(0, 10)}...` : ""}`);
     } catch (e) {
       console.warn("[Clanker] Process V4 swap error:", e);
     }
