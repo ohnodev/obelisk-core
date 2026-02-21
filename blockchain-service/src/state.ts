@@ -49,10 +49,8 @@ export class StateManager {
         for (const swap of t.last20Swaps ?? []) {
           if (swap.sender) senders.add(swap.sender.toLowerCase());
         }
-        if (senders.size > 0) {
-          this.uniqueSenders.set(t.tokenAddress, senders);
-          t.totalMakers = senders.size;
-        }
+        this.uniqueSenders.set(t.tokenAddress, senders);
+        t.totalMakers = senders.size;
       }
       console.log(
         `[Clanker] Loaded state: ${Object.keys(this.state.tokens).length} tokens, ${this.state.recentLaunches.length} recent launches`
