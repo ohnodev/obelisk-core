@@ -65,7 +65,7 @@ export class StateManager {
         let list = this.swaps24h.get(addr);
         const legacy = (t as TokenState & { last20Swaps?: SwapItem[] }).last20Swaps;
         if (Array.isArray(legacy) && legacy.length > 0) {
-          const migrated = legacy.map((s) => ({ timestamp: s.timestamp, side: s.side, volumeEth: s.volumeEth, sender: s.sender, priceEth: s.priceEth }));
+          const migrated = legacy.map((s) => ({ timestamp: s.timestamp, side: s.side, volumeEth: s.volumeEth, sender: s.sender, priceEth: s.priceEth, priceUsd: s.priceUsd }));
           const merged = list ? [...list, ...migrated] : migrated;
           const seen = new Set<string>();
           const deduped = merged.filter((s) => {
