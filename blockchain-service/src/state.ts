@@ -4,11 +4,7 @@
 import fs from "fs";
 import path from "path";
 import type { ClankerState, ClankerSwapsFile, TokenState, LaunchEvent, SwapItem } from "./types.js";
-import {
-  RECENT_LAUNCHES_MAX,
-  SWAPS_PERSIST_INTERVAL_MS,
-  MAX_SWAPS_24H_PER_TOKEN,
-} from "./constants.js";
+import { RECENT_LAUNCHES_MAX, MAX_SWAPS_24H_PER_TOKEN } from "./constants.js";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -70,7 +66,15 @@ export class StateManager {
         const legacy = (t as TokenState & { last20Swaps?: SwapItem[] }).last20Swaps;
         if (Array.isArray(legacy) && legacy.length > 0) {
           const migrated = legacy.map((s) => ({ timestamp: s.timestamp, side: s.side, volumeEth: s.volumeEth, sender: s.sender, priceEth: s.priceEth }));
-          list = list ? [...list, ...migrated] : migrated;
+          const merged = list ? [...list, ...migrated] : migrated;
+          const seen = new Set<string>();
+          const deduped = merged.filter((s) => {
+            const key = `${s.timestamp}|${s.sender ?? ""}|${s.volumeEth}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          list = deduped;
           this.swaps24h.set(addr, list);
         }
         if (!list) this.swaps24h.set(addr, []);
@@ -266,10 +270,10 @@ export class StateManager {
     }
   }
 
-  /** Trim swap list to 24h and cap length; returns new array. */
+  /** Trim swap list to 24h and cap length; returns new array. Sorted by timestamp ascending so slice retains most recent. */
   private trimSwapsTo24h(list: SwapItem[], now: number): SwapItem[] {
     const cutoff = now - TWENTY_FOUR_HOURS_MS;
-    const trimmed = list.filter((s) => s.timestamp >= cutoff);
+    const trimmed = list.filter((s) => s.timestamp >= cutoff).sort((a, b) => a.timestamp - b.timestamp);
     return trimmed.length > MAX_SWAPS_24H_PER_TOKEN ? trimmed.slice(-MAX_SWAPS_24H_PER_TOKEN) : trimmed;
   }
 
@@ -286,7 +290,8 @@ export class StateManager {
       if (s.sender) senders.add(s.sender.toLowerCase());
     }
     token.totalMakers = senders.size;
-    const withPrice = swaps.filter((s) => (s.priceEth ?? s.priceUsd) != null && (s.priceEth ?? s.priceUsd)! > 0);
+    const byTime = [...swaps].sort((a, b) => a.timestamp - b.timestamp);
+    const withPrice = byTime.filter((s) => (s.priceEth ?? s.priceUsd) != null && (s.priceEth ?? s.priceUsd)! > 0);
     if (withPrice.length > 0) {
       const latest = withPrice[withPrice.length - 1];
       token.lastPrice = latest.priceEth ?? latest.priceUsd;
