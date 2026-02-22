@@ -33,6 +33,11 @@ export const LAST_N_SWAPS = 20;
 export const PERSIST_INTERVAL_MS = 30_000;
 export const BLOCK_POLL_MS = 1000;
 
+/** Persist 24h swaps to clanker_swaps.json every 1 minute */
+export const SWAPS_PERSIST_INTERVAL_MS = 60_000;
+/** Cap per-token 24h swap array size to avoid unbounded growth */
+export const MAX_SWAPS_24H_PER_TOKEN = 5000;
+
 /** Cleanup: remove dead tokens (low volume) every minute */
 export const CLEANUP_INTERVAL_MS = 60_000;
 export const CLEANUP_MIN_VOLUME_ETH = 0.01;
