@@ -115,7 +115,9 @@ export class StateManager {
     const cutoff24h = now - TWENTY_FOUR_HOURS_MS;
     const swapsByToken: Record<string, SwapItem[]> = {};
     for (const [addr, list] of this.swaps24h) {
-      const trimmed = list.filter((s) => s.timestamp >= cutoff24h);
+      const trimmed = list
+        .filter((s) => s.timestamp >= cutoff24h)
+        .sort((a, b) => a.timestamp - b.timestamp);
       const capped = trimmed.length > MAX_SWAPS_24H_PER_TOKEN ? trimmed.slice(-MAX_SWAPS_24H_PER_TOKEN) : trimmed;
       if (capped.length > 0) swapsByToken[addr] = capped;
     }
@@ -263,7 +265,6 @@ export class StateManager {
         t.totalSwaps += 1;
         if (side === "buy") t.totalBuys += 1;
         else t.totalSells += 1;
-        if (priceEth != null && priceEth > 0) t.lastPrice = priceEth;
         this.deriveMetricsFromSwaps(t, trimmed, timestamp);
         return;
       }
