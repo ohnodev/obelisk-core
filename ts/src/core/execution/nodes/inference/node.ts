@@ -32,7 +32,7 @@ export class InferenceNode extends BaseNode {
     const trigger = this.getInputValue("trigger", context, true);
     if (trigger === false) {
       logger.info(
-        `InferenceNode ${this.nodeId}: trigger=false (insufficient funds), skipping API call`
+        `InferenceNode ${this.nodeId}: trigger=false, skipping API call`
       );
       return {
         query: "",

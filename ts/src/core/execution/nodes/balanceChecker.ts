@@ -111,20 +111,18 @@ export class BalanceCheckerNode extends BaseNode {
         const needWei = targetNativeWei - ethWei;
         const toUnwrapRaw = needWei + unwrapBufferWei;
         const toUnwrap = toUnwrapRaw <= wethWei ? toUnwrapRaw : wethWei;
-        if (toUnwrap > 0n) {
-          try {
-            const wethWithWallet = new ethers.Contract(WETH_ADDRESS, WETH_ABI, wallet);
-            const tx = await wethWithWallet.withdraw(toUnwrap);
-            logger.info(
-              `[BalanceChecker] Unwrapping ${ethers.formatEther(toUnwrap)} WETH to reach target native balance (${ethers.formatEther(targetNativeWei)} ETH; buffer=${ethers.formatEther(unwrapBufferWei)} ETH) (tx: ${tx.hash})`
-            );
-            await tx.wait();
-            unwrappedWei = toUnwrap;
-            ethWei = await provider.getBalance(wallet.address);
-            wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
-          } catch (e) {
-            logger.warn(`[BalanceChecker] WETH unwrap failed: ${e instanceof Error ? e.message : e}`);
-          }
+        try {
+          const wethWithWallet = new ethers.Contract(WETH_ADDRESS, WETH_ABI, wallet);
+          const tx = await wethWithWallet.withdraw(toUnwrap);
+          logger.info(
+            `[BalanceChecker] Unwrapping ${ethers.formatEther(toUnwrap)} WETH to reach target native balance (${ethers.formatEther(targetNativeWei)} ETH; buffer=${ethers.formatEther(unwrapBufferWei)} ETH) (tx: ${tx.hash})`
+          );
+          await tx.wait();
+          unwrappedWei = toUnwrap;
+          ethWei = await provider.getBalance(wallet.address);
+          wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
+        } catch (e) {
+          logger.warn(`[BalanceChecker] WETH unwrap failed: ${e instanceof Error ? e.message : e}`);
         }
       }
 
@@ -134,6 +132,7 @@ export class BalanceCheckerNode extends BaseNode {
       const combinedEth = ethEth + wethEth;
 
       const hasEnoughNative = ethWei >= targetNativeWei;
+      // Invariant: ethWei >= targetNativeWei and targetNativeWei >= minBalanceWei imply (ethWei + wethWei) >= minBalanceWei.
       const hasSufficientFunds = hasEnoughNative;
 
       logger.debug(
