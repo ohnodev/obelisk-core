@@ -337,11 +337,11 @@
       "size": [210, 146],
       "inputs": {},
       "metadata": {
-        "min_seconds": 4,
-        "max_seconds": 4,
+        "min_seconds": 1,
+        "max_seconds": 1,
         "enabled": true,
-        "Min Seconds": 4,
-        "Max Seconds": 4,
+        "Min Seconds": 1,
+        "Max Seconds": 1,
         "Enabled": true
       }
     },

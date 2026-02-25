@@ -59,6 +59,11 @@ export class ClankerSellNode extends BaseNode {
       return { success: false, error: "token_address required", txHash: undefined };
     }
 
+    const sellStartMs = Date.now();
+    logger.info(
+      `[ClankerSell] Sell requested token=${tokenAddress} amountWei=${amountWei}`
+    );
+
     const result = await executeSwap(
       privateKey,
       {
@@ -74,10 +79,11 @@ export class ClankerSellNode extends BaseNode {
       rpcUrl
     );
 
+    const elapsedMs = Date.now() - sellStartMs;
     if (result.success) {
-      logger.info(`[ClankerSell] Sell tx: ${result.txHash}`);
+      logger.info(`[ClankerSell] Sell tx: ${result.txHash} (latency=${elapsedMs}ms)`);
     } else {
-      logger.warn(`[ClankerSell] Sell failed: ${result.error}`);
+      logger.warn(`[ClankerSell] Sell failed: ${result.error} (latency=${elapsedMs}ms)`);
     }
 
     const res = result as { wethReceived?: string; ethReceived?: string; zeroBalance?: boolean };
