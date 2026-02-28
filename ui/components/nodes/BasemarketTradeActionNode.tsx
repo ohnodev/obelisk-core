@@ -33,19 +33,19 @@ class BasemarketTradeActionNode extends LGraphNode {
     this.addProperty("action", "mint-complete-set", "string");
     this.addProperty("payload", {}, "object");
 
-    this.addWidget("string", "base_url", "{{process.env.BASEMARKET_API_URL}}", (value: string) => {
+    (this as any)._base_url_widget = this.addWidget("string", "base_url", "{{process.env.BASEMARKET_API_URL}}", (value: string) => {
       this.setProperty("base_url", value);
     }, { serialize: true });
-    this.addWidget("string", "user_address", "{{process.env.BASEMARKET_USER_ADDRESS}}", (value: string) => {
+    (this as any)._user_address_widget = this.addWidget("string", "user_address", "{{process.env.BASEMARKET_USER_ADDRESS}}", (value: string) => {
       this.setProperty("user_address", value);
     }, { serialize: true });
-    this.addWidget("combo" as any, "action", "mint-complete-set", (value: string) => {
+    (this as any)._action_widget = this.addWidget("combo" as any, "action", "mint-complete-set", (value: string) => {
       this.setProperty("action", value);
     }, {
       values: ["mint-complete-set", "sell", "close", "refund", "redeem"],
       serialize: true,
     } as any);
-    this.addWidget("text", "payload_json", "{}", (value: string) => {
+    (this as any)._payload_widget = this.addWidget("text", "payload_json", "{}", (value: string) => {
       try {
         const parsed = JSON.parse(value || "{}");
         this.setProperty("payload", parsed);
@@ -54,9 +54,43 @@ class BasemarketTradeActionNode extends LGraphNode {
       }
     }, { serialize: true });
 
-    this.size = [340, 270];
+    this.size = [340, 310];
     (this as any).type = "basemarket_trade_action";
     (this as any).resizable = true;
+  }
+
+  private _updateWidgetState(inputName: string, widgetRef: string) {
+    const idx = this.inputs.findIndex((i: any) => i.name === inputName);
+    const isConnected = idx !== -1 && !!(this.inputs[idx] as any).link;
+    const widget = (this as any)[widgetRef];
+    if (widget) {
+      widget.disabled = isConnected;
+      (widget as any)._connected = isConnected;
+      if ((this as any).graph) {
+        (this as any).graph.setDirtyCanvas(true, true);
+      }
+    }
+  }
+
+  onConnectionsChange() {
+    this._updateWidgetState("base_url", "_base_url_widget");
+    this._updateWidgetState("user_address", "_user_address_widget");
+    this._updateWidgetState("action", "_action_widget");
+    this._updateWidgetState("payload", "_payload_widget");
+  }
+
+  onAdded() {
+    this._updateWidgetState("base_url", "_base_url_widget");
+    this._updateWidgetState("user_address", "_user_address_widget");
+    this._updateWidgetState("action", "_action_widget");
+    this._updateWidgetState("payload", "_payload_widget");
+  }
+
+  onConfigure(_data: any) {
+    this._updateWidgetState("base_url", "_base_url_widget");
+    this._updateWidgetState("user_address", "_user_address_widget");
+    this._updateWidgetState("action", "_action_widget");
+    this._updateWidgetState("payload", "_payload_widget");
   }
 
   onExecute() {}
