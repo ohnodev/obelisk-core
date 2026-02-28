@@ -1,51 +1,74 @@
 {
-  "id": "basemarket-lp-bot-v1",
-  "name": "Basemarket LP Bot V1",
+  "id": "workflow-1",
+  "name": "Obelisk Workflow",
   "nodes": [
     {
       "id": "1",
       "type": "text",
-      "position": { "x": -1200, "y": -600 },
-      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
-    },
-    {
-      "id": "2",
-      "type": "text",
-      "position": { "x": -1200, "y": -420 },
-      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
+      "position": {
+        "x": -1200,
+        "y": -600
+      },
+      "size": [
+        300,
+        200
+      ],
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.BASEMARKET_API_URL}}"
+      }
     },
     {
       "id": "3",
       "type": "deterministic_scheduler",
-      "position": { "x": -900, "y": -520 },
+      "position": {
+        "x": -992,
+        "y": -869
+      },
+      "size": [
+        280,
+        225
+      ],
+      "inputs": {},
       "metadata": {
         "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
         "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
         "offset_seconds": 0,
-        "enabled": false
-      }
-    },
-    {
-      "id": "4",
-      "type": "deterministic_scheduler",
-      "position": { "x": -900, "y": 300 },
-      "metadata": {
-        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
-        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
-        "offset_seconds": 60,
-        "enabled": false
+        "enabled": false,
+        "Anchor (epoch s)": 1772283441,
+        "Interval (s)": 300,
+        "Offset (s)": 0,
+        "Enabled": false
       }
     },
     {
       "id": "5",
       "type": "basemarket_current_round",
-      "position": { "x": -620, "y": -520 },
-      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+      "position": {
+        "x": -598,
+        "y": -896
+      },
+      "size": [
+        300,
+        120
+      ],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}"
+      }
     },
     {
       "id": "6",
       "type": "basemarket_positions",
-      "position": { "x": -340, "y": -520 },
+      "position": {
+        "x": -318,
+        "y": -462
+      },
+      "size": [
+        320,
+        185
+      ],
+      "inputs": {},
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
@@ -54,77 +77,225 @@
     {
       "id": "7",
       "type": "basemarket_balances",
-      "position": { "x": -60, "y": -700 },
+      "position": {
+        "x": 47,
+        "y": -958
+      },
+      "size": [
+        320,
+        205
+      ],
+      "inputs": {},
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
       }
     },
     {
-      "id": "8",
-      "type": "basemarket_trade_action",
-      "position": { "x": -60, "y": -500 },
-      "metadata": {
-        "action": "refund",
-        "base_url": "{{process.env.BASEMARKET_API_URL}}",
-        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": {}
-      }
-    },
-    {
       "id": "9",
       "type": "basemarket_trade_action",
-      "position": { "x": 220, "y": -700 },
+      "position": {
+        "x": 1017,
+        "y": -1066
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
       "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "action": "redeem",
-        "base_url": "{{process.env.BASEMARKET_API_URL}}",
-        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": {}
-      }
-    },
-    {
-      "id": "10",
-      "type": "basemarket_trade_action",
-      "position": { "x": 220, "y": -500 },
-      "metadata": {
-        "action": "mint-complete-set",
-        "base_url": "{{process.env.BASEMARKET_API_URL}}",
-        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": {}
-      }
-    },
-    {
-      "id": "11",
-      "type": "basemarket_trade_action",
-      "position": { "x": 500, "y": -580 },
-      "metadata": {
-        "action": "open_sell",
-        "base_url": "{{process.env.BASEMARKET_API_URL}}",
-        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": { "outcome": "YES", "price": "0.5" }
+        "payload": {},
+        "payload_json": "{}"
       }
     },
     {
       "id": "12",
       "type": "basemarket_trade_action",
-      "position": { "x": 780, "y": -580 },
+      "position": {
+        "x": 1417,
+        "y": -390
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
       "metadata": {
-        "action": "open_sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": { "outcome": "NO", "price": "0.5" }
+        "action": "sell",
+        "payload": {
+          "outcome": "NO",
+          "price": "0.5"
+        },
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "11",
+      "type": "basemarket_trade_action",
+      "position": {
+        "x": 680,
+        "y": -653
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "sell",
+        "payload": {
+          "outcome": "YES",
+          "price": "0.5"
+        },
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "10",
+      "type": "basemarket_trade_action",
+      "position": {
+        "x": 148,
+        "y": -623
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "mint-complete-set",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "8",
+      "type": "basemarket_trade_action",
+      "position": {
+        "x": 580,
+        "y": -61
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "refund",
+        "payload": {},
+        "payload_json": "{}"
       }
     },
     {
       "id": "13",
       "type": "basemarket_current_round",
-      "position": { "x": -620, "y": 300 },
-      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+      "position": {
+        "x": -485,
+        "y": 564
+      },
+      "size": [
+        300,
+        120
+      ],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}"
+      }
+    },
+    {
+      "id": "4",
+      "type": "deterministic_scheduler",
+      "position": {
+        "x": -638,
+        "y": 142
+      },
+      "size": [
+        280,
+        225
+      ],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 60,
+        "enabled": false,
+        "Anchor (epoch s)": 1772283441,
+        "Interval (s)": 300,
+        "Offset (s)": 0,
+        "Enabled": false
+      }
+    },
+    {
+      "id": "17",
+      "type": "text",
+      "position": {
+        "x": -1238,
+        "y": 52
+      },
+      "size": [
+        300,
+        200
+      ],
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.BASEMARKET_API_URL}}"
+      }
+    },
+    {
+      "id": "19",
+      "type": "wallet",
+      "position": {
+        "x": -1286,
+        "y": 793
+      },
+      "size": [
+        320,
+        105
+      ],
+      "inputs": {},
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
+    },
+    {
+      "id": "18",
+      "type": "text",
+      "position": {
+        "x": -1335,
+        "y": 370
+      },
+      "size": [
+        300,
+        200
+      ],
+      "inputs": {},
+      "metadata": {
+        "text": "{{process.env.BASEMARKET_USER_ADDRESS}}"
+      }
     },
     {
       "id": "14",
       "type": "basemarket_positions",
-      "position": { "x": -340, "y": 300 },
+      "position": {
+        "x": -83,
+        "y": 259
+      },
+      "size": [
+        320,
+        185
+      ],
+      "inputs": {},
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
@@ -133,93 +304,332 @@
     {
       "id": "15",
       "type": "basemarket_trade_action",
-      "position": { "x": -60, "y": 300 },
+      "position": {
+        "x": 392,
+        "y": 562
+      },
+      "size": [
+        340,
+        310
+      ],
+      "inputs": {},
       "metadata": {
-        "action": "close_sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
-        "payload": {}
+        "action": "close",
+        "payload": {},
+        "payload_json": "{}"
       }
     },
     {
       "id": "16",
       "type": "wallet",
-      "position": { "x": -1200, "y": -220 },
+      "position": {
+        "x": -812,
+        "y": -194
+      },
+      "size": [
+        320,
+        105
+      ],
+      "inputs": {},
       "metadata": {
         "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
       }
     },
     {
-      "id": "17",
+      "id": "2",
       "type": "text",
-      "position": { "x": -1200, "y": 220 },
-      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
-    },
-    {
-      "id": "18",
-      "type": "text",
-      "position": { "x": -1200, "y": 390 },
-      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
-    },
-    {
-      "id": "19",
-      "type": "wallet",
-      "position": { "x": -1200, "y": 560 },
+      "position": {
+        "x": -1225,
+        "y": -356
+      },
+      "size": [
+        300,
+        200
+      ],
+      "inputs": {},
       "metadata": {
-        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+        "text": "{{process.env.BASEMARKET_USER_ADDRESS}}"
       }
     }
   ],
   "connections": [
-    { "from": "3", "from_output": "trigger", "to": "5", "to_input": "trigger" },
-    { "from": "5", "from_output": "success", "to": "6", "to_input": "trigger" },
-    { "from": "5", "from_output": "success", "to": "7", "to_input": "trigger" },
-    { "from": "5", "from_output": "current_round", "to": "7", "to_input": "current_round" },
-    { "from": "6", "from_output": "success", "to": "8", "to_input": "trigger" },
-    { "from": "7", "from_output": "success", "to": "9", "to_input": "trigger" },
-    { "from": "5", "from_output": "current_round", "to": "9", "to_input": "current_round" },
-    { "from": "6", "from_output": "success", "to": "10", "to_input": "trigger" },
-    { "from": "5", "from_output": "current_round", "to": "10", "to_input": "current_round" },
-    { "from": "10", "from_output": "success", "to": "11", "to_input": "trigger" },
-    { "from": "5", "from_output": "current_round", "to": "11", "to_input": "current_round" },
-    { "from": "11", "from_output": "success", "to": "12", "to_input": "trigger" },
-    { "from": "5", "from_output": "current_round", "to": "12", "to_input": "current_round" },
-
-    { "from": "4", "from_output": "trigger", "to": "13", "to_input": "trigger" },
-    { "from": "13", "from_output": "success", "to": "14", "to_input": "trigger" },
-    { "from": "14", "from_output": "success", "to": "15", "to_input": "trigger" },
-    { "from": "13", "from_output": "current_round", "to": "15", "to_input": "current_round" },
-
-    { "from": "1", "from_output": "text", "to": "5", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "6", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "7", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "8", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "9", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "10", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "11", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "12", "to_input": "base_url" },
-    { "from": "17", "from_output": "text", "to": "13", "to_input": "base_url" },
-    { "from": "17", "from_output": "text", "to": "14", "to_input": "base_url" },
-    { "from": "17", "from_output": "text", "to": "15", "to_input": "base_url" },
-
-    { "from": "16", "from_output": "private_key", "to": "6", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "7", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "8", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "9", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "10", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "11", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "12", "to_input": "private_key" },
-    { "from": "19", "from_output": "private_key", "to": "14", "to_input": "private_key" },
-    { "from": "19", "from_output": "private_key", "to": "15", "to_input": "private_key" },
-
-    { "from": "2", "from_output": "text", "to": "6", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "7", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "8", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "9", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "10", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "11", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "12", "to_input": "user_address" },
-    { "from": "18", "from_output": "text", "to": "14", "to_input": "user_address" },
-    { "from": "18", "from_output": "text", "to": "15", "to_input": "user_address" }
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "5",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "7",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "8",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "9",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "11",
+      "to_input": "base_url"
+    },
+    {
+      "from": "1",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "base_url"
+    },
+    {
+      "from": "3",
+      "from_output": "trigger",
+      "to": "5",
+      "to_input": "trigger"
+    },
+    {
+      "from": "5",
+      "from_output": "success",
+      "to": "6",
+      "to_input": "trigger"
+    },
+    {
+      "from": "5",
+      "from_output": "success",
+      "to": "7",
+      "to_input": "trigger"
+    },
+    {
+      "from": "5",
+      "from_output": "current_round",
+      "to": "7",
+      "to_input": "current_round"
+    },
+    {
+      "from": "5",
+      "from_output": "current_round",
+      "to": "9",
+      "to_input": "current_round"
+    },
+    {
+      "from": "5",
+      "from_output": "current_round",
+      "to": "10",
+      "to_input": "current_round"
+    },
+    {
+      "from": "5",
+      "from_output": "current_round",
+      "to": "11",
+      "to_input": "current_round"
+    },
+    {
+      "from": "5",
+      "from_output": "current_round",
+      "to": "12",
+      "to_input": "current_round"
+    },
+    {
+      "from": "6",
+      "from_output": "success",
+      "to": "8",
+      "to_input": "trigger"
+    },
+    {
+      "from": "6",
+      "from_output": "success",
+      "to": "10",
+      "to_input": "trigger"
+    },
+    {
+      "from": "7",
+      "from_output": "success",
+      "to": "9",
+      "to_input": "trigger"
+    },
+    {
+      "from": "11",
+      "from_output": "success",
+      "to": "12",
+      "to_input": "trigger"
+    },
+    {
+      "from": "10",
+      "from_output": "success",
+      "to": "11",
+      "to_input": "trigger"
+    },
+    {
+      "from": "13",
+      "from_output": "success",
+      "to": "14",
+      "to_input": "trigger"
+    },
+    {
+      "from": "13",
+      "from_output": "current_round",
+      "to": "15",
+      "to_input": "current_round"
+    },
+    {
+      "from": "4",
+      "from_output": "trigger",
+      "to": "13",
+      "to_input": "trigger"
+    },
+    {
+      "from": "17",
+      "from_output": "text",
+      "to": "13",
+      "to_input": "base_url"
+    },
+    {
+      "from": "17",
+      "from_output": "text",
+      "to": "14",
+      "to_input": "base_url"
+    },
+    {
+      "from": "17",
+      "from_output": "text",
+      "to": "15",
+      "to_input": "base_url"
+    },
+    {
+      "from": "19",
+      "from_output": "private_key",
+      "to": "14",
+      "to_input": "private_key"
+    },
+    {
+      "from": "19",
+      "from_output": "private_key",
+      "to": "15",
+      "to_input": "private_key"
+    },
+    {
+      "from": "18",
+      "from_output": "text",
+      "to": "14",
+      "to_input": "user_address"
+    },
+    {
+      "from": "18",
+      "from_output": "text",
+      "to": "15",
+      "to_input": "user_address"
+    },
+    {
+      "from": "14",
+      "from_output": "success",
+      "to": "15",
+      "to_input": "trigger"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "6",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "7",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "8",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "9",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "10",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "11",
+      "to_input": "private_key"
+    },
+    {
+      "from": "16",
+      "from_output": "private_key",
+      "to": "12",
+      "to_input": "private_key"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "6",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "7",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "8",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "9",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "10",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "11",
+      "to_input": "user_address"
+    },
+    {
+      "from": "2",
+      "from_output": "text",
+      "to": "12",
+      "to_input": "user_address"
+    }
   ]
 }
