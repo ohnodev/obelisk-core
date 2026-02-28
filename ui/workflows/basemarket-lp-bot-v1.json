@@ -5,19 +5,19 @@
     {
       "id": "1",
       "type": "text",
-      "position": { "x": -860, "y": -360 },
+      "position": { "x": -1200, "y": -600 },
       "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
     },
     {
       "id": "2",
       "type": "text",
-      "position": { "x": -860, "y": -120 },
+      "position": { "x": -1200, "y": -420 },
       "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
     },
     {
       "id": "3",
       "type": "deterministic_scheduler",
-      "position": { "x": -560, "y": -420 },
+      "position": { "x": -900, "y": -520 },
       "metadata": {
         "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
         "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
@@ -28,7 +28,7 @@
     {
       "id": "4",
       "type": "deterministic_scheduler",
-      "position": { "x": -560, "y": 60 },
+      "position": { "x": -900, "y": 300 },
       "metadata": {
         "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
         "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
@@ -39,13 +39,13 @@
     {
       "id": "5",
       "type": "basemarket_current_round",
-      "position": { "x": -250, "y": -440 },
+      "position": { "x": -620, "y": -520 },
       "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
     },
     {
       "id": "6",
       "type": "basemarket_positions",
-      "position": { "x": 40, "y": -440 },
+      "position": { "x": -340, "y": -520 },
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
@@ -54,7 +54,7 @@
     {
       "id": "7",
       "type": "basemarket_balances",
-      "position": { "x": 320, "y": -640 },
+      "position": { "x": -60, "y": -700 },
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
@@ -63,7 +63,7 @@
     {
       "id": "8",
       "type": "basemarket_trade_action",
-      "position": { "x": 320, "y": -430 },
+      "position": { "x": -60, "y": -500 },
       "metadata": {
         "action": "refund",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -74,7 +74,7 @@
     {
       "id": "9",
       "type": "basemarket_trade_action",
-      "position": { "x": 610, "y": -640 },
+      "position": { "x": 220, "y": -700 },
       "metadata": {
         "action": "redeem",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -85,7 +85,7 @@
     {
       "id": "10",
       "type": "basemarket_trade_action",
-      "position": { "x": 610, "y": -430 },
+      "position": { "x": 220, "y": -500 },
       "metadata": {
         "action": "mint-complete-set",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -96,7 +96,7 @@
     {
       "id": "11",
       "type": "basemarket_trade_action",
-      "position": { "x": 930, "y": -500 },
+      "position": { "x": 500, "y": -580 },
       "metadata": {
         "action": "sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -107,7 +107,7 @@
     {
       "id": "12",
       "type": "basemarket_trade_action",
-      "position": { "x": 1240, "y": -500 },
+      "position": { "x": 780, "y": -580 },
       "metadata": {
         "action": "sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -118,13 +118,13 @@
     {
       "id": "13",
       "type": "basemarket_current_round",
-      "position": { "x": -250, "y": 40 },
+      "position": { "x": -620, "y": 300 },
       "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
     },
     {
       "id": "14",
       "type": "basemarket_positions",
-      "position": { "x": 40, "y": 40 },
+      "position": { "x": -340, "y": 300 },
       "metadata": {
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
@@ -133,7 +133,7 @@
     {
       "id": "15",
       "type": "basemarket_trade_action",
-      "position": { "x": 340, "y": 40 },
+      "position": { "x": -60, "y": 300 },
       "metadata": {
         "action": "close",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
@@ -144,10 +144,22 @@
     {
       "id": "16",
       "type": "wallet",
-      "position": { "x": -860, "y": 110 },
+      "position": { "x": -1200, "y": -220 },
       "metadata": {
         "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
       }
+    },
+    {
+      "id": "17",
+      "type": "text",
+      "position": { "x": -1200, "y": 220 },
+      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "18",
+      "type": "text",
+      "position": { "x": -1200, "y": 390 },
+      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
     }
   ],
   "connections": [
@@ -178,9 +190,9 @@
     { "from": "1", "from_output": "text", "to": "10", "to_input": "base_url" },
     { "from": "1", "from_output": "text", "to": "11", "to_input": "base_url" },
     { "from": "1", "from_output": "text", "to": "12", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "13", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "14", "to_input": "base_url" },
-    { "from": "1", "from_output": "text", "to": "15", "to_input": "base_url" },
+    { "from": "17", "from_output": "text", "to": "13", "to_input": "base_url" },
+    { "from": "17", "from_output": "text", "to": "14", "to_input": "base_url" },
+    { "from": "17", "from_output": "text", "to": "15", "to_input": "base_url" },
 
     { "from": "16", "from_output": "private_key", "to": "6", "to_input": "private_key" },
     { "from": "16", "from_output": "private_key", "to": "7", "to_input": "private_key" },
@@ -199,7 +211,7 @@
     { "from": "2", "from_output": "text", "to": "10", "to_input": "user_address" },
     { "from": "2", "from_output": "text", "to": "11", "to_input": "user_address" },
     { "from": "2", "from_output": "text", "to": "12", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "14", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "15", "to_input": "user_address" }
+    { "from": "18", "from_output": "text", "to": "14", "to_input": "user_address" },
+    { "from": "18", "from_output": "text", "to": "15", "to_input": "user_address" }
   ]
 }

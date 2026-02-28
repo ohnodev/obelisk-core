@@ -32,7 +32,7 @@ class BasemarketBalancesNode extends LGraphNode {
       this.setProperty("user_address", value);
     }, { serialize: true });
 
-    this.size = [320, 170];
+    this.size = [320, 205];
     (this as any).type = "basemarket_balances";
     (this as any).resizable = true;
   }

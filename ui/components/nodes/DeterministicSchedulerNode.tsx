@@ -44,7 +44,7 @@ class DeterministicSchedulerNode extends LGraphNode {
       this.setProperty("enabled", value);
     }, { serialize: true } as any);
 
-    this.size = [280, 190];
+    this.size = [280, 225];
     (this as any).type = "deterministic_scheduler";
     (this as any).resizable = true;
   }

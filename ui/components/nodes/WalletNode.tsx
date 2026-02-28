@@ -22,7 +22,7 @@ class WalletNode extends LGraphNode {
       this.setProperty("private_key", value);
     }, { serialize: true });
 
-    this.size = [320, 80];
+    this.size = [320, 105];
     (this as any).type = "wallet";
     (this as any).resizable = true;
   }

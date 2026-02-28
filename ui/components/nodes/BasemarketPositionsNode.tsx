@@ -31,7 +31,7 @@ class BasemarketPositionsNode extends LGraphNode {
       this.setProperty("user_address", value);
     }, { serialize: true });
 
-    this.size = [320, 150];
+    this.size = [320, 185];
     (this as any).type = "basemarket_positions";
     (this as any).resizable = true;
   }

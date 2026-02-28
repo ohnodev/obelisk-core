@@ -54,7 +54,7 @@ class BasemarketTradeActionNode extends LGraphNode {
       }
     }, { serialize: true });
 
-    this.size = [340, 230];
+    this.size = [340, 270];
     (this as any).type = "basemarket_trade_action";
     (this as any).resizable = true;
   }
