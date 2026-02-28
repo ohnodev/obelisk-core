@@ -2,19 +2,23 @@
  * State shapes for Clanker tracker. Persisted to a single JSON file.
  */
 
-export interface LastSwapItem {
+/** Single swap event; stored in 24h window per token (clanker_swaps.json), not in state. */
+export interface SwapItem {
   timestamp: number;
   side: "buy" | "sell";
-  /** Volume in ETH (WETH) for this swap */
   volumeEth: number;
-  /** Sender address for unique maker count */
   sender?: string;
-  /** Price in ETH (per token) at swap time (optional) */
   priceEth?: number;
   /** @deprecated use volumeEth */
   volumeUsd?: number;
   /** @deprecated use priceEth */
   priceUsd?: number;
+}
+
+/** Shape of clanker_swaps.json (24h of swaps per token). */
+export interface ClankerSwapsFile {
+  lastUpdated: number;
+  swapsByToken: Record<string, SwapItem[]>;
 }
 
 export interface TokenState {
@@ -31,9 +35,7 @@ export interface TokenState {
   totalSells: number;
   /** Rolling 24h volume in ETH */
   volume24h: number;
-  /** Last N swaps for context */
-  last20Swaps: LastSwapItem[];
-  /** Volume in last 1m / 5m / 15m / 30m / 1h (ETH), computed from swap history */
+  /** Volume in last 1m / 5m / 15m / 30m / 1h (ETH), computed from 24h swap list */
   volume1m?: number;
   volume5m?: number;
   volume15m?: number;

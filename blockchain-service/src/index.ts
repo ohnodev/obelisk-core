@@ -14,7 +14,7 @@ import express from "express";
 import { StateManager } from "./state.js";
 import { BlockProcessor } from "./blockProcessor.js";
 import { EthPriceService } from "./ethPrice.js";
-import { PERSIST_INTERVAL_MS, BLOCK_POLL_MS, CLEANUP_INTERVAL_MS, CLEANUP_MIN_VOLUME_ETH } from "./constants.js";
+import { PERSIST_INTERVAL_MS, BLOCK_POLL_MS, SWAPS_PERSIST_INTERVAL_MS, CLEANUP_INTERVAL_MS, CLEANUP_MIN_VOLUME_ETH } from "./constants.js";
 
 const RPC_URL = process.env.RPC_URL || "https://mainnet.base.org";
 // Store in blockchain-service/data/ (same pattern as obelisk-service); __dirname at runtime is dist/
@@ -33,6 +33,7 @@ const stateFileLog = path.join(path.basename(path.dirname(STATE_FILE_PATH)), pat
 console.log(`[Clanker] State file: ${stateFileLog}`);
 state.load();
 state.startPersistInterval(PERSIST_INTERVAL_SEC * 1000);
+state.startSwapsPersistInterval(SWAPS_PERSIST_INTERVAL_MS);
 
 const cleanupIntervalId = setInterval(() => {
   state.cleanupDeadTokens(CLEANUP_MIN_VOLUME_ETH);
@@ -110,6 +111,7 @@ function shutdown(): void {
   processor.stop();
   state.stopPersistInterval();
   state.persist();
+  state.persistSwaps();
   process.exit(0);
 }
 

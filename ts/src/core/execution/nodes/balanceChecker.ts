@@ -1,15 +1,14 @@
 /**
  * BalanceCheckerNode – checks ETH + WETH combined balance for the wallet (from private_key).
- * Ensures at least GAS_RESERVE_ETH (0.001) is available in native ETH for gas.
- * If native ETH is below gas reserve but WETH is sufficient, automatically unwraps WETH → ETH
- * so the wallet has enough native ETH for gas.
+ * Ensures enough native ETH is available to trade + pay gas.
+ * If native ETH is below the required native threshold, automatically unwraps WETH → ETH.
  *
  * Inputs:
  *   private_key: From metadata.private_key or SWAP_PRIVATE_KEY (Wallet node no longer exposes it; required for address + RPC)
  *   min_balance_wei: Minimum required combined (ETH+WETH) balance in wei (optional; default 0.004 ETH)
  *
  * Outputs:
- *   has_sufficient_funds: true if (eth + weth >= min) and (eth >= gas reserve)
+ *   has_sufficient_funds: true if native ETH >= max(min, gas reserve)
  *   balance_wei: Combined balance in wei (string)
  *   balance_eth: Combined balance in ETH (number)
  *   eth_balance_wei / eth_balance_eth: Native ETH (for gas)
@@ -96,6 +95,7 @@ export class BalanceCheckerNode extends BaseNode {
 
     const rpcUrl = (process.env.RPC_URL as string) || DEFAULT_RPC;
     const gasReserveWei = parseWei(GAS_RESERVE_ETH);
+    const targetNativeWei = minBalanceWei > gasReserveWei ? minBalanceWei : gasReserveWei;
     const unwrapBufferWei = parseWei(UNWRAP_BUFFER_ETH);
 
     try {
@@ -105,24 +105,24 @@ export class BalanceCheckerNode extends BaseNode {
       const wethContractRead = new ethers.Contract(WETH_ADDRESS, WETH_ABI, provider);
       let wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
 
-      // If we don't have enough native ETH for gas but have enough WETH, unwrap some WETH → ETH
+      // If native ETH is below the required threshold, unwrap WETH into ETH.
       let unwrappedWei = 0n;
-      if (ethWei < gasReserveWei && wethWei > 0n) {
-        const needWei = gasReserveWei - ethWei;
+      if (ethWei < targetNativeWei && wethWei > 0n) {
+        const needWei = targetNativeWei - ethWei;
         const toUnwrapRaw = needWei + unwrapBufferWei;
         const toUnwrap = toUnwrapRaw <= wethWei ? toUnwrapRaw : wethWei;
-        if (toUnwrap > 0n) {
-          try {
-            const wethWithWallet = new ethers.Contract(WETH_ADDRESS, WETH_ABI, wallet);
-            const tx = await wethWithWallet.withdraw(toUnwrap);
-            logger.info(`[BalanceChecker] Unwrapping ${ethers.formatEther(toUnwrap)} WETH for gas (tx: ${tx.hash})`);
-            await tx.wait();
-            unwrappedWei = toUnwrap;
-            ethWei = await provider.getBalance(wallet.address);
-            wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
-          } catch (e) {
-            logger.warn(`[BalanceChecker] WETH unwrap failed: ${e instanceof Error ? e.message : e}`);
-          }
+        try {
+          const wethWithWallet = new ethers.Contract(WETH_ADDRESS, WETH_ABI, wallet);
+          const tx = await wethWithWallet.withdraw(toUnwrap);
+          logger.info(
+            `[BalanceChecker] Unwrapping ${ethers.formatEther(toUnwrap)} WETH to reach target native balance (${ethers.formatEther(targetNativeWei)} ETH; buffer=${ethers.formatEther(unwrapBufferWei)} ETH) (tx: ${tx.hash})`
+          );
+          await tx.wait();
+          unwrappedWei = toUnwrap;
+          ethWei = await provider.getBalance(wallet.address);
+          wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
+        } catch (e) {
+          logger.warn(`[BalanceChecker] WETH unwrap failed: ${e instanceof Error ? e.message : e}`);
         }
       }
 
@@ -131,12 +131,12 @@ export class BalanceCheckerNode extends BaseNode {
       const wethEth = Number(ethers.formatEther(wethWei));
       const combinedEth = ethEth + wethEth;
 
-      const hasEnoughCombined = combinedWei >= minBalanceWei;
-      const hasEnoughGas = ethWei >= gasReserveWei;
-      const hasSufficientFunds = hasEnoughCombined && hasEnoughGas;
+      const hasEnoughNative = ethWei >= targetNativeWei;
+      // Invariant: ethWei >= targetNativeWei and targetNativeWei >= minBalanceWei imply (ethWei + wethWei) >= minBalanceWei.
+      const hasSufficientFunds = hasEnoughNative;
 
       logger.debug(
-        `[BalanceChecker] ${wallet.address} eth=${ethEth.toFixed(6)} weth=${wethEth.toFixed(6)} combined=${combinedEth.toFixed(6)} ETH, min=${ethers.formatEther(minBalanceWei)} ETH, gas_reserve=${ethers.formatEther(gasReserveWei)} ETH → sufficient=${hasSufficientFunds}`
+        `[BalanceChecker] ${wallet.address} eth=${ethEth.toFixed(6)} weth=${wethEth.toFixed(6)} combined=${combinedEth.toFixed(6)} ETH, min=${ethers.formatEther(minBalanceWei)} ETH, gas_reserve=${ethers.formatEther(gasReserveWei)} ETH, native_target=${ethers.formatEther(targetNativeWei)} ETH → sufficient=${hasSufficientFunds}`
       );
 
       return {
