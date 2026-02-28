@@ -20,6 +20,7 @@ import { useNotifications } from "./Notification";
 
 // Workflow templates
 import clankerAutotraderV1Template from "@/workflows/clanker-autotrader-v1.2.json";
+import basemarketLpBotV1Template from "@/workflows/basemarket-lp-bot-v1.json";
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
 import soraTemplate from "@/workflows/sora.json";
@@ -34,6 +35,12 @@ interface WorkflowTemplate {
 }
 
 const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: "basemarket-lp-bot-v1",
+    name: "Basemarket LP Bot V1",
+    description: "Deterministic round-start and +60s scheduling for Basemarket mint/sell/close/refund/redeem flow",
+    data: basemarketLpBotV1Template,
+  },
   {
     id: "clanker-autotrader-v1.2",
     name: "Clanker Autotrader V1.2",
@@ -73,7 +80,15 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 ];
 
 // Node types that run autonomously (continuously) and require the persistent runner
-const AUTONOMOUS_NODE_TYPES = new Set(["telegram_listener", "scheduler", "http_listener", "express_service", "autotrader_stats_listener", "sell_bags_listener"]);
+const AUTONOMOUS_NODE_TYPES = new Set([
+  "telegram_listener",
+  "scheduler",
+  "deterministic_scheduler",
+  "http_listener",
+  "express_service",
+  "autotrader_stats_listener",
+  "sell_bags_listener",
+]);
 
 // Single breakpoint for responsive design
 const MOBILE_BREAKPOINT = 1200;

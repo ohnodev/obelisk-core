@@ -98,6 +98,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Scheduler",
         description: "Triggers nodes at random intervals (autonomous execution)",
       },
+      {
+        type: "deterministic_scheduler",
+        title: "Deterministic Scheduler",
+        description: "Triggers on exact time slots using anchor + interval + offset",
+      },
     ],
   },
   {
@@ -192,6 +197,31 @@ const NODE_CATEGORIES: NodeCategory[] = [
         type: "telegram_memory_selector",
         title: "TG Memory Selector",
         description: "Retrieves relevant context for a Telegram chat",
+      },
+    ],
+  },
+  {
+    name: "Basemarket",
+    nodes: [
+      {
+        type: "basemarket_current_round",
+        title: "Basemarket Current Round",
+        description: "Fetches /api/trade/current-round",
+      },
+      {
+        type: "basemarket_positions",
+        title: "Basemarket Positions",
+        description: "Fetches /api/trade/positions?user=...",
+      },
+      {
+        type: "basemarket_balances",
+        title: "Basemarket Balances",
+        description: "Fetches /api/trade/balances?user=...&roundId=...",
+      },
+      {
+        type: "basemarket_trade_action",
+        title: "Basemarket Trade Action",
+        description: "Posts mint/sell/close/refund/redeem requests",
       },
     ],
   },

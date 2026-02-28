@@ -1,0 +1,205 @@
+{
+  "id": "basemarket-lp-bot-v1",
+  "name": "Basemarket LP Bot V1",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "text",
+      "position": { "x": -860, "y": -360 },
+      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "2",
+      "type": "text",
+      "position": { "x": -860, "y": -120 },
+      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
+    },
+    {
+      "id": "3",
+      "type": "deterministic_scheduler",
+      "position": { "x": -560, "y": -420 },
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 0,
+        "enabled": false
+      }
+    },
+    {
+      "id": "4",
+      "type": "deterministic_scheduler",
+      "position": { "x": -560, "y": 60 },
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 60,
+        "enabled": false
+      }
+    },
+    {
+      "id": "5",
+      "type": "basemarket_current_round",
+      "position": { "x": -250, "y": -440 },
+      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "6",
+      "type": "basemarket_positions",
+      "position": { "x": 40, "y": -440 },
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
+      }
+    },
+    {
+      "id": "7",
+      "type": "basemarket_balances",
+      "position": { "x": 320, "y": -640 },
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
+      }
+    },
+    {
+      "id": "8",
+      "type": "basemarket_trade_action",
+      "position": { "x": 320, "y": -430 },
+      "metadata": {
+        "action": "refund",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": {}
+      }
+    },
+    {
+      "id": "9",
+      "type": "basemarket_trade_action",
+      "position": { "x": 610, "y": -640 },
+      "metadata": {
+        "action": "redeem",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": {}
+      }
+    },
+    {
+      "id": "10",
+      "type": "basemarket_trade_action",
+      "position": { "x": 610, "y": -430 },
+      "metadata": {
+        "action": "mint-complete-set",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": {}
+      }
+    },
+    {
+      "id": "11",
+      "type": "basemarket_trade_action",
+      "position": { "x": 930, "y": -500 },
+      "metadata": {
+        "action": "sell",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": { "outcome": "YES", "price": "0.5" }
+      }
+    },
+    {
+      "id": "12",
+      "type": "basemarket_trade_action",
+      "position": { "x": 1240, "y": -500 },
+      "metadata": {
+        "action": "sell",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": { "outcome": "NO", "price": "0.5" }
+      }
+    },
+    {
+      "id": "13",
+      "type": "basemarket_current_round",
+      "position": { "x": -250, "y": 40 },
+      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "14",
+      "type": "basemarket_positions",
+      "position": { "x": 40, "y": 40 },
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}"
+      }
+    },
+    {
+      "id": "15",
+      "type": "basemarket_trade_action",
+      "position": { "x": 340, "y": 40 },
+      "metadata": {
+        "action": "close",
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "payload": {}
+      }
+    },
+    {
+      "id": "16",
+      "type": "wallet",
+      "position": { "x": -860, "y": 110 },
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
+    }
+  ],
+  "connections": [
+    { "from": "3", "from_output": "trigger", "to": "5", "to_input": "trigger" },
+    { "from": "5", "from_output": "success", "to": "6", "to_input": "trigger" },
+    { "from": "5", "from_output": "success", "to": "7", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "7", "to_input": "current_round" },
+    { "from": "6", "from_output": "success", "to": "8", "to_input": "trigger" },
+    { "from": "7", "from_output": "success", "to": "9", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "9", "to_input": "current_round" },
+    { "from": "6", "from_output": "success", "to": "10", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "10", "to_input": "current_round" },
+    { "from": "10", "from_output": "success", "to": "11", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "11", "to_input": "current_round" },
+    { "from": "11", "from_output": "success", "to": "12", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "12", "to_input": "current_round" },
+
+    { "from": "4", "from_output": "trigger", "to": "13", "to_input": "trigger" },
+    { "from": "13", "from_output": "success", "to": "14", "to_input": "trigger" },
+    { "from": "14", "from_output": "success", "to": "15", "to_input": "trigger" },
+    { "from": "13", "from_output": "current_round", "to": "15", "to_input": "current_round" },
+
+    { "from": "1", "from_output": "text", "to": "5", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "6", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "7", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "8", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "9", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "10", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "11", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "12", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "13", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "14", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "15", "to_input": "base_url" },
+
+    { "from": "16", "from_output": "private_key", "to": "6", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "7", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "8", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "9", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "10", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "11", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "12", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "14", "to_input": "private_key" },
+    { "from": "16", "from_output": "private_key", "to": "15", "to_input": "private_key" },
+
+    { "from": "2", "from_output": "text", "to": "6", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "7", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "8", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "9", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "10", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "11", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "12", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "14", "to_input": "user_address" },
+    { "from": "2", "from_output": "text", "to": "15", "to_input": "user_address" }
+  ]
+}

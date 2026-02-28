@@ -6,6 +6,7 @@
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
+import { Wallet } from "ethers";
 
 const logger = getLogger("wallet");
 
@@ -18,11 +19,24 @@ export class WalletNode extends BaseNode {
       "";
 
     const walletReady = !!privateKey && privateKey.length >= 20;
+    let walletAddress = "";
 
     if (!walletReady) {
       logger.debug("[Wallet] SWAP_PRIVATE_KEY not set or too short");
+    } else {
+      try {
+        walletAddress = new Wallet(privateKey).address;
+      } catch (error) {
+        logger.debug(
+          `[Wallet] Failed to derive wallet address: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
 
-    return { wallet_ready: walletReady };
+    return {
+      private_key: privateKey,
+      wallet_address: walletAddress,
+      wallet_ready: walletReady,
+    };
   }
 }

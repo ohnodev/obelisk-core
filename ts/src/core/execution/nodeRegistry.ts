@@ -15,6 +15,7 @@ import { MemoryStorageNode } from "./nodes/memoryStorage";
 import { MemorySelectorNode } from "./nodes/memorySelector";
 import { MemoryCreatorNode } from "./nodes/memoryCreator";
 import { SchedulerNode } from "./nodes/scheduler";
+import { DeterministicSchedulerNode } from "./nodes/deterministicScheduler";
 import { TelegramBotNode } from "./nodes/telegramBot";
 import { TelegramListenerNode } from "./nodes/telegramListener";
 import { TelegramMemoryCreatorNode } from "./nodes/telegramMemoryCreator";
@@ -44,6 +45,10 @@ import { AddToBagsNode } from "./nodes/addToBags";
 import { UpdateBagsOnSellNode } from "./nodes/updateBagsOnSell";
 import { SellNotifyNode } from "./nodes/sellNotify";
 import { BalanceCheckerNode } from "./nodes/balanceChecker";
+import { BasemarketCurrentRoundNode } from "./nodes/basemarketCurrentRound";
+import { BasemarketPositionsNode } from "./nodes/basemarketPositions";
+import { BasemarketBalancesNode } from "./nodes/basemarketBalances";
+import { BasemarketTradeActionNode } from "./nodes/basemarketTradeAction";
 
 const logger = getLogger("nodeRegistry");
 
@@ -81,6 +86,7 @@ export function registerAllNodes(): void {
   registerNode("memory_selector", MemorySelectorNode);
   registerNode("memory_creator", MemoryCreatorNode);
   registerNode("scheduler", SchedulerNode);
+  registerNode("deterministic_scheduler", DeterministicSchedulerNode);
   registerNode("telegram_bot", TelegramBotNode);
   registerNode("telegram_listener", TelegramListenerNode);
   registerNode("telegram_memory_creator", TelegramMemoryCreatorNode);
@@ -110,6 +116,10 @@ export function registerAllNodes(): void {
   registerNode("update_bags_on_sell", UpdateBagsOnSellNode);
   registerNode("sell_notify", SellNotifyNode);
   registerNode("balance_checker", BalanceCheckerNode);
+  registerNode("basemarket_current_round", BasemarketCurrentRoundNode);
+  registerNode("basemarket_positions", BasemarketPositionsNode);
+  registerNode("basemarket_balances", BasemarketBalancesNode);
+  registerNode("basemarket_trade_action", BasemarketTradeActionNode);
 
   logger.info(
     `Node registry initialised – ${Object.keys(NODE_REGISTRY).length} types`

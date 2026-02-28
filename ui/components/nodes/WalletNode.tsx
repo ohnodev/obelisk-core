@@ -14,6 +14,7 @@ class WalletNode extends LGraphNode {
     this.title = "Wallet";
 
     this.addOutput("private_key", "string");
+    this.addOutput("wallet_address", "string");
     this.addOutput("wallet_ready", "boolean");
 
     this.addProperty("private_key", DEFAULT_ENV, "string");
