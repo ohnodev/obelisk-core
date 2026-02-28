@@ -160,6 +160,14 @@
       "type": "text",
       "position": { "x": -1200, "y": 390 },
       "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
+    },
+    {
+      "id": "19",
+      "type": "wallet",
+      "position": { "x": -1200, "y": 560 },
+      "metadata": {
+        "private_key": "{{process.env.SWAP_PRIVATE_KEY}}"
+      }
     }
   ],
   "connections": [
@@ -201,8 +209,8 @@
     { "from": "16", "from_output": "private_key", "to": "10", "to_input": "private_key" },
     { "from": "16", "from_output": "private_key", "to": "11", "to_input": "private_key" },
     { "from": "16", "from_output": "private_key", "to": "12", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "14", "to_input": "private_key" },
-    { "from": "16", "from_output": "private_key", "to": "15", "to_input": "private_key" },
+    { "from": "19", "from_output": "private_key", "to": "14", "to_input": "private_key" },
+    { "from": "19", "from_output": "private_key", "to": "15", "to_input": "private_key" },
 
     { "from": "2", "from_output": "text", "to": "6", "to_input": "user_address" },
     { "from": "2", "from_output": "text", "to": "7", "to_input": "user_address" },
