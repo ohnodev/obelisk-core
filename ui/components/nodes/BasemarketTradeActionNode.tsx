@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class BasemarketTradeActionNode extends LGraphNode {
   static title = "Basemarket Trade Action";
-  static desc = "POST trade actions: mint-complete-set, open_sell/open_buy, close_sell/close_buy, refund, redeem";
+  static desc = "Signed Basemarket actions: open/close/refund/redeem/merge";
   static title_color = "#2d7ff9";
 
   constructor() {
@@ -50,7 +50,10 @@ class BasemarketTradeActionNode extends LGraphNode {
         "close_buy",
         "refund",
         "redeem",
+        "merge-complete-set",
+        "merge",
         "sell",
+        "buy",
         "close",
       ],
       serialize: true,
