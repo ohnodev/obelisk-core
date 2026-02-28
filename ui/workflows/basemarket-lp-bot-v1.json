@@ -98,7 +98,7 @@
       "type": "basemarket_trade_action",
       "position": { "x": 500, "y": -580 },
       "metadata": {
-        "action": "sell",
+        "action": "open_sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "payload": { "outcome": "YES", "price": "0.5" }
@@ -109,7 +109,7 @@
       "type": "basemarket_trade_action",
       "position": { "x": 780, "y": -580 },
       "metadata": {
-        "action": "sell",
+        "action": "open_sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "payload": { "outcome": "NO", "price": "0.5" }
@@ -135,7 +135,7 @@
       "type": "basemarket_trade_action",
       "position": { "x": -60, "y": 300 },
       "metadata": {
-        "action": "close",
+        "action": "close_sell",
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "payload": {}

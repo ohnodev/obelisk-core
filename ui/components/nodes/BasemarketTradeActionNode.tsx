@@ -4,7 +4,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 class BasemarketTradeActionNode extends LGraphNode {
   static title = "Basemarket Trade Action";
-  static desc = "POST trade actions: mint-complete-set, sell, close, refund, redeem";
+  static desc = "POST trade actions: mint-complete-set, open_sell/open_buy, close_sell/close_buy, refund, redeem";
   static title_color = "#2d7ff9";
 
   constructor() {
@@ -42,7 +42,17 @@ class BasemarketTradeActionNode extends LGraphNode {
     (this as any)._action_widget = this.addWidget("combo" as any, "action", "mint-complete-set", (value: string) => {
       this.setProperty("action", value);
     }, {
-      values: ["mint-complete-set", "sell", "close", "refund", "redeem"],
+      values: [
+        "mint-complete-set",
+        "open_sell",
+        "open_buy",
+        "close_sell",
+        "close_buy",
+        "refund",
+        "redeem",
+        "sell",
+        "close",
+      ],
       serialize: true,
     } as any);
     (this as any)._payload_widget = this.addWidget("text", "payload_json", "{}", (value: string) => {
