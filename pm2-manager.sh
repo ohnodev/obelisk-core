@@ -195,9 +195,7 @@ module.exports = {
       cwd: path.resolve(__dirname, 'polymarket-service'),
       instances: 1,
       exec_mode: 'fork',
-      env: {
-        PORT: '${POLYMARKET_PORT}',
-      },
+      env: {},
       log_file: path.resolve(__dirname, 'logs', 'polymarket-service.log'),
       out_file: '/dev/null',
       error_file: '/dev/null',
