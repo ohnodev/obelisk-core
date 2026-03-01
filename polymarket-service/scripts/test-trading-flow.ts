@@ -92,12 +92,20 @@ async function main() {
     console.log('    Found in open orders:', JSON.stringify(found, null, 2));
     console.log('\n[5] Cancelling order ' + orderId + '...');
     await cancelOrder(orderId, pk);
-    const ordersAfter = await getOpenOrders({ asset_id: tokenId }, pk);
-    if (ordersAfter.find((o) => o.id === orderId)) {
-      console.error('[FAIL] Order still present after cancel');
-      process.exit(1);
+    const maxAttempts = 5;
+    const retryDelayMs = 1000;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const ordersAfter = await getOpenOrders({ asset_id: tokenId }, pk);
+      if (!ordersAfter.find((o) => o.id === orderId)) {
+        console.log('    Cancelled and verified gone.');
+        break;
+      }
+      if (attempt === maxAttempts) {
+        console.error('[FAIL] Order still present after cancel');
+        process.exit(1);
+      }
+      await new Promise((r) => setTimeout(r, retryDelayMs));
     }
-    console.log('    Cancelled and verified gone.');
   }
 
   // --- Fetch Data API positions ---

@@ -54,8 +54,16 @@ async function fetchRedeemableFromDataApi(
   walletAddress: string,
 ): Promise<{ conditionIds: string[]; resolvedPositions: ResolvedPosition[] }> {
   const url = `${DATA_API}/positions?user=${encodeURIComponent(walletAddress)}&redeemable=true&limit=100`;
+  const FETCH_TIMEOUT_MS = 5000;
   try {
-    const res = await fetch(url);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       console.warn('[Redeem] Data API fetch failed', { url, status: res.status, statusText: res.statusText });
       return { conditionIds: [], resolvedPositions: [] };
@@ -133,8 +141,16 @@ async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
   for (const ts of recentWindowTimestamps()) {
     const slug = `btc-updown-5m-${ts}`;
     const url = `${GAMMA_API}/events?slug=${slug}`;
+    const GAMMA_FETCH_TIMEOUT_MS = 5000;
     try {
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), GAMMA_FETCH_TIMEOUT_MS);
+      let res: Response;
+      try {
+        res = await fetch(url, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!res.ok) continue;
       const events = (await res.json()) as GammaEvent[];
       for (const event of events) {
@@ -146,8 +162,10 @@ async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
           }
         }
       }
-    } catch {
-      // skip failed fetches
+    } catch (err) {
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[Redeem] Gamma fetch failed', { url, error: err instanceof Error ? err.message : String(err) });
+      }
     }
   }
   return ids;
@@ -197,7 +215,7 @@ export async function runHousekeeping(pk: string): Promise<{
         method: 'redeemPositions',
         args: [USDC_E, PARENT_COLLECTION_ID, conditionId, [1, 2]],
         gasLimit: ethers.BigNumber.from(GAS_LIMIT),
-        timeoutMs: 60_000, // 30s × 2 attempts (replacement with 2x gas); nonce reset on timeout
+        timeoutMs: 60_000, // per-attempt timeout; with replacement attempt total max ~120s
       });
       redeemed++;
       console.log(

@@ -4,6 +4,13 @@ import { runHousekeeping } from '../services/redeemPositions.js';
 
 const router = Router();
 
+function isValidHexPrivateKey(s: string): boolean {
+  const t = (s ?? '').trim();
+  if (t.length !== 64 && t.length !== 66) return false;
+  const hex = t.startsWith('0x') ? t.slice(2) : t;
+  return /^[a-fA-F0-9]{64}$/.test(hex);
+}
+
 const BRAIN_URL = process.env.BRAIN_URL;
 const TRADING_API_KEY = process.env.POLYMARKET_TRADING_API_KEY;
 const ALLOW_UNAUTHENTICATED_TRADING = process.env.ALLOW_UNAUTHENTICATED_TRADING === 'true' || process.env.ALLOW_UNAUTHENTICATED_TRADING === '1';
@@ -76,6 +83,10 @@ router.post('/order', requireTradingAuth, async (req: Request, res: Response) =>
     res.status(400).json({ error: 'privateKey is required in request body' });
     return;
   }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
+    return;
+  }
   try {
     if (!tokenId || !side || price == null || size == null) {
       res.status(400).json({ error: 'Missing required fields: tokenId, side, price, size' });
@@ -119,6 +130,10 @@ router.post('/order/cancel', requireTradingAuth, async (req: Request, res: Respo
     res.status(400).json({ error: 'privateKey is required in request body' });
     return;
   }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
+    return;
+  }
   try {
     if (!orderId) {
       res.status(400).json({ error: 'Missing orderId' });
@@ -138,6 +153,10 @@ router.post('/close-orders', requireTradingAuth, async (req: Request, res: Respo
   const pk = privateKey?.trim() || null;
   if (!pk) {
     res.status(400).json({ error: 'privateKey is required in request body' });
+    return;
+  }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
     return;
   }
   try {
@@ -161,11 +180,36 @@ router.post('/close-orders', requireTradingAuth, async (req: Request, res: Respo
   }
 });
 
+router.post('/redeem', requireTradingAuth, async (req: Request, res: Response) => {
+  const { privateKey } = (req.body ?? {}) as { privateKey?: string };
+  const pk = privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
+    return;
+  }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
+    return;
+  }
+  try {
+    const result = await runHousekeeping(pk);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Trading] redeem error:', err);
+    res.status(500).json({ error: msg });
+  }
+});
+
 router.post('/housekeeping', requireTradingAuth, async (req: Request, res: Response) => {
   const { privateKey } = (req.body ?? {}) as { privateKey?: string };
   const pk = privateKey?.trim() || null;
   if (!pk) {
     res.status(400).json({ error: 'privateKey is required in request body' });
+    return;
+  }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
     return;
   }
   try {

@@ -64,7 +64,9 @@ export async function placeOrder(params: PlaceOrderParams, pk: string): Promise<
   const negRisk = book.neg_risk ?? true;
 
   const c = await getClient(pk);
-  const orderTypeEnum = OrderType.GTC;
+  // createAndPostOrder accepts GTC | GTD only (FOK/FAK are for market orders via createAndPostMarketOrder)
+  const ot = (params.orderType ?? 'GTC').toUpperCase();
+  const orderTypeEnum = ot === 'GTD' ? OrderType.GTD : OrderType.GTC;
   const sideEnum = side === 'SELL' ? Side.SELL : Side.BUY;
 
   const response = await c.createAndPostOrder(
@@ -81,7 +83,7 @@ export async function placeOrder(params: PlaceOrderParams, pk: string): Promise<
     orderTypeEnum,
   );
 
-  const r = response as { orderID?: unknown; order_id?: unknown };
+  const r = response as { orderID?: unknown; order_id?: unknown; status?: string };
   const raw = r?.orderID ?? r?.order_id ?? response;
   let orderId: string;
   if (typeof raw === 'string') {
@@ -92,9 +94,14 @@ export async function placeOrder(params: PlaceOrderParams, pk: string): Promise<
   } else {
     orderId = raw != null ? String(raw) : '';
   }
+  if (!orderId || orderId.trim() === '') {
+    throw new Error(
+      `Place order response missing orderId: ${JSON.stringify(response)}`,
+    );
+  }
   return {
-    orderId: orderId || 'unknown',
-    status: (response as { status?: string }).status ?? 'placed',
+    orderId,
+    status: r.status ?? 'placed',
   };
 }
 

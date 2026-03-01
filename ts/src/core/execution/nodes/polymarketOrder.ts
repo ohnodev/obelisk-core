@@ -60,13 +60,10 @@ export class PolymarketOrderNode extends BaseNode {
     const userAddr = asString(this.getInputValue("user_address", context, undefined));
     const walletAddr = asString(this.getInputValue("wallet_address", context, undefined));
     const walletAddress = userAddr || walletAddr || "";
+    const pkFromInput = asString(this.getInputValue("private_key", context, undefined));
+    const pkFromMeta = asString(this.resolveEnvVar(this.metadata.private_key) ?? this.metadata.private_key);
     const privateKey =
-      (this.getInputValue("private_key", context, undefined) as string) ??
-      this.resolveEnvVar(this.metadata.private_key) ??
-      (typeof this.metadata.private_key === "string" ? this.metadata.private_key : undefined) ??
-      process.env.POLYMARKET_PRIVATE_KEY ??
-      process.env.SWAP_PRIVATE_KEY ??
-      "";
+      pkFromInput || pkFromMeta || asString(process.env.POLYMARKET_PRIVATE_KEY) || asString(process.env.SWAP_PRIVATE_KEY) || "";
 
     const resolvedAddress =
       walletAddress ||

@@ -256,17 +256,17 @@ export class TransactionService {
         const res = await fetch(GAS_STATION_URL, { signal: controller.signal });
         clearTimeout(timer);
         if (res.ok) {
-        const data = (await res.json()) as { fast?: { maxPriorityFee: number; maxFee: number } };
-        const fast = data.fast;
-        if (fast && typeof fast.maxPriorityFee === 'number' && typeof fast.maxFee === 'number') {
-          const tip = ethers.utils.parseUnits(String(Math.ceil(fast.maxPriorityFee * 1.2)), 'gwei');
-          const max = ethers.utils.parseUnits(String(Math.ceil(fast.maxFee * 1.2)), 'gwei');
-          return {
-            maxPriorityFeePerGas: tip.gt(floorTip) ? tip : floorTip,
-            maxFeePerGas: max.gt(floorMax) ? max : floorMax,
-          };
+          const data = (await res.json()) as { fast?: { maxPriorityFee: number; maxFee: number } };
+          const fast = data.fast;
+          if (fast && typeof fast.maxPriorityFee === 'number' && typeof fast.maxFee === 'number') {
+            const tip = ethers.utils.parseUnits(String(Math.ceil(fast.maxPriorityFee * 1.2)), 'gwei');
+            const max = ethers.utils.parseUnits(String(Math.ceil(fast.maxFee * 1.2)), 'gwei');
+            return {
+              maxPriorityFeePerGas: tip.gt(floorTip) ? tip : floorTip,
+              maxFeePerGas: max.gt(floorMax) ? max : floorMax,
+            };
+          }
         }
-      }
       } finally {
         clearTimeout(timer);
       }
@@ -310,8 +310,8 @@ export class TransactionService {
     if (pending <= latest) return;
 
     const fees = await this.getFeeOverrides();
-    const tip2x = (fees.maxPriorityFeePerGas ?? ethers.utils.parseUnits('120', 'gwei')).mul(2);
-    const max2x = (fees.maxFeePerGas ?? ethers.utils.parseUnits('400', 'gwei')).mul(2);
+    const tip2x = (fees.maxPriorityFeePerGas ?? ethers.utils.parseUnits(String(POLYGON_GAS_TIP_GWEI), 'gwei')).mul(2);
+    const max2x = (fees.maxFeePerGas ?? ethers.utils.parseUnits(String(POLYGON_GAS_MAX_FEE_GWEI), 'gwei')).mul(2);
 
     for (let n = latest; n < pending; n++) {
       try {
