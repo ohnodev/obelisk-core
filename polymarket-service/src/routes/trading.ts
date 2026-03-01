@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { placeOrder, cancelOrder, isClobConfigured, setPrivateKey } from '../services/clobOrders.js';
+import { placeOrder, cancelOrder, getOpenOrders } from '../services/clobOrders.js';
 import { runHousekeeping } from '../services/redeemPositions.js';
 
 const router = Router();
@@ -44,18 +44,20 @@ async function proxyToBrain(method: string, path: string, req: Request, res: Res
 }
 
 router.post('/order', async (req: Request, res: Response) => {
-  if (!isClobConfigured()) {
-    res.status(503).json({ error: 'Order placement not configured (PRIVATE_KEY not set)' });
+  const { privateKey, tokenId, side, price, size, orderType } = (req.body ?? {}) as {
+    privateKey?: string;
+    tokenId?: string;
+    side?: string;
+    price?: number;
+    size?: number;
+    orderType?: string;
+  };
+  const pk = privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
     return;
   }
   try {
-    const { tokenId, side, price, size, orderType } = req.body as {
-      tokenId?: string;
-      side?: string;
-      price?: number;
-      size?: number;
-      orderType?: string;
-    };
     if (!tokenId || !side || price == null || size == null) {
       res.status(400).json({ error: 'Missing required fields: tokenId, side, price, size' });
       return;
@@ -70,7 +72,7 @@ router.post('/order', async (req: Request, res: Response) => {
       price: Number(price),
       size: Number(size),
       orderType: orderType as 'GTC' | 'FOK' | 'FAK' | undefined,
-    });
+    }, pk);
     res.json(result);
   } catch (err) {
     const axiosData = (err as { response?: { data?: { error?: string }; status?: number } }).response?.data;
@@ -86,17 +88,18 @@ router.post('/order', async (req: Request, res: Response) => {
 });
 
 router.post('/order/cancel', async (req: Request, res: Response) => {
-  if (!isClobConfigured()) {
-    res.status(503).json({ error: 'Order cancellation not configured (PRIVATE_KEY not set)' });
+  const { privateKey, orderId } = (req.body ?? {}) as { privateKey?: string; orderId?: string };
+  const pk = privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
     return;
   }
   try {
-    const { orderId } = req.body as { orderId?: string };
     if (!orderId) {
       res.status(400).json({ error: 'Missing orderId' });
       return;
     }
-    await cancelOrder(orderId);
+    await cancelOrder(orderId, pk);
     res.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -105,13 +108,41 @@ router.post('/order/cancel', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/housekeeping', async (_req: Request, res: Response) => {
-  if (!isClobConfigured()) {
-    res.status(503).json({ error: 'Housekeeping not configured (PRIVATE_KEY not set)' });
+router.post('/close-orders', async (req: Request, res: Response) => {
+  const { privateKey } = (req.body ?? {}) as { privateKey?: string };
+  const pk = privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
     return;
   }
   try {
-    const result = await runHousekeeping();
+    const orders = await getOpenOrders(undefined, pk);
+    let cancelled = 0;
+    for (const o of orders) {
+      try {
+        await cancelOrder(o.id, pk);
+        cancelled++;
+      } catch {
+        // skip failed cancels
+      }
+    }
+    res.json({ ok: true, cancelled, total: orders.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Trading] close-orders error:', err);
+    res.status(500).json({ error: msg });
+  }
+});
+
+router.post('/housekeeping', async (req: Request, res: Response) => {
+  const { privateKey } = (req.body ?? {}) as { privateKey?: string };
+  const pk = privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
+    return;
+  }
+  try {
+    const result = await runHousekeeping(pk);
     res.json({ ok: true, ...result });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -120,18 +151,11 @@ router.post('/housekeeping', async (_req: Request, res: Response) => {
   }
 });
 
-router.post('/config', (req: Request, res: Response) => {
-  const { privateKey } = req.body as { privateKey?: string };
-  setPrivateKey(privateKey ?? null);
-  res.json({ ok: true, configured: isClobConfigured() });
-});
-
 router.get('/status', (_req: Request, res: Response) => {
-  const clobOk = isClobConfigured();
   res.json({
     service: 'polymarket-service',
     running: true,
-    clob: clobOk ? 'configured' : 'not_configured',
+    clob: 'requires_private_key_in_body',
     brain: BRAIN_URL ? 'configured' : 'not_configured',
   });
 });

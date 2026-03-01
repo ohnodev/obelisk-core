@@ -77,10 +77,14 @@ export class PolymarketActionNode extends BaseNode {
         action === "close_orders"
           ? "/api/trading/close-orders"
           : "/api/trading/housekeeping";
+      const body: Record<string, unknown> = {};
+      if (privateKey && privateKey.length >= 20) {
+        body.privateKey = privateKey;
+      }
       const result = await callPolymarket(baseUrl, path, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       });
       if (!result.ok) {
         return {

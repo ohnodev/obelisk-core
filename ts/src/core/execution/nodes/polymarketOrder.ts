@@ -79,6 +79,9 @@ export class PolymarketOrderNode extends BaseNode {
     if (!useMarketOrder) {
       body.price = price;
     }
+    if (privateKey && privateKey.length >= 20) {
+      body.privateKey = privateKey;
+    }
 
     const headers: Record<string, string> = {
       Accept: "application/json",

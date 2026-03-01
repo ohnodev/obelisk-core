@@ -6,7 +6,6 @@
  */
 
 import { ethers } from 'ethers';
-import { getPrivateKey } from './clobOrders.js';
 import { TransactionService, isGasPriceError, isNoPositionError } from './transactionService.js';
 
 const DATA_API = 'https://data-api.polymarket.com';
@@ -150,19 +149,19 @@ async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
   return ids;
 }
 
-export async function runHousekeeping(): Promise<{
+export async function runHousekeeping(pk: string): Promise<{
   redeemed: number;
   noPosition: number;
   errors: number;
   resolvedPositions: ResolvedPosition[];
 }> {
-  const pk = getPrivateKey();
-  if (!pk) {
-    throw new Error('Private key not configured — housekeeping disabled');
+  const key = pk?.trim();
+  if (!key || key.length < 20) {
+    throw new Error('privateKey is required in request body');
   }
   const rpcUrl = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-  const signer = new ethers.Wallet(pk, provider);
+  const signer = new ethers.Wallet(key, provider);
   const txService = new TransactionService({ provider, signer });
 
   let { conditionIds, resolvedPositions } = await fetchRedeemableFromDataApi(signer.address);

@@ -10,36 +10,22 @@ import { getOrderBook } from './polymarketClient.js';
 const CLOB_URL = process.env.CLOB_URL || 'https://clob.polymarket.com';
 const CHAIN_ID = 137; // Polygon
 
-let privateKeyOverride: string | null = null;
-let client: ClobClient | null = null;
+const clientCache = new Map<string, ClobClient>();
 
-export function setPrivateKey(pk: string | null): void {
-  privateKeyOverride = pk?.trim() || null;
-  client = null; // invalidate cache when key changes
-}
-
-export function getPrivateKey(): string | null {
-  return (
-    privateKeyOverride ??
-    process.env.PRIVATE_KEY ??
-    process.env.POLYMARKET_PRIVATE_KEY ??
-    null
-  );
-}
-
-async function getClient(): Promise<ClobClient> {
-  const pk = getPrivateKey();
-  if (!pk) {
-    throw new Error('PRIVATE_KEY env is required for order placement');
+async function getClient(pk: string): Promise<ClobClient> {
+  const key = pk.trim();
+  if (!key || key.length < 20) {
+    throw new Error('privateKey is required in request body');
   }
-  if (client) return client;
+  const cached = clientCache.get(key);
+  if (cached) return cached;
 
-  const signer = new ethers.Wallet(pk);
+  const signer = new ethers.Wallet(key);
   const tempClient = new ClobClient(CLOB_URL, CHAIN_ID, signer);
   const apiCreds = await tempClient.createOrDeriveApiKey();
-  // signatureType 0 = EOA/browser wallet, funder = signer address
-  client = new ClobClient(CLOB_URL, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
-  return client;
+  const c = new ClobClient(CLOB_URL, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
+  clientCache.set(key, c);
+  return c;
 }
 
 export interface PlaceOrderParams {
@@ -55,14 +41,14 @@ export interface PlaceOrderResult {
   status: string;
 }
 
-export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderResult> {
+export async function placeOrder(params: PlaceOrderParams, pk: string): Promise<PlaceOrderResult> {
   const { tokenId, side, price, size } = params;
 
   const book = await getOrderBook(tokenId);
   const tickSize = (book.tick_size || '0.01') as '0.1' | '0.01' | '0.001' | '0.0001';
   const negRisk = book.neg_risk ?? true;
 
-  const c = await getClient();
+  const c = await getClient(pk);
   const orderTypeEnum = OrderType.GTC;
   const sideEnum = side === 'SELL' ? Side.SELL : Side.BUY;
 
@@ -97,24 +83,9 @@ export async function placeOrder(params: PlaceOrderParams): Promise<PlaceOrderRe
   };
 }
 
-export async function cancelOrder(orderId: string): Promise<void> {
-  const c = await getClient();
+export async function cancelOrder(orderId: string, pk: string): Promise<void> {
+  const c = await getClient(pk);
   await c.cancelOrder({ orderID: orderId });
-}
-
-export function isClobConfigured(): boolean {
-  return !!getPrivateKey();
-}
-
-/** Returns the wallet address for the configured private key. */
-export function getWalletAddress(): string | null {
-  const pk = getPrivateKey();
-  if (!pk) return null;
-  try {
-    return new ethers.Wallet(pk).address;
-  } catch {
-    return null;
-  }
 }
 
 export interface OpenOrderInfo {
@@ -127,8 +98,9 @@ export interface OpenOrderInfo {
 }
 
 /** Fetch open orders (optionally filtered by asset_id). Returns array of orders. */
-export async function getOpenOrders(params?: { asset_id?: string }): Promise<OpenOrderInfo[]> {
-  const c = await getClient();
+export async function getOpenOrders(params?: { asset_id?: string }, pk?: string): Promise<OpenOrderInfo[]> {
+  if (!pk?.trim()) throw new Error('privateKey is required in request body');
+  const c = await getClient(pk);
   const res = (await c.getOpenOrders(params, true)) as { data?: OpenOrderInfo[] };
   return res?.data ?? [];
 }

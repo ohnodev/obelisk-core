@@ -30,15 +30,11 @@ async function main() {
     placeOrder,
     cancelOrder,
     getOpenOrders,
-    getWalletAddress,
   } = await import('../src/services/clobOrders.js');
   const { getCurrentBtc5MinMarket, getOrderBook } = await import('../src/services/polymarketClient.js');
 
-  const walletAddr = getWalletAddress();
-  if (!walletAddr) {
-    console.error('[FAIL] Could not derive wallet address from key');
-    process.exit(1);
-  }
+  const { Wallet } = await import('ethers');
+  const walletAddr = new Wallet(pk).address;
   console.log('[1] Wallet:', walletAddr);
 
   // --- Get current market ---
@@ -69,7 +65,7 @@ async function main() {
   // --- Place order ---
   console.log('\n[3] Placing BUY order: tokenId=' + tokenId + ' price=' + price + ' size=' + size);
   console.log('    Best bid:', bestBid, 'tick:', tickSize, '-> price:', price, 'capped size:', size);
-  const placeResult = await placeOrder({ tokenId, side: 'BUY', price, size });
+  const placeResult = await placeOrder({ tokenId, side: 'BUY', price, size }, pk);
   const orderId = placeResult.orderId;
   const status = (placeResult.status || '').toLowerCase();
   console.log('    Order placed. orderId:', orderId, 'status:', placeResult.status);
@@ -81,7 +77,7 @@ async function main() {
   if (status === 'matched' || status === 'filled') {
     console.log('\n[4] Order filled immediately — skipping open-order verification, will verify position.');
   } else {
-    const orders = await getOpenOrders({ asset_id: tokenId });
+    const orders = await getOpenOrders({ asset_id: tokenId }, pk);
     const found = orders.find((o) => o.id === orderId);
     if (!found) {
       console.log('    Open orders:', JSON.stringify(orders, null, 2));
@@ -90,8 +86,8 @@ async function main() {
     }
     console.log('    Found in open orders:', JSON.stringify(found, null, 2));
     console.log('\n[5] Cancelling order ' + orderId + '...');
-    await cancelOrder(orderId);
-    const ordersAfter = await getOpenOrders({ asset_id: tokenId });
+    await cancelOrder(orderId, pk);
+    const ordersAfter = await getOpenOrders({ asset_id: tokenId }, pk);
     if (ordersAfter.find((o) => o.id === orderId)) {
       console.error('[FAIL] Order still present after cancel');
       process.exit(1);
