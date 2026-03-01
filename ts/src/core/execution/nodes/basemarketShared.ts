@@ -11,6 +11,10 @@ function mergeAbortSignals(userSignal?: AbortSignal | null, timeoutMs = REQUEST_
     return AbortSignal.any([userSignal, timeoutSignal]);
   }
   const controller = new AbortController();
+  if (userSignal.aborted || timeoutSignal.aborted) {
+    controller.abort();
+    return controller.signal;
+  }
   const cleanup = () => {
     userSignal.removeEventListener("abort", abort);
     timeoutSignal.removeEventListener("abort", abort);
