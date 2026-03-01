@@ -46,11 +46,18 @@ export async function callPolymarket(
 ): Promise<PolymarketRequestResult> {
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
   const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
-  const baseHeaders =
-    init.headers && typeof init.headers === "object" && !Array.isArray(init.headers)
-      ? (init.headers as Record<string, string>)
-      : {};
-  const headers = { ...baseHeaders, ...(apiKey ? { "x-api-key": apiKey } : {}) };
+  let headers: Headers;
+  const raw = init.headers;
+  if (raw instanceof Headers) {
+    headers = new Headers(raw);
+  } else if (Array.isArray(raw)) {
+    headers = new Headers(raw as [string, string][]);
+  } else if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    headers = new Headers(Object.entries(raw as Record<string, string>));
+  } else {
+    headers = new Headers();
+  }
+  if (apiKey) headers.set("x-api-key", apiKey);
   try {
     const response = await fetch(url, {
       ...init,

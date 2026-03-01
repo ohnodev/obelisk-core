@@ -6,10 +6,15 @@ const router = Router();
 
 const BRAIN_URL = process.env.BRAIN_URL;
 const TRADING_API_KEY = process.env.POLYMARKET_TRADING_API_KEY;
+const ALLOW_UNAUTHENTICATED_TRADING = process.env.ALLOW_UNAUTHENTICATED_TRADING === 'true' || process.env.ALLOW_UNAUTHENTICATED_TRADING === '1';
 
 function requireTradingAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!TRADING_API_KEY && ALLOW_UNAUTHENTICATED_TRADING) {
+    next(); // explicit opt-in for local/dev when TRADING_API_KEY is unset
+    return;
+  }
   if (!TRADING_API_KEY) {
-    next(); // optional: when not configured, allow (local dev)
+    res.status(401).json({ error: 'Trading auth required (POLYMARKET_TRADING_API_KEY or ALLOW_UNAUTHENTICATED_TRADING)' });
     return;
   }
   const key = req.header('x-api-key');
@@ -80,11 +85,17 @@ router.post('/order', requireTradingAuth, async (req: Request, res: Response) =>
       res.status(400).json({ error: 'side must be BUY or SELL' });
       return;
     }
+    const priceNumeric = Number(price);
+    const sizeNumeric = Number(size);
+    if (!Number.isFinite(priceNumeric) || priceNumeric <= 0 || !Number.isFinite(sizeNumeric) || sizeNumeric <= 0) {
+      res.status(400).json({ error: 'Invalid price or size; must be positive finite numbers' });
+      return;
+    }
     const result = await placeOrder({
       tokenId,
       side: side as 'BUY' | 'SELL',
-      price: Number(price),
-      size: Number(size),
+      price: priceNumeric,
+      size: sizeNumeric,
       orderType: orderType as 'GTC' | 'FOK' | 'FAK' | undefined,
     }, pk);
     res.json(result);
