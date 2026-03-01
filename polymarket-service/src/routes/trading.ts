@@ -11,10 +11,6 @@ function isValidHexPrivateKey(s: string): boolean {
   return /^[a-fA-F0-9]{64}$/.test(hex);
 }
 
-function getBrainUrl(): string | undefined {
-  return process.env.BRAIN_URL;
-}
-
 function requireTradingAuth(req: Request, res: Response, next: NextFunction): void {
   const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
   const allowUnauth =
@@ -33,47 +29,6 @@ function requireTradingAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
   next();
-}
-
-function getProxyTimeoutMs(): number {
-  return Number(process.env.TRADING_PROXY_TIMEOUT_MS) || 5000;
-}
-
-async function proxyToBrain(method: string, path: string, req: Request, res: Response): Promise<void> {
-  const brainUrl = getBrainUrl();
-  if (!brainUrl) {
-    res.status(503).json({
-      error: 'Brain service not configured (BRAIN_URL not set). Run brain manually or set BRAIN_URL.',
-    });
-    return;
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), getProxyTimeoutMs());
-  try {
-    const hasBody = method !== 'GET' && method !== 'HEAD';
-    const resp = await fetch(`${brainUrl}${path}`, {
-      method,
-      signal: controller.signal,
-      headers: hasBody ? { 'content-type': 'application/json' } : undefined,
-      body: hasBody ? JSON.stringify(req.body ?? {}) : undefined,
-    });
-    clearTimeout(timer);
-    const text = await resp.text();
-    let body: unknown;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      res.status(resp.status).send(text);
-      return;
-    }
-    res.status(resp.status).json(body);
-  } catch (err) {
-    clearTimeout(timer);
-    const isTimeout = err instanceof Error && err.name === 'AbortError';
-    const status = isTimeout ? 504 : 502;
-    const label = isTimeout ? 'Gateway Timeout' : 'Brain unreachable';
-    res.status(status).json({ error: `${label}` });
-  }
 }
 
 router.post('/order', requireTradingAuth, async (req: Request, res: Response) => {
@@ -234,60 +189,10 @@ router.get('/status', (_req: Request, res: Response) => {
     service: 'polymarket-service',
     running: true,
     clob: 'requires_private_key_in_body',
-    brain: getBrainUrl() ? 'configured' : 'not_configured',
   });
 });
 
 router.get('/trades', (_req: Request, res: Response) => {
-  res.json({ trades: [] });
-});
-
-router.post('/start', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await proxyToBrain('POST', '/start', req, res);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/stop', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await proxyToBrain('POST', '/stop', req, res);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/sniper/start', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await proxyToBrain('POST', '/start', req, res);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/sniper/stop', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await proxyToBrain('POST', '/stop', req, res);
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get('/sniper/status', async (_req: Request, res: Response, next: NextFunction) => {
-  if (!getBrainUrl()) {
-    res.json({ running: false, trade_count: 0 });
-    return;
-  }
-  try {
-    await proxyToBrain('GET', '/status', _req, res);
-  } catch (err) {
-    next(err);
-  }
-});
-
-
-router.get('/sniper/trades', (_req: Request, res: Response) => {
   res.json({ trades: [] });
 });
 
