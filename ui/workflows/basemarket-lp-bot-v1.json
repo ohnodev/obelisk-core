@@ -11,14 +11,6 @@
       "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
     },
     {
-      "id": "2",
-      "type": "text",
-      "position": { "x": -1520, "y": -760 },
-      "size": [300, 200],
-      "inputs": {},
-      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
-    },
-    {
       "id": "3",
       "type": "wallet",
       "position": { "x": -1520, "y": -520 },
@@ -96,14 +88,6 @@
       "size": [300, 200],
       "inputs": {},
       "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
-    },
-    {
-      "id": "12",
-      "type": "text",
-      "position": { "x": -1520, "y": 60 },
-      "size": [300, 200],
-      "inputs": {},
-      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
     },
     {
       "id": "13",
@@ -185,14 +169,6 @@
       "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
     },
     {
-      "id": "22",
-      "type": "text",
-      "position": { "x": -1520, "y": 870 },
-      "size": [300, 200],
-      "inputs": {},
-      "metadata": { "text": "{{process.env.BASEMARKET_USER_ADDRESS}}" }
-    },
-    {
       "id": "23",
       "type": "wallet",
       "position": { "x": -1520, "y": 1110 },
@@ -261,9 +237,9 @@
     { "from": "1", "from_output": "text", "to": "6", "to_input": "base_url" },
     { "from": "1", "from_output": "text", "to": "7", "to_input": "base_url" },
     { "from": "1", "from_output": "text", "to": "8", "to_input": "base_url" },
-    { "from": "2", "from_output": "text", "to": "6", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "7", "to_input": "user_address" },
-    { "from": "2", "from_output": "text", "to": "8", "to_input": "user_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "6", "to_input": "user_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "7", "to_input": "user_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "8", "to_input": "user_address" },
     { "from": "3", "from_output": "private_key", "to": "6", "to_input": "private_key" },
     { "from": "3", "from_output": "private_key", "to": "7", "to_input": "private_key" },
     { "from": "3", "from_output": "private_key", "to": "8", "to_input": "private_key" },
@@ -279,9 +255,9 @@
     { "from": "11", "from_output": "text", "to": "16", "to_input": "base_url" },
     { "from": "11", "from_output": "text", "to": "17", "to_input": "base_url" },
     { "from": "11", "from_output": "text", "to": "18", "to_input": "base_url" },
-    { "from": "12", "from_output": "text", "to": "16", "to_input": "user_address" },
-    { "from": "12", "from_output": "text", "to": "17", "to_input": "user_address" },
-    { "from": "12", "from_output": "text", "to": "18", "to_input": "user_address" },
+    { "from": "13", "from_output": "wallet_address", "to": "16", "to_input": "user_address" },
+    { "from": "13", "from_output": "wallet_address", "to": "17", "to_input": "user_address" },
+    { "from": "13", "from_output": "wallet_address", "to": "18", "to_input": "user_address" },
     { "from": "13", "from_output": "private_key", "to": "16", "to_input": "private_key" },
     { "from": "13", "from_output": "private_key", "to": "17", "to_input": "private_key" },
     { "from": "13", "from_output": "private_key", "to": "18", "to_input": "private_key" },
@@ -294,9 +270,9 @@
     { "from": "21", "from_output": "text", "to": "26", "to_input": "base_url" },
     { "from": "21", "from_output": "text", "to": "27", "to_input": "base_url" },
     { "from": "21", "from_output": "text", "to": "28", "to_input": "base_url" },
-    { "from": "22", "from_output": "text", "to": "26", "to_input": "user_address" },
-    { "from": "22", "from_output": "text", "to": "27", "to_input": "user_address" },
-    { "from": "22", "from_output": "text", "to": "28", "to_input": "user_address" },
+    { "from": "23", "from_output": "wallet_address", "to": "26", "to_input": "user_address" },
+    { "from": "23", "from_output": "wallet_address", "to": "27", "to_input": "user_address" },
+    { "from": "23", "from_output": "wallet_address", "to": "28", "to_input": "user_address" },
     { "from": "23", "from_output": "private_key", "to": "27", "to_input": "private_key" },
     { "from": "23", "from_output": "private_key", "to": "28", "to_input": "private_key" },
     { "from": "24", "from_output": "trigger", "to": "26", "to_input": "trigger" },
