@@ -48,6 +48,7 @@ class BasemarketTradeActionNode extends LGraphNode {
         "open_buy",
         "close_sell",
         "close_buy",
+        "close_all_orders",
         "refund",
         "redeem",
         "merge-complete-set",

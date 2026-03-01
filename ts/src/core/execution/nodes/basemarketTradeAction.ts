@@ -35,6 +35,8 @@ const ACTION_ENDPOINTS: Record<string, string> = {
   buy: "/api/trade/buy",
   close_sell: "/api/trade/close",
   close_buy: "/api/trade/close",
+  close_all_orders: "/api/trade/close",
+  close_all: "/api/trade/close",
   close: "/api/trade/close",
   refund: "/api/trade/refund",
   redeem: "/api/trade/redeem",
@@ -549,7 +551,13 @@ export class BasemarketTradeActionNode extends BaseNode {
       });
     }
 
-    if (action === "close" || action === "close_sell" || action === "close_buy") {
+    if (
+      action === "close" ||
+      action === "close_sell" ||
+      action === "close_buy" ||
+      action === "close_all_orders" ||
+      action === "close_all"
+    ) {
       const providedOrderId = parsePositiveBigInt(payload.orderId);
       const closeOne = async (oid: bigint) => {
         const auth =
@@ -610,6 +618,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       const positions = parsePositionsResponse(positionsRes.data);
       const targetOrders = positions.filter((p) => {
         if (!Boolean(p.isActive)) return false;
+        if (Boolean(p.isMarketOrder)) return false;
         const positionRound = parsePositiveBigInt(p.roundId);
         if (roundFilter !== null && positionRound !== roundFilter) return false;
         const isBuy = Boolean(p.isBuyOrder);
@@ -705,11 +714,17 @@ export class BasemarketTradeActionNode extends BaseNode {
       }
       const entries = parsePortfolioEntries(portfolio.data);
       const txHashes: string[] = [];
+      const currentRoundNumber = parsePositiveBigInt(signingConfig.currentRound);
       for (const entry of entries) {
         const round = parsePositiveBigInt(entry.roundId);
         const amountField = isMerge ? entry.mergeableAmount : entry.redeemableAmount;
         const amt = parsePositiveBigInt(amountField);
         if (round === null || amt === null) continue;
+        if (!isMerge) {
+          const isResolved = Boolean(entry.resolved);
+          if (!isResolved) continue;
+          if (currentRoundNumber !== null && round >= currentRoundNumber) continue;
+        }
         const r = await doOne(round, amt);
         if (r.ok) {
           const hash = asString(r.data.txHash ?? r.data.tx_hash ?? "");
