@@ -10,6 +10,16 @@ import { getOrderBook } from './polymarketClient.js';
 const CLOB_URL = process.env.CLOB_URL || 'https://clob.polymarket.com';
 const CHAIN_ID = 137; // Polygon
 
+const VALID_TICK_SIZES = ['0.1', '0.01', '0.001', '0.0001'] as const;
+type TickSize = (typeof VALID_TICK_SIZES)[number];
+
+function parseTickSize(raw: unknown): TickSize {
+  const s = String(raw ?? '').trim();
+  if (VALID_TICK_SIZES.includes(s as TickSize)) return s as TickSize;
+  return '0.01';
+}
+
+const MAX_CACHED_CLIENTS = 100;
 const clientCache = new Map<string, ClobClient>();
 
 async function getClient(pk: string): Promise<ClobClient> {
@@ -19,6 +29,11 @@ async function getClient(pk: string): Promise<ClobClient> {
   }
   const cached = clientCache.get(key);
   if (cached) return cached;
+
+  if (clientCache.size >= MAX_CACHED_CLIENTS) {
+    const firstKey = clientCache.keys().next().value;
+    if (firstKey) clientCache.delete(firstKey);
+  }
 
   const signer = new ethers.Wallet(key);
   const tempClient = new ClobClient(CLOB_URL, CHAIN_ID, signer);
@@ -45,7 +60,7 @@ export async function placeOrder(params: PlaceOrderParams, pk: string): Promise<
   const { tokenId, side, price, size } = params;
 
   const book = await getOrderBook(tokenId);
-  const tickSize = (book.tick_size || '0.01') as '0.1' | '0.01' | '0.001' | '0.0001';
+  const tickSize = parseTickSize(book.tick_size);
   const negRisk = book.neg_risk ?? true;
 
   const c = await getClient(pk);

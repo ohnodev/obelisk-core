@@ -132,15 +132,17 @@ router.post('/close-orders', requireTradingAuth, async (req: Request, res: Respo
   try {
     const orders = await getOpenOrders(undefined, pk);
     let cancelled = 0;
+    let failed = 0;
     for (const o of orders) {
       try {
         await cancelOrder(o.id, pk);
         cancelled++;
-      } catch {
-        // skip failed cancels
+      } catch (err) {
+        failed++;
+        console.error('[Trading] close-orders: failed to cancel order', o.id, err);
       }
     }
-    res.json({ ok: true, cancelled, total: orders.length });
+    res.json({ ok: true, cancelled, failed, total: orders.length });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Trading] close-orders error:', err);
@@ -178,28 +180,48 @@ router.get('/trades', (_req: Request, res: Response) => {
   res.json({ trades: [] });
 });
 
-router.post('/start', requireTradingAuth, (req: Request, res: Response) => {
-  proxyToBrain('POST', '/start', req, res);
+router.post('/start', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await proxyToBrain('POST', '/start', req, res);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/stop', requireTradingAuth, (req: Request, res: Response) => {
-  proxyToBrain('POST', '/stop', req, res);
+router.post('/stop', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await proxyToBrain('POST', '/stop', req, res);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/sniper/start', requireTradingAuth, (req: Request, res: Response) => {
-  proxyToBrain('POST', '/start', req, res);
+router.post('/sniper/start', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await proxyToBrain('POST', '/start', req, res);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/sniper/stop', requireTradingAuth, (req: Request, res: Response) => {
-  proxyToBrain('POST', '/stop', req, res);
+router.post('/sniper/stop', requireTradingAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await proxyToBrain('POST', '/stop', req, res);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.get('/sniper/status', (_req: Request, res: Response) => {
+router.get('/sniper/status', async (_req: Request, res: Response, next: NextFunction) => {
   if (!BRAIN_URL) {
     res.json({ running: false, trade_count: 0 });
     return;
   }
-  proxyToBrain('GET', '/status', _req, res);
+  try {
+    await proxyToBrain('GET', '/status', _req, res);
+  } catch (err) {
+    next(err);
+  }
 });
 
 

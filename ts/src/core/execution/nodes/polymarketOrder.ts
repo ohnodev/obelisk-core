@@ -1,6 +1,6 @@
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
-import { asString, callPolymarket, resolvePolymarketBaseUrl } from "./polymarketShared";
+import { asString, callPolymarket, isValidHexPrivateKey, resolvePolymarketBaseUrl } from "./polymarketShared";
 import { Wallet } from "ethers";
 
 const logger = getLogger("polymarketOrder");
@@ -71,7 +71,7 @@ export class PolymarketOrderNode extends BaseNode {
 
     const resolvedAddress =
       walletAddress ||
-      (privateKey && privateKey.length >= 20
+      (privateKey && isValidHexPrivateKey(privateKey)
         ? (() => {
             try {
               return new Wallet(privateKey).address;
@@ -94,17 +94,25 @@ export class PolymarketOrderNode extends BaseNode {
       return { ...out, result: out };
     }
 
+    const floorSize = Math.floor(size);
+    const clampedSize = Math.max(5, floorSize);
+    if (floorSize < 5) {
+      logger.warn(
+        `[PolymarketOrder ${this.nodeId}] size clamped: requested=${floorSize} -> ${clampedSize} (min 5) tokenId=${tokenId} outcome=${outcome}`
+      );
+    }
+
     const body: Record<string, unknown> = {
       tokenId,
       side: "BUY",
       outcome: outcome.toUpperCase(),
-      size: Math.max(5, Math.floor(size)),
+      size: clampedSize,
       isMarket: useMarketOrder,
     };
     if (!useMarketOrder) {
       body.price = price;
     }
-    if (privateKey && privateKey.length >= 20) {
+    if (privateKey && isValidHexPrivateKey(privateKey)) {
       body.privateKey = privateKey;
     }
 

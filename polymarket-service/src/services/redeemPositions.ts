@@ -56,10 +56,13 @@ async function fetchRedeemableFromDataApi(
   const url = `${DATA_API}/positions?user=${encodeURIComponent(walletAddress)}&redeemable=true&limit=100`;
   try {
     const res = await fetch(url);
-    if (!res.ok) return { conditionIds: [], resolvedPositions: [] };
+    if (!res.ok) {
+      console.warn('[Redeem] Data API fetch failed', { url, status: res.status, statusText: res.statusText });
+      return { conditionIds: [], resolvedPositions: [] };
+    }
     const raw = await res.json();
     if (!Array.isArray(raw)) {
-      console.warn('[Redeem] Data API positions response is not an array, skipping');
+      console.warn('[Redeem] Data API positions response is not an array, skipping', { url, rawType: typeof raw });
       return { conditionIds: [], resolvedPositions: [] };
     }
     const positions = raw as DataApiPosition[];
@@ -108,7 +111,8 @@ async function fetchRedeemableFromDataApi(
       }
     }
     return { conditionIds: [...new Set(conditionIds)], resolvedPositions };
-  } catch {
+  } catch (err) {
+    console.warn('[Redeem] Data API fetch error', { url, error: err instanceof Error ? err.message : String(err) });
     return { conditionIds: [], resolvedPositions: [] };
   }
 }

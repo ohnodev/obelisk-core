@@ -9,12 +9,17 @@
  */
 
 import dotenv from 'dotenv';
+import { existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, '../.env') });
-dotenv.config({ path: resolve(__dirname, '../../trading-engine/.env') });
+// Optional fallback: trading-engine/.env may not exist in all environments (e.g. obelisk-core)
+const tradingEngineEnv = resolve(__dirname, '../../trading-engine/.env');
+if (existsSync(tradingEngineEnv)) {
+  dotenv.config({ path: tradingEngineEnv });
+}
 
 const DATA_API = 'https://data-api.polymarket.com';
 const TIMEOUT_MS = Number(process.env.TEST_TRADING_FLOW_TIMEOUT_MS) || 120_000;

@@ -15,6 +15,14 @@ export function asString(value: unknown): string {
   return String(value).trim();
 }
 
+/** Valid hex private key: 64 hex chars or 66 with 0x prefix (32 bytes). */
+export function isValidHexPrivateKey(s: string): boolean {
+  const trimmed = s.trim();
+  if (trimmed.length !== 64 && trimmed.length !== 66) return false;
+  const hex = trimmed.startsWith("0x") ? trimmed.slice(2) : trimmed;
+  return /^[a-fA-F0-9]{64}$/.test(hex);
+}
+
 function resolveNodeEnvVar(node: BaseNode, value: unknown): unknown {
   const resolver = (node as unknown as { resolveEnvVar?: (input: unknown) => unknown }).resolveEnvVar;
   return typeof resolver === "function" ? resolver.call(node, value) : value;
