@@ -59,7 +59,7 @@
       "id": "31",
       "type": "balance_checker",
       "position": { "x": -720, "y": -660 },
-      "size": [300, 210],
+      "size": [300, 300],
       "inputs": {},
       "metadata": {
         "token_decimals": 6,

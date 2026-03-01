@@ -3,7 +3,7 @@
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
 const NODE_WIDTH = 300;
-const NODE_HEIGHT = 250;
+const NODE_HEIGHT = 300;
 const DEFAULT_MIN_ETH = "0.004";
 
 class BalanceCheckerNode extends LGraphNode {
