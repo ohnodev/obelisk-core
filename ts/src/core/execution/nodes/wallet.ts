@@ -1,8 +1,14 @@
 /**
  * WalletNode – resolves private key from inputs, metadata.private_key, or SWAP_PRIVATE_KEY env
- * for internal checks. Does not expose private_key in output; downstream nodes (ClankerBuy,
- * ClankerSell, BalanceChecker) must read the key from metadata.private_key or SWAP_PRIVATE_KEY.
- * Hook up to Buy/Sell so the graph knows wallet is required; they read the key themselves.
+ * and exposes wallet outputs for downstream nodes.
+ *
+ * Current outputs include:
+ * - private_key (resolved key string)
+ * - wallet_address (derived from the key when valid)
+ * - wallet_ready (boolean)
+ *
+ * Security note: exposing private_key is convenient for graph wiring but sensitive; prefer
+ * environment-backed metadata (`metadata.private_key` / `SWAP_PRIVATE_KEY`) in production.
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";

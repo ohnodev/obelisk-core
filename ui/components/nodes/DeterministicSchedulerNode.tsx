@@ -57,10 +57,12 @@ class DeterministicSchedulerNode extends LGraphNode {
     const interval = Math.max(1, Number(props.interval_seconds ?? props["Interval (s)"]) || 300);
     const offset = Math.max(0, Number(props.offset_seconds ?? props["Offset (s)"]) || 0);
     const enabledRaw = props.enabled ?? props["Enabled"];
-    const enabled =
-      typeof enabledRaw === "boolean"
-        ? enabledRaw
-        : String(enabledRaw ?? "true").toLowerCase() !== "false";
+    const falseValues = new Set(["false", "0", "off", "no", "disabled", "none"]);
+    const enabled = (() => {
+      if (typeof enabledRaw === "boolean") return enabledRaw;
+      const normalized = String(enabledRaw ?? "true").trim().toLowerCase();
+      return !falseValues.has(normalized);
+    })();
 
     this.setProperty("anchor_timestamp", Math.floor(anchor));
     this.setProperty("interval_seconds", Math.floor(interval));

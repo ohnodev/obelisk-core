@@ -24,7 +24,7 @@ export class BasemarketBalancesNode extends BaseNode {
     const roundValue =
       this.getInputValue("round_id", context, undefined) ??
       this.getInputValue("current_round", context, undefined) ??
-      this.metadata.round_id;
+      this.resolveEnvVar(this.metadata.round_id);
     const roundId = asString(roundValue);
     if (!roundId) {
       return {

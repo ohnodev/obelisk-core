@@ -4,6 +4,10 @@ import { callBasemarket, resolveBaseUrl, resolveUserAddress } from "./basemarket
 
 const logger = getLogger("basemarketPositions");
 
+function isTrueLike(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || String(value ?? "").trim().toLowerCase() === "true";
+}
+
 export class BasemarketPositionsNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const trigger = this.getInputValue("trigger", context, true);
@@ -17,6 +21,8 @@ export class BasemarketPositionsNode extends BaseNode {
       return {
         success: false,
         positions: [],
+        active_sell_orders: [],
+        positions_count: 0,
         error: "user_address is required",
       };
     }
@@ -37,6 +43,8 @@ export class BasemarketPositionsNode extends BaseNode {
       return {
         success: false,
         positions: [],
+        active_sell_orders: [],
+        positions_count: 0,
         status: result.status,
         error: result.error ?? "Failed to fetch positions",
         response: result.data,
@@ -52,8 +60,8 @@ export class BasemarketPositionsNode extends BaseNode {
     const activeSellOrders = positions.filter((p) => {
       if (!p || typeof p !== "object") return false;
       const rec = p as Record<string, unknown>;
-      const isActive = Boolean(rec.isActive ?? rec.is_active);
-      const isBuy = Boolean(rec.isBuyOrder ?? rec.is_buy_order);
+      const isActive = isTrueLike(rec.isActive ?? rec.is_active);
+      const isBuy = isTrueLike(rec.isBuyOrder ?? rec.is_buy_order);
       return isActive && !isBuy;
     });
 

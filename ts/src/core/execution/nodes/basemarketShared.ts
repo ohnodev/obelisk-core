@@ -16,20 +16,25 @@ export function asString(value: unknown): string {
   return String(value).trim();
 }
 
+function resolveNodeEnvVar(node: BaseNode, value: unknown): unknown {
+  const resolver = (node as unknown as { resolveEnvVar?: (input: unknown) => unknown }).resolveEnvVar;
+  return typeof resolver === "function" ? resolver.call(node, value) : value;
+}
+
 export function resolveBaseUrl(
   node: BaseNode,
   context: ExecutionContext,
   fallback = DEFAULT_BASEMARKET_API
 ): string {
   const input = asString(node.getInputValue("base_url", context, ""));
-  const metadata = asString(node.metadata.base_url);
+  const metadata = asString(resolveNodeEnvVar(node, node.metadata.base_url ?? ""));
   const env = asString(process.env.BASEMARKET_API_URL);
   return (input || metadata || env || fallback).replace(/\/$/, "");
 }
 
 export function resolveUserAddress(node: BaseNode, context: ExecutionContext): string {
   const input = asString(node.getInputValue("user_address", context, ""));
-  const metadata = asString(node.metadata.user_address);
+  const metadata = asString(resolveNodeEnvVar(node, node.metadata.user_address ?? ""));
   const env = asString(process.env.BASEMARKET_USER_ADDRESS);
   if (input || metadata || env) {
     return input || metadata || env;
@@ -46,7 +51,7 @@ export function resolveUserAddress(node: BaseNode, context: ExecutionContext): s
 
 export function resolvePrivateKey(node: BaseNode, context: ExecutionContext): string {
   const input = asString(node.getInputValue("private_key", context, ""));
-  const metadata = asString(node.metadata.private_key);
+  const metadata = asString(resolveNodeEnvVar(node, node.metadata.private_key ?? ""));
   const env = asString(process.env.SWAP_PRIVATE_KEY);
   return input || metadata || env;
 }

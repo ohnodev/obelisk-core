@@ -345,8 +345,9 @@ export class BasemarketTradeActionNode extends BaseNode {
       };
     }
 
+    const metadataAction = this.resolveEnvVar(this.metadata.action);
     const actionRaw =
-      this.getInputValue("action", context, undefined) ?? this.metadata.action ?? "mint-complete-set";
+      this.getInputValue("action", context, undefined) ?? metadataAction ?? "mint-complete-set";
     const action = normalizeAction(asString(actionRaw));
     const endpoint = ACTION_ENDPOINTS[action];
     if (!endpoint) {
@@ -450,10 +451,26 @@ export class BasemarketTradeActionNode extends BaseNode {
           },
           body: JSON.stringify({ orderId: oid.toString() }),
         });
-        if (r.ok) {
-          const hash = asString(r.data.txHash ?? r.data.tx_hash ?? "");
-          if (hash) txHashes.push(hash);
+        const hash = asString(r.data.txHash ?? r.data.tx_hash ?? "");
+        if (r.ok && hash) {
+          txHashes.push(hash);
+          continue;
         }
+        if (!r.ok) {
+          logger.warn(
+            `[BasemarketTradeAction ${this.nodeId}] refund failed for order ${String(
+              pos.orderId
+            )} (parsed=${oid.toString()}) status=${r.status} error=${r.error ?? "unknown"} data=${JSON.stringify(
+              r.data
+            )}`
+          );
+          continue;
+        }
+        logger.warn(
+          `[BasemarketTradeAction ${this.nodeId}] refund returned no tx hash for order ${String(
+            pos.orderId
+          )} (parsed=${oid.toString()}) status=${r.status} data=${JSON.stringify(r.data)}`
+        );
       }
       return {
         success: true,
