@@ -12,19 +12,21 @@ function mergeAbortSignals(userSignal?: AbortSignal | null, timeoutMs = REQUEST_
   }
   const controller = new AbortController();
   if (userSignal.aborted || timeoutSignal.aborted) {
-    controller.abort();
+    controller.abort(userSignal.aborted ? userSignal.reason : timeoutSignal.reason);
     return controller.signal;
   }
   const cleanup = () => {
-    userSignal.removeEventListener("abort", abort);
-    timeoutSignal.removeEventListener("abort", abort);
+    userSignal.removeEventListener("abort", onUserAbort);
+    timeoutSignal.removeEventListener("abort", onTimeoutAbort);
   };
-  const abort = () => {
+  const doAbort = (reason?: unknown) => {
     cleanup();
-    controller.abort();
+    controller.abort(reason);
   };
-  userSignal.addEventListener("abort", abort);
-  timeoutSignal.addEventListener("abort", abort);
+  const onUserAbort = () => doAbort(userSignal.reason);
+  const onTimeoutAbort = () => doAbort(timeoutSignal.reason);
+  userSignal.addEventListener("abort", onUserAbort);
+  timeoutSignal.addEventListener("abort", onTimeoutAbort);
   return controller.signal;
 }
 
