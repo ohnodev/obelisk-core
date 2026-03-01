@@ -256,7 +256,17 @@ const NODE_CATEGORIES: NodeCategory[] = [
       {
         type: "polymarket_status_listener",
         title: "Polymarket Status Listener",
-        description: "GET /polymarket/status, /trades, /pnl for user feedback",
+        description: "GET /polymarket/stats. Connect Express Service; hook to Polymarket Stats + HTTP Response",
+      },
+      {
+        type: "polymarket_stats",
+        title: "Polymarket Stats",
+        description: "Reads polymarket_trades from storage. Connect storage_instance + request_id; output to HTTP Response",
+      },
+      {
+        type: "polymarket_trade_outcome_updater",
+        title: "Polymarket Trade Outcome Updater",
+        description: "After housekeeping, matches resolved positions to trades and updates outcome + pnl",
       },
     ],
   },

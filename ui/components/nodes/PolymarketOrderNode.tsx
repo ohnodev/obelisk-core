@@ -28,7 +28,7 @@ class PolymarketOrderNode extends LGraphNode {
     this.addOutput("response", "object");
     this.addOutput("error", "string");
 
-    this.size = [320, 200];
+    this.size = [320, 280];
     (this as any).type = "polymarket_order";
     (this as any).resizable = true;
   }

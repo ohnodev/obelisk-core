@@ -18,11 +18,11 @@ const storageCache: Record<string, StorageInterface> = {};
 export class MemoryStorageNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
     // Resolve inputs (template variables handled by inherited resolveTemplateVariable)
-    let storagePath = this.getInputValue(
+    let storagePath = (this.getInputValue(
       "storage_path",
       context,
       undefined
-    ) as string | undefined;
+    ) as string | undefined) ?? (this.metadata.storage_path as string | undefined);
     let storageType = (this.getInputValue(
       "storage_type",
       context,

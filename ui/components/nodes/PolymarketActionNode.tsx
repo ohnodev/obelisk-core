@@ -33,7 +33,7 @@ class PolymarketActionNode extends LGraphNode {
       }
     );
 
-    this.size = [320, 140];
+    this.size = [320, 200];
     (this as any).type = "polymarket_action";
     (this as any).resizable = true;
   }

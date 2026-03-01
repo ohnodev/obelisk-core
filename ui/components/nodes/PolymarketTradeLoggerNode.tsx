@@ -26,7 +26,7 @@ class PolymarketTradeLoggerNode extends LGraphNode {
     this.addOutput("logged_count", "number");
     this.addOutput("error", "string");
 
-    this.size = [300, 140];
+    this.size = [300, 260];
     (this as any).type = "polymarket_trade_logger";
     (this as any).resizable = true;
   }

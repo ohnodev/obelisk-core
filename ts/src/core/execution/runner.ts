@@ -609,9 +609,10 @@ export class WorkflowRunner {
       // Stats-only subgraph (single trigger): run without blocking tick; serialize per workflow.
       const statsOnly =
         firedAutonomousNodes.size === 1 &&
-        Array.from(firedAutonomousNodes).every(
-          (nid) => state.nodes.get(nid)?.nodeType === "autotrader_stats_listener"
-        );
+        Array.from(firedAutonomousNodes).every((nid) => {
+          const t = state.nodes.get(nid)?.nodeType;
+          return t === "autotrader_stats_listener" || t === "polymarket_status_listener";
+        });
       if (statsOnly) {
         const workflowId = state.workflowId;
         const previous = this.statsSubgraphLocks.get(workflowId);
@@ -634,10 +635,14 @@ export class WorkflowRunner {
     }
   }
 
-  /** Node ID of the autotrader_stats_listener in this workflow, if any. */
+  /** Node ID of the stats listener (autotrader_stats_listener or polymarket_status_listener) in this workflow, if any. */
   private getStatsListenerNodeId(state: WorkflowState): NodeID | null {
     for (const [nid, node] of state.nodes) {
-      if (node.nodeType === "autotrader_stats_listener") return nid;
+      if (
+        node.nodeType === "autotrader_stats_listener" ||
+        node.nodeType === "polymarket_status_listener"
+      )
+        return nid;
     }
     return null;
   }

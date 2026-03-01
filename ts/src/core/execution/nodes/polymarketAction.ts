@@ -72,11 +72,11 @@ export class PolymarketActionNode extends BaseNode {
       };
     }
 
-    if (action === "redeem" || action === "close_orders") {
+    if (action === "redeem" || action === "housekeeping" || action === "close_orders") {
       const path =
-        action === "redeem"
-          ? "/api/trading/redeem"
-          : "/api/trading/close-orders";
+        action === "close_orders"
+          ? "/api/trading/close-orders"
+          : "/api/trading/housekeeping";
       const result = await callPolymarket(baseUrl, path, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -101,7 +101,7 @@ export class PolymarketActionNode extends BaseNode {
     return {
       success: false,
       action,
-      error: `Unsupported action: ${action}. Use status, redeem, or close_orders.`,
+      error: `Unsupported action: ${action}. Use status, redeem, housekeeping, or close_orders.`,
     };
   }
 }

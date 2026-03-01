@@ -47,3 +47,5 @@ import "./PolymarketOrderNode";
 import "./PolymarketActionNode";
 import "./PolymarketTradeLoggerNode";
 import "./PolymarketStatusListenerNode";
+import "./PolymarketStatsNode";
+import "./PolymarketTradeOutcomeUpdaterNode";
