@@ -1,0 +1,156 @@
+{
+  "id": "workflow-1",
+  "name": "Polymarket Sniper v1",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "text",
+      "position": { "x": -1520, "y": -900 },
+      "size": [300, 80],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.POLYMARKET_SERVICE_URL}}" }
+    },
+    {
+      "id": "2",
+      "type": "wallet",
+      "position": { "x": -1520, "y": -740 },
+      "size": [320, 105],
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.POLYMARKET_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "3",
+      "type": "deterministic_scheduler",
+      "position": { "x": -1180, "y": -900 },
+      "size": [280, 225],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.POLYMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.POLYMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 10,
+        "enabled": true
+      }
+    },
+    {
+      "id": "4",
+      "type": "polymarket_snapshot",
+      "position": { "x": -820, "y": -880 },
+      "size": [300, 120],
+      "inputs": {},
+      "metadata": { "base_url": "{{process.env.POLYMARKET_SERVICE_URL}}" }
+    },
+    {
+      "id": "5",
+      "type": "polymarket_sniper_evaluate",
+      "position": { "x": -460, "y": -880 },
+      "size": [340, 280],
+      "inputs": {},
+      "metadata": {
+        "edge_threshold": "{{process.env.POLYMARKET_EDGE_THRESHOLD}}",
+        "order_notional": "{{process.env.POLYMARKET_ORDER_NOTIONAL}}",
+        "use_market_order": false
+      }
+    },
+    {
+      "id": "6",
+      "type": "polymarket_order",
+      "position": { "x": -60, "y": -880 },
+      "size": [320, 200],
+      "inputs": {},
+      "metadata": { "base_url": "{{process.env.POLYMARKET_SERVICE_URL}}" }
+    },
+    {
+      "id": "7",
+      "type": "polymarket_trade_logger",
+      "position": { "x": 320, "y": -880 },
+      "size": [300, 140],
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "8",
+      "type": "memory_storage",
+      "position": { "x": 320, "y": -680 },
+      "size": [260, 80],
+      "inputs": {},
+      "metadata": { "storage_type": "local_json" }
+    },
+    {
+      "id": "13",
+      "type": "text",
+      "position": { "x": 320, "y": -560 },
+      "size": [140, 40],
+      "inputs": {},
+      "metadata": { "text": "polymarket" }
+    },
+    {
+      "id": "9",
+      "type": "deterministic_scheduler",
+      "position": { "x": -1180, "y": -400 },
+      "size": [280, 225],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.POLYMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.POLYMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 270,
+        "enabled": true
+      }
+    },
+    {
+      "id": "10",
+      "type": "polymarket_action",
+      "position": { "x": -820, "y": -380 },
+      "size": [320, 140],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.POLYMARKET_SERVICE_URL}}",
+        "action": "redeem"
+      }
+    },
+    {
+      "id": "11",
+      "type": "express_service",
+      "position": { "x": -1520, "y": -200 },
+      "size": [260, 80],
+      "inputs": {},
+      "metadata": { "port": 8082 }
+    },
+    {
+      "id": "12",
+      "type": "polymarket_status_listener",
+      "position": { "x": -1180, "y": -200 },
+      "size": [300, 80],
+      "inputs": {},
+      "metadata": {}
+    }
+  ],
+  "connections": [
+    { "from": "1", "from_output": "text", "to": "4", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "6", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "10", "to_input": "base_url" },
+    { "from": "2", "from_output": "wallet_address", "to": "6", "to_input": "user_address" },
+    { "from": "2", "from_output": "wallet_address", "to": "10", "to_input": "user_address" },
+    { "from": "2", "from_output": "private_key", "to": "6", "to_input": "private_key" },
+    { "from": "2", "from_output": "private_key", "to": "10", "to_input": "private_key" },
+    { "from": "3", "from_output": "trigger", "to": "4", "to_input": "trigger" },
+    { "from": "4", "from_output": "success", "to": "5", "to_input": "trigger" },
+    { "from": "4", "from_output": "snapshot", "to": "5", "to_input": "snapshot" },
+    { "from": "5", "from_output": "success", "to": "6", "to_input": "trigger" },
+    { "from": "5", "from_output": "skip", "to": "6", "to_input": "skip" },
+    { "from": "5", "from_output": "token_id", "to": "6", "to_input": "token_id" },
+    { "from": "5", "from_output": "price", "to": "6", "to_input": "price" },
+    { "from": "5", "from_output": "size", "to": "6", "to_input": "size" },
+    { "from": "5", "from_output": "outcome", "to": "6", "to_input": "outcome" },
+    { "from": "5", "from_output": "use_market_order", "to": "6", "to_input": "use_market_order" },
+    { "from": "6", "from_output": "success", "to": "7", "to_input": "trigger" },
+    { "from": "6", "from_output": "result", "to": "7", "to_input": "order_result" },
+    { "from": "5", "from_output": "token_id", "to": "7", "to_input": "token_id" },
+    { "from": "5", "from_output": "price", "to": "7", "to_input": "price" },
+    { "from": "5", "from_output": "size", "to": "7", "to_input": "size" },
+    { "from": "5", "from_output": "outcome", "to": "7", "to_input": "outcome" },
+    { "from": "13", "from_output": "text", "to": "8", "to_input": "storage_path" },
+    { "from": "8", "from_output": "storage_instance", "to": "7", "to_input": "storage_instance" },
+    { "from": "9", "from_output": "trigger", "to": "10", "to_input": "trigger" },
+    { "from": "11", "from_output": "express_service", "to": "12", "to_input": "express_service" }
+  ]
+}

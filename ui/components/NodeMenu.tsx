@@ -226,6 +226,41 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
+    name: "Polymarket",
+    nodes: [
+      {
+        type: "polymarket_snapshot",
+        title: "Polymarket Snapshot",
+        description: "GET /api/market/snapshot from polymarket-service",
+      },
+      {
+        type: "polymarket_sniper_evaluate",
+        title: "Polymarket Sniper Evaluate",
+        description: "Evaluates snapshot for edge and outputs buy signal",
+      },
+      {
+        type: "polymarket_order",
+        title: "Polymarket Order",
+        description: "POST /api/trading/order – place BUY order",
+      },
+      {
+        type: "polymarket_action",
+        title: "Polymarket Action",
+        description: "Redeem, close orders, or get status",
+      },
+      {
+        type: "polymarket_trade_logger",
+        title: "Polymarket Trade Logger",
+        description: "Appends trades to polymarket_trades.json",
+      },
+      {
+        type: "polymarket_status_listener",
+        title: "Polymarket Status Listener",
+        description: "GET /polymarket/status, /trades, /pnl for user feedback",
+      },
+    ],
+  },
+  {
     name: "Clanker",
     nodes: [
       {
