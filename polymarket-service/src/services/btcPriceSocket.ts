@@ -1,10 +1,17 @@
 import WebSocket from 'ws';
+import { ethers } from 'ethers';
 import { writeFileSync, readFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const WS_URL = 'wss://ws-live-data.polymarket.com';
+const CHAINLINK_BTC_USD_POLYGON = '0xc907E116054Ad103354f2D350FD2514433D57F6f';
 const BINANCE_BACKUP_URL = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT';
+
+const CHAINLINK_ABI = [
+  'function latestRoundData() external view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)',
+  'function decimals() external view returns (uint8)',
+];
 const PING_INTERVAL_MS = 5_000;
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 5_000;
@@ -98,24 +105,51 @@ function normalizeTimestampToSec(ts: number): number {
   return ts > 1_000_000_000_000 ? ts / 1000 : ts;
 }
 
-async function fetchBackupPrice(): Promise<void> {
-  if (!running) return;
+/** Try Chainlink on-chain (second fallback — same source as Polymarket). */
+async function fetchChainlinkPrice(): Promise<number | null> {
+  const rpc = process.env.POLYGON_RPC_URL;
+  if (!rpc) return null;
+  try {
+    const provider = new ethers.providers.JsonRpcProvider(rpc);
+    const feed = new ethers.Contract(CHAINLINK_BTC_USD_POLYGON, CHAINLINK_ABI, provider);
+    const [, answer, , updatedAt] = await feed.latestRoundData();
+    const decimals = await feed.decimals();
+    const priceUsd = Number(answer.toString()) / 10 ** Number(decimals);
+    const ageSec = Math.floor(Date.now() / 1000) - Number(updatedAt);
+    if (!Number.isFinite(priceUsd) || priceUsd <= 0 || ageSec > 300) return null;
+    return priceUsd;
+  } catch {
+    return null;
+  }
+}
+
+/** Try Binance (third fallback). */
+async function fetchBinancePrice(): Promise<number | null> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 5_000);
   try {
     const res = await fetch(BINANCE_BACKUP_URL, { signal: controller.signal });
     clearTimeout(t);
-    if (!res.ok) return;
+    if (!res.ok) return null;
     const json = (await res.json()) as { price?: string };
     const val = json.price ? parseFloat(json.price) : NaN;
-    if (!Number.isFinite(val) || val <= 0) return;
-    const point: BtcPricePoint = { time: Math.floor(Date.now() / 1000), value: val };
-    if (appendPoint(point)) {
-      latestPrice = val;
-      lastBackupAtMs = nowMs();
-    }
+    return Number.isFinite(val) && val > 0 ? val : null;
   } catch {
     clearTimeout(t);
+    return null;
+  }
+}
+
+async function fetchBackupPrice(): Promise<void> {
+  if (!running) return;
+  let val: number | null = null;
+  val = await fetchChainlinkPrice();
+  if (val == null) val = await fetchBinancePrice();
+  if (val == null) return;
+  const point: BtcPricePoint = { time: Math.floor(Date.now() / 1000), value: val };
+  if (appendPoint(point)) {
+    latestPrice = val;
+    lastBackupAtMs = nowMs();
   }
 }
 
@@ -250,7 +284,7 @@ function maybeStartBackupPoll(): void {
     }
     if (!backupFresh) void fetchBackupPrice();
   }, BACKUP_POLL_MS);
-  console.log('[BtcPriceSocket] Backup poll (Binance) started — primary feed unavailable');
+  console.log('[BtcPriceSocket] Backup poll (Chainlink → Binance) started — primary feed unavailable');
   void fetchBackupPrice();
 }
 
