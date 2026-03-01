@@ -87,6 +87,20 @@ function parsePositiveBigInt(value: unknown): bigint | null {
   return null;
 }
 
+function parseNonNegativeBigInt(value: unknown): bigint | null {
+  if (typeof value === "bigint") return value >= 0n ? value : null;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0) return null;
+    return BigInt(value);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    return BigInt(trimmed);
+  }
+  return null;
+}
+
 function parseOutcome(value: unknown): "YES" | "NO" | null {
   const normalized = asString(value).toUpperCase();
   if (normalized === "YES") return "YES";
@@ -125,6 +139,22 @@ function parsePortfolioEntries(data: Record<string, unknown>): Array<Record<stri
 }
 
 export class BasemarketTradeActionNode extends BaseNode {
+  private async getCurrentRoundUsdcBalance(baseUrl: string, userAddress: string, currentRound: string): Promise<bigint | null> {
+    const balances = await callBasemarket(
+      baseUrl,
+      `/v1/trade/balances?user=${encodeURIComponent(userAddress)}&roundId=${encodeURIComponent(currentRound)}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "x-user-address": userAddress,
+        },
+      }
+    );
+    if (!balances.ok) return null;
+    return parseNonNegativeBigInt(balances.data.usdcBalance);
+  }
+
   private async getSigningConfig(baseUrl: string, userAddress: string): Promise<SigningConfig> {
     const response = await callBasemarket(
       baseUrl,
@@ -486,12 +516,36 @@ export class BasemarketTradeActionNode extends BaseNode {
     };
 
     if (action === "mint_complete_set" || action === "mint") {
-      const collateralAmount =
+      const explicitCollateral =
         parsePositiveBigInt(payload.collateralAmount) ??
-        parsePositiveBigInt(payload.amount) ??
         parsePositiveBigInt(payload.usdcAmount);
+      const perSideAmount =
+        parsePositiveBigInt(payload.per_side_amount) ??
+        parsePositiveBigInt(payload.perSideAmount) ??
+        parsePositiveBigInt(payload.amount);
+      const collateralAmount = explicitCollateral ?? (perSideAmount !== null ? perSideAmount * 2n : null);
       if (collateralAmount === null) {
-        return { success: false, action, endpoint, error: "collateralAmount/amount/usdcAmount is required" };
+        return {
+          success: false,
+          action,
+          endpoint,
+          error: "collateralAmount/usdcAmount (or per-side amount via amount/perSideAmount) is required",
+        };
+      }
+      const availableUsdc = await this.getCurrentRoundUsdcBalance(
+        baseUrl,
+        userAddress,
+        String(signingConfig.currentRound)
+      );
+      if (availableUsdc !== null && availableUsdc < collateralAmount) {
+        return {
+          success: false,
+          action,
+          endpoint,
+          error: `insufficient usdc balance for round seed (need ${collateralAmount.toString()}, have ${availableUsdc.toString()})`,
+          required_usdc: collateralAmount.toString(),
+          available_usdc: availableUsdc.toString(),
+        };
       }
       const auth =
         (payload.auth as SignatureAuthorization | undefined) ??
