@@ -67,21 +67,27 @@ export async function callBasemarket(
       ...init,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
+    const ok = response.ok;
+    const status = response.status;
 
     const contentType = response.headers.get("content-type") ?? "";
+    const text = await response.text();
     let data: Record<string, unknown> = {};
     if (contentType.includes("application/json")) {
-      data = (await response.json()) as Record<string, unknown>;
+      try {
+        data = JSON.parse(text) as Record<string, unknown>;
+      } catch (_) {
+        data = { raw: text };
+      }
     } else {
-      const text = await response.text();
       data = { raw: text };
     }
 
     return {
-      ok: response.ok,
-      status: response.status,
+      ok,
+      status,
       data,
-      error: response.ok ? undefined : `HTTP ${response.status}`,
+      error: ok ? undefined : `HTTP ${status}`,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

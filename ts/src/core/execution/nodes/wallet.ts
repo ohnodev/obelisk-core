@@ -21,10 +21,11 @@ export class WalletNode extends BaseNode {
     const privateKey =
       (this.getInputValue("private_key", context, undefined) as string) ??
       this.resolveEnvVar(this.metadata.private_key) ??
+      (typeof this.metadata.private_key === "string" ? this.metadata.private_key : undefined) ??
       process.env.SWAP_PRIVATE_KEY ??
       "";
 
-    const walletReady = !!privateKey && privateKey.length >= 20;
+    let walletReady = !!privateKey && privateKey.length >= 20;
     let walletAddress = "";
 
     if (!walletReady) {
@@ -32,10 +33,10 @@ export class WalletNode extends BaseNode {
     } else {
       try {
         walletAddress = new Wallet(privateKey).address;
-      } catch (error) {
-        logger.debug(
-          `[Wallet] Failed to derive wallet address: ${error instanceof Error ? error.message : String(error)}`
-        );
+      } catch {
+        walletReady = false;
+        walletAddress = "";
+        logger.debug("[Wallet] Failed to derive wallet address");
       }
     }
 

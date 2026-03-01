@@ -108,6 +108,10 @@ function parseOutcome(value: unknown): "YES" | "NO" | null {
   return null;
 }
 
+function isTrueLike(value: unknown): boolean {
+  return value === true || value === 1 || value === "1" || String(value ?? "").trim().toLowerCase() === "true";
+}
+
 function mapAuthPayload(auth: { validAfter: bigint; validBefore: bigint; nonce: string; signature: string }): SignatureAuthorization {
   return {
     validAfter: auth.validAfter.toString(),
@@ -358,7 +362,7 @@ export class BasemarketTradeActionNode extends BaseNode {
     }
 
     const payloadInput = this.getInputValue("payload", context, undefined);
-    const metadataPayload = this.metadata.payload;
+    const metadataPayload = this.resolveEnvVar(this.metadata.payload);
     const payload = {
       ...parsePayload(metadataPayload),
       ...parsePayload(payloadInput),
@@ -382,7 +386,7 @@ export class BasemarketTradeActionNode extends BaseNode {
 
     // refund does not require auth signatures
     if (action === "refund") {
-      const providedOrderId = parsePositiveBigInt(payload.orderId);
+      const providedOrderId = parsePositiveBigInt(payload.orderId ?? payload.order_id);
       const txHashes: string[] = [];
       if (providedOrderId !== null) {
         const single = await callBasemarket(baseUrl, endpoint, {
@@ -416,7 +420,18 @@ export class BasemarketTradeActionNode extends BaseNode {
       }
 
       // Auto-refund all active past-round orders.
-      const signingConfig = await this.getSigningConfig(baseUrl, userAddress);
+      let signingConfig: SigningConfig;
+      try {
+        signingConfig = await this.getSigningConfig(baseUrl, userAddress);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          action,
+          endpoint,
+          error: msg,
+        };
+      }
       const currentRoundNum = Number(signingConfig.currentRound);
       const positionsRes = await callBasemarket(
         baseUrl,
@@ -435,12 +450,12 @@ export class BasemarketTradeActionNode extends BaseNode {
       }
       const positions = parsePositionsResponse(positionsRes.data);
       const targetOrders = positions.filter((p) => {
-        const isActive = Boolean(p.isActive);
-        const round = Number(p.roundId);
+        const isActive = isTrueLike(p.isActive ?? p.is_active);
+        const round = Number(p.roundId ?? p.round_id);
         return isActive && Number.isFinite(round) && round > 0 && round < currentRoundNum;
       });
       for (const pos of targetOrders) {
-        const oid = parsePositiveBigInt(pos.orderId);
+        const oid = parsePositiveBigInt(pos.orderId ?? pos.order_id);
         if (oid === null) continue;
         const r = await callBasemarket(baseUrl, endpoint, {
           method: "POST",
@@ -459,7 +474,7 @@ export class BasemarketTradeActionNode extends BaseNode {
         if (!r.ok) {
           logger.warn(
             `[BasemarketTradeAction ${this.nodeId}] refund failed for order ${String(
-              pos.orderId
+              pos.orderId ?? pos.order_id
             )} (parsed=${oid.toString()}) status=${r.status} error=${r.error ?? "unknown"} data=${JSON.stringify(
               r.data
             )}`
@@ -468,7 +483,7 @@ export class BasemarketTradeActionNode extends BaseNode {
         }
         logger.warn(
           `[BasemarketTradeAction ${this.nodeId}] refund returned no tx hash for order ${String(
-            pos.orderId
+            pos.orderId ?? pos.order_id
           )} (parsed=${oid.toString()}) status=${r.status} data=${JSON.stringify(r.data)}`
         );
       }
@@ -491,8 +506,20 @@ export class BasemarketTradeActionNode extends BaseNode {
       };
     }
 
-    const wallet = new Wallet(privateKey);
-    const signingConfig = await this.getSigningConfig(baseUrl, userAddress);
+    let wallet: Wallet;
+    let signingConfig: SigningConfig;
+    try {
+      wallet = new Wallet(privateKey);
+      signingConfig = await this.getSigningConfig(baseUrl, userAddress);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        action,
+        endpoint,
+        error: msg,
+      };
+    }
 
     const callSignedAction = async (body: Record<string, unknown>) =>
       callBasemarket(baseUrl, endpoint, {
@@ -578,7 +605,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       const tokenAmount = parsePositiveBigInt(payload.tokenAmount) ?? parsePositiveBigInt(payload.amount);
       const limitPrice = parsePositiveBigInt(payload.limitPrice) ?? parsePositiveBigInt(payload.price);
       const outcomeValue = parseOutcome(payload.outcome);
-      const isMarket = Boolean(payload.isMarket ?? false);
+      const isMarket = isTrueLike(payload.isMarket ?? payload.is_market ?? false);
       if (tokenAmount === null || outcomeValue === null) {
         return { success: false, action, endpoint, error: "tokenAmount/amount and outcome(YES|NO) are required" };
       }
@@ -602,7 +629,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       const usdcAmount = parsePositiveBigInt(payload.usdcAmount) ?? parsePositiveBigInt(payload.amount);
       const limitPrice = parsePositiveBigInt(payload.limitPrice) ?? parsePositiveBigInt(payload.price);
       const outcomeValue = parseOutcome(payload.outcome);
-      const isMarket = Boolean(payload.isMarket ?? false);
+      const isMarket = isTrueLike(payload.isMarket ?? payload.is_market ?? false);
       if (usdcAmount === null || outcomeValue === null) {
         return { success: false, action, endpoint, error: "usdcAmount/amount and outcome(YES|NO) are required" };
       }
@@ -629,7 +656,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       action === "close_all_orders" ||
       action === "close_all"
     ) {
-      const providedOrderId = parsePositiveBigInt(payload.orderId);
+      const providedOrderId = parsePositiveBigInt(payload.orderId ?? payload.order_id);
       const closeOne = async (oid: bigint) => {
         const auth =
           (payload.auth as SignatureAuthorization | undefined) ??
@@ -670,7 +697,7 @@ export class BasemarketTradeActionNode extends BaseNode {
 
       // Auto-close active orders for selected round.
       const roundFilter =
-        parsePositiveBigInt(payload.roundId) ?? parsePositiveBigInt(payload.currentRound) ?? parsePositiveBigInt(signingConfig.currentRound);
+        parsePositiveBigInt(payload.roundId ?? payload.round_id) ?? parsePositiveBigInt(payload.currentRound ?? payload.current_round) ?? parsePositiveBigInt(signingConfig.currentRound);
       const positionsRes = await callBasemarket(
         baseUrl,
         `/v1/trade/positions?user=${encodeURIComponent(userAddress)}`,
@@ -688,18 +715,18 @@ export class BasemarketTradeActionNode extends BaseNode {
       }
       const positions = parsePositionsResponse(positionsRes.data);
       const targetOrders = positions.filter((p) => {
-        if (!Boolean(p.isActive)) return false;
-        if (Boolean(p.isMarketOrder)) return false;
-        const positionRound = parsePositiveBigInt(p.roundId);
+        if (!isTrueLike(p.isActive ?? p.is_active)) return false;
+        if (isTrueLike(p.isMarketOrder ?? p.is_market_order)) return false;
+        const positionRound = parsePositiveBigInt(p.roundId ?? p.round_id);
         if (roundFilter !== null && positionRound !== roundFilter) return false;
-        const isBuy = Boolean(p.isBuyOrder);
+        const isBuy = isTrueLike(p.isBuyOrder ?? p.is_buy_order);
         if (action === "close_sell") return !isBuy;
         if (action === "close_buy") return isBuy;
         return true;
       });
       const txHashes: string[] = [];
       for (const pos of targetOrders) {
-        const oid = parsePositiveBigInt(pos.orderId);
+        const oid = parsePositiveBigInt(pos.orderId ?? pos.order_id);
         if (oid === null) continue;
         const r = await closeOne(oid);
         if (r.ok) {
@@ -744,7 +771,7 @@ export class BasemarketTradeActionNode extends BaseNode {
         );
       };
 
-      const providedRound = parsePositiveBigInt(payload.roundId);
+      const providedRound = parsePositiveBigInt(payload.roundId ?? payload.round_id);
       const providedAmount = parsePositiveBigInt(payload.amount);
       if (providedRound !== null && providedAmount !== null) {
         const r = await doOne(providedRound, providedAmount);
@@ -787,12 +814,12 @@ export class BasemarketTradeActionNode extends BaseNode {
       const txHashes: string[] = [];
       const currentRoundNumber = parsePositiveBigInt(signingConfig.currentRound);
       for (const entry of entries) {
-        const round = parsePositiveBigInt(entry.roundId);
-        const amountField = isMerge ? entry.mergeableAmount : entry.redeemableAmount;
+        const round = parsePositiveBigInt(entry.roundId ?? entry.round_id);
+        const amountField = isMerge ? (entry.mergeableAmount ?? entry.mergeable_amount) : (entry.redeemableAmount ?? entry.redeemable_amount);
         const amt = parsePositiveBigInt(amountField);
         if (round === null || amt === null) continue;
         if (!isMerge) {
-          const isResolved = Boolean(entry.resolved);
+          const isResolved = isTrueLike(entry.resolved);
           if (!isResolved) continue;
           if (currentRoundNumber !== null && round >= currentRoundNumber) continue;
         }
