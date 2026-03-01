@@ -4,6 +4,26 @@ import { Wallet } from "ethers";
 export const DEFAULT_BASEMARKET_API = "http://127.0.0.1:2110";
 const REQUEST_TIMEOUT_MS = 20_000;
 
+function mergeAbortSignals(userSignal?: AbortSignal | null, timeoutMs = REQUEST_TIMEOUT_MS): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (!userSignal) return timeoutSignal;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([userSignal, timeoutSignal]);
+  }
+  const controller = new AbortController();
+  const cleanup = () => {
+    userSignal.removeEventListener("abort", abort);
+    timeoutSignal.removeEventListener("abort", abort);
+  };
+  const abort = () => {
+    cleanup();
+    controller.abort();
+  };
+  userSignal.addEventListener("abort", abort);
+  timeoutSignal.addEventListener("abort", abort);
+  return controller.signal;
+}
+
 export interface BasemarketRequestResult {
   ok: boolean;
   status: number;
@@ -65,7 +85,7 @@ export async function callBasemarket(
   try {
     const response = await fetch(url, {
       ...init,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: mergeAbortSignals(init.signal, REQUEST_TIMEOUT_MS),
     });
     const ok = response.ok;
     const status = response.status;
