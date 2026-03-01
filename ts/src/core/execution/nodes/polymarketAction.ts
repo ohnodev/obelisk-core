@@ -1,6 +1,6 @@
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
-import { asString, callPolymarket, isValidHexPrivateKey, resolvePolymarketBaseUrl } from "./polymarketShared";
+import { asString, callPolymarket, isValidHexPrivateKey, REDEEM_TIMEOUT_MS, resolvePolymarketBaseUrl } from "./polymarketShared";
 import { Wallet } from "ethers";
 
 const logger = getLogger("polymarketAction");
@@ -80,11 +80,16 @@ export class PolymarketActionNode extends BaseNode {
       if (privateKey && isValidHexPrivateKey(privateKey)) {
         body.privateKey = privateKey;
       }
-      const result = await callPolymarket(baseUrl, path, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const result = await callPolymarket(
+        baseUrl,
+        path,
+        {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        REDEEM_TIMEOUT_MS
+      );
       if (!result.ok) {
         return {
           success: false,

@@ -7,7 +7,9 @@ import { ClobClient, OrderType, Side } from '@polymarket/clob-client';
 import { ethers } from 'ethers';
 import { getOrderBook } from './polymarketClient.js';
 
-const CLOB_URL = process.env.CLOB_URL || 'https://clob.polymarket.com';
+function getClobUrl(): string {
+  return process.env.CLOB_URL || 'https://clob.polymarket.com';
+}
 const CHAIN_ID = 137; // Polygon
 
 const VALID_TICK_SIZES = ['0.1', '0.01', '0.001', '0.0001'] as const;
@@ -35,10 +37,11 @@ async function getClient(pk: string): Promise<ClobClient> {
     if (firstKey) clientCache.delete(firstKey);
   }
 
+  const clobUrl = getClobUrl();
   const signer = new ethers.Wallet(key);
-  const tempClient = new ClobClient(CLOB_URL, CHAIN_ID, signer);
+  const tempClient = new ClobClient(clobUrl, CHAIN_ID, signer);
   const apiCreds = await tempClient.createOrDeriveApiKey();
-  const c = new ClobClient(CLOB_URL, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
+  const c = new ClobClient(clobUrl, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
   clientCache.set(key, c);
   return c;
 }
