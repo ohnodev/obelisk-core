@@ -24,7 +24,7 @@
       "position": { "x": -1520, "y": -520 },
       "size": [320, 105],
       "inputs": {},
-      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
     },
     {
       "id": "4",
@@ -57,8 +57,8 @@
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "action": "mint-complete-set",
-        "payload": { "collateralAmount": "1000000" },
-        "payload_json": "{\"collateralAmount\":\"1000000\"}"
+        "payload": { "collateralAmount": "5000000" },
+        "payload_json": "{\"collateralAmount\":\"5000000\"}"
       }
     },
     {
@@ -71,8 +71,8 @@
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "action": "open_sell",
-        "payload": { "outcome": "YES", "tokenAmount": "1000000", "isMarket": false, "limitPrice": "500000" },
-        "payload_json": "{\"outcome\":\"YES\",\"tokenAmount\":\"1000000\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
+        "payload": { "outcome": "YES", "tokenAmount": "2500000", "isMarket": false, "limitPrice": "500000" },
+        "payload_json": "{\"outcome\":\"YES\",\"tokenAmount\":\"2500000\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
       }
     },
     {
@@ -85,8 +85,8 @@
         "base_url": "{{process.env.BASEMARKET_API_URL}}",
         "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
         "action": "open_sell",
-        "payload": { "outcome": "NO", "tokenAmount": "1000000", "isMarket": false, "limitPrice": "500000" },
-        "payload_json": "{\"outcome\":\"NO\",\"tokenAmount\":\"1000000\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
+        "payload": { "outcome": "NO", "tokenAmount": "2500000", "isMarket": false, "limitPrice": "500000" },
+        "payload_json": "{\"outcome\":\"NO\",\"tokenAmount\":\"2500000\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
       }
     },
     {
@@ -111,7 +111,7 @@
       "position": { "x": -1520, "y": 300 },
       "size": [320, 105],
       "inputs": {},
-      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
     },
     {
       "id": "14",
@@ -198,7 +198,7 @@
       "position": { "x": -1520, "y": 1110 },
       "size": [320, 105],
       "inputs": {},
-      "metadata": { "private_key": "{{process.env.SWAP_PRIVATE_KEY}}" }
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
     },
     {
       "id": "24",
