@@ -2,13 +2,13 @@
 
 import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 
-const NODE_WIDTH = 240;
-const NODE_HEIGHT = 120;
+const NODE_WIDTH = 300;
+const NODE_HEIGHT = 300;
 const DEFAULT_MIN_ETH = "0.004";
 
 class BalanceCheckerNode extends LGraphNode {
   static title = "Balance Checker";
-  static desc = "Check ETH balance for wallet; outputs has_sufficient_funds for Boolean Logic gating";
+  static desc = "Check ETH/WETH or ERC20 balance; outputs has_sufficient_funds";
   static title_color = "#50b050";
 
   constructor() {
@@ -17,16 +17,39 @@ class BalanceCheckerNode extends LGraphNode {
 
     this.addInput("trigger", "boolean");
     this.addInput("private_key", "string");
+    this.addInput("wallet_address", "string");
+    this.addInput("token_address", "string");
+    this.addInput("token_decimals", "number,string");
+    this.addInput("per_side_amount", "string,number");
+    this.addInput("double_sided", "boolean,string,number");
     this.addInput("min_balance_wei", "string");
 
     this.addOutput("has_sufficient_funds", "boolean");
     this.addOutput("balance_wei", "string");
     this.addOutput("balance_eth", "number");
+    this.addOutput("token_balance", "string");
+    this.addOutput("required_balance", "string");
 
     this.addProperty("min_balance_wei", DEFAULT_MIN_ETH, "string");
+    this.addProperty("token_address", "", "string");
+    this.addProperty("token_decimals", 6, "number");
+    this.addProperty("per_side_amount", "", "string");
+    this.addProperty("double_sided", true, "boolean");
     this.addWidget("string", "min ETH", DEFAULT_MIN_ETH, (value: string) => {
       this.setProperty("min_balance_wei", value);
     }, { serialize: true });
+    this.addWidget("string", "token_address", "", (value: string) => {
+      this.setProperty("token_address", value);
+    }, { serialize: true });
+    this.addWidget("number" as any, "token_decimals", 6, (value: number) => {
+      this.setProperty("token_decimals", Math.max(0, Math.floor(value || 6)));
+    }, { min: 0, max: 36, step: 1, serialize: true } as any);
+    this.addWidget("string", "per_side_amount", "", (value: string) => {
+      this.setProperty("per_side_amount", value);
+    }, { serialize: true });
+    this.addWidget("toggle" as any, "double_sided", true, (value: boolean) => {
+      this.setProperty("double_sided", value);
+    }, { serialize: true } as any);
 
     this.size = [NODE_WIDTH, NODE_HEIGHT];
     (this as any).type = "balance_checker";
@@ -34,22 +57,53 @@ class BalanceCheckerNode extends LGraphNode {
   }
 
   onPropertyChanged(name: string, value: any) {
-    if (name === "min_balance_wei") {
+    if (name === "min_balance_wei" || name === "token_address" || name === "token_decimals" || name === "per_side_amount" || name === "double_sided") {
       const widgets = (this as any).widgets as any[];
       if (widgets) {
-        const w = widgets.find((x: any) => x.name === "min ETH");
-        if (w) w.value = value ?? DEFAULT_MIN_ETH;
+        if (name === "min_balance_wei") {
+          const w = widgets.find((x: any) => x.name === "min ETH");
+          if (w) w.value = value ?? DEFAULT_MIN_ETH;
+        }
+        if (name === "token_address") {
+          const w = widgets.find((x: any) => x.name === "token_address");
+          if (w) w.value = value ?? "";
+        }
+        if (name === "token_decimals") {
+          const w = widgets.find((x: any) => x.name === "token_decimals");
+          if (w) w.value = value ?? 6;
+        }
+        if (name === "per_side_amount") {
+          const w = widgets.find((x: any) => x.name === "per_side_amount");
+          if (w) w.value = value ?? "";
+        }
+        if (name === "double_sided") {
+          const w = widgets.find((x: any) => x.name === "double_sided");
+          if (w) w.value = value ?? true;
+        }
       }
     }
   }
 
   onConfigure(data: any) {
     if (super.onConfigure) super.onConfigure(data);
-    const v = data.properties?.min_balance_wei ?? (this.properties as any)?.min_balance_wei ?? DEFAULT_MIN_ETH;
+    const p = data.properties ?? (this.properties as any) ?? {};
+    const minV = p.min_balance_wei ?? DEFAULT_MIN_ETH;
+    const tokenAddr = p.token_address ?? "";
+    const tokenDecimals = p.token_decimals ?? 6;
+    const perSideAmount = p.per_side_amount ?? "";
+    const doubleSided = p.double_sided ?? true;
     const widgets = (this as any).widgets as any[];
     if (widgets) {
-      const w = widgets.find((x: any) => x.name === "min ETH");
-      if (w) w.value = v;
+      const minW = widgets.find((x: any) => x.name === "min ETH");
+      if (minW) minW.value = minV;
+      const tokenW = widgets.find((x: any) => x.name === "token_address");
+      if (tokenW) tokenW.value = tokenAddr;
+      const decW = widgets.find((x: any) => x.name === "token_decimals");
+      if (decW) decW.value = tokenDecimals;
+      const perSideW = widgets.find((x: any) => x.name === "per_side_amount");
+      if (perSideW) perSideW.value = perSideAmount;
+      const doubleW = widgets.find((x: any) => x.name === "double_sided");
+      if (doubleW) doubleW.value = doubleSided;
     }
     this.size = [NODE_WIDTH, NODE_HEIGHT];
   }

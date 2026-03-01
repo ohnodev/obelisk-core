@@ -1,11 +1,18 @@
 /**
  * WalletNode – resolves private key from inputs, metadata.private_key, or SWAP_PRIVATE_KEY env
- * for internal checks. Does not expose private_key in output; downstream nodes (ClankerBuy,
- * ClankerSell, BalanceChecker) must read the key from metadata.private_key or SWAP_PRIVATE_KEY.
- * Hook up to Buy/Sell so the graph knows wallet is required; they read the key themselves.
+ * and exposes wallet outputs for downstream nodes.
+ *
+ * Current outputs include:
+ * - private_key (resolved key string)
+ * - wallet_address (derived from the key when valid)
+ * - wallet_ready (boolean)
+ *
+ * Security note: exposing private_key is convenient for graph wiring but sensitive; prefer
+ * environment-backed metadata (`metadata.private_key` / `SWAP_PRIVATE_KEY`) in production.
  */
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger } from "../../../utils/logger";
+import { Wallet } from "ethers";
 
 const logger = getLogger("wallet");
 
@@ -14,15 +21,29 @@ export class WalletNode extends BaseNode {
     const privateKey =
       (this.getInputValue("private_key", context, undefined) as string) ??
       this.resolveEnvVar(this.metadata.private_key) ??
+      (typeof this.metadata.private_key === "string" ? this.metadata.private_key : undefined) ??
       process.env.SWAP_PRIVATE_KEY ??
       "";
 
-    const walletReady = !!privateKey && privateKey.length >= 20;
+    let walletReady = !!privateKey && privateKey.length >= 20;
+    let walletAddress = "";
 
     if (!walletReady) {
       logger.debug("[Wallet] SWAP_PRIVATE_KEY not set or too short");
+    } else {
+      try {
+        walletAddress = new Wallet(privateKey).address;
+      } catch {
+        walletReady = false;
+        walletAddress = "";
+        logger.debug("[Wallet] Failed to derive wallet address");
+      }
     }
 
-    return { wallet_ready: walletReady };
+    return {
+      private_key: privateKey,
+      wallet_address: walletAddress,
+      wallet_ready: walletReady,
+    };
   }
 }

@@ -5,6 +5,7 @@
  * Parses the Swap log from the tx receipt to return actual tokens received.
  */
 import { ethers } from "ethers";
+import { getLogger } from "./logger";
 
 // Uniswap V4 Pool Manager on Base (same as blockchain-service)
 const POOL_MANAGER = "0x498581ff718922c3f8e6a244956af099b2652b2b".toLowerCase();
@@ -20,6 +21,10 @@ const WETH_ABI = [
 ];
 const GAS_RESERVE_ETH = "0.001";
 const UNWRAP_BUFFER_ETH = "0.0005";
+const SELL_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 500;
+
+const logger = getLogger("cabalSwapper");
 
 function isInsufficientFundsError(msg: string): boolean {
   const m = msg.toLowerCase();
@@ -38,6 +43,19 @@ function isNonceError(msg: string): boolean {
     m.includes("nonce") &&
     (m.includes("too low") || m.includes("already been used") || m.includes("expired"))
   );
+}
+
+function isReplacementUnderpricedError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("replacement fee too low") ||
+    m.includes("replacement transaction underpriced") ||
+    m.includes("replacement_underpriced")
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -61,6 +79,62 @@ async function withNonceRetry<T>(
       throw err;
     }
   }
+}
+
+async function sendSellTxWithFeeBump(
+  wallet: ethers.Wallet,
+  txBase: { to: string; data?: string; gasLimit: bigint },
+  label: string,
+  maxAttempts = SELL_RETRY_ATTEMPTS
+): Promise<{ tx: ethers.TransactionResponse; attempt: number; nonce: number }> {
+  const provider = wallet.provider;
+  if (!provider) throw new Error("Wallet provider missing");
+
+  let nonce = await provider.getTransactionCount(wallet.address, "pending");
+  let lastErr: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const feeData = await provider.getFeeData().catch(() => null);
+    const gasPrice = feeData?.gasPrice ?? 1_000_000_000n; // 1 gwei fallback
+    const maxFeeBase = feeData?.maxFeePerGas ?? gasPrice;
+    const maxPrioBase = feeData?.maxPriorityFeePerGas ?? (gasPrice / 2n || 1_000_000_000n);
+    const bumpPct = 100n + BigInt((attempt - 1) * 25); // 1.00x, 1.25x, 1.50x
+    const maxFeePerGas = (maxFeeBase * bumpPct) / 100n + 1n;
+    const maxPriorityFeePerGas = (maxPrioBase * bumpPct) / 100n + 1n;
+
+    logger.info(
+      `[CabalSwapper] ${label} attempt=${attempt}/${maxAttempts} nonce=${nonce} maxFeePerGas=${maxFeePerGas} maxPriorityFeePerGas=${maxPriorityFeePerGas}`
+    );
+
+    try {
+      const tx = await wallet.sendTransaction({
+        ...txBase,
+        type: 2,
+        nonce,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      return { tx, attempt, nonce };
+    } catch (err: unknown) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt >= maxAttempts) break;
+      if (isReplacementUnderpricedError(msg)) {
+        logger.warn(`[CabalSwapper] ${label} retrying after underpriced replacement (attempt=${attempt}): ${msg}`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      if (isNonceError(msg)) {
+        nonce = await provider.getTransactionCount(wallet.address, "pending");
+        logger.warn(`[CabalSwapper] ${label} nonce conflict, refreshing pending nonce=${nonce} (attempt=${attempt})`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastErr ?? new Error(`${label} failed after retries`);
 }
 
 async function unwrapWethForGas(wallet: ethers.Wallet): Promise<void> {
@@ -386,24 +460,33 @@ export async function executeSwap(
         tick,
         hook
       );
-      const sendAndWait = async (): Promise<ethers.TransactionResponse> => {
-        const txSell = await withNonceRetry(() => wallet.sendTransaction({
-          to: CABAL_SWAPPER_ADDRESS,
-          data: populated.data,
-          gasLimit: 3_000_000n,
-        }));
-        return txSell;
+      const sendAndWait = async (): Promise<{ tx: ethers.TransactionResponse; sentAtMs: number }> => {
+        const sent = await sendSellTxWithFeeBump(
+          wallet,
+          {
+            to: CABAL_SWAPPER_ADDRESS,
+            data: populated.data,
+            gasLimit: 3_000_000n,
+          },
+          "sell-v4-with-pool"
+        );
+        return { tx: sent.tx, sentAtMs: Date.now() };
       };
       let txSell: ethers.TransactionResponse;
       let sellTxHash: string | undefined;
+      let sentAtMs = Date.now();
       try {
-        txSell = await sendAndWait();
+        const sent = await sendAndWait();
+        txSell = sent.tx;
+        sentAtMs = sent.sentAtMs;
         sellTxHash = txSell?.hash ?? undefined;
       } catch (sendErr: unknown) {
         const sendMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
         if (isInsufficientFundsError(sendMsg)) {
           await unwrapWethForGas(wallet);
-          txSell = await sendAndWait();
+          const sent = await sendAndWait();
+          txSell = sent.tx;
+          sentAtMs = sent.sentAtMs;
           sellTxHash = txSell?.hash ?? undefined;
         } else {
           return { success: false, error: sendMsg, txHash: undefined };
@@ -411,6 +494,9 @@ export async function executeSwap(
       }
       try {
         const receipt = await txSell!.wait();
+        logger.info(
+          `[CabalSwapper] sell-v4-with-pool mined tx=${receipt?.hash ?? sellTxHash ?? "unknown"} latency_ms=${Date.now() - sentAtMs}`
+        );
         if (receipt?.status === 0) {
           return { success: false, error: "Sell reverted on-chain", txHash: receipt?.hash ?? sellTxHash };
         }
@@ -425,8 +511,12 @@ export async function executeSwap(
         if (!isRevert && isInsufficientFundsError(waitMsg)) {
           await unwrapWethForGas(wallet);
           try {
-            const txSell2 = await sendAndWait();
+            const sent2 = await sendAndWait();
+            const txSell2 = sent2.tx;
             const receipt2 = await txSell2.wait();
+            logger.info(
+              `[CabalSwapper] sell-v4-with-pool retry mined tx=${receipt2?.hash ?? "unknown"} latency_ms=${Date.now() - sent2.sentAtMs}`
+            );
             if (receipt2?.status === 0) {
               return { success: false, error: "Sell reverted on-chain (retry)", txHash: receipt2?.hash };
             }
@@ -452,8 +542,17 @@ export async function executeSwap(
             const txApproveRetry = await withNonceRetry(() => tokenContract.approve(CABAL_SWAPPER_ADDRESS, actualBalance));
             await txApproveRetry.wait();
             const populatedRetry = await contract.cabalSellV4WithPool.populateTransaction(currency0!, currency1!, actualBalance, fee, tick, hook);
-            const txRetry = await withNonceRetry(() => wallet.sendTransaction({ to: CABAL_SWAPPER_ADDRESS, data: populatedRetry.data, gasLimit: 3_000_000n }));
+            const sentRetry = await sendSellTxWithFeeBump(
+              wallet,
+              { to: CABAL_SWAPPER_ADDRESS, data: populatedRetry.data, gasLimit: 3_000_000n },
+              "sell-v4-with-pool-adjusted-balance"
+            );
+            const retrySentAtMs = Date.now();
+            const txRetry = sentRetry.tx;
             const receiptRetry = await txRetry.wait();
+            logger.info(
+              `[CabalSwapper] sell-v4-with-pool-adjusted-balance mined tx=${receiptRetry?.hash ?? "unknown"} latency_ms=${Date.now() - retrySentAtMs}`
+            );
             if (receiptRetry?.status === 0) {
               return { success: false, error: "Sell reverted on retry with adjusted balance", txHash: receiptRetry?.hash ?? sellTxHash };
             }
@@ -474,9 +573,18 @@ export async function executeSwap(
     const txApprove = await withNonceRetry(() => tokenContract2.approve(CABAL_SWAPPER_ADDRESS, amount));
     await txApprove.wait();
     const doSell = async (): Promise<{ receipt: ethers.TransactionReceipt | null; txHash: string | undefined }> => {
-      const tx = await withNonceRetry(() => contract.cabalSellV4(token, amount, fee, tick, hook, { gasLimit: 3_000_000n }));
-      const receipt = await tx.wait();
-      return { receipt: receipt as ethers.TransactionReceipt | null, txHash: receipt?.hash ?? undefined };
+      const populatedSell = await contract.cabalSellV4.populateTransaction(token, amount, fee, tick, hook, { gasLimit: 3_000_000n });
+      const sent = await sendSellTxWithFeeBump(
+        wallet,
+        { to: CABAL_SWAPPER_ADDRESS, data: populatedSell.data, gasLimit: 3_000_000n },
+        "sell-v4"
+      );
+      const sentAtMs = Date.now();
+      const receipt = await sent.tx.wait();
+      logger.info(
+        `[CabalSwapper] sell-v4 mined tx=${receipt?.hash ?? "unknown"} latency_ms=${Date.now() - sentAtMs}`
+      );
+      return { receipt: receipt as ethers.TransactionReceipt | null, txHash: receipt?.hash ?? sent.tx.hash ?? undefined };
     };
     let receipt: ethers.TransactionReceipt | null;
     let txHash: string | undefined;
@@ -511,8 +619,18 @@ export async function executeSwap(
           if (actualBalance < amount) {
             const txApproveRetry = await withNonceRetry(() => tokenContract2.approve(CABAL_SWAPPER_ADDRESS, actualBalance));
             await txApproveRetry.wait();
-            const txRetry = await withNonceRetry(() => contract.cabalSellV4(token, actualBalance, fee, tick, hook, { gasLimit: 3_000_000n }));
+            const populatedRetry = await contract.cabalSellV4.populateTransaction(token, actualBalance, fee, tick, hook, { gasLimit: 3_000_000n });
+            const sentRetry = await sendSellTxWithFeeBump(
+              wallet,
+              { to: CABAL_SWAPPER_ADDRESS, data: populatedRetry.data, gasLimit: 3_000_000n },
+              "sell-v4-adjusted-balance"
+            );
+            const retrySentAtMs = Date.now();
+            const txRetry = sentRetry.tx;
             const receiptRetry = await txRetry.wait();
+            logger.info(
+              `[CabalSwapper] sell-v4-adjusted-balance mined tx=${receiptRetry?.hash ?? "unknown"} latency_ms=${Date.now() - retrySentAtMs}`
+            );
             if (receiptRetry?.status === 0) {
               return { success: false, error: "Sell reverted on retry with adjusted balance", txHash: receiptRetry?.hash ?? txHash };
             }

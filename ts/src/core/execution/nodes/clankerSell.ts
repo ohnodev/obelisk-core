@@ -59,25 +59,41 @@ export class ClankerSellNode extends BaseNode {
       return { success: false, error: "token_address required", txHash: undefined };
     }
 
-    const result = await executeSwap(
-      privateKey,
-      {
-        tokenAddress,
-        amountWei: String(amountWei),
-        isBuy: false,
-        poolFee,
-        tickSpacing,
-        hookAddress: hookAddress || undefined,
-        currency0: currency0 || undefined,
-        currency1: currency1 || undefined,
-      },
-      rpcUrl
+    const sellStartMs = Date.now();
+    logger.info(
+      `[ClankerSell] Sell requested token=${tokenAddress} amountWei=${amountWei}`
     );
 
-    if (result.success) {
-      logger.info(`[ClankerSell] Sell tx: ${result.txHash}`);
-    } else {
-      logger.warn(`[ClankerSell] Sell failed: ${result.error}`);
+    let result: Awaited<ReturnType<typeof executeSwap>>;
+    try {
+      result = await executeSwap(
+        privateKey,
+        {
+          tokenAddress,
+          amountWei: String(amountWei),
+          isBuy: false,
+          poolFee,
+          tickSpacing,
+          hookAddress: hookAddress || undefined,
+          currency0: currency0 || undefined,
+          currency1: currency1 || undefined,
+        },
+        rpcUrl
+      );
+      const elapsedMs = Date.now() - sellStartMs;
+      if (result.success) {
+        logger.info(`[ClankerSell] Sell tx: ${result.txHash} (latency=${elapsedMs}ms)`);
+      } else {
+        logger.warn(`[ClankerSell] Sell failed: ${result.error} (latency=${elapsedMs}ms)`);
+      }
+    } catch (err) {
+      const elapsedMs = Date.now() - sellStartMs;
+      const error = err instanceof Error ? err.message : String(err);
+      logger.warn(`[ClankerSell] Sell failed: ${error} (latency=${elapsedMs}ms)`);
+      result = {
+        success: false,
+        error,
+      } as Awaited<ReturnType<typeof executeSwap>>;
     }
 
     const res = result as { wethReceived?: string; ethReceived?: string; zeroBalance?: boolean };

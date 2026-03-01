@@ -1,0 +1,301 @@
+{
+  "id": "workflow-1",
+  "name": "Basemarket LP Bot",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "text",
+      "position": { "x": -1520, "y": -990 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "3",
+      "type": "wallet",
+      "position": { "x": -1520, "y": -520 },
+      "size": [320, 105],
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "29",
+      "type": "text",
+      "position": { "x": -1520, "y": -320 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.BASEMARKET_LP_PER_SIDE_USDC_MICRO}}" }
+    },
+    {
+      "id": "30",
+      "type": "text",
+      "position": { "x": -1520, "y": -120 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" }
+    },
+    {
+      "id": "4",
+      "type": "deterministic_scheduler",
+      "position": { "x": -1130, "y": -980 },
+      "size": [280, 225],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 10,
+        "enabled": true
+      }
+    },
+    {
+      "id": "5",
+      "type": "basemarket_current_round",
+      "position": { "x": -790, "y": -960 },
+      "size": [300, 120],
+      "inputs": {},
+      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "31",
+      "type": "balance_checker",
+      "position": { "x": -720, "y": -660 },
+      "size": [300, 300],
+      "inputs": {},
+      "metadata": {
+        "token_decimals": 6,
+        "double_sided": true
+      }
+    },
+    {
+      "id": "6",
+      "type": "basemarket_trade_action",
+      "position": { "x": -400, "y": -1030 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "mint-complete-set",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "7",
+      "type": "basemarket_trade_action",
+      "position": { "x": 20, "y": -1180 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "open_sell",
+        "payload": { "outcome": "YES", "isMarket": false, "limitPrice": "500000" },
+        "payload_json": "{\"outcome\":\"YES\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
+      }
+    },
+    {
+      "id": "8",
+      "type": "basemarket_trade_action",
+      "position": { "x": 420, "y": -1180 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "open_sell",
+        "payload": { "outcome": "NO", "isMarket": false, "limitPrice": "500000" },
+        "payload_json": "{\"outcome\":\"NO\",\"isMarket\":false,\"limitPrice\":\"500000\"}"
+      }
+    },
+    {
+      "id": "11",
+      "type": "text",
+      "position": { "x": -1520, "y": -180 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "13",
+      "type": "wallet",
+      "position": { "x": -1520, "y": 300 },
+      "size": [320, 105],
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "14",
+      "type": "deterministic_scheduler",
+      "position": { "x": -1130, "y": -170 },
+      "size": [280, 225],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": "{{process.env.BASEMARKET_ROUND_INTERVAL_S}}",
+        "offset_seconds": 70,
+        "enabled": true
+      }
+    },
+    {
+      "id": "15",
+      "type": "basemarket_current_round",
+      "position": { "x": -790, "y": -150 },
+      "size": [300, 120],
+      "inputs": {},
+      "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "16",
+      "type": "basemarket_trade_action",
+      "position": { "x": -380, "y": -210 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "close_all_orders",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "18",
+      "type": "basemarket_trade_action",
+      "position": { "x": 430, "y": -210 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "merge-complete-set",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "21",
+      "type": "text",
+      "position": { "x": -1520, "y": 640 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "23",
+      "type": "wallet",
+      "position": { "x": -1520, "y": 1110 },
+      "size": [320, 105],
+      "inputs": {},
+      "metadata": { "private_key": "{{process.env.BMART_LP_PRIVATE_KEY}}" }
+    },
+    {
+      "id": "24",
+      "type": "deterministic_scheduler",
+      "position": { "x": -1130, "y": 650 },
+      "size": [280, 225],
+      "inputs": {},
+      "metadata": {
+        "anchor_timestamp": "{{process.env.BASEMARKET_ANCHOR_TS}}",
+        "interval_seconds": 300,
+        "offset_seconds": 180,
+        "enabled": true
+      }
+    },
+    {
+      "id": "26",
+      "type": "basemarket_trade_action",
+      "position": { "x": -720, "y": 630 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "refund",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "27",
+      "type": "basemarket_trade_action",
+      "position": { "x": -310, "y": 630 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "redeem",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    },
+    {
+      "id": "28",
+      "type": "basemarket_trade_action",
+      "position": { "x": 100, "y": 630 },
+      "size": [340, 310],
+      "inputs": {},
+      "metadata": {
+        "base_url": "{{process.env.BASEMARKET_API_URL}}",
+        "user_address": "{{process.env.BASEMARKET_USER_ADDRESS}}",
+        "action": "merge-complete-set",
+        "payload": {},
+        "payload_json": "{}"
+      }
+    }
+  ],
+  "connections": [
+    { "from": "1", "from_output": "text", "to": "5", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "6", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "7", "to_input": "base_url" },
+    { "from": "1", "from_output": "text", "to": "8", "to_input": "base_url" },
+    { "from": "3", "from_output": "wallet_address", "to": "6", "to_input": "user_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "7", "to_input": "user_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "8", "to_input": "user_address" },
+    { "from": "3", "from_output": "private_key", "to": "6", "to_input": "private_key" },
+    { "from": "3", "from_output": "private_key", "to": "7", "to_input": "private_key" },
+    { "from": "3", "from_output": "private_key", "to": "8", "to_input": "private_key" },
+    { "from": "29", "from_output": "text", "to": "6", "to_input": "amount" },
+    { "from": "29", "from_output": "text", "to": "7", "to_input": "amount" },
+    { "from": "29", "from_output": "text", "to": "8", "to_input": "amount" },
+    { "from": "29", "from_output": "text", "to": "31", "to_input": "per_side_amount" },
+    { "from": "30", "from_output": "text", "to": "31", "to_input": "token_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "31", "to_input": "wallet_address" },
+    { "from": "3", "from_output": "private_key", "to": "31", "to_input": "private_key" },
+    { "from": "4", "from_output": "trigger", "to": "5", "to_input": "trigger" },
+    { "from": "5", "from_output": "success", "to": "31", "to_input": "trigger" },
+    { "from": "31", "from_output": "has_sufficient_funds", "to": "6", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "6", "to_input": "current_round" },
+    { "from": "6", "from_output": "success", "to": "7", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "7", "to_input": "current_round" },
+    { "from": "7", "from_output": "success", "to": "8", "to_input": "trigger" },
+    { "from": "5", "from_output": "current_round", "to": "8", "to_input": "current_round" },
+
+    { "from": "11", "from_output": "text", "to": "15", "to_input": "base_url" },
+    { "from": "11", "from_output": "text", "to": "16", "to_input": "base_url" },
+    { "from": "11", "from_output": "text", "to": "18", "to_input": "base_url" },
+    { "from": "13", "from_output": "wallet_address", "to": "16", "to_input": "user_address" },
+    { "from": "13", "from_output": "wallet_address", "to": "18", "to_input": "user_address" },
+    { "from": "13", "from_output": "private_key", "to": "16", "to_input": "private_key" },
+    { "from": "13", "from_output": "private_key", "to": "18", "to_input": "private_key" },
+    { "from": "14", "from_output": "trigger", "to": "15", "to_input": "trigger" },
+    { "from": "15", "from_output": "success", "to": "16", "to_input": "trigger" },
+    { "from": "15", "from_output": "current_round", "to": "16", "to_input": "current_round" },
+    { "from": "16", "from_output": "success", "to": "18", "to_input": "trigger" },
+    { "from": "15", "from_output": "current_round", "to": "18", "to_input": "current_round" },
+
+    { "from": "21", "from_output": "text", "to": "26", "to_input": "base_url" },
+    { "from": "21", "from_output": "text", "to": "27", "to_input": "base_url" },
+    { "from": "21", "from_output": "text", "to": "28", "to_input": "base_url" },
+    { "from": "23", "from_output": "wallet_address", "to": "26", "to_input": "user_address" },
+    { "from": "23", "from_output": "wallet_address", "to": "27", "to_input": "user_address" },
+    { "from": "23", "from_output": "wallet_address", "to": "28", "to_input": "user_address" },
+    { "from": "23", "from_output": "private_key", "to": "26", "to_input": "private_key" },
+    { "from": "23", "from_output": "private_key", "to": "27", "to_input": "private_key" },
+    { "from": "23", "from_output": "private_key", "to": "28", "to_input": "private_key" },
+    { "from": "24", "from_output": "trigger", "to": "26", "to_input": "trigger" },
+    { "from": "26", "from_output": "success", "to": "27", "to_input": "trigger" },
+    { "from": "27", "from_output": "success", "to": "28", "to_input": "trigger" }
+  ]
+}
