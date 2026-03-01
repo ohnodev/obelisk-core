@@ -27,6 +27,14 @@
       "metadata": { "text": "{{process.env.BASEMARKET_LP_PER_SIDE_USDC_MICRO}}" }
     },
     {
+      "id": "30",
+      "type": "text",
+      "position": { "x": -1520, "y": -120 },
+      "size": [300, 200],
+      "inputs": {},
+      "metadata": { "text": "{{process.env.BASEMARKET_USDC_ADDRESS}}" }
+    },
+    {
       "id": "4",
       "type": "deterministic_scheduler",
       "position": { "x": -1130, "y": -980 },
@@ -46,6 +54,17 @@
       "size": [300, 120],
       "inputs": {},
       "metadata": { "base_url": "{{process.env.BASEMARKET_API_URL}}" }
+    },
+    {
+      "id": "31",
+      "type": "balance_checker",
+      "position": { "x": -720, "y": -660 },
+      "size": [300, 210],
+      "inputs": {},
+      "metadata": {
+        "token_decimals": 6,
+        "double_sided": true
+      }
     },
     {
       "id": "6",
@@ -254,8 +273,13 @@
     { "from": "29", "from_output": "text", "to": "6", "to_input": "amount" },
     { "from": "29", "from_output": "text", "to": "7", "to_input": "amount" },
     { "from": "29", "from_output": "text", "to": "8", "to_input": "amount" },
+    { "from": "29", "from_output": "text", "to": "31", "to_input": "per_side_amount" },
+    { "from": "30", "from_output": "text", "to": "31", "to_input": "token_address" },
+    { "from": "3", "from_output": "wallet_address", "to": "31", "to_input": "wallet_address" },
+    { "from": "3", "from_output": "private_key", "to": "31", "to_input": "private_key" },
     { "from": "4", "from_output": "trigger", "to": "5", "to_input": "trigger" },
-    { "from": "5", "from_output": "success", "to": "6", "to_input": "trigger" },
+    { "from": "5", "from_output": "success", "to": "31", "to_input": "trigger" },
+    { "from": "31", "from_output": "has_sufficient_funds", "to": "6", "to_input": "trigger" },
     { "from": "5", "from_output": "current_round", "to": "6", "to_input": "current_round" },
     { "from": "6", "from_output": "success", "to": "7", "to_input": "trigger" },
     { "from": "5", "from_output": "current_round", "to": "7", "to_input": "current_round" },

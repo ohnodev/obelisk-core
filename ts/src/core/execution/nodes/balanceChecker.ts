@@ -1,19 +1,11 @@
 /**
- * BalanceCheckerNode – checks ETH + WETH combined balance for the wallet (from private_key).
- * Ensures enough native ETH is available to trade + pay gas.
- * If native ETH is below the required native threshold, automatically unwraps WETH → ETH.
+ * BalanceCheckerNode
  *
- * Inputs:
- *   private_key: From metadata.private_key or SWAP_PRIVATE_KEY (Wallet node no longer exposes it; required for address + RPC)
- *   min_balance_wei: Minimum required combined (ETH+WETH) balance in wei (optional; default 0.004 ETH)
+ * Mode A (default): ETH + WETH gas balance guard.
+ * Mode B (when token_address is provided): ERC20 token balance guard (e.g. USDC).
  *
- * Outputs:
- *   has_sufficient_funds: true if native ETH >= max(min, gas reserve)
- *   balance_wei: Combined balance in wei (string)
- *   balance_eth: Combined balance in ETH (number)
- *   eth_balance_wei / eth_balance_eth: Native ETH (for gas)
- *   weth_balance_wei / weth_balance_eth: WETH balance
- *   unwrapped_wei: If we unwrapped WETH this run, amount unwrapped (string); otherwise "0"
+ * In token mode you can pass per_side_amount and (optionally) double_sided=true
+ * to require 2x per-side collateral (useful for YES/NO LP seeding).
  */
 import { ethers } from "ethers";
 import { BaseNode, ExecutionContext } from "../nodeBase";
@@ -68,13 +60,76 @@ function parseWei(value: unknown): bigint {
   }
 }
 
+function parseTokenUnits(value: unknown, decimals: number): bigint {
+  if (value === undefined || value === null) return 0n;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number" && !Number.isNaN(value)) {
+    if (Number.isInteger(value)) return BigInt(value);
+    try {
+      return ethers.parseUnits(String(value), decimals);
+    } catch {
+      return 0n;
+    }
+  }
+  const s = String(value).trim();
+  if (!s) return 0n;
+  if (/^\d+$/.test(s)) {
+    try {
+      return BigInt(s);
+    } catch {
+      return 0n;
+    }
+  }
+  try {
+    return ethers.parseUnits(s, decimals);
+  } catch {
+    return 0n;
+  }
+}
+
+function parseBool(value: unknown, fallback: boolean): boolean {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const s = String(value).trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(s)) return true;
+  if (["false", "0", "no", "off"].includes(s)) return false;
+  return fallback;
+}
+
 export class BalanceCheckerNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
+    const trigger = this.getInputValue("trigger", context, true);
+    if (trigger === false || String(trigger).trim().toLowerCase() === "false") {
+      return {
+        has_sufficient_funds: false,
+        skipped: true,
+        reason: "trigger is false",
+      };
+    }
+
     const privateKey =
       (this.getInputValue("private_key", context, undefined) as string) ??
       this.resolveEnvVar(this.metadata.private_key) ??
       process.env.SWAP_PRIVATE_KEY ??
       "";
+    const walletAddressInput =
+      String(this.getInputValue("wallet_address", context, undefined) ?? "").trim() ||
+      String(this.resolveEnvVar(this.metadata.wallet_address) ?? "").trim();
+    const tokenAddress =
+      String(this.getInputValue("token_address", context, undefined) ?? "").trim() ||
+      String(this.resolveEnvVar(this.metadata.token_address) ?? "").trim();
+    const tokenDecimalsRaw =
+      this.getInputValue("token_decimals", context, undefined) ??
+      this.resolveEnvVar(this.metadata.token_decimals) ??
+      6;
+    const tokenDecimals = Math.max(0, Math.floor(Number(tokenDecimalsRaw) || 6));
+    const perSideAmountRaw =
+      this.getInputValue("per_side_amount", context, undefined) ??
+      this.resolveEnvVar(this.metadata.per_side_amount);
+    const doubleSidedRaw =
+      this.getInputValue("double_sided", context, undefined) ??
+      this.resolveEnvVar(this.metadata.double_sided);
 
     const minInput = this.getInputValue("min_balance_wei", context, undefined);
     const minFromMeta = this.metadata.min_balance_wei ?? this.metadata.min_eth;
@@ -83,16 +138,6 @@ export class BalanceCheckerNode extends BaseNode {
         ? parseWei(minInput)
         : parseWei(minFromMeta ?? DEFAULT_MIN_ETH);
 
-    if (!privateKey || privateKey.length < 20) {
-      logger.warn("[BalanceChecker] No private_key (connect Wallet node or set SWAP_PRIVATE_KEY)");
-      return {
-        has_sufficient_funds: false,
-        balance_wei: "0",
-        balance_eth: 0,
-        error: "Wallet not configured",
-      };
-    }
-
     const rpcUrl = (process.env.RPC_URL as string) || DEFAULT_RPC;
     const gasReserveWei = parseWei(GAS_RESERVE_ETH);
     const targetNativeWei = minBalanceWei > gasReserveWei ? minBalanceWei : gasReserveWei;
@@ -100,7 +145,57 @@ export class BalanceCheckerNode extends BaseNode {
 
     try {
       const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true });
-      const wallet = new ethers.Wallet(privateKey, provider);
+      const wallet =
+        privateKey && privateKey.length >= 20
+          ? new ethers.Wallet(privateKey, provider)
+          : null;
+      const resolvedAddress = walletAddressInput || wallet?.address || "";
+      if (!resolvedAddress || !ethers.isAddress(resolvedAddress)) {
+        logger.warn("[BalanceChecker] No valid wallet address");
+        return {
+          has_sufficient_funds: false,
+          balance_wei: "0",
+          balance_eth: 0,
+          error: "Wallet not configured",
+        };
+      }
+
+      // Token mode: generic ERC20 balance guard for an address.
+      if (tokenAddress && ethers.isAddress(tokenAddress)) {
+        const tokenRead = new ethers.Contract(
+          tokenAddress,
+          ["function balanceOf(address) view returns (uint256)"],
+          provider
+        );
+        const tokenBalance = (await tokenRead.balanceOf(resolvedAddress).catch(() => 0n)) as bigint;
+        const perSideAmount = parseTokenUnits(perSideAmountRaw, tokenDecimals);
+        const isDoubleSided = parseBool(doubleSidedRaw, true);
+        const requiredToken =
+          perSideAmount > 0n
+            ? perSideAmount * (isDoubleSided ? 2n : 1n)
+            : parseTokenUnits(minInput ?? minFromMeta ?? "0", tokenDecimals);
+        const hasEnough = tokenBalance >= requiredToken;
+        return {
+          has_sufficient_funds: hasEnough,
+          address: resolvedAddress,
+          token_address: tokenAddress,
+          token_decimals: tokenDecimals,
+          token_balance: tokenBalance.toString(),
+          required_balance: requiredToken.toString(),
+          double_sided: isDoubleSided,
+        };
+      }
+
+      if (!wallet) {
+        logger.warn("[BalanceChecker] No private_key for ETH/WETH mode");
+        return {
+          has_sufficient_funds: false,
+          balance_wei: "0",
+          balance_eth: 0,
+          error: "Wallet private key required for ETH/WETH mode",
+        };
+      }
+
       let ethWei = await provider.getBalance(wallet.address);
       const wethContractRead = new ethers.Contract(WETH_ADDRESS, WETH_ABI, provider);
       let wethWei = await wethContractRead.balanceOf(wallet.address).catch(() => 0n);
