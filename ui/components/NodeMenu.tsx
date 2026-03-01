@@ -226,6 +226,51 @@ const NODE_CATEGORIES: NodeCategory[] = [
     ],
   },
   {
+    name: "Polymarket",
+    nodes: [
+      {
+        type: "polymarket_snapshot",
+        title: "Polymarket Snapshot",
+        description: "GET /api/market/snapshot from polymarket-service",
+      },
+      {
+        type: "polymarket_sniper_evaluate",
+        title: "Polymarket Sniper Evaluate",
+        description: "Evaluates snapshot for edge and outputs buy signal",
+      },
+      {
+        type: "polymarket_order",
+        title: "Polymarket Order",
+        description: "POST /api/trading/order – place BUY order",
+      },
+      {
+        type: "polymarket_action",
+        title: "Polymarket Action",
+        description: "Redeem, close orders, or get status",
+      },
+      {
+        type: "polymarket_trade_logger",
+        title: "Polymarket Trade Logger",
+        description: "Appends trades to polymarket_trades.json",
+      },
+      {
+        type: "polymarket_status_listener",
+        title: "Polymarket Status Listener",
+        description: "GET /polymarket/stats. Connect Express Service; hook to Polymarket Stats + HTTP Response",
+      },
+      {
+        type: "polymarket_stats",
+        title: "Polymarket Stats",
+        description: "Reads polymarket_trades from storage. Connect storage_instance + request_id; output to HTTP Response",
+      },
+      {
+        type: "polymarket_trade_outcome_updater",
+        title: "Polymarket Trade Outcome Updater",
+        description: "After housekeeping, matches resolved positions to trades and updates outcome + pnl",
+      },
+    ],
+  },
+  {
     name: "Clanker",
     nodes: [
       {

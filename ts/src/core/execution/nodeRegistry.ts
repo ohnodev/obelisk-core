@@ -49,6 +49,14 @@ import { BasemarketCurrentRoundNode } from "./nodes/basemarketCurrentRound";
 import { BasemarketPositionsNode } from "./nodes/basemarketPositions";
 import { BasemarketBalancesNode } from "./nodes/basemarketBalances";
 import { BasemarketTradeActionNode } from "./nodes/basemarketTradeAction";
+import { PolymarketSnapshotNode } from "./nodes/polymarketSnapshot";
+import { PolymarketSniperEvaluateNode } from "./nodes/polymarketSniperEvaluate";
+import { PolymarketOrderNode } from "./nodes/polymarketOrder";
+import { PolymarketActionNode } from "./nodes/polymarketAction";
+import { PolymarketTradeLoggerNode } from "./nodes/polymarketTradeLogger";
+import { PolymarketStatusListenerNode } from "./nodes/polymarketStatusListener";
+import { PolymarketStatsNode } from "./nodes/polymarketStats";
+import { PolymarketTradeOutcomeUpdaterNode } from "./nodes/polymarketTradeOutcomeUpdater";
 
 const logger = getLogger("nodeRegistry");
 
@@ -120,6 +128,14 @@ export function registerAllNodes(): void {
   registerNode("basemarket_positions", BasemarketPositionsNode);
   registerNode("basemarket_balances", BasemarketBalancesNode);
   registerNode("basemarket_trade_action", BasemarketTradeActionNode);
+  registerNode("polymarket_snapshot", PolymarketSnapshotNode);
+  registerNode("polymarket_sniper_evaluate", PolymarketSniperEvaluateNode);
+  registerNode("polymarket_order", PolymarketOrderNode);
+  registerNode("polymarket_action", PolymarketActionNode);
+  registerNode("polymarket_trade_logger", PolymarketTradeLoggerNode);
+  registerNode("polymarket_status_listener", PolymarketStatusListenerNode);
+  registerNode("polymarket_stats", PolymarketStatsNode);
+  registerNode("polymarket_trade_outcome_updater", PolymarketTradeOutcomeUpdaterNode);
 
   logger.info(
     `Node registry initialised – ${Object.keys(NODE_REGISTRY).length} types`

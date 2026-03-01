@@ -150,3 +150,12 @@ blockchain-service/dist/
 # Allow package and config (overrides *.json above)
 !blockchain-service/package.json
 !blockchain-service/tsconfig.json
+
+# Polymarket service (Node)
+polymarket-service/node_modules/
+polymarket-service/dist/
+polymarket-service/data/
+# Allow package and config (overrides *.json above)
+!polymarket-service/package.json
+!polymarket-service/package-lock.json
+!polymarket-service/tsconfig.json

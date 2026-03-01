@@ -21,6 +21,7 @@ import { useNotifications } from "./Notification";
 // Workflow templates
 import clankerAutotraderV1Template from "@/workflows/clanker-autotrader-v1.2.json";
 import basemarketLpBotV1Template from "@/workflows/basemarket-lp-bot-v1.json";
+import polymarketSniperV1Template from "@/workflows/polymarket-sniper-v1.json";
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
 import soraTemplate from "@/workflows/sora.json";
@@ -35,6 +36,12 @@ interface WorkflowTemplate {
 }
 
 const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    id: "polymarket-sniper-v1",
+    name: "Polymarket Sniper V1",
+    description: "Late-term sniper: snapshot, evaluate edge, place BUY orders, redeem",
+    data: polymarketSniperV1Template,
+  },
   {
     id: "basemarket-lp-bot-v1",
     name: "Basemarket LP Bot V1",
@@ -88,6 +95,7 @@ const AUTONOMOUS_NODE_TYPES = new Set([
   "express_service",
   "autotrader_stats_listener",
   "sell_bags_listener",
+  "polymarket_status_listener",
 ]);
 
 // Single breakpoint for responsive design
