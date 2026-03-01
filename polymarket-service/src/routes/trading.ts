@@ -1,10 +1,24 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import { placeOrder, cancelOrder, getOpenOrders } from '../services/clobOrders.js';
 import { runHousekeeping } from '../services/redeemPositions.js';
 
 const router = Router();
 
 const BRAIN_URL = process.env.BRAIN_URL;
+const TRADING_API_KEY = process.env.POLYMARKET_TRADING_API_KEY;
+
+function requireTradingAuth(req: Request, res: Response, next: NextFunction): void {
+  if (!TRADING_API_KEY) {
+    next(); // optional: when not configured, allow (local dev)
+    return;
+  }
+  const key = req.header('x-api-key');
+  if (key !== TRADING_API_KEY) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  next();
+}
 const PROXY_TIMEOUT_MS = Number(process.env.TRADING_PROXY_TIMEOUT_MS) || 5000;
 
 async function proxyToBrain(method: string, path: string, req: Request, res: Response): Promise<void> {
@@ -43,7 +57,7 @@ async function proxyToBrain(method: string, path: string, req: Request, res: Res
   }
 }
 
-router.post('/order', async (req: Request, res: Response) => {
+router.post('/order', requireTradingAuth, async (req: Request, res: Response) => {
   const { privateKey, tokenId, side, price, size, orderType } = (req.body ?? {}) as {
     privateKey?: string;
     tokenId?: string;
@@ -87,7 +101,7 @@ router.post('/order', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/order/cancel', async (req: Request, res: Response) => {
+router.post('/order/cancel', requireTradingAuth, async (req: Request, res: Response) => {
   const { privateKey, orderId } = (req.body ?? {}) as { privateKey?: string; orderId?: string };
   const pk = privateKey?.trim() || null;
   if (!pk) {
@@ -108,7 +122,7 @@ router.post('/order/cancel', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/close-orders', async (req: Request, res: Response) => {
+router.post('/close-orders', requireTradingAuth, async (req: Request, res: Response) => {
   const { privateKey } = (req.body ?? {}) as { privateKey?: string };
   const pk = privateKey?.trim() || null;
   if (!pk) {
@@ -134,7 +148,7 @@ router.post('/close-orders', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/housekeeping', async (req: Request, res: Response) => {
+router.post('/housekeeping', requireTradingAuth, async (req: Request, res: Response) => {
   const { privateKey } = (req.body ?? {}) as { privateKey?: string };
   const pk = privateKey?.trim() || null;
   if (!pk) {
@@ -164,19 +178,19 @@ router.get('/trades', (_req: Request, res: Response) => {
   res.json({ trades: [] });
 });
 
-router.post('/start', (req: Request, res: Response) => {
+router.post('/start', requireTradingAuth, (req: Request, res: Response) => {
   proxyToBrain('POST', '/start', req, res);
 });
 
-router.post('/stop', (req: Request, res: Response) => {
+router.post('/stop', requireTradingAuth, (req: Request, res: Response) => {
   proxyToBrain('POST', '/stop', req, res);
 });
 
-router.post('/sniper/start', (req: Request, res: Response) => {
+router.post('/sniper/start', requireTradingAuth, (req: Request, res: Response) => {
   proxyToBrain('POST', '/start', req, res);
 });
 
-router.post('/sniper/stop', (req: Request, res: Response) => {
+router.post('/sniper/stop', requireTradingAuth, (req: Request, res: Response) => {
   proxyToBrain('POST', '/stop', req, res);
 });
 

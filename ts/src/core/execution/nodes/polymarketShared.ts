@@ -37,9 +37,16 @@ export async function callPolymarket(
   init: RequestInit = {}
 ): Promise<PolymarketRequestResult> {
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
+  const baseHeaders =
+    init.headers && typeof init.headers === "object" && !Array.isArray(init.headers)
+      ? (init.headers as Record<string, string>)
+      : {};
+  const headers = { ...baseHeaders, ...(apiKey ? { "x-api-key": apiKey } : {}) };
   try {
     const response = await fetch(url, {
       ...init,
+      headers,
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const ok = response.ok;
