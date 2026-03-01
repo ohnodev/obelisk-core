@@ -37,7 +37,10 @@ INFERENCE_HOST="${INFERENCE_HOST:-127.0.0.1}"
 
 BLOCKCHAIN_NAME="obelisk-blockchain"
 
-ALL_SERVICES=("$CORE_NAME" "$INFERENCE_NAME" "$BLOCKCHAIN_NAME")
+POLYMARKET_NAME="polymarket-service"
+POLYMARKET_PORT="${POLYMARKET_PORT:-1110}"
+
+ALL_SERVICES=("$CORE_NAME" "$INFERENCE_NAME" "$BLOCKCHAIN_NAME" "$POLYMARKET_NAME")
 
 # Colors
 RED='\033[0;31m'
@@ -83,9 +86,12 @@ resolve_service() {
         blockchain|obelisk-blockchain|blockchain-service)
             echo "$BLOCKCHAIN_NAME"
             ;;
+        polymarket|polymarket-service)
+            echo "$POLYMARKET_NAME"
+            ;;
         *)
             echo -e "${RED}❌ Unknown service: $input${NC}" >&2
-            echo -e "${YELLOW}   Valid services: core, inference, blockchain, all${NC}" >&2
+            echo -e "${YELLOW}   Valid services: core, inference, blockchain, polymarket, all${NC}" >&2
             exit 1
             ;;
     esac
@@ -180,6 +186,29 @@ module.exports = {
       max_memory_restart: '512M',
       min_uptime: '10s',
       max_restarts: 10,
+    },
+    {
+      name: '${POLYMARKET_NAME}',
+      script: path.resolve(__dirname, 'polymarket-service/dist/index.js'),
+      args: '',
+      interpreter: 'node',
+      cwd: path.resolve(__dirname, 'polymarket-service'),
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        PORT: '${POLYMARKET_PORT}',
+      },
+      log_file: path.resolve(__dirname, 'logs', 'polymarket-service.log'),
+      out_file: '/dev/null',
+      error_file: '/dev/null',
+      time: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '512M',
+      min_uptime: '10s',
+      max_restarts: 10,
     }
   ]
 };
@@ -257,6 +286,23 @@ check_venv() {
         fi
     else
         echo -e "${YELLOW}ℹ️  Skipping blockchain build (target=${_startup_target})${NC}"
+    fi
+
+    # Build polymarket service when the target includes polymarket or is all services
+    if [ -z "$_startup_target" ] || [ "$_startup_target" = "$POLYMARKET_NAME" ]; then
+        if [ -d "$SCRIPT_DIR/polymarket-service" ]; then
+            echo -e "${BLUE}🔨 Building polymarket service...${NC}"
+            (cd "$SCRIPT_DIR/polymarket-service" && npm run build) || {
+                echo -e "${RED}❌ Polymarket service build failed.${NC}"
+                echo -e "${YELLOW}   Run: cd polymarket-service && npm install && npm run build${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ Polymarket service build complete${NC}"
+        else
+            echo -e "${YELLOW}ℹ️  polymarket-service/ not found, skipping${NC}"
+        fi
+    else
+        echo -e "${YELLOW}ℹ️  Skipping polymarket build (target=${_startup_target})${NC}"
     fi
 
     # Python venv is needed only when starting all services or inference
@@ -393,6 +439,16 @@ cmd_restart() {
             echo -e "${GREEN}✅ Blockchain service build complete${NC}"
         fi
 
+        # Rebuild polymarket service before restarting
+        if [ "$target" = "$POLYMARKET_NAME" ] && [ -d "$SCRIPT_DIR/polymarket-service" ]; then
+            echo -e "${BLUE}🔨 Building polymarket service...${NC}"
+            (cd "$SCRIPT_DIR/polymarket-service" && npm run build) || {
+                echo -e "${RED}❌ Polymarket service build failed. Aborting restart.${NC}"
+                return 1
+            }
+            echo -e "${GREEN}✅ Polymarket service build complete${NC}"
+        fi
+
         if service_exists "$target"; then
             if ! is_running "$target"; then
                 pm2 delete "$target" 2>/dev/null || true
@@ -498,6 +554,7 @@ cmd_help() {
     echo "  core                Obelisk Core API (port ${CORE_PORT})"
     echo "  inference           Inference Service (port ${INFERENCE_PORT})"
     echo "  blockchain          Clanker blockchain service (block scanner, state to JSON)"
+    echo "  polymarket          Polymarket service (port ${POLYMARKET_PORT}, CLOB orders, housekeeping)"
     echo "  all                 All services (default when no service specified)"
     echo ""
     echo -e "${CYAN}Examples:${NC}"
@@ -508,6 +565,7 @@ cmd_help() {
     echo "  $0 restart            # Restart all services"
     echo "  $0 restart core       # Restart obelisk-core only"
     echo "  $0 restart blockchain # Restart blockchain service only"
+    echo "  $0 restart polymarket # Restart polymarket service only"
     echo "  $0 stop inference     # Stop inference service"
     echo "  $0 logs blockchain   # Tail blockchain logs"
     echo "  $0 status             # Status of all services"
@@ -522,6 +580,7 @@ cmd_help() {
     echo "  INFERENCE_API_KEY    API key for inference service auth (passed to both core & inference)"
     echo "  RPC_URL              Base RPC URL for blockchain service (or set in blockchain-service/.env)"
     echo "  STATE_FILE_PATH      Clanker state JSON path (optional; default blockchain-service/data/clanker_state.json)"
+    echo "  POLYMARKET_PORT      Polymarket service port (default: 1110)"
     echo ""
 }
 
