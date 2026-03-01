@@ -57,6 +57,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     const timeWindowMin =
       toNum(
         this.getInputValue("time_window_min_sec", context, undefined) ??
+          this.resolveEnvVar(this.metadata.time_window_min_sec) ??
           this.metadata.time_window_min_sec ??
           process.env.POLYMARKET_TIME_WINDOW_MIN_SEC
       ) ?? 0;
@@ -64,12 +65,14 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     const timeWindowMax =
       toNum(
         this.getInputValue("time_window_max_sec", context, undefined) ??
+          this.resolveEnvVar(this.metadata.time_window_max_sec) ??
           this.metadata.time_window_max_sec ??
           process.env.POLYMARKET_TIME_WINDOW_MAX_SEC
       ) ?? 60;
 
     const useMarketOrderRaw =
       this.getInputValue("use_market_order", context, undefined) ??
+      this.resolveEnvVar(this.metadata.use_market_order) ??
       this.metadata.use_market_order ??
       process.env.POLYMARKET_USE_MARKET_ORDER;
     const useMarketOrder =

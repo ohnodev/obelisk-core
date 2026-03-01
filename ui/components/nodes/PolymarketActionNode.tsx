@@ -16,7 +16,7 @@ class PolymarketActionNode extends LGraphNode {
     this.addInput("action", "string");
     this.addInput("user_address", "string");
     this.addInput("wallet_address", "string");
-    this.addInput("private_key", "string");
+    this.addInput("private_key", "string"); // Connect from wallet node; key from server-side env in wallet
     this.addOutput("success", "boolean");
     this.addOutput("response", "object");
     this.addOutput("error", "string");

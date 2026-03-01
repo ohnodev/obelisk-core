@@ -33,7 +33,7 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(PORT, async () => {
+const server = app.listen(PORT, async () => {
   console.log(`Polymarket service running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   await startCache();
@@ -42,11 +42,16 @@ app.listen(PORT, async () => {
   await startObservations();
 });
 
+let shuttingDown = false;
 async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('[Shutdown] Graceful shutdown...');
-  await stopObservations();
-  stopCache();
-  process.exit(0);
+  server.close(async () => {
+    await stopObservations();
+    stopCache();
+    process.exit(0);
+  });
 }
 
 process.on('SIGTERM', shutdown);

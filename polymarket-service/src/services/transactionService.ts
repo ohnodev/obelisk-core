@@ -77,8 +77,8 @@ export function isGasPriceError(msg: string): boolean {
 export function isNoPositionError(msg: string): boolean {
   const lower = msg.toLowerCase();
   return (
-    lower.includes('execution reverted') ||
     lower.includes('nothing to redeem') ||
+    lower.includes('no position') ||
     lower.includes('cannot estimate gas') ||
     lower.includes('unpredictable_gas_limit') ||
     lower.includes('transaction may fail')
@@ -310,7 +310,10 @@ export class TransactionService {
           maxFeePerGas: max2x,
         });
         console.log(`[${LABEL}] Nonce reset tx ${n}: ${tx.hash}`);
-        await tx.wait();
+        const receipt = await this.waitForReceipt(tx.hash, TX_WAIT_TIMEOUT_MS);
+        if (!receipt) {
+          throw new Error(`[${LABEL}] nonce reset timed out for nonce=${n}`);
+        }
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes('nonce too low') || msg.includes('NONCE_EXPIRED')) {

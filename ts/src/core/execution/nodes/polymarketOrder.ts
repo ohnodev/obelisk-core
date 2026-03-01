@@ -27,16 +27,33 @@ export class PolymarketOrderNode extends BaseNode {
 
     const baseUrl = resolvePolymarketBaseUrl(this, context);
     const tokenId = asString(
-      this.getInputValue("token_id", context, undefined) ?? this.metadata.token_id
+      this.getInputValue("token_id", context, undefined) ??
+        this.resolveEnvVar(this.metadata.token_id) ??
+        this.metadata.token_id
     );
-    const price = toNum(this.getInputValue("price", context, undefined) ?? this.metadata.price);
-    const size = toNum(this.getInputValue("size", context, undefined) ?? this.metadata.size);
+    const price = toNum(
+      this.getInputValue("price", context, undefined) ??
+        this.resolveEnvVar(this.metadata.price) ??
+        this.metadata.price
+    );
+    const size = toNum(
+      this.getInputValue("size", context, undefined) ??
+        this.resolveEnvVar(this.metadata.size) ??
+        this.metadata.size
+    );
     const outcome = asString(
-      this.getInputValue("outcome", context, undefined) ?? this.metadata.outcome ?? "YES"
+      this.getInputValue("outcome", context, undefined) ??
+        this.resolveEnvVar(this.metadata.outcome) ??
+        this.metadata.outcome ??
+        "YES"
     );
     const useMarketOrder =
       this.getInputValue("use_market_order", context, false) === true ||
-      String(this.getInputValue("use_market_order", context, this.metadata.use_market_order))
+      String(
+        this.getInputValue("use_market_order", context, undefined) ??
+          this.resolveEnvVar(this.metadata.use_market_order) ??
+          this.metadata.use_market_order
+      )
         .trim()
         .toLowerCase() === "true";
 
@@ -66,6 +83,14 @@ export class PolymarketOrderNode extends BaseNode {
 
     if (!tokenId || size <= 0) {
       const out = { success: false, error: "token_id and size are required", order_id: null };
+      return { ...out, result: out };
+    }
+    if (!useMarketOrder && (price == null || !Number.isFinite(price) || price <= 0)) {
+      const out = {
+        success: false,
+        error: "price must be > 0 for limit orders",
+        order_id: null,
+      };
       return { ...out, result: out };
     }
 
