@@ -1,7 +1,8 @@
 import { BaseNode, ExecutionContext } from "../nodeBase";
 
 export const DEFAULT_POLYMARKET_SERVICE_URL = "https://polymarket.theobelisk.ai";
-const REQUEST_TIMEOUT_MS = 20_000;
+const DEFAULT_TIMEOUT_MS = 20_000;
+export const REDEEM_TIMEOUT_MS = 120_000; // redeem/housekeeping can be slow (Data API + Gamma + txs)
 
 export interface PolymarketRequestResult {
   ok: boolean;
@@ -43,7 +44,8 @@ export function resolvePolymarketBaseUrl(
 export async function callPolymarket(
   baseUrl: string,
   path: string,
-  init: RequestInit = {}
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_TIMEOUT_MS
 ): Promise<PolymarketRequestResult> {
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
   const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
@@ -63,7 +65,7 @@ export async function callPolymarket(
     const response = await fetch(url, {
       ...init,
       headers,
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const ok = response.ok;
     const status = response.status;
