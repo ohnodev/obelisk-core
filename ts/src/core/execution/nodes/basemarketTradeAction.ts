@@ -27,21 +27,21 @@ type SignatureAuthorization = {
 };
 
 const ACTION_ENDPOINTS: Record<string, string> = {
-  "mint_complete_set": "/api/trade/mint-complete-set",
-  mint: "/api/trade/mint-complete-set",
-  open_sell: "/api/trade/sell",
-  sell: "/api/trade/sell",
-  open_buy: "/api/trade/buy",
-  buy: "/api/trade/buy",
-  close_sell: "/api/trade/close",
-  close_buy: "/api/trade/close",
-  close_all_orders: "/api/trade/close",
-  close_all: "/api/trade/close",
-  close: "/api/trade/close",
-  refund: "/api/trade/refund",
-  redeem: "/api/trade/redeem",
-  merge_complete_set: "/api/trade/merge-complete-set",
-  merge: "/api/trade/merge-complete-set",
+  "mint_complete_set": "/v1/trade/mint-complete-set",
+  mint: "/v1/trade/mint-complete-set",
+  open_sell: "/v1/trade/sell",
+  sell: "/v1/trade/sell",
+  open_buy: "/v1/trade/buy",
+  buy: "/v1/trade/buy",
+  close_sell: "/v1/trade/close",
+  close_buy: "/v1/trade/close",
+  close_all_orders: "/v1/trade/close",
+  close_all: "/v1/trade/close",
+  close: "/v1/trade/close",
+  refund: "/v1/trade/refund",
+  redeem: "/v1/trade/redeem",
+  merge_complete_set: "/v1/trade/merge-complete-set",
+  merge: "/v1/trade/merge-complete-set",
 };
 
 function normalizeAction(raw: string): string {
@@ -128,7 +128,7 @@ export class BasemarketTradeActionNode extends BaseNode {
   private async getSigningConfig(baseUrl: string, userAddress: string): Promise<SigningConfig> {
     const response = await callBasemarket(
       baseUrl,
-      `/api/trade/signing-config?user=${encodeURIComponent(userAddress)}`,
+      `/v1/trade/signing-config?user=${encodeURIComponent(userAddress)}`,
       {
         method: "GET",
         headers: {
@@ -389,7 +389,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       const currentRoundNum = Number(signingConfig.currentRound);
       const positionsRes = await callBasemarket(
         baseUrl,
-        `/api/trade/positions?user=${encodeURIComponent(userAddress)}`,
+        `/v1/trade/positions?user=${encodeURIComponent(userAddress)}`,
         { method: "GET", headers: { Accept: "application/json", "x-user-address": userAddress } }
       );
       if (!positionsRes.ok) {
@@ -602,7 +602,7 @@ export class BasemarketTradeActionNode extends BaseNode {
         parsePositiveBigInt(payload.roundId) ?? parsePositiveBigInt(payload.currentRound) ?? parsePositiveBigInt(signingConfig.currentRound);
       const positionsRes = await callBasemarket(
         baseUrl,
-        `/api/trade/positions?user=${encodeURIComponent(userAddress)}`,
+        `/v1/trade/positions?user=${encodeURIComponent(userAddress)}`,
         { method: "GET", headers: { Accept: "application/json", "x-user-address": userAddress } }
       );
       if (!positionsRes.ok) {
@@ -699,7 +699,7 @@ export class BasemarketTradeActionNode extends BaseNode {
       // Auto claim all available via portfolio rounds.
       const portfolio = await callBasemarket(
         baseUrl,
-        `/api/trade/portfolio-rounds?user=${encodeURIComponent(userAddress)}&limit=50`,
+        `/v1/trade/portfolio-rounds?user=${encodeURIComponent(userAddress)}&limit=50`,
         { method: "GET", headers: { Accept: "application/json", "x-user-address": userAddress } }
       );
       if (!portfolio.ok) {

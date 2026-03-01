@@ -12,7 +12,7 @@ export class BasemarketCurrentRoundNode extends BaseNode {
     }
 
     const baseUrl = resolveBaseUrl(this, context);
-    const result = await callBasemarket(baseUrl, "/api/trade/current-round", {
+    const result = await callBasemarket(baseUrl, "/v1/trade/current-round", {
       method: "GET",
       headers: {
         Accept: "application/json",

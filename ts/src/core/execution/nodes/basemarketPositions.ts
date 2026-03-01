@@ -21,7 +21,7 @@ export class BasemarketPositionsNode extends BaseNode {
       };
     }
 
-    const path = `/api/trade/positions?user=${encodeURIComponent(userAddress)}`;
+    const path = `/v1/trade/positions?user=${encodeURIComponent(userAddress)}`;
     const result = await callBasemarket(baseUrl, path, {
       method: "GET",
       headers: {

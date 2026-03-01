@@ -34,7 +34,7 @@ export class BasemarketBalancesNode extends BaseNode {
       };
     }
 
-    const path = `/api/trade/balances?user=${encodeURIComponent(userAddress)}&roundId=${encodeURIComponent(roundId)}`;
+    const path = `/v1/trade/balances?user=${encodeURIComponent(userAddress)}&roundId=${encodeURIComponent(roundId)}`;
     const result = await callBasemarket(baseUrl, path, {
       method: "GET",
       headers: {
