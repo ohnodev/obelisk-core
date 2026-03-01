@@ -61,11 +61,23 @@ export async function callPolymarket(
     headers = new Headers();
   }
   if (apiKey) headers.set("x-api-key", apiKey);
+
+  let signal: AbortSignal = AbortSignal.timeout(timeoutMs);
+  if (init.signal) {
+    const callerSignal = init.signal;
+    const controller = new AbortController();
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const onAbort = (reason?: unknown) => controller.abort(reason);
+    callerSignal.addEventListener("abort", () => onAbort(callerSignal.reason), { once: true });
+    timeoutSignal.addEventListener("abort", () => onAbort(timeoutSignal.reason), { once: true });
+    signal = controller.signal;
+  }
+
   try {
     const response = await fetch(url, {
       ...init,
       headers,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal,
     });
     const ok = response.ok;
     const status = response.status;

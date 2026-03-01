@@ -11,7 +11,9 @@ function isValidHexPrivateKey(s: string): boolean {
   return /^[a-fA-F0-9]{64}$/.test(hex);
 }
 
-const BRAIN_URL = process.env.BRAIN_URL;
+function getBrainUrl(): string | undefined {
+  return process.env.BRAIN_URL;
+}
 
 function requireTradingAuth(req: Request, res: Response, next: NextFunction): void {
   const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
@@ -32,20 +34,24 @@ function requireTradingAuth(req: Request, res: Response, next: NextFunction): vo
   }
   next();
 }
-const PROXY_TIMEOUT_MS = Number(process.env.TRADING_PROXY_TIMEOUT_MS) || 5000;
+
+function getProxyTimeoutMs(): number {
+  return Number(process.env.TRADING_PROXY_TIMEOUT_MS) || 5000;
+}
 
 async function proxyToBrain(method: string, path: string, req: Request, res: Response): Promise<void> {
-  if (!BRAIN_URL) {
+  const brainUrl = getBrainUrl();
+  if (!brainUrl) {
     res.status(503).json({
       error: 'Brain service not configured (BRAIN_URL not set). Run brain manually or set BRAIN_URL.',
     });
     return;
   }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), getProxyTimeoutMs());
   try {
     const hasBody = method !== 'GET' && method !== 'HEAD';
-    const resp = await fetch(`${BRAIN_URL}${path}`, {
+    const resp = await fetch(`${brainUrl}${path}`, {
       method,
       signal: controller.signal,
       headers: hasBody ? { 'content-type': 'application/json' } : undefined,
@@ -228,7 +234,7 @@ router.get('/status', (_req: Request, res: Response) => {
     service: 'polymarket-service',
     running: true,
     clob: 'requires_private_key_in_body',
-    brain: BRAIN_URL ? 'configured' : 'not_configured',
+    brain: getBrainUrl() ? 'configured' : 'not_configured',
   });
 });
 
@@ -269,7 +275,7 @@ router.post('/sniper/stop', requireTradingAuth, async (req: Request, res: Respon
 });
 
 router.get('/sniper/status', async (_req: Request, res: Response, next: NextFunction) => {
-  if (!BRAIN_URL) {
+  if (!getBrainUrl()) {
     res.json({ running: false, trade_count: 0 });
     return;
   }
