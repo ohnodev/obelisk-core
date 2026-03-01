@@ -163,6 +163,7 @@ export async function runHousekeeping(pk: string): Promise<{
   if (!key || key.length < 20) {
     throw new Error('privateKey is required in request body');
   }
+  // RPC from polymarket-service .env only — workflows never pass RPC URLs
   const rpcUrl = process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com';
   const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(key, provider);

@@ -28,6 +28,7 @@ function resolveNodeEnvVar(node: BaseNode, value: unknown): unknown {
   return typeof resolver === "function" ? resolver.call(node, value) : value;
 }
 
+/** Resolve polymarket-service base URL. Workflows never pass RPC URLs; polymarket-service uses POLYGON_RPC_URL from its own .env. */
 export function resolvePolymarketBaseUrl(
   node: BaseNode,
   context: ExecutionContext,
