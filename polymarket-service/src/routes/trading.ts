@@ -12,20 +12,21 @@ function isValidHexPrivateKey(s: string): boolean {
 }
 
 const BRAIN_URL = process.env.BRAIN_URL;
-const TRADING_API_KEY = process.env.POLYMARKET_TRADING_API_KEY;
-const ALLOW_UNAUTHENTICATED_TRADING = process.env.ALLOW_UNAUTHENTICATED_TRADING === 'true' || process.env.ALLOW_UNAUTHENTICATED_TRADING === '1';
 
 function requireTradingAuth(req: Request, res: Response, next: NextFunction): void {
-  if (!TRADING_API_KEY && ALLOW_UNAUTHENTICATED_TRADING) {
+  const apiKey = process.env.POLYMARKET_TRADING_API_KEY;
+  const allowUnauth =
+    process.env.ALLOW_UNAUTHENTICATED_TRADING === 'true' || process.env.ALLOW_UNAUTHENTICATED_TRADING === '1';
+  if (!apiKey && allowUnauth) {
     next(); // explicit opt-in for local/dev when TRADING_API_KEY is unset
     return;
   }
-  if (!TRADING_API_KEY) {
+  if (!apiKey) {
     res.status(401).json({ error: 'Trading auth required (POLYMARKET_TRADING_API_KEY or ALLOW_UNAUTHENTICATED_TRADING)' });
     return;
   }
   const key = req.header('x-api-key');
-  if (key !== TRADING_API_KEY) {
+  if (key !== apiKey) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

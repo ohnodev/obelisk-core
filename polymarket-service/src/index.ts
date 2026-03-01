@@ -1,5 +1,11 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Load polymarket-service/.env — cwd (from ecosystem) and __dirname-relative as fallback
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
