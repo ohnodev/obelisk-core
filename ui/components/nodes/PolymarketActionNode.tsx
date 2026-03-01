@@ -26,9 +26,11 @@ class PolymarketActionNode extends LGraphNode {
       "combo",
       "action",
       "status",
-      () => {},
+      (value: string) => {
+        this.setProperty("action", value);
+      },
       {
-        values: ["status", "redeem", "close_orders"],
+        values: ["status", "redeem", "housekeeping", "close_orders"],
         serialize: true,
       }
     );

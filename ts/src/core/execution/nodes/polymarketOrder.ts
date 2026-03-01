@@ -57,10 +57,9 @@ export class PolymarketOrderNode extends BaseNode {
         .trim()
         .toLowerCase() === "true";
 
-    const walletAddress =
-      (this.getInputValue("user_address", context, undefined) as string) ??
-      (this.getInputValue("wallet_address", context, undefined) as string) ??
-      "";
+    const userAddr = asString(this.getInputValue("user_address", context, undefined));
+    const walletAddr = asString(this.getInputValue("wallet_address", context, undefined));
+    const walletAddress = userAddr || walletAddr || "";
     const privateKey =
       (this.getInputValue("private_key", context, undefined) as string) ??
       this.resolveEnvVar(this.metadata.private_key) ??
@@ -112,6 +111,7 @@ export class PolymarketOrderNode extends BaseNode {
     if (!useMarketOrder) {
       body.price = price;
     }
+    // privateKey passed in body by design; polymarket-service requires it per-request (no env fallback)
     if (privateKey && isValidHexPrivateKey(privateKey)) {
       body.privateKey = privateKey;
     }
@@ -149,6 +149,17 @@ export class PolymarketOrderNode extends BaseNode {
       (result.data.order_id as string) ??
       (result.data.id as string) ??
       null;
+
+    if (orderId == null || orderId === "") {
+      const out = {
+        success: false,
+        order_id: null,
+        status: result.status,
+        error: "Order response missing orderId",
+        response: result.data,
+      };
+      return { ...out, result: out };
+    }
 
     const out = {
       success: true,

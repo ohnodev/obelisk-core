@@ -78,6 +78,7 @@ export class PolymarketActionNode extends BaseNode {
           ? "/api/trading/close-orders"
           : "/api/trading/housekeeping";
       const body: Record<string, unknown> = {};
+      // privateKey in body by design; polymarket-service requires it per-request
       if (privateKey && isValidHexPrivateKey(privateKey)) {
         body.privateKey = privateKey;
       }

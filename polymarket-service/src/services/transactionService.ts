@@ -79,9 +79,7 @@ export function isNoPositionError(msg: string): boolean {
   return (
     lower.includes('nothing to redeem') ||
     lower.includes('no position') ||
-    lower.includes('cannot estimate gas') ||
-    lower.includes('unpredictable_gas_limit') ||
-    lower.includes('transaction may fail')
+    lower.includes('unpredictable_gas_limit')
   );
 }
 
@@ -210,8 +208,15 @@ export class TransactionService {
     try {
       const receipt = await this.provider.waitForTransaction(txHash, 1, timeoutMs);
       return receipt ?? null;
-    } catch {
-      return null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: string })?.code;
+      const isTimeout =
+        code === 'TIMEOUT' ||
+        msg.toLowerCase().includes('timeout') ||
+        msg.toLowerCase().includes('timed out');
+      if (isTimeout) return null;
+      throw err;
     }
   }
 
@@ -245,8 +250,12 @@ export class TransactionService {
     const floorTip = ethers.utils.parseUnits(String(POLYGON_GAS_TIP_GWEI), 'gwei');
     const floorMax = ethers.utils.parseUnits(String(POLYGON_GAS_MAX_FEE_GWEI), 'gwei');
     try {
-      const res = await fetch(GAS_STATION_URL);
-      if (res.ok) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch(GAS_STATION_URL, { signal: controller.signal });
+        clearTimeout(timer);
+        if (res.ok) {
         const data = (await res.json()) as { fast?: { maxPriorityFee: number; maxFee: number } };
         const fast = data.fast;
         if (fast && typeof fast.maxPriorityFee === 'number' && typeof fast.maxFee === 'number') {
@@ -258,8 +267,13 @@ export class TransactionService {
           };
         }
       }
-    } catch {
-      // fall through to static
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (err) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        console.warn(`[${LABEL}] gas station fetch failed, using static fees:`, (err as Error)?.message);
+      }
     }
     return {
       maxPriorityFeePerGas: floorTip,
