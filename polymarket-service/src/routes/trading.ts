@@ -16,7 +16,7 @@ function requireTradingAuth(req: Request, res: Response, next: NextFunction): vo
   const allowUnauth =
     process.env.ALLOW_UNAUTHENTICATED_TRADING === 'true' || process.env.ALLOW_UNAUTHENTICATED_TRADING === '1';
   if (!apiKey && allowUnauth) {
-    next(); // explicit opt-in for local/dev when TRADING_API_KEY is unset
+    next(); // explicit opt-in for local/dev when POLYMARKET_TRADING_API_KEY is unset
     return;
   }
   if (!apiKey) {
