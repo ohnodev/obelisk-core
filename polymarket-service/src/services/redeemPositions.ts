@@ -150,7 +150,7 @@ function parseWinningTokenId(market: GammaMarket): string | null {
     const outcomePrices = parseStringOrArray(market.outcomePrices);
     const clobTokenIds = parseStringOrArray(market.clobTokenIds);
     const winningIdx = outcomePrices.findIndex((p) => {
-      const n = Number(parseFloat(String(p).trim()));
+      const n = parseFloat(String(p).trim());
       return !Number.isNaN(n) && n === 1;
     });
     if (winningIdx >= 0 && clobTokenIds[winningIdx]) return clobTokenIds[winningIdx];
@@ -292,7 +292,8 @@ export async function runHousekeeping(pk: string): Promise<{
     );
   }
 
-  // Gamma fallback: build resolvedPositions from redeemed conditionIds so polymarket_trade_outcome_updater can track
+  // Gamma fallback: build resolvedPositions from redeemed conditionIds so polymarket_trade_outcome_updater can track.
+  // Successful redeem implies the user held the winning outcome (losing tokens have no redeemable value), so we set outcome to 'Won'.
   if (resolvedPositions.length === 0 && redeemedConditionIds.length > 0 && conditionIdToResolution.size > 0) {
     for (const cid of redeemedConditionIds) {
       const resolution = conditionIdToResolution.get(cid);
