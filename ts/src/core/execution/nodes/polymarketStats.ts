@@ -10,6 +10,7 @@ import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 const logger = getLogger("polymarketStats");
 
 const TRADES_FILE = "polymarket_trades.json";
+const ACTIONS_FILE = "polymarket_actions.json";
 
 function computePnl(trades: unknown[]): { grossPnl: number; winCount: number; lossCount: number } {
   let grossPnl = 0;
@@ -53,10 +54,24 @@ export class PolymarketStatsNode extends BaseNode {
     const { grossPnl, winCount, lossCount } = computePnl(trades);
     const lastTrade = trades.length > 0 ? (trades[trades.length - 1] as Record<string, unknown>) : null;
 
+    let actions: unknown[] = [];
+    const actionsPath = path.join(path.dirname(tradesPath), ACTIONS_FILE);
+    if (fs.existsSync(actionsPath)) {
+      try {
+        const raw = fs.readFileSync(actionsPath, "utf-8");
+        const data = JSON.parse(raw);
+        actions = Array.isArray(data) ? data : (data?.actions ?? []);
+      } catch {
+        // ignore
+      }
+    }
+    const lastActions = (actions as unknown[]).slice(-20);
+
     const body = {
       running: true,
       trade_count: trades.length,
       trades,
+      lastActions,
       pnl: {
         grossPnl,
         winCount,

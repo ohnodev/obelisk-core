@@ -3,6 +3,7 @@ import type { BaseNode } from "../nodeBase";
 import type { ExecutionContext } from "../nodeBase";
 
 const TRADES_FILE = "polymarket_trades.json";
+const ACTIONS_FILE = "polymarket_actions.json";
 
 /** Resolve polymarket storage base from storage_instance.basePath or polymarket_storage_path or env. */
 export function resolvePolymarketStorageBase(
@@ -27,4 +28,9 @@ export function resolvePolymarketStorageBase(
 export function resolvePolymarketTradesPath(node: BaseNode, context: ExecutionContext): string {
   const base = resolvePolymarketStorageBase(node, context);
   return base ? path.join(base, TRADES_FILE) : "";
+}
+
+export function resolvePolymarketActionsPath(node: BaseNode, context: ExecutionContext): string {
+  const base = resolvePolymarketStorageBase(node, context);
+  return base ? path.join(base, ACTIONS_FILE) : "";
 }
