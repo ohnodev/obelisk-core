@@ -11,7 +11,7 @@ import { resolvePolymarketActionsPath } from "./polymarketStoragePath";
 
 const logger = getLogger("polymarketActionLogger");
 
-const DEFAULT_MAX_ACTIONS = 50;
+const DEFAULT_MAX_ACTIONS = 100;
 
 function ensureDir(filePath: string): void {
   const dir = path.dirname(filePath);
@@ -36,10 +36,12 @@ export class PolymarketActionLoggerNode extends BaseNode {
     const orderReason = orderResult?.reason as string | undefined;
     const signalRaw = this.getInputValue("signal", context, undefined);
 
-    const maxActions = Math.min(
-      200,
-      Math.max(1, Number(this.getInputValue("max_actions", context, this.metadata.max_actions ?? DEFAULT_MAX_ACTIONS)) || DEFAULT_MAX_ACTIONS)
-    );
+    const maxActionsRaw =
+      this.getInputValue("max_actions", context, undefined) ??
+      this.resolveEnvVar(this.metadata.max_actions) ??
+      this.metadata.max_actions ??
+      DEFAULT_MAX_ACTIONS;
+    const maxActions = Math.min(200, Math.max(1, parseInt(String(maxActionsRaw), 10) || DEFAULT_MAX_ACTIONS));
 
     const didTrade = orderResult?.success === true && orderResult?.skipped !== true;
     const action: Record<string, unknown> = {
@@ -49,7 +51,8 @@ export class PolymarketActionLoggerNode extends BaseNode {
 
     if (didTrade) {
       const resp = orderResult?.response as Record<string, unknown> | undefined;
-      action.token_id = orderResult?.order_id ?? resp?.tokenId ?? resp?.token_id;
+      action.token_id =
+        orderResult?.token_id ?? orderResult?.tokenId ?? resp?.tokenId ?? resp?.token_id;
       action.order_id = orderResult?.order_id ?? resp?.orderId ?? resp?.order_id;
     } else {
       const reason = evaluateReason ?? orderReason ?? (String(signalRaw) === "none" ? "no signal" : "skipped");

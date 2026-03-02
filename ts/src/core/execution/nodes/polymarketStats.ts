@@ -61,8 +61,8 @@ export class PolymarketStatsNode extends BaseNode {
         const raw = fs.readFileSync(actionsPath, "utf-8");
         const data = JSON.parse(raw);
         actions = Array.isArray(data) ? data : (data?.actions ?? []);
-      } catch {
-        // ignore
+      } catch (err) {
+        logger.error(`[PolymarketStats] Failed to read/parse polymarket_actions.json: ${err}`);
       }
     }
     const lastActions = (actions as unknown[]).slice(-100);
