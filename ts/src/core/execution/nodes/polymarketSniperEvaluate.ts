@@ -60,25 +60,6 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           process.env.POLYMARKET_ORDER_NOTIONAL
       ) || 5;
 
-    const timeWindowMin =
-      toNum(
-        this.getInputValue("time_window_min_sec", context, undefined) ??
-          this.resolveEnvVar(this.metadata.time_window_min_sec) ??
-          this.metadata.time_window_min_sec ??
-          process.env.POLYMARKET_TIME_WINDOW_MIN_SEC
-      ) ?? 0;
-
-    const rawTimeWindowMax =
-      this.getInputValue("time_window_max_sec", context, undefined) ??
-      this.resolveEnvVar(this.metadata.time_window_max_sec) ??
-      this.metadata.time_window_max_sec ??
-      process.env.POLYMARKET_TIME_WINDOW_MAX_SEC;
-    const parsedTimeWindowMax = toNum(rawTimeWindowMax);
-    const timeWindowMax =
-      Number.isFinite(parsedTimeWindowMax) && parsedTimeWindowMax > 0
-        ? parsedTimeWindowMax
-        : ROUND_DURATION_SEC;
-
     const roundDurationSec =
       toNum(
         this.getInputValue("round_duration_sec", context, undefined) ??
@@ -86,6 +67,29 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           this.metadata.round_duration_sec ??
           process.env.POLYMARKET_ROUND_DURATION_SEC
       ) || ROUND_DURATION_SEC;
+
+    const rawTimeWindowMin =
+      this.getInputValue("time_window_min_sec", context, undefined) ??
+      this.resolveEnvVar(this.metadata.time_window_min_sec) ??
+      this.metadata.time_window_min_sec ??
+      process.env.POLYMARKET_TIME_WINDOW_MIN_SEC;
+    const rawTimeWindowMax =
+      this.getInputValue("time_window_max_sec", context, undefined) ??
+      this.resolveEnvVar(this.metadata.time_window_max_sec) ??
+      this.metadata.time_window_max_sec ??
+      process.env.POLYMARKET_TIME_WINDOW_MAX_SEC;
+    let timeWindowMin = Math.max(0, Math.min(roundDurationSec, toNum(rawTimeWindowMin) ?? 0));
+    let timeWindowMax = toNum(rawTimeWindowMax);
+    timeWindowMax =
+      Number.isFinite(timeWindowMax) && timeWindowMax > 0
+        ? Math.max(0, Math.min(roundDurationSec, timeWindowMax))
+        : roundDurationSec;
+    if (timeWindowMin > timeWindowMax) {
+      logger.warn(
+        `[PolymarketSniperEvaluate ${this.nodeId}] time_window_min_sec (${timeWindowMin}) > time_window_max_sec (${timeWindowMax}), setting min = max`
+      );
+      timeWindowMin = timeWindowMax;
+    }
 
     const edgeAtTMinus0 =
       toNum(
@@ -100,10 +104,12 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       this.resolveEnvVar(this.metadata.distance_max_abs) ??
       this.metadata.distance_max_abs ??
       process.env.POLYMARKET_DISTANCE_MAX_ABS;
-    const distanceMaxAbs =
+    const parsedDistance =
       rawDistance === undefined || rawDistance === null || String(rawDistance).trim() === ""
         ? DEFAULT_DISTANCE_MAX_ABS
         : toNum(rawDistance);
+    const distanceMaxAbs =
+      Number.isFinite(parsedDistance) && parsedDistance >= 0 ? parsedDistance : DEFAULT_DISTANCE_MAX_ABS;
 
     // time_window_min/max are "seconds INTO the round"; timeRemaining is seconds LEFT
     // seconds_into = roundDuration - timeRemaining
