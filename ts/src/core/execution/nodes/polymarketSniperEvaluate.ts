@@ -6,7 +6,7 @@ const logger = getLogger("polymarketSniperEvaluate");
 
 const MIN_ORDER_SHARES = 5;
 const ROUND_DURATION_SEC = 300; // Polymarket 5-min window
-const DISTANCE_MAX_ABS = 0.1;
+const DEFAULT_DISTANCE_MAX_ABS = 0.1; // max |distance_pct| allowed (0.1 = 10%)
 
 function toNum(v: unknown): number {
   if (v == null) return 0;
@@ -88,6 +88,13 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           process.env.POLYMARKET_EDGE_AT_T_MINUS_0
       );
 
+    const distanceMaxAbs =
+      toNum(
+        this.getInputValue("distance_max_abs", context, undefined) ??
+          this.resolveEnvVar(this.metadata.distance_max_abs) ??
+          process.env.POLYMARKET_DISTANCE_MAX_ABS
+      ) || DEFAULT_DISTANCE_MAX_ABS;
+
     // time_window_min/max are "seconds INTO the round"; timeRemaining is seconds LEFT
     // seconds_into = roundDuration - timeRemaining
     // We need: timeWindowMin <= seconds_into <= timeWindowMax
@@ -144,13 +151,14 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     if (
       timeRemaining < minRemainingAllowed ||
       timeRemaining > maxRemainingAllowed ||
-      Math.abs(distancePct) > DISTANCE_MAX_ABS
+      Math.abs(distancePct) > distanceMaxAbs
     ) {
       const sniper_context = {
         not_in_window: {
           time_remaining_sec: timeRemaining,
           seconds_into_round: roundDurationSec - timeRemaining,
           distance_pct: distancePct,
+          distance_max_abs: distanceMaxAbs,
           time_window_min_sec: timeWindowMin,
           time_window_max_sec: timeWindowMax,
           round_duration_sec: roundDurationSec,
