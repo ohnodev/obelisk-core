@@ -117,7 +117,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
         success: true,
         signal: "none",
         skip: true,
-        reason: "not in window",
+        reason: "not_in_window",
         sniper_context,
       };
     }
@@ -159,7 +159,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
         success: true,
         signal: "none",
         skip: true,
-        reason: "no signal",
+        reason: "no_signal",
         upEdge,
         downEdge,
         threshold,

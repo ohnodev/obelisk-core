@@ -53,12 +53,12 @@ export class PolymarketActionLoggerNode extends BaseNode {
 
     const didTrade = orderResult?.success === true && orderResult?.skipped !== true;
     const reasonRaw = evaluateReason ?? orderReason ?? (String(signalRaw) === "none" ? "no signal" : "skipped");
-    const reasonStr = typeof reasonRaw === "string" ? reasonRaw : String(reasonRaw);
-    const canonicalReason =
-      didTrade ? "order_placed" as const
-      : reasonStr === "not in window" ? "not_in_window" as const
-      : reasonStr === "no signal" ? "no_signal" as const
-      : "no_signal" as const;
+    const reasonStr = String(reasonRaw).trim().toLowerCase();
+    const canonicalReason: "order_placed" | "not_in_window" | "no_signal" =
+      didTrade ? "order_placed"
+      : /not_in_window|not in window|notinwindow/.test(reasonStr) ? "not_in_window"
+      : /no_signal|no signal|none|skipped/.test(reasonStr) ? "no_signal"
+      : "no_signal";
 
     const action: PolymarketSniperAction = {
       ts: Date.now(),
@@ -72,7 +72,7 @@ export class PolymarketActionLoggerNode extends BaseNode {
       action.token_id =
         (orderResult?.token_id ?? orderResult?.tokenId ?? resp?.tokenId ?? resp?.token_id) as string | undefined;
       action.order_id =
-        (orderResult?.order_id ?? resp?.orderId ?? resp?.order_id) as string | undefined;
+        (orderResult?.order_id ?? orderResult?.orderId ?? resp?.orderId ?? resp?.order_id) as string | undefined;
       action.price = orderResult?.price as number | undefined;
       action.size = orderResult?.size as number | undefined;
     } else if (sniperContext) {

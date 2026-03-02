@@ -253,14 +253,19 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
 
     /** Center and fit the graph in view after loading */
-    const centerAndFitGraph = (g: any, gCanvas: any) => {
+    const centerAndFitGraph = (g: any, gCanvas: any, retryCount = 3) => {
       if (!gCanvas?.ds) return;
-      const nodes = (g as any)._nodes ?? [];
-      const bounds = calculateNodeBounds(nodes);
-      if (!bounds) return;
       const canvasEl = gCanvas.canvas as HTMLCanvasElement;
       if (!canvasEl) return;
       const rect = canvasEl.getBoundingClientRect();
+      if ((rect.width <= 0 || rect.height <= 0) && retryCount > 0) {
+        requestAnimationFrame(() => centerAndFitGraph(g, gCanvas, retryCount - 1));
+        return;
+      }
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const nodes = (g as any)._nodes ?? [];
+      const bounds = calculateNodeBounds(nodes);
+      if (!bounds) return;
       const fitScale = calculateMinimapScale(bounds, rect.width, rect.height, 0.85);
       const centerX = bounds.minX + bounds.width / 2;
       const centerY = bounds.minY + bounds.height / 2;
@@ -289,9 +294,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             deserializeGraph(graph, initialWorkflow);
             workflowLoadedRef.current = true;
             initialWorkflowLoadedRef.current = true; // Mark as loaded
-            // Force canvas to redraw with correct positions
             if (graphCanvas) {
-              graphCanvas.draw(true);
               centerAndFitGraph(graph, graphCanvas);
             }
           } finally {
@@ -338,8 +341,6 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           isDeserializingRef.current = true;
           deserializeGraph(graphRef.current, workflow);
           initialWorkflowLoadedRef.current = true;
-          // Force redraw and center view on graph
-          graphCanvas.draw(true);
           centerAndFitGraph(graphRef.current, graphCanvas);
           // Allow change detection after deserialization
           // Store timeout ID in ref for cleanup
