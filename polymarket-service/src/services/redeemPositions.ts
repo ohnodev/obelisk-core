@@ -6,6 +6,7 @@
  */
 
 import { ethers } from 'ethers';
+import { parseStringOrArray } from '../utils/parseStringOrArray.js';
 import { TransactionService, isGasPriceError, isNoPositionError } from './transactionService.js';
 
 const DATA_API = 'https://data-api.polymarket.com';
@@ -43,10 +44,18 @@ interface GammaMarket {
   conditionId?: string;
   condition_id?: string;
   closed?: boolean;
+  outcomePrices?: string | string[];
+  clobTokenIds?: string | string[];
 }
 
 interface GammaEvent {
   markets: GammaMarket[];
+}
+
+/** Parsed market info for Gamma fallback — winning token ID for resolved positions. */
+interface GammaMarketResolution {
+  conditionId: string;
+  winningTokenId: string;
 }
 
 /** Fetch redeemable positions from Data API. Returns condition IDs and per-position resolution (asset, outcome, pnl). */
@@ -135,9 +144,30 @@ function recentWindowTimestamps(): number[] {
   return out;
 }
 
-/** Fallback: closed btc-updown-5m markets from Gamma (blind scan, many will have no position). */
-async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
-  const ids: string[] = [];
+/** Parse outcomePrices and clobTokenIds from Gamma market to get winning token ID. */
+function parseWinningTokenId(market: GammaMarket): string | null {
+  try {
+    const outcomePrices = parseStringOrArray(market.outcomePrices);
+    const clobTokenIds = parseStringOrArray(market.clobTokenIds);
+    const winningIdx = outcomePrices.findIndex((p) => {
+      const n = parseFloat(String(p).trim());
+      return !Number.isNaN(n) && n === 1;
+    });
+    if (winningIdx >= 0 && clobTokenIds[winningIdx]) return clobTokenIds[winningIdx];
+  } catch {
+    // malformed JSON or missing fields
+  }
+  return null;
+}
+
+/** Fallback: closed btc-updown-5m markets from Gamma with resolution (winning token ID). */
+async function fetchResolvedFromGamma(): Promise<{
+  conditionIds: string[];
+  conditionIdToResolution: Map<string, GammaMarketResolution>;
+}> {
+  const conditionIds: string[] = [];
+  const conditionIdToResolution = new Map<string, GammaMarketResolution>();
+
   for (const ts of recentWindowTimestamps()) {
     const slug = `btc-updown-5m-${ts}`;
     const url = `${GAMMA_API}/events?slug=${slug}`;
@@ -152,13 +182,25 @@ async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
         clearTimeout(timer);
       }
       if (!res.ok) continue;
-      const events = (await res.json()) as GammaEvent[];
+      const raw = (await res.json()) as unknown;
+      if (!Array.isArray(raw)) {
+        if (typeof console !== 'undefined' && console.debug) {
+          console.debug('[Redeem] Gamma unexpected response shape (not array)', { url, rawType: typeof raw });
+        }
+        continue;
+      }
+      const events = raw as GammaEvent[];
       for (const event of events) {
-        for (const market of event.markets || []) {
+        const markets = Array.isArray(event?.markets) ? event.markets : [];
+        for (const market of markets) {
           if (!market.closed) continue;
-          const cid = market.conditionId ?? market.condition_id;
-          if (cid && /^0x[a-fA-F0-9]{64}$/.test(cid)) {
-            ids.push(cid);
+          const cid = (market.conditionId ?? market.condition_id) as string;
+          if (!cid || !/^0x[a-fA-F0-9]{64}$/.test(cid)) continue;
+
+          const winningTokenId = parseWinningTokenId(market);
+          if (winningTokenId) {
+            conditionIds.push(cid);
+            conditionIdToResolution.set(cid, { conditionId: cid, winningTokenId });
           }
         }
       }
@@ -168,7 +210,7 @@ async function fetchResolvedConditionIdsFromGamma(): Promise<string[]> {
       }
     }
   }
-  return ids;
+  return { conditionIds: Array.from(new Set(conditionIds)), conditionIdToResolution };
 }
 
 export async function runHousekeeping(pk: string): Promise<{
@@ -188,10 +230,16 @@ export async function runHousekeeping(pk: string): Promise<{
   const txService = new TransactionService({ provider, signer });
 
   let { conditionIds, resolvedPositions } = await fetchRedeemableFromDataApi(signer.address);
-  if (conditionIds.length > 0) {
+  let conditionIdToResolution = new Map<string, GammaMarketResolution>();
+
+  if (conditionIds.length > 0 && resolvedPositions.length > 0) {
     console.log(`[Redeem] Data API: ${conditionIds.length} redeemable position(s) for ${signer.address.slice(0, 10)}…`);
   } else {
-    conditionIds = await fetchResolvedConditionIdsFromGamma();
+    const gamma = await fetchResolvedFromGamma();
+    if (conditionIds.length === 0) {
+      conditionIds = gamma.conditionIds;
+    }
+    conditionIdToResolution = gamma.conditionIdToResolution;
     resolvedPositions = [];
     if (conditionIds.length > 0) {
       console.log(`[Redeem] Gamma fallback: ${conditionIds.length} resolved btc-updown-5m market(s)`);
@@ -200,6 +248,7 @@ export async function runHousekeeping(pk: string): Promise<{
   let redeemed = 0;
   let noPosition = 0;
   let errors = 0;
+  const redeemedConditionIds: string[] = [];
 
   const GAS_LIMIT = 300_000; // bypass estimation; CTF redeem reverts when no position
   const total = conditionIds.length;
@@ -218,6 +267,7 @@ export async function runHousekeeping(pk: string): Promise<{
         timeoutMs: 60_000, // per-attempt timeout; with replacement attempt total max ~120s
       });
       redeemed++;
+      redeemedConditionIds.push(conditionId);
       console.log(
         `[Redeem] REDEEMED condition=${conditionId.slice(0, 10)}…${conditionId.slice(-8)} tx=${result.txHash}`,
       );
@@ -241,5 +291,17 @@ export async function runHousekeeping(pk: string): Promise<{
       `[Redeem] Checked ${conditionIds.length} resolved markets — redeemed ${redeemed}, no position ${noPosition}, errors ${errors}`,
     );
   }
+
+  // Gamma fallback: build resolvedPositions from redeemed conditionIds so polymarket_trade_outcome_updater can track.
+  // Successful redeem implies the user held the winning outcome (losing tokens have no redeemable value), so we set outcome to 'Won'.
+  if (resolvedPositions.length === 0 && redeemedConditionIds.length > 0 && conditionIdToResolution.size > 0) {
+    for (const cid of redeemedConditionIds) {
+      const resolution = conditionIdToResolution.get(cid);
+      if (resolution?.winningTokenId) {
+        resolvedPositions.push({ asset: resolution.winningTokenId, outcome: 'Won', pnl: null });
+      }
+    }
+  }
+
   return { redeemed, noPosition, errors, resolvedPositions };
 }
