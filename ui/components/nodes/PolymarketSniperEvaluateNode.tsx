@@ -17,6 +17,7 @@ class PolymarketSniperEvaluateNode extends LGraphNode {
     this.addInput("order_notional", "number");
     this.addInput("time_window_min_sec", "number");
     this.addInput("time_window_max_sec", "number");
+    this.addInput("probability_model", "string");
     this.addInput("use_market_order", "boolean");
     this.addOutput("success", "boolean");
     this.addOutput("signal", "string");
@@ -32,12 +33,14 @@ class PolymarketSniperEvaluateNode extends LGraphNode {
 
     this.addProperty("edge_threshold", "{{process.env.POLYMARKET_EDGE_THRESHOLD}}", "string");
     this.addProperty("order_notional", "{{process.env.POLYMARKET_ORDER_NOTIONAL}}", "string");
+    this.addProperty("probability_model", "{{process.env.POLYMARKET_PROBABILITY_MODEL}}", "string");
     this.addProperty("use_market_order", false, "boolean");
     (this as any)._edge_widget = this.addWidget("string", "edge_threshold", "0.15", () => {}, { serialize: true });
     (this as any)._notional_widget = this.addWidget("string", "order_notional", "5", () => {}, { serialize: true });
+    (this as any)._model_widget = this.addWidget("string", "probability_model", "d_eff", () => {}, { serialize: true });
     (this as any)._market_widget = this.addWidget("toggle", "use_market_order", false, () => {}, { serialize: true });
 
-    this.size = [340, 300];
+    this.size = [340, 340];
     (this as any).type = "polymarket_sniper_evaluate";
     (this as any).resizable = true;
   }

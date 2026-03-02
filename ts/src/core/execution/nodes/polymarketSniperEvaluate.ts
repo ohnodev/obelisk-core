@@ -80,7 +80,23 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       String(useMarketOrderRaw).trim().toLowerCase() === "true" ||
       useMarketOrderRaw === "1";
 
-    const modelPUp = toNum(snapshot.modelPUp ?? snapshot.model_p_up ?? 0.5);
+    const probabilityModelRaw =
+      this.getInputValue("probability_model", context, undefined) ??
+      this.resolveEnvVar(this.metadata.probability_model) ??
+      this.metadata.probability_model ??
+      process.env.POLYMARKET_PROBABILITY_MODEL ??
+      "d_eff";
+    let modelKey = String(probabilityModelRaw).trim().toLowerCase();
+    if (modelKey === "" || modelKey.includes("{{")) modelKey = "d_eff";
+    const useZmove =
+      modelKey === "zmove" ||
+      modelKey === "d_eff" ||
+      modelKey === "deff" ||
+      modelKey === "z_move";
+
+    const gbmPUp = toNum(snapshot.modelPUp ?? snapshot.model_p_up ?? 0.5);
+    const zmovePUp = toNum(snapshot.modelPUpZMove ?? snapshot.model_p_up_z_move ?? 0.5);
+    const modelPUp = useZmove ? zmovePUp : gbmPUp;
     const timeRemaining = toNum(snapshot.timeRemaining ?? snapshot.time_remaining ?? 0);
     const distancePct = toNum(snapshot.distancePct ?? snapshot.distance_pct ?? 0);
 
