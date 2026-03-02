@@ -65,7 +65,7 @@ export class PolymarketStatsNode extends BaseNode {
         // ignore
       }
     }
-    const lastActions = (actions as unknown[]).slice(-20);
+    const lastActions = (actions as unknown[]).slice(-100);
 
     const body = {
       running: true,
