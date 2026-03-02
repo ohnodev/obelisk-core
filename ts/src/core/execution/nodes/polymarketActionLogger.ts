@@ -43,6 +43,12 @@ export class PolymarketActionLoggerNode extends BaseNode {
     const sniperContextFromOrder = orderResult?.sniper_context as SniperActionContext | undefined;
     const sniperContext = sniperContextDirect ?? sniperContextFromOrder;
 
+    const parseErrorMin = this.getInputValue("parse_error_time_window_min", context, undefined) as string | undefined;
+    const parseErrorMax = this.getInputValue("parse_error_time_window_max", context, undefined) as string | undefined;
+    const parseErrors: string[] = [];
+    if (parseErrorMin) parseErrors.push(parseErrorMin);
+    if (parseErrorMax) parseErrors.push(parseErrorMax);
+
     const maxActionsRaw =
       this.getInputValue("max_actions", context, undefined) ??
       this.resolveEnvVar(this.metadata.max_actions) ??
@@ -65,6 +71,7 @@ export class PolymarketActionLoggerNode extends BaseNode {
       action: didTrade ? "order_placed" : "no_action",
       reason: canonicalReason,
       schema_version: POLYMARKET_SNIPER_ACTION_SCHEMA_VERSION,
+      ...(parseErrors.length > 0 && { parse_errors: parseErrors }),
     };
 
     if (didTrade) {

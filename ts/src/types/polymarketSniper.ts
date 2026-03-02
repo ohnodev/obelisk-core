@@ -46,6 +46,8 @@ export interface PolymarketSniperAction {
   reason: SniperSkipReason;
   /** Schema version for frontend compatibility */
   schema_version?: number;
+  /** Int node parse errors (e.g. time_window_min/max) for traceability */
+  parse_errors?: string[];
   /** Detailed context for no_action entries */
   context?: SniperActionContext;
   /** For order_placed */

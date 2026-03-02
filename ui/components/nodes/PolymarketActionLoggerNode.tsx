@@ -18,6 +18,8 @@ class PolymarketActionLoggerNode extends LGraphNode {
     this.addInput("sniper_context", "object");
     this.addInput("signal", "string");
     this.addInput("storage_instance", "object");
+    this.addInput("parse_error_time_window_min", "string");
+    this.addInput("parse_error_time_window_max", "string");
     this.addInput("max_actions", "number");
     this.addOutput("success", "boolean");
     this.addOutput("logged", "boolean");

@@ -7,27 +7,20 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 
 export class IntNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
-    let raw: unknown;
-
-    if (this.metadata.value !== undefined) {
-      raw = this.resolveTemplateVariable(this.metadata.value, context);
-    } else if (this.inputs.value !== undefined) {
-      raw = this.resolveTemplateVariable(this.inputs.value, context);
-    } else {
-      raw = undefined;
-    }
+    // Resolve runtime inputs first (connected > inputs > metadata)
+    const raw = this.getInputValue("value", context, undefined);
 
     const trimmed =
       raw !== undefined && raw !== null ? String(raw).trim() : "";
 
     if (trimmed === "") {
-      return { value: undefined, error: "Int node: empty value" };
+      return { value: undefined, error: `Int node ${this.nodeId}: empty value` };
     }
 
     if (!/^-?\d+$/.test(trimmed)) {
       return {
         value: undefined,
-        error: `Int node: failed to parse integer "${trimmed}"`,
+        error: `Int node ${this.nodeId}: failed to parse integer "${trimmed}"`,
       };
     }
 

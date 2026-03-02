@@ -11,10 +11,11 @@ class IntNode extends LGraphNode {
     super();
     this.title = "Int";
 
+    this.addInput("value", "string,number");
     this.addOutput("value", "number");
     this.addOutput("error", "string");
 
-    this.addProperty("value", "{{process.env.EXAMPLE_INT}}", "string");
+    this.addProperty("value", "0", "string");
     (this as any)._value_widget = this.addWidget("string", "value", "0", () => {}, { serialize: true });
 
     this.size = [300, 90];
