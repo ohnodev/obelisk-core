@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
+import { calculateNodeBounds, calculateMinimapScale } from "@/lib/minimap-utils";
 import NodeMenu from "./NodeMenu";
 import MobileControls from "./MobileControls";
 import Minimap from "./Minimap";
@@ -22,6 +23,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const isDeserializingRef = useRef(false);
   const initialWorkflowLoadedRef = useRef(false);
   const deserializingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const centerAndFitGraphRafRef = useRef<number | null>(null);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -251,6 +253,39 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
     canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
 
+    /** Center and fit the graph in view after loading */
+    const centerAndFitGraph = (g: any, gCanvas: any, retryCount = 3) => {
+      if (!gCanvas?.ds) return;
+      const canvasEl = gCanvas.canvas as HTMLCanvasElement;
+      if (!canvasEl) return;
+      const rect = canvasEl.getBoundingClientRect();
+      if ((rect.width <= 0 || rect.height <= 0) && retryCount > 0) {
+        if (centerAndFitGraphRafRef.current != null) {
+          cancelAnimationFrame(centerAndFitGraphRafRef.current);
+        }
+        centerAndFitGraphRafRef.current = requestAnimationFrame(() => {
+          centerAndFitGraphRafRef.current = null;
+          centerAndFitGraph(g, gCanvas, retryCount - 1);
+        });
+        return;
+      }
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const nodes = (g as any)._nodes ?? [];
+      const bounds = calculateNodeBounds(nodes);
+      if (!bounds) return;
+      const fitScale = calculateMinimapScale(bounds, rect.width, rect.height, 0.85);
+      const centerX = bounds.minX + bounds.width / 2;
+      const centerY = bounds.minY + bounds.height / 2;
+      gCanvas.ds.scale = Math.max(0.1, Math.min(10, fitScale));
+      const vpW = rect.width / gCanvas.ds.scale;
+      const vpH = rect.height / gCanvas.ds.scale;
+      gCanvas.ds.offset[0] = -(centerX - vpW / 2);
+      gCanvas.ds.offset[1] = -(centerY - vpH / 2);
+      gCanvas.dirty_canvas = true;
+      gCanvas.dirty_bgcanvas = true;
+      gCanvas.draw(true, true);
+    };
+
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
     let workflowLoadTimeout: NodeJS.Timeout | null = null;
@@ -266,9 +301,8 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             deserializeGraph(graph, initialWorkflow);
             workflowLoadedRef.current = true;
             initialWorkflowLoadedRef.current = true; // Mark as loaded
-            // Force canvas to redraw with correct positions
             if (graphCanvas) {
-              graphCanvas.draw(true);
+              centerAndFitGraph(graph, graphCanvas);
             }
           } finally {
             // Allow change detection after deserialization completes
@@ -314,8 +348,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           isDeserializingRef.current = true;
           deserializeGraph(graphRef.current, workflow);
           initialWorkflowLoadedRef.current = true;
-          // Force redraw
-          graphCanvas.draw(true);
+          centerAndFitGraph(graphRef.current, graphCanvas);
           // Allow change detection after deserialization
           // Store timeout ID in ref for cleanup
           deserializingTimeoutRef.current = setTimeout(() => {
@@ -351,6 +384,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       if (deserializingTimeoutRef.current) {
         clearTimeout(deserializingTimeoutRef.current);
         deserializingTimeoutRef.current = null;
+      }
+      if (centerAndFitGraphRafRef.current != null) {
+        cancelAnimationFrame(centerAndFitGraphRafRef.current);
+        centerAndFitGraphRafRef.current = null;
       }
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);

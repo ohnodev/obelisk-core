@@ -11,6 +11,14 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Map freeform reason to canonical schema token */
+function normalizeSkipReason(raw: unknown): "not_in_window" | "no_signal" {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (/not_in_window|not in window|notinwindow/.test(s)) return "not_in_window";
+  if (/no_signal|no signal|none|skipped|no signal \(skip\)/.test(s)) return "no_signal";
+  return "no_signal";
+}
+
 export class PolymarketOrderNode extends BaseNode {
   async execute(context: ExecutionContext): Promise<Record<string, unknown>> {
     const trigger = this.getInputValue("trigger", context, true);
@@ -21,7 +29,13 @@ export class PolymarketOrderNode extends BaseNode {
 
     const skip = this.getInputValue("skip", context, false);
     if (skip === true || String(skip).trim().toLowerCase() === "true") {
-      const out = { success: true, skipped: true, reason: "no signal (skip)" };
+      const reasonRaw = this.getInputValue("reason", context, undefined);
+      const skipReason = normalizeSkipReason(reasonRaw);
+      const sniperContext = this.getInputValue("sniper_context", context, undefined);
+      const out: Record<string, unknown> = { success: true, skipped: true, reason: skipReason };
+      if (sniperContext && typeof sniperContext === "object") {
+        out.sniper_context = sniperContext;
+      }
       return { ...out, result: out };
     }
 

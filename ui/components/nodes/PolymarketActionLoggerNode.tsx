@@ -15,6 +15,7 @@ class PolymarketActionLoggerNode extends LGraphNode {
     this.addInput("order_result", "object");
     this.addInput("skip", "boolean");
     this.addInput("reason", "string");
+    this.addInput("sniper_context", "object");
     this.addInput("signal", "string");
     this.addInput("storage_instance", "object");
     this.addInput("max_actions", "number");
@@ -23,7 +24,7 @@ class PolymarketActionLoggerNode extends LGraphNode {
     this.addOutput("action", "string");
     this.addOutput("reason", "string");
 
-    this.size = [300, 120];
+    this.size = [300, 180];
     (this as any).type = "polymarket_action_logger";
     (this as any).resizable = true;
   }

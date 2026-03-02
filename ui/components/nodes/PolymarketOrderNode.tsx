@@ -13,6 +13,8 @@ class PolymarketOrderNode extends LGraphNode {
 
     this.addInput("trigger", "boolean");
     this.addInput("skip", "boolean");
+    this.addInput("reason", "string");
+    this.addInput("sniper_context", "object");
     this.addInput("base_url", "string");
     this.addInput("token_id", "string");
     this.addInput("price", "number");

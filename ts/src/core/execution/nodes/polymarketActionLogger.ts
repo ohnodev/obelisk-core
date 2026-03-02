@@ -1,13 +1,18 @@
 /**
  * PolymarketActionLoggerNode – logs every sniper tick (trade or no-action) for stats visibility.
  * Writes to polymarket_actions.json. Enables /polymarket/stats to show lastActions so users see activity
- * even when no trade occurs (e.g. "no_action: outside time window", "no_action: edge below threshold").
+ * even when no trade occurs. Uses PolymarketSniperAction schema for frontend parsing and visual cues.
  */
 import fs from "fs";
 import path from "path";
 import { BaseNode, ExecutionContext } from "../nodeBase";
 import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 import { resolvePolymarketActionsPath } from "./polymarketStoragePath";
+import {
+  POLYMARKET_SNIPER_ACTION_SCHEMA_VERSION,
+  type PolymarketSniperAction,
+  type SniperActionContext,
+} from "../../../types/polymarketSniper";
 
 const logger = getLogger("polymarketActionLogger");
 
@@ -34,6 +39,9 @@ export class PolymarketActionLoggerNode extends BaseNode {
     const evaluateReason = this.getInputValue("reason", context, undefined) as string | undefined;
     const orderReason = orderResult?.reason as string | undefined;
     const signalRaw = this.getInputValue("signal", context, undefined);
+    const sniperContextDirect = this.getInputValue("sniper_context", context, undefined) as SniperActionContext | undefined;
+    const sniperContextFromOrder = orderResult?.sniper_context as SniperActionContext | undefined;
+    const sniperContext = sniperContextDirect ?? sniperContextFromOrder;
 
     const maxActionsRaw =
       this.getInputValue("max_actions", context, undefined) ??
@@ -44,19 +52,31 @@ export class PolymarketActionLoggerNode extends BaseNode {
     const maxActions = Math.min(200, Math.max(1, Number.isNaN(parsed) ? DEFAULT_MAX_ACTIONS : parsed));
 
     const didTrade = orderResult?.success === true && orderResult?.skipped !== true;
-    const action: Record<string, unknown> = {
+    const reasonRaw = evaluateReason ?? orderReason ?? (String(signalRaw) === "none" ? "no signal" : "skipped");
+    const reasonStr = String(reasonRaw).trim().toLowerCase();
+    const canonicalReason: "order_placed" | "not_in_window" | "no_signal" =
+      didTrade ? "order_placed"
+      : /not_in_window|not in window|notinwindow/.test(reasonStr) ? "not_in_window"
+      : /no_signal|no signal|none|skipped/.test(reasonStr) ? "no_signal"
+      : "no_signal";
+
+    const action: PolymarketSniperAction = {
       ts: Date.now(),
       action: didTrade ? "order_placed" : "no_action",
+      reason: canonicalReason,
+      schema_version: POLYMARKET_SNIPER_ACTION_SCHEMA_VERSION,
     };
 
     if (didTrade) {
       const resp = orderResult?.response as Record<string, unknown> | undefined;
       action.token_id =
-        orderResult?.token_id ?? orderResult?.tokenId ?? resp?.tokenId ?? resp?.token_id;
-      action.order_id = orderResult?.order_id ?? resp?.orderId ?? resp?.order_id;
-    } else {
-      const reason = evaluateReason ?? orderReason ?? (String(signalRaw) === "none" ? "no signal" : "skipped");
-      action.reason = typeof reason === "string" ? reason : String(reason);
+        (orderResult?.token_id ?? orderResult?.tokenId ?? resp?.tokenId ?? resp?.token_id) as string | undefined;
+      action.order_id =
+        (orderResult?.order_id ?? orderResult?.orderId ?? resp?.orderId ?? resp?.order_id) as string | undefined;
+      action.price = orderResult?.price as number | undefined;
+      action.size = orderResult?.size as number | undefined;
+    } else if (sniperContext) {
+      action.context = sniperContext;
     }
 
     let list: unknown[] = [];
@@ -77,7 +97,7 @@ export class PolymarketActionLoggerNode extends BaseNode {
     try {
       ensureDir(actionsPath);
       fs.writeFileSync(actionsPath, JSON.stringify(list, null, 2), "utf-8");
-      return { success: true, logged: true, action: action.action, reason: action.reason };
+      return { success: true, logged: true, action: action.action, reason: String(action.reason) };
     } catch (e) {
       logger.warn(`[PolymarketActionLogger] Failed to write ${abbrevPathForLog(actionsPath)}: ${e}`);
       return { success: false, logged: false, error: String(e) };
