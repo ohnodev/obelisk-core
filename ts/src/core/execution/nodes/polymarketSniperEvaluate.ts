@@ -14,19 +14,16 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const GRADIENT_T_HIGH = 60;
-const GRADIENT_T_LOW = 10;
-
-/** Interpolate edge between t-60s and t-10s. Returns 0 if both anchors are 0 (gradient disabled). */
+/** Interpolate edge from start of window (maxRemaining) to t=0. Returns 0 if edge_at_t_minus_0 is 0 (gradient disabled). */
 function edgeFromGradient(
   timeRemainingSec: number,
-  edgeAtT60: number,
-  edgeAtT10: number
+  maxRemainingSec: number,
+  edgeAtStart: number,
+  edgeAtT0: number
 ): number {
-  if (edgeAtT60 === 0 && edgeAtT10 === 0) return 0;
-  const t = Math.max(GRADIENT_T_LOW, Math.min(GRADIENT_T_HIGH, timeRemainingSec));
-  const frac = (t - GRADIENT_T_LOW) / (GRADIENT_T_HIGH - GRADIENT_T_LOW);
-  return edgeAtT10 + (edgeAtT60 - edgeAtT10) * frac;
+  if (edgeAtT0 === 0 || maxRemainingSec <= 0) return 0;
+  const frac = Math.max(0, Math.min(1, timeRemainingSec / maxRemainingSec));
+  return edgeAtStart * frac + edgeAtT0 * (1 - frac);
 }
 
 export class PolymarketSniperEvaluateNode extends BaseNode {
@@ -84,18 +81,11 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           process.env.POLYMARKET_ROUND_DURATION_SEC
       ) || ROUND_DURATION_SEC;
 
-    const edgeAtTMinus60 =
+    const edgeAtTMinus0 =
       toNum(
-        this.getInputValue("edge_at_t_minus_60s", context, undefined) ??
-          this.resolveEnvVar(this.metadata.edge_at_t_minus_60s) ??
-          process.env.POLYMARKET_SNIPER_EDGE_AT_T_MINUS_60S
-      );
-
-    const edgeAtTMinus10 =
-      toNum(
-        this.getInputValue("edge_at_t_minus_10s", context, undefined) ??
-          this.resolveEnvVar(this.metadata.edge_at_t_minus_10s) ??
-          process.env.POLYMARKET_SNIPER_EDGE_AT_T_MINUS_10S
+        this.getInputValue("edge_at_t_minus_0", context, undefined) ??
+          this.resolveEnvVar(this.metadata.edge_at_t_minus_0) ??
+          process.env.POLYMARKET_EDGE_AT_T_MINUS_0
       );
 
     // time_window_min/max are "seconds INTO the round"; timeRemaining is seconds LEFT
@@ -177,8 +167,8 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
 
     const upEdge = modelPUp - mktUp;
     const downEdge = 1 - modelPUp - mktDown;
-    const gradientEdge = edgeFromGradient(timeRemaining, edgeAtTMinus60, edgeAtTMinus10);
-    const threshold = gradientEdge === 0 ? edgeThreshold : Math.max(edgeThreshold, gradientEdge);
+    const gradientEdge = edgeFromGradient(timeRemaining, maxRemainingAllowed, edgeThreshold, edgeAtTMinus0);
+    const threshold = gradientEdge === 0 ? edgeThreshold : gradientEdge;
 
     let signal: "buy_up" | "buy_down" | "none" = "none";
     let tokenId = "";

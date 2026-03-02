@@ -12,6 +12,7 @@ import { InferenceNode } from "./nodes/inference/node";
 import { BinaryIntentNode } from "./nodes/binaryIntent";
 import { TextNode } from "./nodes/text";
 import { IntNode } from "./nodes/int";
+import { FloatNode } from "./nodes/float";
 import { MemoryStorageNode } from "./nodes/memoryStorage";
 import { MemorySelectorNode } from "./nodes/memorySelector";
 import { MemoryCreatorNode } from "./nodes/memoryCreator";
@@ -93,6 +94,7 @@ export function registerAllNodes(): void {
   registerNode("binary_intent", BinaryIntentNode);
   registerNode("text", TextNode);
   registerNode("int", IntNode);
+  registerNode("float", FloatNode);
   registerNode("memory_storage", MemoryStorageNode);
   registerNode("memory_selector", MemorySelectorNode);
   registerNode("memory_creator", MemoryCreatorNode);

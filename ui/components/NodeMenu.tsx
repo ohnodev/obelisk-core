@@ -48,6 +48,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Int",
         description: "Integer from env or literal; parses, trims, outputs number or error",
       },
+      {
+        type: "float",
+        title: "Float",
+        description: "Float from env or literal; parses, trims, outputs number or error",
+      },
     ],
   },
   {
