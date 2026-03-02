@@ -11,6 +11,7 @@ const logger = getLogger("polymarketStats");
 
 const TRADES_FILE = "polymarket_trades.json";
 const ACTIONS_FILE = "polymarket_actions.json";
+const MAX_ACTIONS_RETURNED = 100;
 
 function computePnl(trades: unknown[]): { grossPnl: number; winCount: number; lossCount: number } {
   let grossPnl = 0;
@@ -74,7 +75,7 @@ export class PolymarketStatsNode extends BaseNode {
         logger.error(`[PolymarketStats] Failed to read/parse polymarket_actions.json: ${err}`);
       }
     }
-    const lastActions = actions.slice(-100);
+    const lastActions = actions.slice(-MAX_ACTIONS_RETURNED);
 
     const body = {
       running: true,
