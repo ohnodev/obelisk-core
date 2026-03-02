@@ -37,7 +37,7 @@ class PolymarketSniperEvaluateNode extends LGraphNode {
     (this as any)._notional_widget = this.addWidget("string", "order_notional", "5", () => {}, { serialize: true });
     (this as any)._market_widget = this.addWidget("toggle", "use_market_order", false, () => {}, { serialize: true });
 
-    this.size = [340, 280];
+    this.size = [340, 360];
     (this as any).type = "polymarket_sniper_evaluate";
     (this as any).resizable = true;
   }
