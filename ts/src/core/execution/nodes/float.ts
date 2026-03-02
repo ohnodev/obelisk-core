@@ -7,7 +7,10 @@ import { BaseNode, ExecutionContext } from "../nodeBase";
 
 export class FloatNode extends BaseNode {
   execute(context: ExecutionContext): Record<string, unknown> {
-    const raw = this.getInputValue("value", context, undefined);
+    let raw = this.getInputValue("value", context, undefined);
+    if (raw === undefined || raw === null || String(raw).trim() === "") {
+      raw = this.resolveEnvVar(this.metadata.value) ?? this.metadata.value ?? "";
+    }
 
     const trimmed =
       raw !== undefined && raw !== null ? String(raw).trim() : "";

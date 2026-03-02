@@ -45,12 +45,24 @@ export class PolymarketActionLoggerNode extends BaseNode {
 
     const parseErrorMinRaw = this.getInputValue("parse_error_time_window_min", context, undefined);
     const parseErrorMaxRaw = this.getInputValue("parse_error_time_window_max", context, undefined);
+    const parseErrorEdgeRaw = this.getInputValue("parse_error_edge_threshold", context, undefined);
+    const parseErrorEdgeT0Raw = this.getInputValue("parse_error_edge_at_t_minus_0", context, undefined);
+    const parseErrorDistRaw = this.getInputValue("parse_error_distance_max_abs", context, undefined);
     const parseErrors: string[] = [];
     if (parseErrorMinRaw !== undefined && parseErrorMinRaw !== null) {
       parseErrors.push(String(parseErrorMinRaw));
     }
     if (parseErrorMaxRaw !== undefined && parseErrorMaxRaw !== null) {
       parseErrors.push(String(parseErrorMaxRaw));
+    }
+    if (parseErrorEdgeRaw !== undefined && parseErrorEdgeRaw !== null) {
+      parseErrors.push(String(parseErrorEdgeRaw));
+    }
+    if (parseErrorEdgeT0Raw !== undefined && parseErrorEdgeT0Raw !== null) {
+      parseErrors.push(String(parseErrorEdgeT0Raw));
+    }
+    if (parseErrorDistRaw !== undefined && parseErrorDistRaw !== null) {
+      parseErrors.push(String(parseErrorDistRaw));
     }
 
     const maxActionsRaw =

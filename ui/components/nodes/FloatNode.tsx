@@ -16,7 +16,9 @@ class FloatNode extends LGraphNode {
     this.addOutput("error", "string");
 
     this.addProperty("value", "0", "string");
-    (this as any)._value_widget = this.addWidget("string", "value", "0", () => {}, { serialize: true });
+    (this as any)._value_widget = this.addWidget("string", "value", "0", (value: string) => {
+      this.setProperty("value", value);
+    }, { serialize: true });
 
     this.size = [300, 90];
     (this as any).type = "float";

@@ -48,6 +48,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       toNum(
         this.getInputValue("edge_threshold", context, undefined) ??
           this.resolveEnvVar(this.metadata.edge_threshold) ??
+          this.metadata.edge_threshold ??
           process.env.POLYMARKET_EDGE_THRESHOLD
       ) || 0.15;
 
@@ -55,6 +56,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       toNum(
         this.getInputValue("order_notional", context, undefined) ??
           this.resolveEnvVar(this.metadata.order_notional) ??
+          this.metadata.order_notional ??
           process.env.POLYMARKET_ORDER_NOTIONAL
       ) || 5;
 
@@ -78,6 +80,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       toNum(
         this.getInputValue("round_duration_sec", context, undefined) ??
           this.resolveEnvVar(this.metadata.round_duration_sec) ??
+          this.metadata.round_duration_sec ??
           process.env.POLYMARKET_ROUND_DURATION_SEC
       ) || ROUND_DURATION_SEC;
 
@@ -85,12 +88,14 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       toNum(
         this.getInputValue("edge_at_t_minus_0", context, undefined) ??
           this.resolveEnvVar(this.metadata.edge_at_t_minus_0) ??
+          this.metadata.edge_at_t_minus_0 ??
           process.env.POLYMARKET_EDGE_AT_T_MINUS_0
       );
 
     const rawDistance =
       this.getInputValue("distance_max_abs", context, undefined) ??
       this.resolveEnvVar(this.metadata.distance_max_abs) ??
+      this.metadata.distance_max_abs ??
       process.env.POLYMARKET_DISTANCE_MAX_ABS;
     const distanceMaxAbs =
       rawDistance === undefined || rawDistance === null || String(rawDistance).trim() === ""
@@ -121,7 +126,10 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       process.env.POLYMARKET_PROBABILITY_MODEL ??
       "d_eff";
     let modelKey = String(probabilityModelRaw).trim().toLowerCase();
-    if (modelKey === "" || modelKey.includes("{{")) modelKey = "d_eff";
+    const allowedModelKeys = ["gbm", "d_eff", "deff", "zmove", "z_move"];
+    if (modelKey === "" || modelKey.includes("{{") || !allowedModelKeys.includes(modelKey)) {
+      modelKey = "d_eff";
+    }
     const useZmove =
       modelKey === "zmove" ||
       modelKey === "d_eff" ||
