@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LGraph, LGraphCanvas, LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 import { serializeGraph, deserializeGraph, WorkflowGraph } from "@/lib/workflow-serialization";
+import { calculateNodeBounds, calculateMinimapScale } from "@/lib/minimap-utils";
 import NodeMenu from "./NodeMenu";
 import MobileControls from "./MobileControls";
 import Minimap from "./Minimap";
@@ -251,6 +252,28 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
     canvasElement.addEventListener("contextmenu", handleCanvasRightClick);
     canvasElement.addEventListener("dblclick", handleCanvasDoubleClick);
 
+    /** Center and fit the graph in view after loading */
+    const centerAndFitGraph = (g: any, gCanvas: any) => {
+      if (!gCanvas?.ds) return;
+      const nodes = (g as any)._nodes ?? [];
+      const bounds = calculateNodeBounds(nodes);
+      if (!bounds) return;
+      const canvasEl = gCanvas.canvas as HTMLCanvasElement;
+      if (!canvasEl) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const fitScale = calculateMinimapScale(bounds, rect.width, rect.height, 0.85);
+      const centerX = bounds.minX + bounds.width / 2;
+      const centerY = bounds.minY + bounds.height / 2;
+      gCanvas.ds.scale = Math.max(0.1, Math.min(10, fitScale));
+      const vpW = rect.width / gCanvas.ds.scale;
+      const vpH = rect.height / gCanvas.ds.scale;
+      gCanvas.ds.offset[0] = -(centerX - vpW / 2);
+      gCanvas.ds.offset[1] = -(centerY - vpH / 2);
+      gCanvas.dirty_canvas = true;
+      gCanvas.dirty_bgcanvas = true;
+      gCanvas.draw(true, true);
+    };
+
     // Load initial workflow only once on mount (not on every prop change)
     // Store timeout IDs for cleanup
     let workflowLoadTimeout: NodeJS.Timeout | null = null;
@@ -269,6 +292,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
             // Force canvas to redraw with correct positions
             if (graphCanvas) {
               graphCanvas.draw(true);
+              centerAndFitGraph(graph, graphCanvas);
             }
           } finally {
             // Allow change detection after deserialization completes
@@ -314,8 +338,9 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
           isDeserializingRef.current = true;
           deserializeGraph(graphRef.current, workflow);
           initialWorkflowLoadedRef.current = true;
-          // Force redraw
+          // Force redraw and center view on graph
           graphCanvas.draw(true);
+          centerAndFitGraph(graphRef.current, graphCanvas);
           // Allow change detection after deserialization
           // Store timeout ID in ref for cleanup
           deserializingTimeoutRef.current = setTimeout(() => {

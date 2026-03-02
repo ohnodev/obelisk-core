@@ -23,7 +23,7 @@ class PolymarketActionLoggerNode extends LGraphNode {
     this.addOutput("action", "string");
     this.addOutput("reason", "string");
 
-    this.size = [300, 120];
+    this.size = [300, 200];
     (this as any).type = "polymarket_action_logger";
     (this as any).resizable = true;
   }

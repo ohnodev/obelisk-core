@@ -109,7 +109,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
         success: true,
         signal: "none",
         skip: true,
-        reason: "outside time window or distance filter",
+        reason: "not in window",
       };
     }
 
@@ -139,7 +139,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
         success: true,
         signal: "none",
         skip: true,
-        reason: `edge below threshold (up=${upEdge.toFixed(3)} down=${downEdge.toFixed(3)} min=${threshold.toFixed(3)})`,
+        reason: "no signal",
         upEdge,
         downEdge,
         threshold,

@@ -21,7 +21,9 @@ export class PolymarketOrderNode extends BaseNode {
 
     const skip = this.getInputValue("skip", context, false);
     if (skip === true || String(skip).trim().toLowerCase() === "true") {
-      const out = { success: true, skipped: true, reason: "no signal (skip)" };
+      const skipReason =
+        (this.getInputValue("reason", context, undefined) as string | undefined) ?? "no signal (skip)";
+      const out = { success: true, skipped: true, reason: skipReason };
       return { ...out, result: out };
     }
 
