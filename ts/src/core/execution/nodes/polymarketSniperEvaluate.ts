@@ -88,12 +88,14 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           process.env.POLYMARKET_EDGE_AT_T_MINUS_0
       );
 
+    const rawDistance =
+      this.getInputValue("distance_max_abs", context, undefined) ??
+      this.resolveEnvVar(this.metadata.distance_max_abs) ??
+      process.env.POLYMARKET_DISTANCE_MAX_ABS;
     const distanceMaxAbs =
-      toNum(
-        this.getInputValue("distance_max_abs", context, undefined) ??
-          this.resolveEnvVar(this.metadata.distance_max_abs) ??
-          process.env.POLYMARKET_DISTANCE_MAX_ABS
-      ) || DEFAULT_DISTANCE_MAX_ABS;
+      rawDistance === undefined || rawDistance === null || String(rawDistance).trim() === ""
+        ? DEFAULT_DISTANCE_MAX_ABS
+        : toNum(rawDistance);
 
     // time_window_min/max are "seconds INTO the round"; timeRemaining is seconds LEFT
     // seconds_into = roundDuration - timeRemaining
@@ -148,10 +150,11 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     const upTokenId = asString(current.upTokenId ?? current.up_token_id ?? current.yesTokenId ?? current.yes_token_id ?? "");
     const downTokenId = asString(current.downTokenId ?? current.down_token_id ?? current.noTokenId ?? current.no_token_id ?? "");
 
+    const distanceOk = distanceMaxAbs === 0 || Math.abs(distancePct) <= distanceMaxAbs;
     if (
       timeRemaining < minRemainingAllowed ||
       timeRemaining > maxRemainingAllowed ||
-      Math.abs(distancePct) > distanceMaxAbs
+      !distanceOk
     ) {
       const sniper_context = {
         not_in_window: {
