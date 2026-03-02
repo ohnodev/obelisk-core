@@ -17,10 +17,8 @@ class PolymarketSniperEvaluateNode extends LGraphNode {
     this.addInput("order_notional", "number");
     this.addInput("time_window_min_sec", "number");
     this.addInput("time_window_max_sec", "number");
-    this.addInput("late_sniper_time_high_sec", "number");
-    this.addInput("late_sniper_time_low_sec", "number");
-    this.addInput("late_sniper_edge_at_t_minus_60s", "number");
-    this.addInput("late_sniper_edge_at_t_minus_10s", "number");
+    this.addInput("edge_at_t_minus_60s", "number");
+    this.addInput("edge_at_t_minus_10s", "number");
     this.addInput("probability_model", "string");
     this.addInput("use_market_order", "boolean");
     this.addOutput("success", "boolean");
