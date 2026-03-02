@@ -202,7 +202,7 @@ async function fetchResolvedFromGamma(): Promise<{
       }
     }
   }
-  return { conditionIds, conditionIdToResolution };
+  return { conditionIds: Array.from(new Set(conditionIds)), conditionIdToResolution };
 }
 
 export async function runHousekeeping(pk: string): Promise<{
@@ -224,7 +224,7 @@ export async function runHousekeeping(pk: string): Promise<{
   let { conditionIds, resolvedPositions } = await fetchRedeemableFromDataApi(signer.address);
   let conditionIdToResolution = new Map<string, GammaMarketResolution>();
 
-  if (conditionIds.length > 0) {
+  if (conditionIds.length > 0 && resolvedPositions.length > 0) {
     console.log(`[Redeem] Data API: ${conditionIds.length} redeemable position(s) for ${signer.address.slice(0, 10)}…`);
   } else {
     const gamma = await fetchResolvedFromGamma();

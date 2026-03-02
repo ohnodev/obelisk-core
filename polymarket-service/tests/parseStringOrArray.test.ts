@@ -28,6 +28,11 @@ describe('parseStringOrArray', () => {
     expect(parseStringOrArray('123')).toEqual([]);
   });
 
+  it('returns only string elements from mixed array', () => {
+    expect(parseStringOrArray(['a', 1, null, 'b'])).toEqual(['a', 'b']);
+    expect(parseStringOrArray(['1', 0, undefined, '0'])).toEqual(['1', '0']);
+  });
+
   it('returns empty array for non-string non-array input', () => {
     expect(parseStringOrArray(null)).toEqual([]);
     expect(parseStringOrArray(undefined)).toEqual([]);
