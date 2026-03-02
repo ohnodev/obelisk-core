@@ -182,9 +182,17 @@ async function fetchResolvedFromGamma(): Promise<{
         clearTimeout(timer);
       }
       if (!res.ok) continue;
-      const events = (await res.json()) as GammaEvent[];
+      const raw = (await res.json()) as unknown;
+      if (!Array.isArray(raw)) {
+        if (typeof console !== 'undefined' && console.debug) {
+          console.debug('[Redeem] Gamma unexpected response shape (not array)', { url, rawType: typeof raw });
+        }
+        continue;
+      }
+      const events = raw as GammaEvent[];
       for (const event of events) {
-        for (const market of event.markets || []) {
+        const markets = Array.isArray(event?.markets) ? event.markets : [];
+        for (const market of markets) {
           if (!market.closed) continue;
           const cid = (market.conditionId ?? market.condition_id) as string;
           if (!cid || !/^0x[a-fA-F0-9]{64}$/.test(cid)) continue;
