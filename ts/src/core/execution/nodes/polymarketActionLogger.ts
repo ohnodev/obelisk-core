@@ -40,7 +40,8 @@ export class PolymarketActionLoggerNode extends BaseNode {
       this.resolveEnvVar(this.metadata.max_actions) ??
       this.metadata.max_actions ??
       DEFAULT_MAX_ACTIONS;
-    const maxActions = Math.min(200, Math.max(1, parseInt(String(maxActionsRaw), 10) || DEFAULT_MAX_ACTIONS));
+    const parsed = parseInt(String(maxActionsRaw), 10);
+    const maxActions = Math.min(200, Math.max(1, Number.isNaN(parsed) ? DEFAULT_MAX_ACTIONS : parsed));
 
     const didTrade = orderResult?.success === true && orderResult?.skipped !== true;
     const action: Record<string, unknown> = {
@@ -68,6 +69,7 @@ export class PolymarketActionLoggerNode extends BaseNode {
         logger.warn(`[PolymarketActionLogger] Failed to read ${abbrevPathForLog(actionsPath)}: ${e}`);
       }
     }
+    list = Array.isArray(list) ? list : [];
 
     list.push(action);
     list = list.slice(-maxActions);

@@ -60,7 +60,16 @@ export class PolymarketStatsNode extends BaseNode {
       try {
         const raw = fs.readFileSync(actionsPath, "utf-8");
         const data = JSON.parse(raw);
-        actions = Array.isArray(data) ? data : (data?.actions ?? []);
+        if (Array.isArray(data)) {
+          actions = data;
+        } else if (Array.isArray(data?.actions)) {
+          actions = data.actions;
+        } else {
+          actions = [];
+          if (data !== undefined && data !== null) {
+            logger.warn(`[PolymarketStats] polymarket_actions.json: unexpected JSON shape (actions not array)`);
+          }
+        }
       } catch (err) {
         logger.error(`[PolymarketStats] Failed to read/parse polymarket_actions.json: ${err}`);
       }
