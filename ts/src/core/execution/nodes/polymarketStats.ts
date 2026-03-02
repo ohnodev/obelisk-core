@@ -10,6 +10,8 @@ import { getLogger, abbrevPathForLog } from "../../../utils/logger";
 const logger = getLogger("polymarketStats");
 
 const TRADES_FILE = "polymarket_trades.json";
+const ACTIONS_FILE = "polymarket_actions.json";
+const MAX_ACTIONS_RETURNED = 100;
 
 function computePnl(trades: unknown[]): { grossPnl: number; winCount: number; lossCount: number } {
   let grossPnl = 0;
@@ -53,10 +55,33 @@ export class PolymarketStatsNode extends BaseNode {
     const { grossPnl, winCount, lossCount } = computePnl(trades);
     const lastTrade = trades.length > 0 ? (trades[trades.length - 1] as Record<string, unknown>) : null;
 
+    let actions: unknown[] = [];
+    const actionsPath = path.join(path.dirname(tradesPath), ACTIONS_FILE);
+    if (fs.existsSync(actionsPath)) {
+      try {
+        const raw = fs.readFileSync(actionsPath, "utf-8");
+        const data = JSON.parse(raw);
+        if (Array.isArray(data)) {
+          actions = data;
+        } else if (Array.isArray(data?.actions)) {
+          actions = data.actions;
+        } else {
+          actions = [];
+          if (data !== undefined && data !== null) {
+            logger.warn(`[PolymarketStats] polymarket_actions.json: unexpected JSON shape (actions not array)`);
+          }
+        }
+      } catch (err) {
+        logger.error(`[PolymarketStats] Failed to read/parse polymarket_actions.json: ${err}`);
+      }
+    }
+    const lastActions = actions.slice(-MAX_ACTIONS_RETURNED);
+
     const body = {
       running: true,
       trade_count: trades.length,
       trades,
+      lastActions,
       pnl: {
         grossPnl,
         winCount,

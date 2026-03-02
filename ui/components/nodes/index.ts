@@ -46,6 +46,7 @@ import "./PolymarketSniperEvaluateNode";
 import "./PolymarketOrderNode";
 import "./PolymarketActionNode";
 import "./PolymarketTradeLoggerNode";
+import "./PolymarketActionLoggerNode";
 import "./PolymarketStatusListenerNode";
 import "./PolymarketStatsNode";
 import "./PolymarketTradeOutcomeUpdaterNode";
