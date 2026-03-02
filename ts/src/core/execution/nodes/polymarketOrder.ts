@@ -23,7 +23,11 @@ export class PolymarketOrderNode extends BaseNode {
     if (skip === true || String(skip).trim().toLowerCase() === "true") {
       const skipReason =
         (this.getInputValue("reason", context, undefined) as string | undefined) ?? "no signal (skip)";
-      const out = { success: true, skipped: true, reason: skipReason };
+      const sniperContext = this.getInputValue("sniper_context", context, undefined);
+      const out: Record<string, unknown> = { success: true, skipped: true, reason: skipReason };
+      if (sniperContext && typeof sniperContext === "object") {
+        out.sniper_context = sniperContext;
+      }
       return { ...out, result: out };
     }
 

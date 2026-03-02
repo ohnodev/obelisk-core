@@ -105,11 +105,20 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       timeRemaining > timeWindowMax ||
       Math.abs(distancePct) > DISTANCE_MAX_ABS
     ) {
+      const sniper_context = {
+        not_in_window: {
+          time_remaining_sec: timeRemaining,
+          distance_pct: distancePct,
+          time_window_min_sec: timeWindowMin,
+          time_window_max_sec: timeWindowMax,
+        },
+      };
       return {
         success: true,
         signal: "none",
         skip: true,
         reason: "not in window",
+        sniper_context,
       };
     }
 
@@ -135,6 +144,17 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     }
 
     if (signal === "none") {
+      const sniper_context = {
+        no_signal: {
+          model_p_up: modelPUp,
+          mkt_up: mktUp,
+          mkt_down: mktDown,
+          up_edge: upEdge,
+          down_edge: downEdge,
+          threshold,
+          time_remaining_sec: timeRemaining,
+        },
+      };
       return {
         success: true,
         signal: "none",
@@ -143,6 +163,7 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
         upEdge,
         downEdge,
         threshold,
+        sniper_context,
       };
     }
 

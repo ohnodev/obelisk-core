@@ -22,6 +22,7 @@ class PolymarketSniperEvaluateNode extends LGraphNode {
     this.addOutput("signal", "string");
     this.addOutput("skip", "boolean");
     this.addOutput("reason", "string");
+    this.addOutput("sniper_context", "object");
     this.addOutput("token_id", "string");
     this.addOutput("price", "number");
     this.addOutput("size", "number");
