@@ -43,11 +43,15 @@ export class PolymarketActionLoggerNode extends BaseNode {
     const sniperContextFromOrder = orderResult?.sniper_context as SniperActionContext | undefined;
     const sniperContext = sniperContextDirect ?? sniperContextFromOrder;
 
-    const parseErrorMin = this.getInputValue("parse_error_time_window_min", context, undefined) as string | undefined;
-    const parseErrorMax = this.getInputValue("parse_error_time_window_max", context, undefined) as string | undefined;
+    const parseErrorMinRaw = this.getInputValue("parse_error_time_window_min", context, undefined);
+    const parseErrorMaxRaw = this.getInputValue("parse_error_time_window_max", context, undefined);
     const parseErrors: string[] = [];
-    if (parseErrorMin) parseErrors.push(parseErrorMin);
-    if (parseErrorMax) parseErrors.push(parseErrorMax);
+    if (parseErrorMinRaw !== undefined && parseErrorMinRaw !== null) {
+      parseErrors.push(String(parseErrorMinRaw));
+    }
+    if (parseErrorMaxRaw !== undefined && parseErrorMaxRaw !== null) {
+      parseErrors.push(String(parseErrorMaxRaw));
+    }
 
     const maxActionsRaw =
       this.getInputValue("max_actions", context, undefined) ??
