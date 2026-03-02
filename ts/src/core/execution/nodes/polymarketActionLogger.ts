@@ -31,7 +31,6 @@ export class PolymarketActionLoggerNode extends BaseNode {
     }
 
     const orderResult = this.getInputValue("order_result", context, undefined) as Record<string, unknown> | undefined;
-    const skip = this.getInputValue("skip", context, true);
     const evaluateReason = this.getInputValue("reason", context, undefined) as string | undefined;
     const orderReason = orderResult?.reason as string | undefined;
     const signalRaw = this.getInputValue("signal", context, undefined);
@@ -71,7 +70,7 @@ export class PolymarketActionLoggerNode extends BaseNode {
     }
 
     list.push(action);
-    list = (list as unknown[]).slice(-maxActions);
+    list = list.slice(-maxActions);
 
     try {
       ensureDir(actionsPath);

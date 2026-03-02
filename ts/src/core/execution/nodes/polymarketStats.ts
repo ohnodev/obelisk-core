@@ -65,7 +65,7 @@ export class PolymarketStatsNode extends BaseNode {
         logger.error(`[PolymarketStats] Failed to read/parse polymarket_actions.json: ${err}`);
       }
     }
-    const lastActions = (actions as unknown[]).slice(-100);
+    const lastActions = actions.slice(-100);
 
     const body = {
       running: true,
