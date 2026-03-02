@@ -23,6 +23,7 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
   const isDeserializingRef = useRef(false);
   const initialWorkflowLoadedRef = useRef(false);
   const deserializingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const centerAndFitGraphRafRef = useRef<number | null>(null);
   const [nodeMenuVisible, setNodeMenuVisible] = useState(false);
   const [nodeMenuPosition, setNodeMenuPosition] = useState({ x: 0, y: 0 });
 
@@ -259,7 +260,13 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       if (!canvasEl) return;
       const rect = canvasEl.getBoundingClientRect();
       if ((rect.width <= 0 || rect.height <= 0) && retryCount > 0) {
-        requestAnimationFrame(() => centerAndFitGraph(g, gCanvas, retryCount - 1));
+        if (centerAndFitGraphRafRef.current != null) {
+          cancelAnimationFrame(centerAndFitGraphRafRef.current);
+        }
+        centerAndFitGraphRafRef.current = requestAnimationFrame(() => {
+          centerAndFitGraphRafRef.current = null;
+          centerAndFitGraph(g, gCanvas, retryCount - 1);
+        });
         return;
       }
       if (rect.width <= 0 || rect.height <= 0) return;
@@ -377,6 +384,10 @@ export default function Canvas({ onWorkflowChange, initialWorkflow, onExecute }:
       if (deserializingTimeoutRef.current) {
         clearTimeout(deserializingTimeoutRef.current);
         deserializingTimeoutRef.current = null;
+      }
+      if (centerAndFitGraphRafRef.current != null) {
+        cancelAnimationFrame(centerAndFitGraphRafRef.current);
+        centerAndFitGraphRafRef.current = null;
       }
       resizeObserver.disconnect();
       canvasElement.removeEventListener("contextmenu", handleCanvasRightClick);
