@@ -35,6 +35,7 @@ export interface BtcPricePoint {
 }
 
 let ws: WebSocket | null = null;
+let chainlinkProvider: ethers.providers.JsonRpcProvider | null = null;
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 let healthTimer: ReturnType<typeof setInterval> | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -105,12 +106,20 @@ function normalizeTimestampToSec(ts: number): number {
   return ts > 1_000_000_000_000 ? ts / 1000 : ts;
 }
 
-/** Try Chainlink on-chain (second fallback — same source as Polymarket). */
-async function fetchChainlinkPrice(): Promise<number | null> {
+function getChainlinkProvider(): ethers.providers.JsonRpcProvider | null {
   const rpc = process.env.POLYGON_RPC_URL;
   if (!rpc) return null;
+  if (!chainlinkProvider) {
+    chainlinkProvider = new ethers.providers.JsonRpcProvider(rpc);
+  }
+  return chainlinkProvider;
+}
+
+/** Try Chainlink on-chain (second fallback — same source as Polymarket). */
+async function fetchChainlinkPrice(): Promise<number | null> {
+  const provider = getChainlinkProvider();
+  if (!provider) return null;
   try {
-    const provider = new ethers.providers.JsonRpcProvider(rpc);
     const feed = new ethers.Contract(CHAINLINK_BTC_USD_POLYGON, CHAINLINK_ABI, provider);
     const [, answer, , updatedAt] = await feed.latestRoundData();
     const decimals = await feed.decimals();
@@ -302,6 +311,7 @@ export function startBtcPriceSocket(): void {
 export function stopBtcPriceSocket(): void {
   running = false;
   reconnectAttempts = 0;
+  chainlinkProvider = null;
   if (saveTimer) { clearInterval(saveTimer); saveTimer = null; }
   saveToDisk();
   cleanup();

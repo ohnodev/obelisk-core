@@ -3,6 +3,8 @@
  * conditionId, clobTokenIds, outcomePrices to build resolvedPositions.
  * Run: npx tsx scripts/test-gamma-resolution.ts
  */
+import { parseStringOrArray } from '../src/utils/parseStringOrArray.js';
+
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 
 function recentWindowTimestamps(): number[] {
@@ -37,23 +39,12 @@ async function main() {
         const cid = (market.conditionId ?? market.condition_id) as string;
         if (!cid || !/^0x[a-fA-F0-9]{64}$/.test(cid)) continue;
 
-        const outcomePricesRaw = market.outcomePrices;
-        const clobTokenIdsRaw = market.clobTokenIds;
-
-        const outcomePrices: string[] =
-          typeof outcomePricesRaw === 'string'
-            ? (JSON.parse(outcomePricesRaw) as string[])
-            : Array.isArray(outcomePricesRaw)
-              ? (outcomePricesRaw as string[])
-              : [];
-        const clobTokenIds: string[] =
-          typeof clobTokenIdsRaw === 'string'
-            ? (JSON.parse(clobTokenIdsRaw) as string[])
-            : Array.isArray(clobTokenIdsRaw)
-              ? (clobTokenIdsRaw as string[])
-              : [];
-
-        const winningIdx = outcomePrices.findIndex((p) => p === '1');
+        const outcomePrices = parseStringOrArray(market.outcomePrices);
+        const clobTokenIds = parseStringOrArray(market.clobTokenIds);
+        const winningIdx = outcomePrices.findIndex((p) => {
+          const n = Number(parseFloat(String(p).trim()));
+          return !Number.isNaN(n) && n === 1;
+        });
         const winningTokenId = winningIdx >= 0 && clobTokenIds[winningIdx] ? clobTokenIds[winningIdx] : null;
 
         console.log(`  conditionId: ${cid}`);

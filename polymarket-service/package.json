@@ -12,7 +12,8 @@
     "reset-nonce": "tsx scripts/reset-nonce.ts",
     "test-trading-flow": "tsx scripts/test-trading-flow.ts",
     "diagnose-clob-api-key": "tsx scripts/diagnose-clob-api-key.ts",
-    "trace-trade-resolution": "tsx scripts/trace-trade-resolution.ts"
+    "trace-trade-resolution": "tsx scripts/trace-trade-resolution.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@polymarket/clob-client": "^5.2.1",
@@ -28,6 +29,7 @@
     "@types/node": "^20.10.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^2.0.0"
   }
 }

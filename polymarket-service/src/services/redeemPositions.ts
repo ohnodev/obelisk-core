@@ -6,6 +6,7 @@
  */
 
 import { ethers } from 'ethers';
+import { parseStringOrArray } from '../utils/parseStringOrArray.js';
 import { TransactionService, isGasPriceError, isNoPositionError } from './transactionService.js';
 
 const DATA_API = 'https://data-api.polymarket.com';
@@ -146,21 +147,12 @@ function recentWindowTimestamps(): number[] {
 /** Parse outcomePrices and clobTokenIds from Gamma market to get winning token ID. */
 function parseWinningTokenId(market: GammaMarket): string | null {
   try {
-    const outcomePricesRaw = market.outcomePrices;
-    const clobTokenIdsRaw = market.clobTokenIds;
-    const outcomePrices: string[] =
-      typeof outcomePricesRaw === 'string'
-        ? (JSON.parse(outcomePricesRaw) as string[])
-        : Array.isArray(outcomePricesRaw)
-          ? (outcomePricesRaw as string[])
-          : [];
-    const clobTokenIds: string[] =
-      typeof clobTokenIdsRaw === 'string'
-        ? (JSON.parse(clobTokenIdsRaw) as string[])
-        : Array.isArray(clobTokenIdsRaw)
-          ? (clobTokenIdsRaw as string[])
-          : [];
-    const winningIdx = outcomePrices.findIndex((p) => p === '1');
+    const outcomePrices = parseStringOrArray(market.outcomePrices);
+    const clobTokenIds = parseStringOrArray(market.clobTokenIds);
+    const winningIdx = outcomePrices.findIndex((p) => {
+      const n = Number(parseFloat(String(p).trim()));
+      return !Number.isNaN(n) && n === 1;
+    });
     if (winningIdx >= 0 && clobTokenIds[winningIdx]) return clobTokenIds[winningIdx];
   } catch {
     // malformed JSON or missing fields
