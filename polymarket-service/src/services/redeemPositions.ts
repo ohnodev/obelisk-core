@@ -228,7 +228,9 @@ export async function runHousekeeping(pk: string): Promise<{
     console.log(`[Redeem] Data API: ${conditionIds.length} redeemable position(s) for ${signer.address.slice(0, 10)}…`);
   } else {
     const gamma = await fetchResolvedFromGamma();
-    conditionIds = gamma.conditionIds;
+    if (conditionIds.length === 0) {
+      conditionIds = gamma.conditionIds;
+    }
     conditionIdToResolution = gamma.conditionIdToResolution;
     resolvedPositions = [];
     if (conditionIds.length > 0) {

@@ -15,6 +15,7 @@ describe('parseStringOrArray', () => {
   it('parses JSON string to array', () => {
     expect(parseStringOrArray('["a","b"]')).toEqual(['a', 'b']);
     expect(parseStringOrArray('["1","0"]')).toEqual(['1', '0']);
+    expect(parseStringOrArray('["a",1,null,"b"]')).toEqual(['a', 'b']);
     expect(parseStringOrArray('[]')).toEqual([]);
   });
 
@@ -28,8 +29,9 @@ describe('parseStringOrArray', () => {
     expect(parseStringOrArray('123')).toEqual([]);
   });
 
-  it('returns only string elements from mixed array', () => {
+  it('returns only string elements from mixed array (direct-array and JSON-string branches)', () => {
     expect(parseStringOrArray(['a', 1, null, 'b'])).toEqual(['a', 'b']);
+    expect(parseStringOrArray('["a",1,null,"b"]')).toEqual(['a', 'b']);
     expect(parseStringOrArray(['1', 0, undefined, '0'])).toEqual(['1', '0']);
   });
 
