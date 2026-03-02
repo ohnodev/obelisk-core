@@ -17,7 +17,7 @@ class IntNode extends LGraphNode {
     this.addProperty("value", "{{process.env.EXAMPLE_INT}}", "string");
     (this as any)._value_widget = this.addWidget("string", "value", "0", () => {}, { serialize: true });
 
-    this.size = [200, 90];
+    this.size = [300, 90];
     (this as any).type = "int";
     (this as any).resizable = true;
   }
