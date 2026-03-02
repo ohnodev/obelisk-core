@@ -5,9 +5,7 @@ import { asString } from "./polymarketShared";
 const logger = getLogger("polymarketSniperEvaluate");
 
 const MIN_ORDER_SHARES = 5;
-const LATE_SNIPER_TIME_MAX = 60;
-const LATE_SNIPER_EDGE_AT_60S = 0.3;
-const LATE_SNIPER_EDGE_AT_0S = 0.15;
+const ROUND_DURATION_SEC = 300; // Polymarket 5-min window
 const DISTANCE_MAX_ABS = 0.1;
 
 function toNum(v: unknown): number {
@@ -16,10 +14,18 @@ function toNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function lateSniperThreshold(timeRemainingSec: number): number {
-  const t = Math.max(0, Math.min(LATE_SNIPER_TIME_MAX, timeRemainingSec));
-  const frac = t / LATE_SNIPER_TIME_MAX;
-  return LATE_SNIPER_EDGE_AT_60S * frac + LATE_SNIPER_EDGE_AT_0S * (1 - frac);
+/** Gradient edge threshold: at t_high seconds left use edge_high, at t_low seconds left use edge_low, interpolate. */
+function lateSniperThreshold(
+  timeRemainingSec: number,
+  timeHighSec: number,
+  timeLowSec: number,
+  edgeAtTMinusHigh: number,
+  edgeAtTMinusLow: number
+): number {
+  if (timeHighSec <= timeLowSec) return edgeAtTMinusLow;
+  const t = Math.max(timeLowSec, Math.min(timeHighSec, timeRemainingSec));
+  const frac = (t - timeLowSec) / (timeHighSec - timeLowSec);
+  return edgeAtTMinusLow + (edgeAtTMinusHigh - edgeAtTMinusLow) * frac;
 }
 
 export class PolymarketSniperEvaluateNode extends BaseNode {
@@ -68,7 +74,49 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           this.resolveEnvVar(this.metadata.time_window_max_sec) ??
           this.metadata.time_window_max_sec ??
           process.env.POLYMARKET_TIME_WINDOW_MAX_SEC
-      ) ?? 60;
+      ) ?? ROUND_DURATION_SEC;
+
+    const roundDurationSec =
+      toNum(
+        this.getInputValue("round_duration_sec", context, undefined) ??
+          this.resolveEnvVar(this.metadata.round_duration_sec) ??
+          process.env.POLYMARKET_ROUND_DURATION_SEC
+      ) || ROUND_DURATION_SEC;
+
+    const lateSniperTimeHighSec =
+      toNum(
+        this.getInputValue("late_sniper_time_high_sec", context, undefined) ??
+          this.resolveEnvVar(this.metadata.late_sniper_time_high_sec) ??
+          process.env.POLYMARKET_LATE_SNIPER_TIME_HIGH_SEC
+      ) || 60;
+
+    const lateSniperTimeLowSec =
+      toNum(
+        this.getInputValue("late_sniper_time_low_sec", context, undefined) ??
+          this.resolveEnvVar(this.metadata.late_sniper_time_low_sec) ??
+          process.env.POLYMARKET_LATE_SNIPER_TIME_LOW_SEC
+      ) || 10;
+
+    const lateSniperEdgeAtTMinus60 =
+      toNum(
+        this.getInputValue("late_sniper_edge_at_t_minus_60s", context, undefined) ??
+          this.resolveEnvVar(this.metadata.late_sniper_edge_at_t_minus_60s) ??
+          process.env.POLYMARKET_LATE_SNIPER_EDGE_AT_T_MINUS_60S
+      ) || 0.3;
+
+    const lateSniperEdgeAtTMinus10 =
+      toNum(
+        this.getInputValue("late_sniper_edge_at_t_minus_10s", context, undefined) ??
+          this.resolveEnvVar(this.metadata.late_sniper_edge_at_t_minus_10s) ??
+          process.env.POLYMARKET_LATE_SNIPER_EDGE_AT_T_MINUS_10S
+      ) || 0.15;
+
+    // time_window_min/max are "seconds INTO the round"; timeRemaining is seconds LEFT
+    // seconds_into = roundDuration - timeRemaining
+    // We need: timeWindowMin <= seconds_into <= timeWindowMax
+    // => roundDuration - timeWindowMax <= timeRemaining <= roundDuration - timeWindowMin
+    const minRemainingAllowed = Math.max(0, roundDurationSec - timeWindowMax);
+    const maxRemainingAllowed = roundDurationSec - timeWindowMin;
 
     const useMarketOrderRaw =
       this.getInputValue("use_market_order", context, undefined) ??
@@ -117,16 +165,18 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
     const downTokenId = asString(current.downTokenId ?? current.down_token_id ?? current.noTokenId ?? current.no_token_id ?? "");
 
     if (
-      timeRemaining < timeWindowMin ||
-      timeRemaining > timeWindowMax ||
+      timeRemaining < minRemainingAllowed ||
+      timeRemaining > maxRemainingAllowed ||
       Math.abs(distancePct) > DISTANCE_MAX_ABS
     ) {
       const sniper_context = {
         not_in_window: {
           time_remaining_sec: timeRemaining,
+          seconds_into_round: roundDurationSec - timeRemaining,
           distance_pct: distancePct,
           time_window_min_sec: timeWindowMin,
           time_window_max_sec: timeWindowMax,
+          round_duration_sec: roundDurationSec,
         },
       };
       return {
@@ -140,7 +190,16 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
 
     const upEdge = modelPUp - mktUp;
     const downEdge = 1 - modelPUp - mktDown;
-    const threshold = Math.max(edgeThreshold, lateSniperThreshold(timeRemaining));
+    const threshold = Math.max(
+      edgeThreshold,
+      lateSniperThreshold(
+        timeRemaining,
+        lateSniperTimeHighSec,
+        lateSniperTimeLowSec,
+        lateSniperEdgeAtTMinus60,
+        lateSniperEdgeAtTMinus10
+      )
+    );
 
     let signal: "buy_up" | "buy_down" | "none" = "none";
     let tokenId = "";
