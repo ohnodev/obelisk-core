@@ -6,6 +6,7 @@ export { InferenceConfigNode } from "./inferenceConfig";
 export { InferenceNode, InferenceClient } from "./inference";
 export { BinaryIntentNode } from "./binaryIntent";
 export { TextNode } from "./text";
+export { IntNode } from "./int";
 export { MemoryStorageNode } from "./memoryStorage";
 export { MemorySelectorNode } from "./memorySelector";
 export { MemoryCreatorNode } from "./memoryCreator";

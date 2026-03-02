@@ -1,5 +1,6 @@
 // Import all node types to register them with Litegraph
 import "./TextNode";
+import "./IntNode";
 import "./InferenceConfigNode"; // Replaces ModelLoaderNode — configures inference service endpoint
 import "./MemoryStorageNode";
 import "./MemorySelectorNode";

@@ -43,6 +43,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Text",
         description: "Text input/output node with textarea",
       },
+      {
+        type: "int",
+        title: "Int",
+        description: "Integer from env or literal; parses, trims, outputs number or error",
+      },
     ],
   },
   {
