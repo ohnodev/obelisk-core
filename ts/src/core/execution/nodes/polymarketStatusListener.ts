@@ -40,7 +40,7 @@ export class PolymarketStatusListenerNode extends BaseNode {
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
     const meta = this.metadata;
-    const defaultPort = 8082;
+    const defaultPort = 8081;
     const rawPort = meta.port ?? process.env.POLYMARKET_STATS_PORT ?? defaultPort;
     const numPort = Number(rawPort);
     const valid =
