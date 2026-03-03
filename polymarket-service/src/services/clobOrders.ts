@@ -76,13 +76,16 @@ async function getClient(pk: string): Promise<ClobClient> {
   let pending = credFetchLocks.get(key);
   if (!pending) {
     pending = (async () => {
-      const clobUrl = getClobUrl();
-      const signer = new ethers.Wallet(key);
-      const apiCreds = await getApiCredentials(key);
-      const c = new ClobClient(clobUrl, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
-      clientCache.set(key, c);
-      credFetchLocks.delete(key);
-      return c;
+      try {
+        const clobUrl = getClobUrl();
+        const signer = new ethers.Wallet(key);
+        const apiCreds = await getApiCredentials(key);
+        const c = new ClobClient(clobUrl, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
+        clientCache.set(key, c);
+        return c;
+      } finally {
+        credFetchLocks.delete(key);
+      }
     })();
     credFetchLocks.set(key, pending);
   }

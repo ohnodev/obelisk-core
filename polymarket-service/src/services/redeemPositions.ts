@@ -8,7 +8,7 @@
  * and skipped on future runs to avoid redundant txs. Survives restarts via JSON file.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, openSync, fsyncSync, closeSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { ethers } from 'ethers';
 import { parseStringOrArray } from '../utils/parseStringOrArray.js';
@@ -49,7 +49,21 @@ function loadRedeemedFromDisk(): void {
     }
     console.log(`[Redeem] Loaded ${Array.from(redeemedByUser.values()).reduce((s, m) => s + m.size, 0)} redeemed condition(s) for ${redeemedByUser.size} user(s)`);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+    const err = e as NodeJS.ErrnoException;
+    if (err?.code === 'ENOENT') {
+      const dir = join(process.cwd(), 'data');
+      mkdirSync(dir, { recursive: true });
+      try {
+        const tmpPath = REDEEMED_FILE + '.tmp';
+        writeFileSync(tmpPath, '{}', 'utf-8');
+        const fd = openSync(tmpPath, 'r');
+        fsyncSync(fd);
+        closeSync(fd);
+        renameSync(tmpPath, REDEEMED_FILE);
+      } catch (writeErr) {
+        console.warn('[Redeem] Failed to create redeemed-conditions.json:', writeErr instanceof Error ? writeErr.message : String(writeErr));
+      }
+    } else {
       console.warn('[Redeem] Failed to load redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
     }
   }
@@ -67,7 +81,13 @@ function saveRedeemedToDisk(): void {
         .slice(0, MAX_REDEEMED_PER_USER);
       if (entries.length > 0) data[addr] = entries;
     }
-    writeFileSync(REDEEMED_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const json = JSON.stringify(data, null, 2);
+    const tmpPath = REDEEMED_FILE + '.tmp';
+    writeFileSync(tmpPath, json, 'utf-8');
+    const fd = openSync(tmpPath, 'r');
+    fsyncSync(fd);
+    closeSync(fd);
+    renameSync(tmpPath, REDEEMED_FILE);
   } catch (e) {
     console.warn('[Redeem] Failed to persist redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
   }
