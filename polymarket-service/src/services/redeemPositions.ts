@@ -125,8 +125,16 @@ function addRedeemed(userAddress: string, conditionId: string): void {
 
 function filterByRedeemed(userAddress: string, conditionIds: string[]): string[] {
   const m = redeemedByUser.get(userAddress.toLowerCase());
-  if (!m) return conditionIds;
-  return conditionIds.filter((cid) => !m.has(cid.toLowerCase()));
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const cid of conditionIds) {
+    const low = cid.toLowerCase();
+    if (seen.has(low)) continue;
+    seen.add(low);
+    if (m?.has(low)) continue;
+    result.push(low);
+  }
+  return result;
 }
 
 // Load on module init
