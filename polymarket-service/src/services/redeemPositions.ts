@@ -52,7 +52,12 @@ function loadRedeemedFromDisk(): void {
     const err = e as NodeJS.ErrnoException;
     if (err?.code === 'ENOENT') {
       const dir = join(process.cwd(), 'data');
-      mkdirSync(dir, { recursive: true });
+      try {
+        mkdirSync(dir, { recursive: true });
+      } catch (mkdirErr) {
+        console.warn('[Redeem] Failed to create data dir:', mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr));
+        return;
+      }
       try {
         const tmpPath = REDEEMED_FILE + '.tmp';
         writeFileSync(tmpPath, '{}', 'utf-8');
@@ -132,7 +137,7 @@ function filterByRedeemed(userAddress: string, conditionIds: string[]): string[]
     if (seen.has(low)) continue;
     seen.add(low);
     if (m?.has(low)) continue;
-    result.push(low);
+    result.push(cid);
   }
   return result;
 }
