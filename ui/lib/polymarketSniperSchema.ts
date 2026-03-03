@@ -1,6 +1,6 @@
 /**
  * Polymarket Sniper Action schema – mirrors backend ts/src/types/polymarketSniper.ts.
- * Used for typing lastActions from /polymarket/stats and polymarket_actions.json.
+ * Used for typing lastActions from /stats and polymarket_actions.json.
  * Frontend can use these types for parsing and building visual cues (edge gauges, animations).
  */
 export const POLYMARKET_SNIPER_ACTION_SCHEMA_VERSION = 1;

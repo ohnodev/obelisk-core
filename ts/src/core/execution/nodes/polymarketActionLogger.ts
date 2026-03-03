@@ -1,6 +1,6 @@
 /**
  * PolymarketActionLoggerNode – logs every sniper tick (trade or no-action) for stats visibility.
- * Writes to polymarket_actions.json. Enables /polymarket/stats to show lastActions so users see activity
+ * Writes to polymarket_actions.json. Enables /stats to show lastActions so users see activity
  * even when no trade occurs. Uses PolymarketSniperAction schema for frontend parsing and visual cues.
  */
 import fs from "fs";

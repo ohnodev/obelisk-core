@@ -1,6 +1,6 @@
 /**
  * Schema for Polymarket Sniper actions.
- * Used by polymarket_actions.json and /polymarket/stats lastActions.
+ * Used by polymarket_actions.json and /stats lastActions.
  * Designed for frontend parsing and visual cues (e.g. edge gauges, animations).
  */
 export const POLYMARKET_SNIPER_ACTION_SCHEMA_VERSION = 1;

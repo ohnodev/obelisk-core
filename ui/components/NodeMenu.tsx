@@ -266,7 +266,7 @@ const NODE_CATEGORIES: NodeCategory[] = [
       {
         type: "polymarket_status_listener",
         title: "Polymarket Status Listener",
-        description: "GET /polymarket/stats. Connect Express Service; hook to Polymarket Stats + HTTP Response",
+        description: "GET /stats. Connect Express Service; hook to Polymarket Stats + HTTP Response",
       },
       {
         type: "polymarket_stats",

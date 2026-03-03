@@ -21,7 +21,7 @@
       "type": "polymarket_status_listener",
       "position": { "x": -1072, "y": -83 },
       "inputs": {},
-      "metadata": { "port": 8082 }
+      "metadata": { "port": 8081 }
     },
     {
       "id": "17",
@@ -38,7 +38,7 @@
       "type": "express_service",
       "position": { "x": -1495, "y": 23 },
       "inputs": {},
-      "metadata": { "port": 8082, "host": "0.0.0.0" }
+      "metadata": { "port": 8081, "host": "0.0.0.0" }
     },
     {
       "id": "16",

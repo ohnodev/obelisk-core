@@ -1,6 +1,6 @@
 /**
  * PolymarketStatusListenerNode – HTTP listener for polymarket stats (status, trades, PnL).
- * Queues GET requests on /polymarket/stats (and legacy /polymarket/status, /polymarket/trades, /polymarket/pnl),
+ * Queues GET requests on /stats,
  * emits request_id via onTick, and lets PolymarketStats + HttpResponse send the response.
  * Uses HttpRequestRegistry. If connected to express_service, registers on shared app.
  *
@@ -40,9 +40,10 @@ export class PolymarketStatusListenerNode extends BaseNode {
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
     const meta = this.metadata;
-    const defaultPort = 8082;
-    const rawPort = meta.port ?? process.env.POLYMARKET_STATS_PORT ?? defaultPort;
-    const numPort = Number(rawPort);
+    const defaultPort = 8081;
+    const resolvedPort =
+      this.resolveEnvVar(meta.port) ?? meta.port ?? process.env.POLYMARKET_STATS_PORT ?? defaultPort;
+    const numPort = Number(resolvedPort);
     const valid =
       Number.isFinite(numPort) &&
       Number.isInteger(numPort) &&
@@ -107,10 +108,7 @@ export class PolymarketStatusListenerNode extends BaseNode {
   }
 
   private registerRoutes(app: express.Application): void {
-    app.get("/polymarket/stats", (req, res) => this.queueRequest(req, res));
-    app.get("/polymarket/status", (req, res) => this.queueRequest(req, res));
-    app.get("/polymarket/trades", (req, res) => this.queueRequest(req, res));
-    app.get("/polymarket/pnl", (req, res) => this.queueRequest(req, res));
+    app.get("/stats", (req, res) => this.queueRequest(req, res));
     app.get("/health", (_req, res) => {
       res.json({ status: "healthy", node_id: this.nodeId, type: "polymarket_status" });
     });
@@ -134,7 +132,7 @@ export class PolymarketStatusListenerNode extends BaseNode {
       this._app = sharedApp;
       this.registerRoutes(sharedApp);
       logger.info(
-        `[PolymarketStatusListener ${this.nodeId}] Registered /polymarket/* on shared Express`
+        `[PolymarketStatusListener ${this.nodeId}] Registered /stats on shared Express`
       );
       return;
     }
@@ -154,7 +152,7 @@ export class PolymarketStatusListenerNode extends BaseNode {
       try {
         this._server = this._app!.listen(this._port, "0.0.0.0", () => {
           logger.info(
-            `[PolymarketStatusListener ${this.nodeId}] /polymarket/* listening on 0.0.0.0:${this._port}`
+            `[PolymarketStatusListener ${this.nodeId}] /stats listening on 0.0.0.0:${this._port}`
           );
           resolve();
         });

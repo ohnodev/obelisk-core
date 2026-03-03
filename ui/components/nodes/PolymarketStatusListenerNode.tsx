@@ -5,7 +5,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 class PolymarketStatusListenerNode extends LGraphNode {
   static title = "Polymarket Status Listener";
   static desc =
-    "GET /polymarket/stats for dashboard. Connect Express Service; connect to Polymarket Stats + HTTP Response.";
+    "GET /stats for dashboard. Connect Express Service; connect to Polymarket Stats + HTTP Response.";
   static title_color = "#2d7ff9";
 
   constructor() {
@@ -24,14 +24,14 @@ class PolymarketStatusListenerNode extends LGraphNode {
     (this as any).type = "polymarket_status_listener";
     (this as any).resizable = true;
 
-    this.addProperty("port", 8082, "number");
+    this.addProperty("port", 8081, "number");
     this.addWidget(
       "number" as any,
       "port",
-      8082,
+      8081,
       (value: number) => {
         const num = Number(value);
-        const port = Number.isFinite(num) ? Math.max(1, Math.min(65535, Math.floor(num))) : 8082;
+        const port = Number.isFinite(num) ? Math.max(1, Math.min(65535, Math.floor(num))) : 8081;
         this.setProperty("port", port);
       },
       { min: 1, max: 65535, step: 1, serialize: true, property: "port" } as any
