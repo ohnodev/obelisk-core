@@ -4,11 +4,12 @@
  * then redeems via CTF. Falls back to Gamma (closed btc-updown-5m markets) if Data API
  * returns nothing. Uses TransactionService for gas, timeouts, nonce recovery.
  *
- * Cooldown: condition IDs we successfully redeemed are skipped for REDEEM_COOLDOWN_MS
- * to avoid redundant attempts when the scheduler fires again before Data API updates
- * (Gamma always returns closed markets; it doesn't know we already redeemed).
+ * Deduplication: condition IDs we successfully redeemed are persisted per user (up to 1k)
+ * and skipped on future runs to avoid redundant txs. Survives restarts via JSON file.
  */
 
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { ethers } from 'ethers';
 import { parseStringOrArray } from '../utils/parseStringOrArray.js';
 import { TransactionService, isGasPriceError, isNoPositionError } from './transactionService.js';
@@ -16,17 +17,92 @@ import { TransactionService, isGasPriceError, isNoPositionError } from './transa
 const DATA_API = 'https://data-api.polymarket.com';
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 const USDC_E = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
-/** Skip condition IDs we redeemed in the last 10 min to avoid duplicate attempts when scheduler re-fires. */
-const REDEEM_COOLDOWN_MS = 10 * 60 * 1000;
+const MAX_REDEEMED_PER_USER = 1000;
+const PERSIST_INTERVAL_MS = 60 * 1000; // once per minute
 
-/** conditionId -> timestamp when we successfully redeemed it. Pruned on use. */
-const recentlyRedeemed = new Map<string, number>();
+const REDEEMED_FILE = join(process.cwd(), 'data', 'redeemed-conditions.json');
+
+/** userAddress (lowercase) -> conditionId -> redeemedAt */
+const redeemedByUser = new Map<string, Map<string, number>>();
+let persistTimer: ReturnType<typeof setInterval> | null = null;
 const CTF_EXCHANGE = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045';
 const PARENT_COLLECTION_ID = '0x' + '00'.repeat(32);
 const WINDOWS_TO_CHECK = 12;
 const CTF_ABI = [
   'function redeemPositions(address collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] indexSets)',
 ];
+
+function loadRedeemedFromDisk(): void {
+  try {
+    const raw = readFileSync(REDEEMED_FILE, 'utf-8');
+    const data = JSON.parse(raw) as Record<string, Array<{ conditionId: string; redeemedAt: number }>>;
+    redeemedByUser.clear();
+    for (const [addr, entries] of Object.entries(data)) {
+      if (!addr || !Array.isArray(entries)) continue;
+      const m = new Map<string, number>();
+      for (const e of entries) {
+        if (e?.conditionId && typeof e.redeemedAt === 'number') {
+          m.set(e.conditionId, e.redeemedAt);
+        }
+      }
+      if (m.size > 0) redeemedByUser.set(addr.toLowerCase(), m);
+    }
+    console.log(`[Redeem] Loaded ${Array.from(redeemedByUser.values()).reduce((s, m) => s + m.size, 0)} redeemed condition(s) for ${redeemedByUser.size} user(s)`);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      console.warn('[Redeem] Failed to load redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
+    }
+  }
+}
+
+function saveRedeemedToDisk(): void {
+  try {
+    const dir = join(process.cwd(), 'data');
+    mkdirSync(dir, { recursive: true });
+    const data: Record<string, Array<{ conditionId: string; redeemedAt: number }>> = {};
+    for (const [addr, m] of redeemedByUser) {
+      const entries = Array.from(m.entries())
+        .map(([conditionId, redeemedAt]) => ({ conditionId, redeemedAt }))
+        .sort((a, b) => b.redeemedAt - a.redeemedAt)
+        .slice(0, MAX_REDEEMED_PER_USER);
+      if (entries.length > 0) data[addr] = entries;
+    }
+    writeFileSync(REDEEMED_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('[Redeem] Failed to persist redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
+  }
+}
+
+function ensurePersistTimer(): void {
+  if (persistTimer) return;
+  persistTimer = setInterval(saveRedeemedToDisk, PERSIST_INTERVAL_MS);
+  persistTimer.unref?.();
+}
+
+function addRedeemed(userAddress: string, conditionId: string): void {
+  const addr = userAddress.toLowerCase();
+  let m = redeemedByUser.get(addr);
+  if (!m) {
+    m = new Map();
+    redeemedByUser.set(addr, m);
+  }
+  m.set(conditionId, Date.now());
+  if (m.size > MAX_REDEEMED_PER_USER) {
+    const sorted = Array.from(m.entries()).sort((a, b) => a[1] - b[1]);
+    const toDel = sorted.slice(0, m.size - MAX_REDEEMED_PER_USER);
+    for (const [cid] of toDel) m.delete(cid);
+  }
+  ensurePersistTimer();
+}
+
+function filterByRedeemed(userAddress: string, conditionIds: string[]): string[] {
+  const m = redeemedByUser.get(userAddress.toLowerCase());
+  if (!m) return conditionIds;
+  return conditionIds.filter((cid) => !m.has(cid));
+}
+
+// Load on module init
+loadRedeemedFromDisk();
 
 interface DataApiPosition {
   conditionId?: string;
@@ -143,18 +219,6 @@ async function fetchRedeemableFromDataApi(
   }
 }
 
-function filterByCooldown(conditionIds: string[]): string[] {
-  const now = Date.now();
-  const cutoff = now - REDEEM_COOLDOWN_MS;
-  for (const [cid, ts] of Array.from(recentlyRedeemed)) {
-    if (ts < cutoff) recentlyRedeemed.delete(cid);
-  }
-  return conditionIds.filter((cid) => {
-    const redeemedAt = recentlyRedeemed.get(cid);
-    return !redeemedAt || redeemedAt < cutoff;
-  });
-}
-
 function recentWindowTimestamps(): number[] {
   const now = Math.floor(Date.now() / 1000);
   const currentWindow = Math.floor(now / 300) * 300;
@@ -267,11 +331,11 @@ export async function runHousekeeping(pk: string): Promise<{
     }
   }
 
-  // Skip condition IDs we recently redeemed to avoid duplicate txs when scheduler re-fires
+  // Skip condition IDs we already redeemed (persisted per user; survives restarts)
   const beforeFilter = conditionIds.length;
-  conditionIds = filterByCooldown(conditionIds);
+  conditionIds = filterByRedeemed(signer.address, conditionIds);
   if (beforeFilter > conditionIds.length) {
-    console.log(`[Redeem] Skipped ${beforeFilter - conditionIds.length} recently-redeemed condition(s) (cooldown ${REDEEM_COOLDOWN_MS / 60_000}min)`);
+    console.log(`[Redeem] Skipped ${beforeFilter - conditionIds.length} already-redeemed condition(s) for ${signer.address.slice(0, 10)}…`);
   }
 
   let redeemed = 0;
@@ -297,7 +361,7 @@ export async function runHousekeeping(pk: string): Promise<{
       });
       redeemed++;
       redeemedConditionIds.push(conditionId);
-      recentlyRedeemed.set(conditionId, Date.now());
+      addRedeemed(signer.address, conditionId);
       console.log(
         `[Redeem] REDEEMED condition=${conditionId.slice(0, 10)}…${conditionId.slice(-8)} tx=${result.txHash}`,
       );
