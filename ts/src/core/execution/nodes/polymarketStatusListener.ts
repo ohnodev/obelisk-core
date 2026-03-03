@@ -107,6 +107,7 @@ export class PolymarketStatusListenerNode extends BaseNode {
   }
 
   private registerRoutes(app: express.Application): void {
+    app.get("/stats", (req, res) => this.queueRequest(req, res)); // alias for Obelisk Service autotrader-stats proxy
     app.get("/polymarket/stats", (req, res) => this.queueRequest(req, res));
     app.get("/polymarket/status", (req, res) => this.queueRequest(req, res));
     app.get("/polymarket/trades", (req, res) => this.queueRequest(req, res));
