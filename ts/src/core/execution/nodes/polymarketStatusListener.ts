@@ -41,8 +41,9 @@ export class PolymarketStatusListenerNode extends BaseNode {
     super(nodeId, nodeData);
     const meta = this.metadata;
     const defaultPort = 8081;
-    const rawPort = meta.port ?? process.env.POLYMARKET_STATS_PORT ?? defaultPort;
-    const numPort = Number(rawPort);
+    const resolvedPort =
+      this.resolveEnvVar(meta.port) ?? process.env.POLYMARKET_STATS_PORT ?? defaultPort;
+    const numPort = Number(resolvedPort);
     const valid =
       Number.isFinite(numPort) &&
       Number.isInteger(numPort) &&
