@@ -60,13 +60,17 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
           process.env.POLYMARKET_ORDER_NOTIONAL
       ) || 5;
 
-    const roundDurationSec =
+    const parsedRoundDuration =
       toNum(
         this.getInputValue("round_duration_sec", context, undefined) ??
           this.resolveEnvVar(this.metadata.round_duration_sec) ??
           this.metadata.round_duration_sec ??
           process.env.POLYMARKET_ROUND_DURATION_SEC
-      ) || ROUND_DURATION_SEC;
+      );
+    const roundDurationSec =
+      Number.isFinite(parsedRoundDuration) && parsedRoundDuration > 0
+        ? parsedRoundDuration
+        : ROUND_DURATION_SEC;
 
     const rawTimeWindowMin =
       this.getInputValue("time_window_min_sec", context, undefined) ??
@@ -78,10 +82,12 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
       this.resolveEnvVar(this.metadata.time_window_max_sec) ??
       this.metadata.time_window_max_sec ??
       process.env.POLYMARKET_TIME_WINDOW_MAX_SEC;
+    const rawTimeWindowMaxProvided =
+      rawTimeWindowMax !== undefined && rawTimeWindowMax !== null && String(rawTimeWindowMax).trim() !== "";
     let timeWindowMin = Math.max(0, Math.min(roundDurationSec, toNum(rawTimeWindowMin) ?? 0));
     let timeWindowMax = toNum(rawTimeWindowMax);
     timeWindowMax =
-      Number.isFinite(timeWindowMax) && timeWindowMax > 0
+      rawTimeWindowMaxProvided && Number.isFinite(timeWindowMax) && timeWindowMax >= 0
         ? Math.max(0, Math.min(roundDurationSec, timeWindowMax))
         : roundDurationSec;
     if (timeWindowMin > timeWindowMax) {
@@ -195,8 +201,9 @@ export class PolymarketSniperEvaluateNode extends BaseNode {
 
     const upEdge = modelPUp - mktUp;
     const downEdge = 1 - modelPUp - mktDown;
+    const gradientEnabled = edgeAtTMinus0 !== 0;
     const gradientEdge = edgeFromGradient(timeRemaining, maxRemainingAllowed, edgeThreshold, edgeAtTMinus0);
-    const threshold = gradientEdge === 0 ? edgeThreshold : gradientEdge;
+    const threshold = gradientEnabled ? gradientEdge : edgeThreshold;
 
     let signal: "buy_up" | "buy_down" | "none" = "none";
     let tokenId = "";
