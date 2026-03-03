@@ -124,7 +124,7 @@
       "id": "21",
       "type": "polymarket_action_logger",
       "position": { "x": 771, "y": -1013 },
-      "size": [300, 220],
+      "size": [300, 320],
       "inputs": {},
       "metadata": {}
     },
