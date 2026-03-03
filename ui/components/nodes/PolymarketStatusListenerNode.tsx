@@ -5,7 +5,7 @@ import { LGraphNode, LiteGraph } from "@/lib/litegraph-index";
 class PolymarketStatusListenerNode extends LGraphNode {
   static title = "Polymarket Status Listener";
   static desc =
-    "GET /polymarket/stats for dashboard. Connect Express Service; connect to Polymarket Stats + HTTP Response.";
+    "GET /stats for dashboard. Connect Express Service; connect to Polymarket Stats + HTTP Response.";
   static title_color = "#2d7ff9";
 
   constructor() {
