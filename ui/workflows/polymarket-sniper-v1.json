@@ -30,9 +30,7 @@
       "inputs": {},
       "metadata": {
         "storage_path": "polymarket",
-        "storage_type": "local_json",
-        "Storage Path": "polymarket",
-        "Storage Type": "local_json"
+        "storage_type": "local_json"
       }
     },
     {
@@ -56,9 +54,7 @@
       "inputs": {},
       "metadata": {
         "storage_path": "polymarket",
-        "storage_type": "local_json",
-        "Storage Path": "polymarket",
-        "Storage Type": "local_json"
+        "storage_type": "local_json"
       }
     },
     {
@@ -94,11 +90,7 @@
         "anchor_timestamp": 1772515278,
         "interval_seconds": 300,
         "offset_seconds": 60,
-        "enabled": true,
-        "Anchor (epoch s)": 1772515278,
-        "Interval (s)": 300,
-        "Offset (s)": 60,
-        "Enabled": true
+        "enabled": true
       }
     },
     {
@@ -170,10 +162,7 @@
       "metadata": {
         "min_seconds": 10,
         "max_seconds": 10,
-        "enabled": true,
-        "Min Seconds": 10,
-        "Max Seconds": 10,
-        "Enabled": true
+        "enabled": true
       }
     },
     {
@@ -211,9 +200,7 @@
       "inputs": {},
       "metadata": {
         "storage_path": "polymarket",
-        "storage_type": "local_json",
-        "Storage Path": "polymarket",
-        "Storage Type": "local_json"
+        "storage_type": "local_json"
       }
     }
   ],
