@@ -3,8 +3,14 @@
  * Uses Data API /positions?user=&redeemable=true to fetch only positions we can redeem,
  * then redeems via CTF. Falls back to Gamma (closed btc-updown-5m markets) if Data API
  * returns nothing. Uses TransactionService for gas, timeouts, nonce recovery.
+ *
+ * Deduplication: condition IDs we successfully redeemed are persisted per user (up to 1k)
+ * and skipped on future runs to avoid redundant txs. Survives restarts via JSON file.
  */
 
+import { readFileSync, writeFileSync, mkdirSync, openSync, fsyncSync, closeSync, renameSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ethers } from 'ethers';
 import { parseStringOrArray } from '../utils/parseStringOrArray.js';
 import { TransactionService, isGasPriceError, isNoPositionError } from './transactionService.js';
@@ -12,12 +18,209 @@ import { TransactionService, isGasPriceError, isNoPositionError } from './transa
 const DATA_API = 'https://data-api.polymarket.com';
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 const USDC_E = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+const MAX_REDEEMED_PER_USER = 1000;
+const PERSIST_INTERVAL_MS = 60 * 1000; // once per minute
+const RETRY_BACKOFF_MS = 30 * 60 * 1000; // 30 min — throttle failed/timed-out redeems
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', '..', 'data');
+const REDEEMED_FILE = join(DATA_DIR, 'redeemed-conditions.json');
+const ATTEMPTED_FILE = join(DATA_DIR, 'attempted-conditions.json');
+
+/** userAddress (lowercase) -> conditionId -> redeemedAt */
+const redeemedByUser = new Map<string, Map<string, number>>();
+/** userAddress (lowercase) -> conditionId -> lastAttemptAt — for retry backoff */
+const attemptedByUser = new Map<string, Map<string, number>>();
+let persistTimer: ReturnType<typeof setInterval> | null = null;
 const CTF_EXCHANGE = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045';
 const PARENT_COLLECTION_ID = '0x' + '00'.repeat(32);
 const WINDOWS_TO_CHECK = 12;
 const CTF_ABI = [
   'function redeemPositions(address collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] indexSets)',
 ];
+
+function loadRedeemedFromDisk(): void {
+  try {
+    const raw = readFileSync(REDEEMED_FILE, 'utf-8');
+    const data = JSON.parse(raw) as Record<string, Array<{ conditionId: string; redeemedAt: number }>>;
+    redeemedByUser.clear();
+    for (const [addr, entries] of Object.entries(data)) {
+      if (!addr || !Array.isArray(entries)) continue;
+      const m = new Map<string, number>();
+      for (const e of entries) {
+        if (e?.conditionId && typeof e.redeemedAt === 'number') {
+          m.set(e.conditionId.toLowerCase(), e.redeemedAt);
+        }
+      }
+      if (m.size > 0) redeemedByUser.set(addr.toLowerCase(), m);
+    }
+    console.log(`[Redeem] Loaded ${Array.from(redeemedByUser.values()).reduce((s, m) => s + m.size, 0)} redeemed condition(s) for ${redeemedByUser.size} user(s)`);
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException;
+    if (err?.code === 'ENOENT') {
+      try {
+        mkdirSync(DATA_DIR, { recursive: true });
+      } catch (mkdirErr) {
+        console.warn('[Redeem] Failed to create data dir', DATA_DIR, mkdirErr instanceof Error ? mkdirErr.message : String(mkdirErr));
+        return;
+      }
+      try {
+        const tmpPath = REDEEMED_FILE + '.tmp';
+        writeFileSync(tmpPath, '{}', 'utf-8');
+        let fd: number | undefined;
+        try {
+          fd = openSync(tmpPath, 'r');
+          fsyncSync(fd);
+        } finally {
+          if (fd !== undefined) closeSync(fd);
+        }
+        renameSync(tmpPath, REDEEMED_FILE);
+      } catch (writeErr) {
+        console.warn('[Redeem] Failed to create redeemed-conditions.json:', writeErr instanceof Error ? writeErr.message : String(writeErr));
+      }
+    } else {
+      console.warn('[Redeem] Failed to load redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
+    }
+  }
+}
+
+function loadAttemptedFromDisk(): void {
+  try {
+    const raw = readFileSync(ATTEMPTED_FILE, 'utf-8');
+    const data = JSON.parse(raw) as Record<string, Array<{ conditionId: string; attemptedAt: number }>>;
+    attemptedByUser.clear();
+    for (const [addr, entries] of Object.entries(data)) {
+      if (!addr || !Array.isArray(entries)) continue;
+      const m = new Map<string, number>();
+      for (const e of entries) {
+        if (e?.conditionId && typeof e.attemptedAt === 'number') {
+          m.set(e.conditionId.toLowerCase(), e.attemptedAt);
+        }
+      }
+      if (m.size > 0) attemptedByUser.set(addr.toLowerCase(), m);
+    }
+  } catch {
+    // ENOENT or parse error — start fresh
+  }
+}
+
+function saveAttemptedToDisk(): void {
+  try {
+    mkdirSync(DATA_DIR, { recursive: true });
+    const data: Record<string, Array<{ conditionId: string; attemptedAt: number }>> = {};
+    for (const [addr, m] of attemptedByUser) {
+      const entries = Array.from(m.entries())
+        .map(([conditionId, attemptedAt]) => ({ conditionId, attemptedAt }))
+        .sort((a, b) => b.attemptedAt - a.attemptedAt)
+        .slice(0, MAX_REDEEMED_PER_USER); // same cap
+      if (entries.length > 0) data[addr] = entries;
+    }
+    const json = JSON.stringify(data, null, 2);
+    const tmpPath = ATTEMPTED_FILE + '.tmp';
+    writeFileSync(tmpPath, json, 'utf-8');
+    let fd: number | undefined;
+    try {
+      fd = openSync(tmpPath, 'r');
+      fsyncSync(fd);
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+    }
+    renameSync(tmpPath, ATTEMPTED_FILE);
+  } catch (e) {
+    console.warn('[Redeem] Failed to persist attempted-conditions.json:', e instanceof Error ? e.message : String(e));
+  }
+}
+
+function saveRedeemedToDisk(): void {
+  try {
+    mkdirSync(DATA_DIR, { recursive: true });
+    const data: Record<string, Array<{ conditionId: string; redeemedAt: number }>> = {};
+    for (const [addr, m] of redeemedByUser) {
+      const entries = Array.from(m.entries())
+        .map(([conditionId, redeemedAt]) => ({ conditionId, redeemedAt }))
+        .sort((a, b) => b.redeemedAt - a.redeemedAt)
+        .slice(0, MAX_REDEEMED_PER_USER);
+      if (entries.length > 0) data[addr] = entries;
+    }
+    const json = JSON.stringify(data, null, 2);
+    const tmpPath = REDEEMED_FILE + '.tmp';
+    writeFileSync(tmpPath, json, 'utf-8');
+    let fd: number | undefined;
+    try {
+      fd = openSync(tmpPath, 'r');
+      fsyncSync(fd);
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+    }
+    renameSync(tmpPath, REDEEMED_FILE);
+  } catch (e) {
+    console.warn('[Redeem] Failed to persist redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
+  }
+}
+
+function ensurePersistTimer(): void {
+  if (persistTimer) return;
+  persistTimer = setInterval(() => {
+    saveRedeemedToDisk();
+    saveAttemptedToDisk();
+  }, PERSIST_INTERVAL_MS);
+  persistTimer.unref?.();
+}
+
+function recordAttempt(userAddress: string, conditionId: string): void {
+  const addr = userAddress.toLowerCase();
+  let m = attemptedByUser.get(addr);
+  if (!m) {
+    m = new Map();
+    attemptedByUser.set(addr, m);
+  }
+  m.set(conditionId.toLowerCase(), Date.now());
+  if (m.size > MAX_REDEEMED_PER_USER) {
+    const sorted = Array.from(m.entries()).sort((a, b) => a[1] - b[1]);
+    const toDel = sorted.slice(0, m.size - MAX_REDEEMED_PER_USER);
+    for (const [cid] of toDel) m.delete(cid);
+  }
+  ensurePersistTimer();
+}
+
+function addRedeemed(userAddress: string, conditionId: string): void {
+  const addr = userAddress.toLowerCase();
+  let m = redeemedByUser.get(addr);
+  if (!m) {
+    m = new Map();
+    redeemedByUser.set(addr, m);
+  }
+  m.set(conditionId.toLowerCase(), Date.now());
+  if (m.size > MAX_REDEEMED_PER_USER) {
+    const sorted = Array.from(m.entries()).sort((a, b) => a[1] - b[1]);
+    const toDel = sorted.slice(0, m.size - MAX_REDEEMED_PER_USER);
+    for (const [cid] of toDel) m.delete(cid);
+  }
+  ensurePersistTimer();
+}
+
+function filterByRedeemed(userAddress: string, conditionIds: string[]): string[] {
+  const addr = userAddress.toLowerCase();
+  const redeemed = redeemedByUser.get(addr);
+  const attempted = attemptedByUser.get(addr);
+  const now = Date.now();
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const cid of conditionIds) {
+    const low = cid.toLowerCase();
+    if (seen.has(low)) continue;
+    seen.add(low);
+    if (redeemed?.has(low)) continue;
+    const lastAttempt = attempted?.get(low);
+    if (lastAttempt != null && now - lastAttempt < RETRY_BACKOFF_MS) continue;
+    result.push(cid);
+  }
+  return result;
+}
+
+// Load on module init
+loadRedeemedFromDisk();
+loadAttemptedFromDisk();
 
 interface DataApiPosition {
   conditionId?: string;
@@ -245,6 +448,14 @@ export async function runHousekeeping(pk: string): Promise<{
       console.log(`[Redeem] Gamma fallback: ${conditionIds.length} resolved btc-updown-5m market(s)`);
     }
   }
+
+  // Skip condition IDs already redeemed or recently attempted (retry backoff)
+  const beforeFilter = conditionIds.length;
+  conditionIds = filterByRedeemed(signer.address, conditionIds);
+  if (beforeFilter > conditionIds.length) {
+    console.log(`[Redeem] Skipped ${beforeFilter - conditionIds.length} condition(s) (already redeemed or in retry backoff) for ${signer.address.slice(0, 10)}…`);
+  }
+
   let redeemed = 0;
   let noPosition = 0;
   let errors = 0;
@@ -256,6 +467,7 @@ export async function runHousekeeping(pk: string): Promise<{
   for (let i = 0; i < conditionIds.length; i++) {
     const conditionId = conditionIds[i];
     const n = i + 1;
+    recordAttempt(signer.address, conditionId);
     try {
       console.log(`[Redeem] Redeem (${n}/${total}) condition=${conditionId.slice(0, 10)}… sending…`);
       const result = await txService.execute({
@@ -268,6 +480,7 @@ export async function runHousekeeping(pk: string): Promise<{
       });
       redeemed++;
       redeemedConditionIds.push(conditionId);
+      addRedeemed(signer.address, conditionId);
       console.log(
         `[Redeem] REDEEMED condition=${conditionId.slice(0, 10)}…${conditionId.slice(-8)} tx=${result.txHash}`,
       );

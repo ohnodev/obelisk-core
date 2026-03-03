@@ -1,6 +1,10 @@
 /**
  * CLOB order placement service for polymarket-service.
  * Uses @polymarket/clob-client to create and post orders.
+ *
+ * Auth fix: createOrDeriveApiKey() fails with 400 "Could not create api key" when an API key
+ * already exists (tries create first). Use deriveApiKey() first; only create if derive returns no key.
+ * See: https://github.com/Polymarket/clob-client/issues/202
  */
 
 import { ClobClient, OrderType, Side } from '@polymarket/clob-client';
@@ -23,6 +27,37 @@ function parseTickSize(raw: unknown): TickSize {
 
 const MAX_CACHED_CLIENTS = 100;
 const clientCache = new Map<string, ClobClient>();
+/** Serialize credential fetch per pk to avoid concurrent create/derive races. */
+const credFetchLocks = new Map<string, Promise<ClobClient>>();
+
+async function getApiCredentials(pk: string): Promise<{ key: string; secret: string; passphrase: string }> {
+  const clobUrl = getClobUrl();
+  const signer = new ethers.Wallet(pk);
+  const tempClient = new ClobClient(clobUrl, CHAIN_ID, signer);
+
+  // Try derive first — works when key exists. createOrDerive tries create first and fails with 400.
+  let creds: { apiKey?: string; key?: string; secret?: string; passphrase?: string } | null = null;
+  try {
+    creds = await tempClient.deriveApiKey();
+  } catch {
+    // derive can fail when no key exists; fall through to create
+  }
+  const hasKey = creds && (creds.apiKey || creds.key);
+  if (!hasKey) {
+    try {
+      creds = await tempClient.createApiKey();
+    } catch (e) {
+      throw new Error(
+        `Could not derive or create CLOB API credentials: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+  const keyVal = creds?.apiKey ?? creds?.key;
+  if (!keyVal || !creds?.secret || !creds?.passphrase) {
+    throw new Error('Could not derive or create CLOB API credentials (missing key, secret, or passphrase)');
+  }
+  return { key: keyVal, secret: creds.secret, passphrase: creds.passphrase };
+}
 
 async function getClient(pk: string): Promise<ClobClient> {
   const key = pk.trim();
@@ -37,13 +72,24 @@ async function getClient(pk: string): Promise<ClobClient> {
     if (firstKey) clientCache.delete(firstKey);
   }
 
-  const clobUrl = getClobUrl();
-  const signer = new ethers.Wallet(key);
-  const tempClient = new ClobClient(clobUrl, CHAIN_ID, signer);
-  const apiCreds = await tempClient.createOrDeriveApiKey();
-  const c = new ClobClient(clobUrl, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
-  clientCache.set(key, c);
-  return c;
+  // Serialize credential fetch per pk to avoid concurrent create/derive races
+  let pending = credFetchLocks.get(key);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const clobUrl = getClobUrl();
+        const signer = new ethers.Wallet(key);
+        const apiCreds = await getApiCredentials(key);
+        const c = new ClobClient(clobUrl, CHAIN_ID, signer, apiCreds, 0 as 0 | 1, signer.address);
+        clientCache.set(key, c);
+        return c;
+      } finally {
+        credFetchLocks.delete(key);
+      }
+    })();
+    credFetchLocks.set(key, pending);
+  }
+  return pending;
 }
 
 export interface PlaceOrderParams {

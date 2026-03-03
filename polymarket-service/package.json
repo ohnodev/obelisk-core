@@ -12,6 +12,7 @@
     "reset-nonce": "tsx scripts/reset-nonce.ts",
     "test-trading-flow": "tsx scripts/test-trading-flow.ts",
     "diagnose-clob-api-key": "tsx scripts/diagnose-clob-api-key.ts",
+    "test-clob-auth": "tsx scripts/test-clob-auth.ts",
     "trace-trade-resolution": "tsx scripts/trace-trade-resolution.ts",
     "test": "vitest run"
   },
