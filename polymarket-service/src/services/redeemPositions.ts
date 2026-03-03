@@ -3,6 +3,10 @@
  * Uses Data API /positions?user=&redeemable=true to fetch only positions we can redeem,
  * then redeems via CTF. Falls back to Gamma (closed btc-updown-5m markets) if Data API
  * returns nothing. Uses TransactionService for gas, timeouts, nonce recovery.
+ *
+ * Cooldown: condition IDs we successfully redeemed are skipped for REDEEM_COOLDOWN_MS
+ * to avoid redundant attempts when the scheduler fires again before Data API updates
+ * (Gamma always returns closed markets; it doesn't know we already redeemed).
  */
 
 import { ethers } from 'ethers';
@@ -12,6 +16,11 @@ import { TransactionService, isGasPriceError, isNoPositionError } from './transa
 const DATA_API = 'https://data-api.polymarket.com';
 const GAMMA_API = 'https://gamma-api.polymarket.com';
 const USDC_E = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
+/** Skip condition IDs we redeemed in the last 10 min to avoid duplicate attempts when scheduler re-fires. */
+const REDEEM_COOLDOWN_MS = 10 * 60 * 1000;
+
+/** conditionId -> timestamp when we successfully redeemed it. Pruned on use. */
+const recentlyRedeemed = new Map<string, number>();
 const CTF_EXCHANGE = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045';
 const PARENT_COLLECTION_ID = '0x' + '00'.repeat(32);
 const WINDOWS_TO_CHECK = 12;
@@ -134,6 +143,18 @@ async function fetchRedeemableFromDataApi(
   }
 }
 
+function filterByCooldown(conditionIds: string[]): string[] {
+  const now = Date.now();
+  const cutoff = now - REDEEM_COOLDOWN_MS;
+  for (const [cid, ts] of Array.from(recentlyRedeemed)) {
+    if (ts < cutoff) recentlyRedeemed.delete(cid);
+  }
+  return conditionIds.filter((cid) => {
+    const redeemedAt = recentlyRedeemed.get(cid);
+    return !redeemedAt || redeemedAt < cutoff;
+  });
+}
+
 function recentWindowTimestamps(): number[] {
   const now = Math.floor(Date.now() / 1000);
   const currentWindow = Math.floor(now / 300) * 300;
@@ -245,6 +266,14 @@ export async function runHousekeeping(pk: string): Promise<{
       console.log(`[Redeem] Gamma fallback: ${conditionIds.length} resolved btc-updown-5m market(s)`);
     }
   }
+
+  // Skip condition IDs we recently redeemed to avoid duplicate txs when scheduler re-fires
+  const beforeFilter = conditionIds.length;
+  conditionIds = filterByCooldown(conditionIds);
+  if (beforeFilter > conditionIds.length) {
+    console.log(`[Redeem] Skipped ${beforeFilter - conditionIds.length} recently-redeemed condition(s) (cooldown ${REDEEM_COOLDOWN_MS / 60_000}min)`);
+  }
+
   let redeemed = 0;
   let noPosition = 0;
   let errors = 0;
@@ -268,6 +297,7 @@ export async function runHousekeeping(pk: string): Promise<{
       });
       redeemed++;
       redeemedConditionIds.push(conditionId);
+      recentlyRedeemed.set(conditionId, Date.now());
       console.log(
         `[Redeem] REDEEMED condition=${conditionId.slice(0, 10)}…${conditionId.slice(-8)} tx=${result.txHash}`,
       );
