@@ -30,7 +30,7 @@ const clientCache = new Map<string, ClobClient>();
 /** Serialize credential fetch per pk to avoid concurrent create/derive races. */
 const credFetchLocks = new Map<string, Promise<ClobClient>>();
 
-async function getApiCredentials(pk: string): Promise<{ apiKey: string; secret: string; passphrase: string }> {
+async function getApiCredentials(pk: string): Promise<{ key: string; secret: string; passphrase: string }> {
   const clobUrl = getClobUrl();
   const signer = new ethers.Wallet(pk);
   const tempClient = new ClobClient(clobUrl, CHAIN_ID, signer);
@@ -52,11 +52,11 @@ async function getApiCredentials(pk: string): Promise<{ apiKey: string; secret: 
       );
     }
   }
-  const apiKey = creds?.apiKey ?? creds?.key;
-  if (!apiKey || !creds?.secret || !creds?.passphrase) {
+  const keyVal = creds?.apiKey ?? creds?.key;
+  if (!keyVal || !creds?.secret || !creds?.passphrase) {
     throw new Error('Could not derive or create CLOB API credentials (missing key, secret, or passphrase)');
   }
-  return { apiKey, secret: creds.secret, passphrase: creds.passphrase };
+  return { key: keyVal, secret: creds.secret, passphrase: creds.passphrase };
 }
 
 async function getClient(pk: string): Promise<ClobClient> {
