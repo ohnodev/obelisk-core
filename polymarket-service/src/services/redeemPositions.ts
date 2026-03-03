@@ -42,7 +42,7 @@ function loadRedeemedFromDisk(): void {
       const m = new Map<string, number>();
       for (const e of entries) {
         if (e?.conditionId && typeof e.redeemedAt === 'number') {
-          m.set(e.conditionId, e.redeemedAt);
+          m.set(e.conditionId.toLowerCase(), e.redeemedAt);
         }
       }
       if (m.size > 0) redeemedByUser.set(addr.toLowerCase(), m);
@@ -56,9 +56,13 @@ function loadRedeemedFromDisk(): void {
       try {
         const tmpPath = REDEEMED_FILE + '.tmp';
         writeFileSync(tmpPath, '{}', 'utf-8');
-        const fd = openSync(tmpPath, 'r');
-        fsyncSync(fd);
-        closeSync(fd);
+        let fd: number | undefined;
+        try {
+          fd = openSync(tmpPath, 'r');
+          fsyncSync(fd);
+        } finally {
+          if (fd !== undefined) closeSync(fd);
+        }
         renameSync(tmpPath, REDEEMED_FILE);
       } catch (writeErr) {
         console.warn('[Redeem] Failed to create redeemed-conditions.json:', writeErr instanceof Error ? writeErr.message : String(writeErr));
@@ -84,9 +88,13 @@ function saveRedeemedToDisk(): void {
     const json = JSON.stringify(data, null, 2);
     const tmpPath = REDEEMED_FILE + '.tmp';
     writeFileSync(tmpPath, json, 'utf-8');
-    const fd = openSync(tmpPath, 'r');
-    fsyncSync(fd);
-    closeSync(fd);
+    let fd: number | undefined;
+    try {
+      fd = openSync(tmpPath, 'r');
+      fsyncSync(fd);
+    } finally {
+      if (fd !== undefined) closeSync(fd);
+    }
     renameSync(tmpPath, REDEEMED_FILE);
   } catch (e) {
     console.warn('[Redeem] Failed to persist redeemed-conditions.json:', e instanceof Error ? e.message : String(e));
@@ -106,7 +114,7 @@ function addRedeemed(userAddress: string, conditionId: string): void {
     m = new Map();
     redeemedByUser.set(addr, m);
   }
-  m.set(conditionId, Date.now());
+  m.set(conditionId.toLowerCase(), Date.now());
   if (m.size > MAX_REDEEMED_PER_USER) {
     const sorted = Array.from(m.entries()).sort((a, b) => a[1] - b[1]);
     const toDel = sorted.slice(0, m.size - MAX_REDEEMED_PER_USER);
@@ -118,7 +126,7 @@ function addRedeemed(userAddress: string, conditionId: string): void {
 function filterByRedeemed(userAddress: string, conditionIds: string[]): string[] {
   const m = redeemedByUser.get(userAddress.toLowerCase());
   if (!m) return conditionIds;
-  return conditionIds.filter((cid) => !m.has(cid));
+  return conditionIds.filter((cid) => !m.has(cid.toLowerCase()));
 }
 
 // Load on module init
