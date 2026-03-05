@@ -24,7 +24,7 @@
 
 **Obelisk Core** is an open-source framework for building, running, and deploying AI agents. Design workflows visually, connect to a self-hosted LLM, and deploy autonomous agents — all from your own hardware.
 
-**Status**: 🟢 Beta — v0.2.0-beta
+**Status**: 🟢 Beta — v0.2.0-beta (2026-02-10)
 
 ---
 

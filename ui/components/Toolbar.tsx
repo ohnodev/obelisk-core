@@ -24,7 +24,6 @@ import basemarketLpBotV1Template from "@/workflows/basemarket-lp-bot-v1.json";
 import polymarketSniperV1Template from "@/workflows/polymarket-sniper-v1.json";
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
-import soraTemplate from "@/workflows/sora.json";
 import clawballsTemplate from "@/workflows/clawballs.json";
 import crabTemplate from "@/workflows/crab.json";
 
@@ -67,15 +66,9 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     data: girlfriendTemplate,
   },
   {
-    id: "sora",
-    name: "Sora – The Elegant One",
-    description: "Mysterious, graceful HTTP-based AI companion with memory",
-    data: soraTemplate,
-  },
-  {
     id: "clawballs",
     name: "Clawballs",
-    description: "Same as Sora, routed via router.theobelisk.ai with agent_id clawballs",
+    description: "Same as Aria, routed via router.theobelisk.ai with agent_id clawballs",
     data: clawballsTemplate,
   },
   {
