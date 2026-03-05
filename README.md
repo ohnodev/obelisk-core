@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ohnodev/obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.2.0--alpha-blue?style=for-the-badge" alt="Version"></a>
+  <a href="https://github.com/ohnodev/obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.2.0--beta-blue?style=for-the-badge" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/ohnodev/obelisk-core"><img src="https://img.shields.io/badge/Status-Alpha_v2-yellow?style=for-the-badge" alt="Status"></a>
+  <a href="https://github.com/ohnodev/obelisk-core"><img src="https://img.shields.io/badge/Status-Beta-green?style=for-the-badge" alt="Status"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python" alt="Python (Inference)"></a>
 </p>
@@ -24,7 +24,7 @@
 
 **Obelisk Core** is an open-source framework for building, running, and deploying AI agents. Design workflows visually, connect to a self-hosted LLM, and deploy autonomous agents — all from your own hardware.
 
-**Status**: 🟡 Alpha v2 — v0.2.0-alpha (second alpha release)
+**Status**: 🟢 Beta — v0.2.0-beta (2026-02-10)
 
 ---
 
