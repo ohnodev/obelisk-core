@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ohnodev/obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.2.0--beta-blue?style=for-the-badge" alt="Version"></a>
+  <a href="https://github.com/ohnodev/obelisk-core/releases"><img src="https://img.shields.io/badge/version-0.2.0--alpha-blue?style=for-the-badge" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/ohnodev/obelisk-core"><img src="https://img.shields.io/badge/Status-Beta-green?style=for-the-badge" alt="Status"></a>
+  <a href="https://github.com/ohnodev/obelisk-core"><img src="https://img.shields.io/badge/Status-Alpha-yellow?style=for-the-badge" alt="Status"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python" alt="Python (Inference)"></a>
 </p>
@@ -24,13 +24,13 @@
 
 **Obelisk Core** is an open-source framework for building, running, and deploying AI agents. Design workflows visually, connect to a self-hosted LLM, and deploy autonomous agents — all from your own hardware.
 
-**Status**: 🟢 Beta — v0.2.0-beta (2026-02-10)
+**Status**: 🟡 Alpha — v0.2.0-alpha
 
 ---
 
 ## How It Works
 
-Obelisk Core has three components that work together:
+Obelisk Core uses several services that work together:
 
 ```text
 ┌──────────────────────────────────┐
@@ -42,30 +42,40 @@ Obelisk Core has three components that work together:
 ┌──────────────▼───────────────────┐
 │      TypeScript Execution Engine │     ← Agent Runtime (Node.js)
 │   Runs workflows as autonomous   │     Nodes: inference, Telegram,
-│   agents in Docker containers    │     memory, scheduling, Clanker, etc.
+│   agents in Docker containers    │     memory, scheduling, Clanker, Polymarket, etc.
 └──────────────┬───────────────────┘
                │ calls
-┌──────────────▼───────────────────┐
-│      Python Inference Service    │     ← LLM Server (FastAPI + PyTorch)
-│   Self-hosted Qwen3 model with   │     Runs on GPU, serves via
-│   thinking mode and API auth     │     REST API with auth
-└──────────────────────────────────┘
+     ┌─────────┴─────────┬─────────────────┬──────────────────┐
+     ▼                   ▼                 ▼                  ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
+│  Inference   │  │  Blockchain  │  │  Polymarket  │  │  Deployment API  │
+│  Service     │  │  Service     │  │  Service     │  │  (Agents)        │
+│  (Python)    │  │  (Clanker)   │  │  (Orders,    │  │  Build, deploy,  │
+│  Qwen3 local │  │  State, V4   │  │  Redeem,     │  │  manage agents   │
+│  or Router   │  │  swaps       │  │  Snapshot)   │  │                  │
+└──────────────┘  └──────────────┘  └──────────────┘  └──────────────────┘
 ```
 
-1. **UI** — A visual node editor (like ComfyUI) where you wire up agent workflows
-2. **Execution Engine** — TypeScript runtime that processes workflows node-by-node, runs agents in Docker containers
-3. **Inference Service** — Python FastAPI server that loads and serves a local LLM (Qwen3-0.6B) on your GPU
+**Services:**
+
+1. **Inference Service** — Python FastAPI server with self-hosted Qwen3-0.6B, or use the **Router Service** (`router.theobelisk.ai`) to hook up hosted LLMs (e.g. Mistral) via `endpoint_url` + `agent_id` in the Inference Config node
+2. **Blockchain Service** — Clanker state API, launch summary, V4 swaps (CabalSwapper); workflows read token/pool data and execute buys/sells
+3. **Polymarket Service** — CLOB orders, redeem positions, market snapshot, probability model; used by Polymarket Sniper workflows
+4. **Deployment Layer** — Deploy workflows as Docker agents from the UI; manage running agents at `/deployments`
+
+The **UI** is a visual node editor (like ComfyUI). The **Execution Engine** is a TypeScript runtime that processes workflows node-by-node and runs agents in Docker containers.
 
 ## Features
 
 - **Visual Workflow Editor** — Drag-and-drop node-based editor to design agent logic
-- **Self-Hosted LLM** — Qwen3-0.6B with thinking mode, no external API calls required
+- **Self-Hosted LLM** — Qwen3-0.6B with thinking mode, no external API required; or use **Router Service** (router.theobelisk.ai) to hook up Mistral or other hosted LLMs via Inference Config
 - **Autonomous Agents** — Deploy workflows as long-running Docker containers
 - **Telegram Integration** — Listener and sender nodes for building Telegram bots
 - **Conversation Memory** — Persistent memory with automatic summarization
 - **Binary Intent** — Yes/no decision nodes for conditional workflow logic
 - **Wallet Authentication** — Privy-based wallet connect for managing deployed agents
-- **Clanker / Blockchain** — Blockchain Config, Clanker Launch Summary (recent launches + stats for LLM), Wallet node, Clanker Buy/Sell (V4 swaps via CabalSwapper), Action Router; **onSwap trigger** (last_swap.json) for a second loop: On Swap Trigger → Bag Checker (profit/stop-loss) → Clanker Sell; bag state (clanker_bags.json) for holdings and targets
+- **Clanker / Blockchain** — Blockchain service (obelisk-blockchain), Blockchain Config node, Clanker Launch Summary, Wallet, Clanker Buy/Sell (V4 swaps via CabalSwapper), Action Router; **onSwap trigger** (last_swap.json) for Bag Checker (profit/stop-loss) → Clanker Sell
+- **Polymarket** — Polymarket service (polymarket-service): CLOB orders, redeem, snapshot, probability model; Polymarket Sniper template and nodes
 - **Scheduling** — Cron-like scheduling nodes for periodic tasks
 - **One-Click Deploy** — Deploy agents from the UI with environment variable injection
 
@@ -135,7 +145,7 @@ Open `http://localhost:3000` in your browser. You should see the visual workflow
 
 ### Using PM2 (Recommended for Production)
 
-We provide a `pm2-manager.sh` script that manages both services:
+We provide a `pm2-manager.sh` script that manages all services (core, inference, blockchain, polymarket):
 
 ```bash
 # Start everything
@@ -154,7 +164,7 @@ We provide a `pm2-manager.sh` script that manages both services:
 ./pm2-manager.sh logs
 ```
 
-PM2 keeps the inference service and execution engine running, auto-restarts on crashes, and manages log files.
+PM2 keeps the core API, inference, blockchain, and polymarket services running, auto-restarts on crashes, and manages log files.
 
 ## Agent Deployment
 
@@ -223,12 +233,14 @@ obelisk-core/
 │   │   │       └── nodes/  # All node implementations
 │   │   └── utils/          # JSON parsing, logging, etc.
 │   └── tests/              # Vitest test suite
+├── blockchain-service/     # Clanker state API, block processing, V4 swaps
+├── polymarket-service/     # CLOB orders, redeem, market snapshot, probability model
 ├── ui/                     # Next.js visual workflow editor
 │   ├── app/                # Pages (editor, deployments)
 │   ├── components/         # React components (Canvas, Toolbar, nodes)
 │   └── lib/                # Utilities (litegraph, wallet, API config)
 ├── docker/                 # Dockerfile and compose for agent containers
-├── pm2-manager.sh          # PM2 process manager script
+├── pm2-manager.sh          # PM2 process manager (core, inference, blockchain, polymarket)
 ├── requirements.txt        # Python deps (inference service only)
 └── .env.example            # Environment variable template
 ```
@@ -250,6 +262,8 @@ Key variables:
 | `INFERENCE_API_KEY` | API key for inference auth (optional for local dev) | — |
 | `INFERENCE_DEVICE` | PyTorch device (`cuda`, `cpu`) | auto-detect |
 | `INFERENCE_SERVICE_URL` | URL agents use to reach inference | `http://localhost:7780` |
+| `BLOCKCHAIN_SERVICE_URL` | Blockchain service (Clanker state, etc.) | `http://localhost:8888` |
+| `POLYMARKET_SERVICE_URL` | Polymarket service (orders, redeem, snapshot) | `http://localhost:1110` |
 | `TELEGRAM_DEV_AGENT_BOT_TOKEN` | Default Telegram bot token for dev | — |
 | `TELEGRAM_CHAT_ID` | Default Telegram chat ID for dev | — |
 
