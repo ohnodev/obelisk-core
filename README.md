@@ -86,7 +86,7 @@ The **UI** is a visual node editor (like ComfyUI). The **Execution Engine** is a
 ### Prerequisites
 
 - **Node.js 20+** and **npm**
-- **Python 3.10–3.12** with a CUDA-capable GPU (for the inference service)
+- **Python 3.10–3.12** — a CUDA-capable GPU is required only for local self-hosted Qwen inference; not required when using Router-hosted LLMs (e.g. [https://router.theobelisk.ai](https://router.theobelisk.ai))
 - **Docker** (for running deployed agents)
 
 ### 1. Clone the repo
@@ -96,9 +96,9 @@ git clone https://github.com/ohnodev/obelisk-core.git
 cd obelisk-core
 ```
 
-### 2. Start the Inference Service (Python)
+### 2. Start the Inference Service (Python) — optional if using Router
 
-The inference service hosts the LLM model and serves it via REST API.
+The inference service hosts the LLM model and serves it via REST API. **Skip this step** if you use the Router service ([https://router.theobelisk.ai](https://router.theobelisk.ai)) for hosted LLMs; a GPU is only required for local self-hosted Qwen inference.
 
 ```bash
 # Create Python venv and install dependencies
@@ -200,10 +200,11 @@ docker build -t obelisk-agent:latest -f docker/Dockerfile .
 
 ### Running an Agent Manually
 
-When running agents in Docker, the container must reach host services. Set **INFERENCE_SERVICE_URL**, **BLOCKCHAIN_SERVICE_URL**, and **POLYMARKET_SERVICE_URL** to point at the host (e.g. `host.docker.internal` with the appropriate ports):
+When running agents in Docker, the container must reach host services. Set **INFERENCE_SERVICE_URL**, **BLOCKCHAIN_SERVICE_URL**, and **POLYMARKET_SERVICE_URL** to point at the host (e.g. `host.docker.internal` with the appropriate ports). On **native Linux**, `host.docker.internal` is not defined by default — add `--add-host=host.docker.internal:host-gateway` so it resolves. **Docker Compose** users: add `extra_hosts: ["host.docker.internal:host-gateway"]` to the service for the same effect.
 
 ```bash
 docker run -d \
+  --add-host=host.docker.internal:host-gateway \
   --name my-agent \
   -e WORKFLOW_JSON='<your workflow JSON>' \
   -e AGENT_ID=agent-001 \
