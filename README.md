@@ -58,12 +58,12 @@ Obelisk Core uses several services that work together:
 
 **Services:**
 
-1. **Inference Service** — Python FastAPI server with self-hosted Qwen3-0.6B, or use the **Router Service** ([https://router.theobelisk.ai](https://router.theobelisk.ai)) to hook up hosted LLMs (e.g. Mistral) via the Inference Config node: set `endpoint_url` to `https://router.theobelisk.ai` (or `https://router.theobelisk.ai/v1` if your router uses a path prefix) and set `agent_id` (e.g. `clawballs`) for the agent to use.
+1. **Inference Service** — Python FastAPI server with self-hosted Qwen3-0.6B, or use the **Router Service** ([https://router.theobelisk.ai](https://router.theobelisk.ai)) for hosted LLMs (e.g. Mistral). In the Inference Config node, set `endpoint_url` to `https://router.theobelisk.ai` (canonical default). If your router is behind a path-based proxy or the service docs specify a `/v1` base path, use `https://router.theobelisk.ai/v1` instead. Set `agent_id` (e.g. `clawballs`) for the agent to use.
 2. **Blockchain Service** — Clanker state API, launch summary, V4 swaps (CabalSwapper); workflows read token/pool data and execute buys/sells
 3. **Polymarket Service** — CLOB orders, redeem positions, market snapshot, probability model; used by Polymarket Sniper workflows
 4. **Deployment Layer** — Deploy workflows as Docker agents from the UI; manage running agents at `/deployments`
 
-The **Deployment API** (build, deploy, manage agents) is separate from the PM2-managed group: PM2 starts/stops only **core**, **inference**, **blockchain**, and **polymarket**; the Deployment API is typically hosted elsewhere (e.g. api.theobelisk.ai) and must be deployed and managed outside PM2.
+The **Deployment API** (build, deploy, manage agents) is separate from the PM2-managed group: PM2 starts/stops only **core**, **inference**, **blockchain**, and **polymarket**. The Deployment API must be deployed and managed outside PM2. When self-hosting it, configure the service with the required settings (e.g. base URL, authentication tokens if applicable) and run it on a standalone VM, in a container (Docker), or on Kubernetes. The UI expects the deployment service at the URL configured in your environment (e.g. api.theobelisk.ai in production). See [docker/README.md](docker/README.md) for agent container and deploy endpoint details.
 
 The **UI** is a visual node editor (like ComfyUI). The **Execution Engine** is a TypeScript runtime that processes workflows node-by-node and runs agents in Docker containers.
 
@@ -130,7 +130,7 @@ For Clanker or Polymarket workflows you need the **blockchain** and **polymarket
 ./pm2-manager.sh start
 ```
 
-**Option B — Without PM2:** start each service from its directory (see [blockchain-service/README.md](blockchain-service/README.md) and polymarket-service docs). For example, from the repo root: build and run the blockchain service on port 8888 and the polymarket service on port 1110.
+**Option B — Without PM2:** start each service from its directory (see [blockchain-service/README.md](blockchain-service/README.md) and [polymarket-service/README.md](polymarket-service/README.md)). For example, from the repo root: build and run the blockchain service on port 8888 and the polymarket service on port 1110.
 
 ### 4. Start the Execution Engine (TypeScript)
 
