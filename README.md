@@ -120,7 +120,19 @@ The first run downloads the Qwen3-0.6B model (~600MB). Once running, test it:
 curl http://localhost:7780/health
 ```
 
-### 3. Start the Execution Engine (TypeScript)
+### 3. Start Blockchain / Polymarket Services (optional)
+
+For Clanker or Polymarket workflows you need the **blockchain** and **polymarket** services. For local dev that only uses the default Telegram/inference flow, you can skip this step.
+
+**Option A — PM2 (recommended):** start all services including blockchain and polymarket:
+
+```bash
+./pm2-manager.sh start
+```
+
+**Option B — Without PM2:** start each service from its directory (see [blockchain-service/README.md](blockchain-service/README.md) and polymarket-service docs). For example, from the repo root: build and run the blockchain service on port 8888 and the polymarket service on port 1110.
+
+### 4. Start the Execution Engine (TypeScript)
 
 ```bash
 cd ts
@@ -129,7 +141,7 @@ npm run build
 cd ..
 ```
 
-### 4. Start the UI
+### 5. Start the UI
 
 ```bash
 cd ui
@@ -139,7 +151,7 @@ npm run dev
 
 Open `http://localhost:3000` in your browser. You should see the visual workflow editor.
 
-### 5. Run your first workflow
+### 6. Run your first workflow
 
 1. The default workflow is pre-loaded — it includes a Telegram bot setup
 2. Click **Queue Prompt** (▶) to execute the workflow
@@ -188,6 +200,8 @@ docker build -t obelisk-agent:latest -f docker/Dockerfile .
 
 ### Running an Agent Manually
 
+When running agents in Docker, the container must reach host services. Set **INFERENCE_SERVICE_URL**, **BLOCKCHAIN_SERVICE_URL**, and **POLYMARKET_SERVICE_URL** to point at the host (e.g. `host.docker.internal` with the appropriate ports):
+
 ```bash
 docker run -d \
   --name my-agent \
@@ -195,6 +209,8 @@ docker run -d \
   -e AGENT_ID=agent-001 \
   -e AGENT_NAME="My Bot" \
   -e INFERENCE_SERVICE_URL=http://host.docker.internal:7780 \
+  -e BLOCKCHAIN_SERVICE_URL=http://host.docker.internal:8888 \
+  -e POLYMARKET_SERVICE_URL=http://host.docker.internal:1110 \
   -e TELEGRAM_BOT_TOKEN=your_token \
   obelisk-agent:latest
 ```
