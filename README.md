@@ -86,7 +86,7 @@ The **UI** is a visual node editor (like ComfyUI). The **Execution Engine** is a
 ### Prerequisites
 
 - **Node.js 20+** and **npm**
-- **Python 3.10–3.12** — a CUDA-capable GPU is required only for local self-hosted Qwen inference; not required when using Router-hosted LLMs (e.g. [https://router.theobelisk.ai](https://router.theobelisk.ai))
+- **Python 3.10+** — a CUDA-capable GPU is required only for local self-hosted Qwen inference; not required when using Router-hosted LLMs (e.g. [https://router.theobelisk.ai](https://router.theobelisk.ai))
 - **Docker** (for running deployed agents)
 
 ### 1. Clone the repo
