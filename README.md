@@ -58,17 +58,19 @@ Obelisk Core uses several services that work together:
 
 **Services:**
 
-1. **Inference Service** — Python FastAPI server with self-hosted Qwen3-0.6B, or use the **Router Service** (`router.theobelisk.ai`) to hook up hosted LLMs (e.g. Mistral) via `endpoint_url` + `agent_id` in the Inference Config node
+1. **Inference Service** — Python FastAPI server with self-hosted Qwen3-0.6B, or use the **Router Service** ([https://router.theobelisk.ai](https://router.theobelisk.ai)) to hook up hosted LLMs (e.g. Mistral) via the Inference Config node: set `endpoint_url` to `https://router.theobelisk.ai` (or `https://router.theobelisk.ai/v1` if your router uses a path prefix) and set `agent_id` (e.g. `clawballs`) for the agent to use.
 2. **Blockchain Service** — Clanker state API, launch summary, V4 swaps (CabalSwapper); workflows read token/pool data and execute buys/sells
 3. **Polymarket Service** — CLOB orders, redeem positions, market snapshot, probability model; used by Polymarket Sniper workflows
 4. **Deployment Layer** — Deploy workflows as Docker agents from the UI; manage running agents at `/deployments`
+
+The **Deployment API** (build, deploy, manage agents) is separate from the PM2-managed group: PM2 starts/stops only **core**, **inference**, **blockchain**, and **polymarket**; the Deployment API is typically hosted elsewhere (e.g. api.theobelisk.ai) and must be deployed and managed outside PM2.
 
 The **UI** is a visual node editor (like ComfyUI). The **Execution Engine** is a TypeScript runtime that processes workflows node-by-node and runs agents in Docker containers.
 
 ## Features
 
 - **Visual Workflow Editor** — Drag-and-drop node-based editor to design agent logic
-- **Self-Hosted LLM** — Qwen3-0.6B with thinking mode, no external API required; or use **Router Service** (router.theobelisk.ai) to hook up Mistral or other hosted LLMs via Inference Config
+- **Self-Hosted LLM** — Qwen3-0.6B with thinking mode, no external API required; or use **Router Service** ([https://router.theobelisk.ai](https://router.theobelisk.ai)) to hook up Mistral or other hosted LLMs via Inference Config (`endpoint_url`: `https://router.theobelisk.ai`, `agent_id`: e.g. `clawballs`)
 - **Autonomous Agents** — Deploy workflows as long-running Docker containers
 - **Telegram Integration** — Listener and sender nodes for building Telegram bots
 - **Conversation Memory** — Persistent memory with automatic summarization
