@@ -179,6 +179,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         description: "POST /sell-all-bags. Connect to Express Service + Sell All Bags + HTTP Response",
       },
       {
+        type: "lp_fill_order_listener",
+        title: "LP Fill Order Listener",
+        description: "POST /lp/fill-order. Connect to Express Service + Polymarket LP Fill Order + HTTP Response",
+      },
+      {
         type: "http_response",
         title: "HTTP Response",
         description: "Sends a response back to the waiting HTTP client",
@@ -233,6 +238,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         title: "Basemarket Trade Action",
         description: "Posts mint/sell/close/refund/redeem requests",
       },
+      {
+        type: "multicall_stub",
+        title: "Multicall Stub",
+        description: "Placeholder for Base-chain multicall (fill user order via Basemarket). Trigger on LP fill success.",
+      },
     ],
   },
   {
@@ -252,6 +262,11 @@ const NODE_CATEGORIES: NodeCategory[] = [
         type: "polymarket_order",
         title: "Polymarket Order",
         description: "POST /api/trading/order – place BUY order",
+      },
+      {
+        type: "polymarket_lp_fill_order",
+        title: "Polymarket LP Fill Order",
+        description: "Calls /api/trading/lp/fill-order – place limit SELL, poll for fill or revert",
       },
       {
         type: "polymarket_action",

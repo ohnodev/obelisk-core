@@ -1,0 +1,70 @@
+{
+  "id": "workflow-cross-chain-lp-fill",
+  "name": "Cross-chain LP Fill Order",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "express_service",
+      "position": { "x": -200, "y": 0 },
+      "size": [280, 100],
+      "inputs": {},
+      "metadata": {
+        "port": "{{process.env.AUTOTRADER_STATS_PORT}}",
+        "host": "0.0.0.0"
+      }
+    },
+    {
+      "id": "2",
+      "type": "lp_fill_order_listener",
+      "position": { "x": 120, "y": 0 },
+      "size": [260, 100],
+      "inputs": {},
+      "metadata": { "path": "/lp/fill-order" }
+    },
+    {
+      "id": "3",
+      "type": "polymarket_lp_fill_order",
+      "position": { "x": 440, "y": 0 },
+      "size": [300, 140],
+      "inputs": {},
+      "metadata": { "base_url": "{{process.env.POLYMARKET_SERVICE_URL}}" }
+    },
+    {
+      "id": "4",
+      "type": "http_response",
+      "position": { "x": 800, "y": -60 },
+      "size": [240, 100],
+      "inputs": {},
+      "metadata": {}
+    },
+    {
+      "id": "5",
+      "type": "boolean_logic",
+      "position": { "x": 800, "y": 80 },
+      "size": [220, 100],
+      "inputs": {},
+      "metadata": { "operation": "AND" }
+    },
+    {
+      "id": "6",
+      "type": "multicall_stub",
+      "position": { "x": 1080, "y": 80 },
+      "size": [200, 80],
+      "inputs": {},
+      "metadata": {}
+    }
+  ],
+  "connections": [
+    { "from": "1", "from_output": "express_service", "to": "2", "to_input": "express_service" },
+    { "from": "2", "from_output": "trigger", "to": "3", "to_input": "trigger" },
+    { "from": "2", "from_output": "request_id", "to": "3", "to_input": "request_id" },
+    { "from": "2", "from_output": "raw_body", "to": "3", "to_input": "raw_body" },
+    { "from": "3", "from_output": "request_id", "to": "4", "to_input": "request_id" },
+    { "from": "3", "from_output": "status_code", "to": "4", "to_input": "status_code" },
+    { "from": "3", "from_output": "response_body", "to": "4", "to_input": "body" },
+    { "from": "3", "from_output": "filled", "to": "5", "to_input": "b" },
+    { "from": "5", "from_output": "trigger", "to": "6", "to_input": "trigger" },
+    { "from": "3", "from_output": "orderId", "to": "6", "to_input": "order_id" },
+    { "from": "3", "from_output": "request_id", "to": "6", "to_input": "request_id" }
+  ]
+}
