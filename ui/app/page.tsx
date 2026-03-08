@@ -11,8 +11,8 @@ import { getApiUrls } from "@/lib/api-config";
 import { getUserId } from "@/lib/user-id";
 import "@/components/nodes"; // Register all node types
 
-// Load default workflow: Polymarket Sniper V1
-import defaultWorkflowData from "../workflows/polymarket-sniper-v1.json";
+// Load default workflow: Cross-chain LP Fill Order V1
+import defaultWorkflowData from "../workflows/cross-chain-lp-fill-order-v1.json";
 
 const DEFAULT_WORKFLOW: WorkflowGraph = defaultWorkflowData as WorkflowGraph;
 
