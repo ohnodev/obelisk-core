@@ -20,7 +20,7 @@ class LpFillOrderListenerNode extends LGraphNode {
     this.addOutput("path", "string");
     this.addOutput("method", "string");
 
-    this.size = [260, 120];
+    this.size = [260, 150];
     (this as any).type = "lp_fill_order_listener";
     (this as any).resizable = true;
 

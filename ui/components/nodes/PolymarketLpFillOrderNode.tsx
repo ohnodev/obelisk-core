@@ -26,7 +26,7 @@ class PolymarketLpFillOrderNode extends LGraphNode {
     this.addOutput("status_code", "number");
     this.addOutput("response_body", "object");
 
-    this.size = [300, 180];
+    this.size = [320, 240];
     (this as any).type = "polymarket_lp_fill_order";
     (this as any).resizable = true;
 
