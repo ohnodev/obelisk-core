@@ -15,6 +15,8 @@ const logger = getLogger("lpFillOrderListener");
 
 const MAX_QUEUE_SIZE = 10;
 
+const PROCESSING_TIMEOUT_MS = 30_000;
+
 interface QueuedRequest {
   requestId: string;
   method: string;
@@ -34,7 +36,9 @@ export class LpFillOrderListenerNode extends BaseNode {
 
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
-    this._path = String(this.metadata.path ?? "/lp/fill-order");
+    const raw = this.metadata.path ?? "/lp/fill-order";
+    const resolved = this.resolveEnvVar(raw);
+    this._path = String(resolved ?? raw).trim() || "/lp/fill-order";
     logger.debug(`[LpFillOrderListener ${nodeId}] Initialized: path=${this._path}`);
   }
 
@@ -99,16 +103,6 @@ export class LpFillOrderListenerNode extends BaseNode {
       this._pending.push(queued);
 
       logger.info(`[LpFillOrderListener ${this.nodeId}] Queued POST ${requestId} ${req.path}`);
-
-      setTimeout(() => {
-        const idx = this._pending.findIndex((q) => q.requestId === requestId);
-        if (idx !== -1) this._pending.splice(idx, 1);
-        if (!res.headersSent) {
-          HttpRequestRegistry.resolve(requestId, 504, {
-            error: "LP fill-order request timed out",
-          });
-        }
-      }, 30_000);
     });
 
     logger.info(
@@ -131,6 +125,16 @@ export class LpFillOrderListenerNode extends BaseNode {
 
     const q = this._pending.shift()!;
     logger.info(`[LpFillOrderListener ${this.nodeId}] Processing fill-order request ${q.requestId}`);
+
+    const timeoutId = setTimeout(() => {
+      const resolved = HttpRequestRegistry.resolve(q.requestId, 504, {
+        error: "LP fill-order request timed out",
+      });
+      if (resolved) {
+        logger.warn(`[LpFillOrderListener ${this.nodeId}] Request ${q.requestId} timed out after ${PROCESSING_TIMEOUT_MS}ms`);
+      }
+    }, PROCESSING_TIMEOUT_MS);
+    HttpRequestRegistry.registerCleanup(q.requestId, () => clearTimeout(timeoutId));
 
     return {
       trigger: true,

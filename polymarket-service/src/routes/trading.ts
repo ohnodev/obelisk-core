@@ -222,32 +222,60 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
     return;
   }
   const sizeNum = Number(size);
-  if (!Number.isFinite(sizeNum) || sizeNum <= 0) {
-    res.status(400).json({ error: 'amount/size must be a positive number' });
+  if (!Number.isFinite(sizeNum) || sizeNum < 1 || sizeNum !== Math.floor(sizeNum)) {
+    res.status(400).json({
+      error: 'amount/size must be a positive integer >= 1 (fractional sizes not supported)',
+    });
     return;
   }
 
+  let orderId: string | null = null;
+  const cancelAndRespond = async (
+    status: number,
+    body: { filled?: boolean; error?: string; orderId?: string }
+  ): Promise<void> => {
+    if (orderId) {
+      try {
+        await cancelOrder(orderId, pk);
+      } catch (cancelErr) {
+        console.error('[Trading] lp/fill-order cancel failed:', orderId, cancelErr);
+        body.error = body.error ?? (cancelErr instanceof Error ? cancelErr.message : 'Cancel failed');
+      }
+    }
+    res.status(status).json(body);
+  };
+
   try {
-    const { orderId } = await placeOrder(
+    const placed = await placeOrder(
       {
         tokenId,
         side: 'SELL',
         price: requestedPrice,
-        size: Math.floor(sizeNum),
+        size: sizeNum,
       },
       pk,
     );
+    orderId = placed.orderId;
 
     const deadline = Date.now() + expiryMs;
     let filled = false;
-    while (Date.now() < deadline) {
-      const open = await getOpenOrders({ asset_id: tokenId }, pk);
-      const stillOpen = open.some((o) => o.id === orderId);
-      if (!stillOpen) {
-        filled = true;
-        break;
+    try {
+      while (Date.now() < deadline) {
+        const open = await getOpenOrders({ asset_id: tokenId }, pk);
+        const stillOpen = open.some((o) => o.id === orderId);
+        if (!stillOpen) {
+          filled = true;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, FILL_POLL_INTERVAL_MS));
       }
-      await new Promise((r) => setTimeout(r, FILL_POLL_INTERVAL_MS));
+    } catch (pollErr) {
+      await cancelAndRespond(500, {
+        filled: false,
+        error: pollErr instanceof Error ? pollErr.message : 'Unknown error',
+        orderId: orderId ?? undefined,
+      });
+      return;
     }
 
     if (filled) {
@@ -255,12 +283,7 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
       return;
     }
 
-    try {
-      await cancelOrder(orderId, pk);
-    } catch (cancelErr) {
-      console.error('[Trading] lp/fill-order cancel failed:', cancelErr);
-    }
-    res.status(408).json({
+    await cancelAndRespond(408, {
       filled: false,
       error: 'Order did not fill within expiry',
       orderId,
@@ -268,7 +291,7 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[Trading] lp/fill-order error:', err);
-    res.status(500).json({ error: msg, filled: false });
+    await cancelAndRespond(500, { filled: false, error: msg, orderId: orderId ?? undefined });
   }
 });
 

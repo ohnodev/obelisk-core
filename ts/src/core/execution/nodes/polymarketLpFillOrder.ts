@@ -123,10 +123,20 @@ export class PolymarketLpFillOrderNode extends BaseNode {
       const orderId = (result.data?.orderId as string) ?? null;
       const errMsg = result.data?.error as string | undefined;
 
-      const statusCode = result.ok && filled ? 200 : 408;
-      const responseBody: Record<string, unknown> = result.ok && filled
-        ? { status: "filled", processing: true, request_id: requestId, orderId }
-        : { filled: false, error: result.ok ? (errMsg ?? "Order did not fill within expiry") : (result.error ?? errMsg), request_id: requestId };
+      const statusCode =
+        result.ok && filled
+          ? 200
+          : (Number.isFinite(result.status) && result.status >= 400 ? result.status : 408);
+      const responseBody: Record<string, unknown> =
+        result.ok && filled
+          ? { status: "filled", processing: true, request_id: requestId, orderId }
+          : {
+              filled: false,
+              error: result.ok
+                ? (errMsg ?? "Order did not fill within expiry")
+                : (result.error ?? errMsg),
+              request_id: requestId,
+            };
 
       const out = {
         success: result.ok && filled,
