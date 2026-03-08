@@ -19,6 +19,7 @@ const PROCESSING_TIMEOUT_MS = 30_000;
 
 interface QueuedRequest {
   requestId: string;
+  idempotencyKey: string;
   method: string;
   path: string;
   rawBody: string;
@@ -29,7 +30,15 @@ interface QueuedRequest {
 
 interface InFlightRequest {
   requestId: string;
+  idempotencyKey: string;
   timeoutId: ReturnType<typeof setTimeout>;
+}
+
+interface IdempotencyEntry {
+  requestId: string;
+  status: "processing" | "completed";
+  result?: { status: number; body: unknown };
+  replayResolvers: Array<(r: { status: number; body: unknown }) => void>;
 }
 
 export class LpFillOrderListenerNode extends BaseNode {
@@ -39,6 +48,7 @@ export class LpFillOrderListenerNode extends BaseNode {
   private _app: express.Application | null = null;
   private _pending: QueuedRequest[] = [];
   private _currentRequest: InFlightRequest | null = null;
+  private _inFlightByIdempotencyKey = new Map<string, IdempotencyEntry>();
 
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
@@ -89,26 +99,79 @@ export class LpFillOrderListenerNode extends BaseNode {
         }
       }
 
+      const rawBody =
+        typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {});
+      let bodyObj: Record<string, unknown> = {};
+      try {
+        bodyObj = rawBody ? (JSON.parse(rawBody) as Record<string, unknown>) : {};
+      } catch (_) {
+        /* parse later */
+      }
+      const idempotencyKey = String(
+        (req.headers["idempotency-key"] as string) ?? bodyObj.idempotencyKey ?? bodyObj.idempotency_key ?? ""
+      ).trim();
+      if (!idempotencyKey) {
+        res.status(400).json({
+          error: "Missing Idempotency-Key (header or body idempotencyKey)",
+        });
+        return;
+      }
+
+      const existing = this._inFlightByIdempotencyKey.get(idempotencyKey);
+      if (existing) {
+        if (existing.status === "completed" && existing.result) {
+          if (!res.headersSent) res.status(existing.result.status).json(existing.result.body);
+          return;
+        }
+        existing.replayResolvers.push(({ status, body }) => {
+          if (!res.headersSent) res.status(status).json(body);
+        });
+        return;
+      }
+
       if (this._pending.length >= MAX_QUEUE_SIZE) {
         res.status(429).json({ error: "Too many requests", message: "LP fill-order queue full" });
         return;
       }
 
       const requestId = randomUUID();
-      const rawBody =
-        typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? {});
+      const primaryResolve = ({ status, body }: { status: number; body: unknown }) => {
+        if (!res.headersSent) res.status(status).json(body);
+      };
+      const replayResolvers: Array<(r: { status: number; body: unknown }) => void> = [primaryResolve];
+      const wrappedResolve = ({ status, body }: { status: number; body: unknown }) => {
+        const entry = this._inFlightByIdempotencyKey.get(idempotencyKey);
+        if (entry) {
+          entry.status = "completed";
+          entry.result = { status, body };
+          for (const r of entry.replayResolvers) r({ status, body });
+          this._inFlightByIdempotencyKey.delete(idempotencyKey);
+        }
+      };
+
+      this._inFlightByIdempotencyKey.set(idempotencyKey, {
+        requestId,
+        status: "processing",
+        replayResolvers,
+      });
 
       const queued: QueuedRequest = {
         requestId,
+        idempotencyKey,
         method: req.method,
         path: req.path,
         rawBody,
         timestamp: Date.now(),
-        resolve: ({ status, body }) => {
-          if (!res.headersSent) res.status(status).json(body);
-        },
+        resolve: wrappedResolve,
         reject: (err) => {
-          if (!res.headersSent) res.status(500).json({ error: err.message });
+          const entry = this._inFlightByIdempotencyKey.get(idempotencyKey);
+          if (entry) {
+            const body = { error: err.message };
+            for (const r of entry.replayResolvers) r({ status: 500, body });
+            this._inFlightByIdempotencyKey.delete(idempotencyKey);
+          } else if (!res.headersSent) {
+            res.status(500).json({ error: err.message });
+          }
         },
       };
 
@@ -126,7 +189,7 @@ export class LpFillOrderListenerNode extends BaseNode {
       });
       this._pending.push(queued);
 
-      logger.info(`[LpFillOrderListener ${this.nodeId}] Queued POST ${requestId} ${req.path}`);
+      logger.info(`[LpFillOrderListener ${this.nodeId}] Queued POST ${requestId} idempotency=${idempotencyKey}`);
     });
 
     logger.info(
@@ -145,6 +208,7 @@ export class LpFillOrderListenerNode extends BaseNode {
   }
 
   async onTick(_context: ExecutionContext): Promise<Record<string, unknown> | null> {
+    if (this._currentRequest) return null;
     if (!this._pending.length) return null;
 
     const q = this._pending.shift()!;
@@ -162,7 +226,7 @@ export class LpFillOrderListenerNode extends BaseNode {
       }
     }, PROCESSING_TIMEOUT_MS);
 
-    this._currentRequest = { requestId: q.requestId, timeoutId };
+    this._currentRequest = { requestId: q.requestId, idempotencyKey: q.idempotencyKey, timeoutId };
     HttpRequestRegistry.registerCleanup(q.requestId, () => {
       clearTimeout(timeoutId);
       if (this._currentRequest?.requestId === q.requestId) {
@@ -188,6 +252,11 @@ export class LpFillOrderListenerNode extends BaseNode {
 
     if (this._currentRequest) {
       clearTimeout(this._currentRequest.timeoutId);
+      const entry = this._inFlightByIdempotencyKey.get(this._currentRequest.idempotencyKey);
+      if (entry) {
+        for (const r of entry.replayResolvers) r({ status: 503, body });
+        this._inFlightByIdempotencyKey.delete(this._currentRequest.idempotencyKey);
+      }
       HttpRequestRegistry.resolve(this._currentRequest.requestId, 503, body);
       this._currentRequest = null;
     }

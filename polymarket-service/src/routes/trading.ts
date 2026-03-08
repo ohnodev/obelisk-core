@@ -188,8 +188,8 @@ router.post('/housekeeping', requireTradingAuth, async (req: Request, res: Respo
  * POST /lp/fill-order – Cross-chain LP fill-or-revert.
  * Place limit SELL on Polymarket; poll up to expiryMs; if filled return success, else cancel and return error.
  */
-const DEFAULT_FILL_EXPIRY_MS = 1800;
-const FILL_POLL_INTERVAL_MS = 250;
+const DEFAULT_FILL_EXPIRY_MS = 2000;
+const FILL_POLL_INTERVAL_MS = 1000;
 
 router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Response) => {
   const body = (req.body ?? {}) as {
@@ -212,7 +212,8 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
   }
   const tokenId = body.tokenId?.trim();
   const size = body.size ?? body.amount;
-  const requestedPrice = body.requestedPrice != null ? Number(body.requestedPrice) : NaN;
+  let requestedPrice = body.requestedPrice != null ? Number(body.requestedPrice) : NaN;
+  const slippage = Math.max(0, Math.min(1, Number(body.slippage) || 0));
   const expiryMs = Math.min(Math.max(Number(body.expiryMs) || DEFAULT_FILL_EXPIRY_MS, 500), 10000);
 
   if (!tokenId || size == null || !Number.isFinite(requestedPrice) || requestedPrice <= 0) {
@@ -228,6 +229,8 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
     });
     return;
   }
+
+  requestedPrice = requestedPrice * (1 - slippage);
 
   let orderId: string | null = null;
   const cancelAndRespond = async (
