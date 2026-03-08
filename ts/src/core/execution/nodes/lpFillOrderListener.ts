@@ -27,12 +27,18 @@ interface QueuedRequest {
   reject: (error: Error) => void;
 }
 
+interface InFlightRequest {
+  requestId: string;
+  timeoutId: ReturnType<typeof setTimeout>;
+}
+
 export class LpFillOrderListenerNode extends BaseNode {
   static override executionMode = ExecutionMode.CONTINUOUS;
 
   private _path: string;
   private _app: express.Application | null = null;
   private _pending: QueuedRequest[] = [];
+  private _currentRequest: InFlightRequest | null = null;
 
   constructor(nodeId: string, nodeData: import("../../types").NodeData) {
     super(nodeId, nodeData);
@@ -65,6 +71,24 @@ export class LpFillOrderListenerNode extends BaseNode {
 
     this._app = sharedApp;
     this._app.post(this._path, (req, res) => {
+      const apiKey = process.env.LP_FILL_ORDER_API_KEY ?? process.env.POLYMARKET_TRADING_API_KEY;
+      const allowUnauth =
+        process.env.ALLOW_UNAUTHENTICATED_LP_FILL_ORDER === "true" ||
+        process.env.ALLOW_UNAUTHENTICATED_LP_FILL_ORDER === "1";
+      if (!apiKey && !allowUnauth) {
+        res.status(401).json({
+          error: "Auth required (LP_FILL_ORDER_API_KEY or ALLOW_UNAUTHENTICATED_LP_FILL_ORDER)",
+        });
+        return;
+      }
+      if (apiKey) {
+        const key = (req.headers["x-api-key"] as string) ?? (req.headers["authorization"] as string)?.replace(/^Bearer\s+/i, "");
+        if (key !== apiKey) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+      }
+
       if (this._pending.length >= MAX_QUEUE_SIZE) {
         res.status(429).json({ error: "Too many requests", message: "LP fill-order queue full" });
         return;
@@ -133,8 +157,18 @@ export class LpFillOrderListenerNode extends BaseNode {
       if (resolved) {
         logger.warn(`[LpFillOrderListener ${this.nodeId}] Request ${q.requestId} timed out after ${PROCESSING_TIMEOUT_MS}ms`);
       }
+      if (this._currentRequest?.requestId === q.requestId) {
+        this._currentRequest = null;
+      }
     }, PROCESSING_TIMEOUT_MS);
-    HttpRequestRegistry.registerCleanup(q.requestId, () => clearTimeout(timeoutId));
+
+    this._currentRequest = { requestId: q.requestId, timeoutId };
+    HttpRequestRegistry.registerCleanup(q.requestId, () => {
+      clearTimeout(timeoutId);
+      if (this._currentRequest?.requestId === q.requestId) {
+        this._currentRequest = null;
+      }
+    });
 
     return {
       trigger: true,
@@ -151,6 +185,12 @@ export class LpFillOrderListenerNode extends BaseNode {
       message: "LP fill-order listener shutting down",
       node_id: this.nodeId,
     };
+
+    if (this._currentRequest) {
+      clearTimeout(this._currentRequest.timeoutId);
+      HttpRequestRegistry.resolve(this._currentRequest.requestId, 503, body);
+      this._currentRequest = null;
+    }
     for (const q of this._pending) {
       HttpRequestRegistry.resolve(q.requestId, 503, body);
     }

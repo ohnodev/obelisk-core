@@ -53,9 +53,9 @@ export class PolymarketLpFillOrderNode extends BaseNode {
     }
 
     const tokenId = asString(body.tokenId ?? body.token_id);
-    const amount = body.amount ?? body.size;
+    const quantity = body.size ?? body.amount;
     const requestedPrice = body.requestedPrice ?? body.price;
-    if (!tokenId || amount == null || (requestedPrice != null && Number(requestedPrice) <= 0)) {
+    if (!tokenId || quantity == null || (requestedPrice != null && Number(requestedPrice) <= 0)) {
       const err = "Missing or invalid required fields: tokenId, amount/size, requestedPrice";
       const out = {
         success: false,
@@ -97,11 +97,12 @@ export class PolymarketLpFillOrderNode extends BaseNode {
     }
 
     const baseUrl = resolvePolymarketBaseUrl(this, context);
+    const sizeNum = Number(quantity);
     const payload = {
       privateKey: privateKey,
       tokenId,
-      amount: Number(amount),
-      size: Number(amount),
+      amount: sizeNum,
+      size: sizeNum,
       requestedPrice: Number(requestedPrice),
       slippage: body.slippage != null ? Number(body.slippage) : undefined,
       expiryMs: body.expiryMs != null ? Number(body.expiryMs) : undefined,
@@ -121,7 +122,8 @@ export class PolymarketLpFillOrderNode extends BaseNode {
 
       const filled = result.data?.filled === true;
       const orderId = (result.data?.orderId as string) ?? null;
-      const errMsg = result.data?.error as string | undefined;
+      const serviceError = (result.data?.error as string) ?? (result.data?.message as string);
+      const errMsg = serviceError ?? result.error;
 
       const statusCode =
         result.ok && filled
@@ -133,8 +135,8 @@ export class PolymarketLpFillOrderNode extends BaseNode {
           : {
               filled: false,
               error: result.ok
-                ? (errMsg ?? "Order did not fill within expiry")
-                : (result.error ?? errMsg),
+                ? (serviceError ?? "Order did not fill within expiry")
+                : errMsg,
               request_id: requestId,
             };
 
@@ -142,7 +144,7 @@ export class PolymarketLpFillOrderNode extends BaseNode {
         success: result.ok && filled,
         filled,
         orderId,
-        error: result.ok ? (filled ? null : errMsg ?? "Order did not fill within expiry") : (result.error ?? errMsg),
+        error: result.ok ? (filled ? null : (serviceError ?? "Order did not fill within expiry")) : errMsg,
         request_id: requestId,
         status_code: statusCode,
         response_body: responseBody,

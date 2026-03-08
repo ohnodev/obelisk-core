@@ -239,7 +239,9 @@ router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Resp
         await cancelOrder(orderId, pk);
       } catch (cancelErr) {
         console.error('[Trading] lp/fill-order cancel failed:', orderId, cancelErr);
-        body.error = body.error ?? (cancelErr instanceof Error ? cancelErr.message : 'Cancel failed');
+        const cancelMsg = cancelErr instanceof Error ? cancelErr.message : 'Cancel failed';
+        body.error = body.error ? `${body.error}; cancel failed: ${cancelMsg}` : cancelMsg;
+        status = 500;
       }
     }
     res.status(status).json(body);
