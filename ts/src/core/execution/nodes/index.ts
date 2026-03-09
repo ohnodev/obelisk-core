@@ -52,4 +52,7 @@ export { PolymarketOrderNode } from "./polymarketOrder";
 export { PolymarketActionNode } from "./polymarketAction";
 export { PolymarketTradeLoggerNode } from "./polymarketTradeLogger";
 export { PolymarketStatusListenerNode } from "./polymarketStatusListener";
+export { LpFillOrderListenerNode } from "./lpFillOrderListener";
+export { PolymarketLpFillOrderNode } from "./polymarketLpFillOrder";
+export { MulticallStubNode } from "./multicallStub";
 export type { ClankerBagState, BagHolding } from "./clankerBags";

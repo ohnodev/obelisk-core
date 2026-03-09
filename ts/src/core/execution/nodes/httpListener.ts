@@ -47,14 +47,29 @@ interface QueuedRequest {
  */
 export class HttpRequestRegistry {
   private static pendingRequests = new Map<string, QueuedRequest>();
+  private static cleanupCallbacks = new Map<string, () => void>();
 
   static register(req: QueuedRequest): void {
     this.pendingRequests.set(req.requestId, req);
   }
 
+  /** Register a cleanup (e.g. clearTimeout) to run when this request is resolved. */
+  static registerCleanup(requestId: string, cleanup: () => void): void {
+    this.cleanupCallbacks.set(requestId, cleanup);
+  }
+
   static resolve(requestId: string, status: number, body: unknown): boolean {
     const req = this.pendingRequests.get(requestId);
     if (!req) return false;
+    const cleanup = this.cleanupCallbacks.get(requestId);
+    if (cleanup) {
+      try {
+        cleanup();
+      } catch (_) {
+        /* ignore */
+      }
+      this.cleanupCallbacks.delete(requestId);
+    }
     req.resolve({ status, body });
     this.pendingRequests.delete(requestId);
     return true;
@@ -63,6 +78,15 @@ export class HttpRequestRegistry {
   static reject(requestId: string, error: Error): boolean {
     const req = this.pendingRequests.get(requestId);
     if (!req) return false;
+    const cleanup = this.cleanupCallbacks.get(requestId);
+    if (cleanup) {
+      try {
+        cleanup();
+      } catch (_) {
+        /* ignore */
+      }
+      this.cleanupCallbacks.delete(requestId);
+    }
     req.reject(error);
     this.pendingRequests.delete(requestId);
     return true;

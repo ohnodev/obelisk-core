@@ -58,6 +58,9 @@ import { PolymarketActionNode } from "./nodes/polymarketAction";
 import { PolymarketTradeLoggerNode } from "./nodes/polymarketTradeLogger";
 import { PolymarketActionLoggerNode } from "./nodes/polymarketActionLogger";
 import { PolymarketStatusListenerNode } from "./nodes/polymarketStatusListener";
+import { LpFillOrderListenerNode } from "./nodes/lpFillOrderListener";
+import { PolymarketLpFillOrderNode } from "./nodes/polymarketLpFillOrder";
+import { MulticallStubNode } from "./nodes/multicallStub";
 import { PolymarketStatsNode } from "./nodes/polymarketStats";
 import { PolymarketTradeOutcomeUpdaterNode } from "./nodes/polymarketTradeOutcomeUpdater";
 
@@ -140,6 +143,9 @@ export function registerAllNodes(): void {
   registerNode("polymarket_trade_logger", PolymarketTradeLoggerNode);
   registerNode("polymarket_action_logger", PolymarketActionLoggerNode);
   registerNode("polymarket_status_listener", PolymarketStatusListenerNode);
+  registerNode("lp_fill_order_listener", LpFillOrderListenerNode);
+  registerNode("polymarket_lp_fill_order", PolymarketLpFillOrderNode);
+  registerNode("multicall_stub", MulticallStubNode);
   registerNode("polymarket_stats", PolymarketStatsNode);
   registerNode("polymarket_trade_outcome_updater", PolymarketTradeOutcomeUpdaterNode);
 

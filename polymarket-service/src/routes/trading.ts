@@ -184,6 +184,122 @@ router.post('/housekeeping', requireTradingAuth, async (req: Request, res: Respo
   }
 });
 
+/**
+ * POST /lp/fill-order – Cross-chain LP fill-or-revert.
+ * Place limit SELL on Polymarket; poll up to expiryMs; if filled return success, else cancel and return error.
+ */
+const DEFAULT_FILL_EXPIRY_MS = 2000;
+const FILL_POLL_INTERVAL_MS = 1000;
+
+router.post('/lp/fill-order', requireTradingAuth, async (req: Request, res: Response) => {
+  const body = (req.body ?? {}) as {
+    privateKey?: string;
+    tokenId?: string;
+    amount?: number;
+    size?: number;
+    requestedPrice?: number;
+    slippage?: number;
+    expiryMs?: number;
+  };
+  const pk = body.privateKey?.trim() || null;
+  if (!pk) {
+    res.status(400).json({ error: 'privateKey is required in request body' });
+    return;
+  }
+  if (!isValidHexPrivateKey(pk)) {
+    res.status(400).json({ error: 'privateKey must be a 32-byte hex string (64 hex chars or 66 with 0x prefix)' });
+    return;
+  }
+  const tokenId = body.tokenId?.trim();
+  const size = body.size ?? body.amount;
+  let requestedPrice = body.requestedPrice != null ? Number(body.requestedPrice) : NaN;
+  const slippage = Math.max(0, Math.min(1, Number(body.slippage) || 0));
+  const expiryMs = Math.min(Math.max(Number(body.expiryMs) || DEFAULT_FILL_EXPIRY_MS, 500), 10000);
+
+  if (!tokenId || size == null || !Number.isFinite(requestedPrice) || requestedPrice <= 0) {
+    res.status(400).json({
+      error: 'Missing or invalid required fields: tokenId, amount/size, requestedPrice (positive number)',
+    });
+    return;
+  }
+  const sizeNum = Number(size);
+  if (!Number.isFinite(sizeNum) || sizeNum < 1 || sizeNum !== Math.floor(sizeNum)) {
+    res.status(400).json({
+      error: 'amount/size must be a positive integer >= 1 (fractional sizes not supported)',
+    });
+    return;
+  }
+
+  requestedPrice = requestedPrice * (1 - slippage);
+
+  let orderId: string | null = null;
+  const cancelAndRespond = async (
+    status: number,
+    body: { filled?: boolean; error?: string; orderId?: string }
+  ): Promise<void> => {
+    if (orderId) {
+      try {
+        await cancelOrder(orderId, pk);
+      } catch (cancelErr) {
+        console.error('[Trading] lp/fill-order cancel failed:', orderId, cancelErr);
+        const cancelMsg = cancelErr instanceof Error ? cancelErr.message : 'Cancel failed';
+        body.error = body.error ? `${body.error}; cancel failed: ${cancelMsg}` : cancelMsg;
+        status = 500;
+      }
+    }
+    res.status(status).json(body);
+  };
+
+  try {
+    const placed = await placeOrder(
+      {
+        tokenId,
+        side: 'SELL',
+        price: requestedPrice,
+        size: sizeNum,
+      },
+      pk,
+    );
+    orderId = placed.orderId;
+
+    const deadline = Date.now() + expiryMs;
+    let filled = false;
+    try {
+      while (Date.now() < deadline) {
+        const open = await getOpenOrders({ asset_id: tokenId }, pk);
+        const stillOpen = open.some((o) => o.id === orderId);
+        if (!stillOpen) {
+          filled = true;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, FILL_POLL_INTERVAL_MS));
+      }
+    } catch (pollErr) {
+      await cancelAndRespond(500, {
+        filled: false,
+        error: pollErr instanceof Error ? pollErr.message : 'Unknown error',
+        orderId: orderId ?? undefined,
+      });
+      return;
+    }
+
+    if (filled) {
+      res.status(200).json({ filled: true, orderId });
+      return;
+    }
+
+    await cancelAndRespond(408, {
+      filled: false,
+      error: 'Order did not fill within expiry',
+      orderId,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Trading] lp/fill-order error:', err);
+    await cancelAndRespond(500, { filled: false, error: msg, orderId: orderId ?? undefined });
+  }
+});
+
 router.get('/status', (_req: Request, res: Response) => {
   res.json({
     service: 'polymarket-service',

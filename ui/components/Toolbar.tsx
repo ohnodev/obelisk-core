@@ -22,6 +22,7 @@ import { useNotifications } from "./Notification";
 import clankerAutotraderV1Template from "@/workflows/clanker-autotrader-v1.2.json";
 import basemarketLpBotV1Template from "@/workflows/basemarket-lp-bot-v1.json";
 import polymarketSniperV1Template from "@/workflows/polymarket-sniper-v1.json";
+import crossChainLpFillOrderV1Template from "@/workflows/cross-chain-lp-fill-order-v1.json";
 import telegramV1Template from "@/workflows/default.json";
 import girlfriendTemplate from "@/workflows/girlfriend.json";
 import clawballsTemplate from "@/workflows/clawballs.json";
@@ -46,6 +47,12 @@ const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     name: "Basemarket LP Bot V1",
     description: "Deterministic round-start and +60s scheduling for Basemarket mint/sell/close/refund/redeem flow",
     data: basemarketLpBotV1Template,
+  },
+  {
+    id: "cross-chain-lp-fill-order-v1",
+    name: "Cross-chain LP Fill Order V1",
+    description: "POST /lp/fill-order: place limit SELL on Polymarket, poll for fill; on fill return 200 and run multicall stub on Base",
+    data: crossChainLpFillOrderV1Template,
   },
   {
     id: "clanker-autotrader-v1.2",
@@ -88,6 +95,7 @@ const AUTONOMOUS_NODE_TYPES = new Set([
   "express_service",
   "autotrader_stats_listener",
   "sell_bags_listener",
+  "lp_fill_order_listener",
   "polymarket_status_listener",
 ]);
 
